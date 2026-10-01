@@ -179,21 +179,28 @@ export const TRENCH_LAYOUT = {
   capW: 34,
   /** How far occupants sink. */
   sink: VIEW.trenchDepth,
-  /** All y values are relative to the trench's ground line (VIEW.groundY). */
-  /** Far lip of the pit. */
+  /**
+   * All y values are relative to the trench's ground line (VIEW.groundY). The pit is cut into the ground band
+   * between the far row (lipY) and the near rows; occupants stand on its floor at VIEW.trenchFeetY.
+   */
+  /** Far lip of the pit, on the far row's ground. */
   lipY: -30,
-  /** Where the back wall meets the floor (lipY + sink). */
-  floorY: -6,
-  /** Top of the front sandbag parapet. */
-  parapetTopY: 6,
-  /** Bottom of the earth berm under the front sandbags; covers sunk feet in the nearest row. */
-  parapetBottomY: 52,
-  /** Back piece (wall, floor, duckboards): origin = left edge on the ground line. */
+  /** Crest of the spoil (parados) heaped behind the far lip. */
+  paradosY: -35,
+  /** The far wall is in full shadow from here down (the floor itself is never seen). */
+  shadowY: 4,
+  /** Crest of the earth parapet thrown up in front of the pit. */
+  crestY: 2,
+  /** Top of the single course of sandbags bedded along that crest: the cover line occupants show above. */
+  bagTopY: -6,
+  /** Where the parapet's near face has blended back into the ground; covers sunk feet in the nearest row. */
+  bermBottomY: 54,
+  /** Back piece (spoil, far wall, pit): origin = left edge on the ground line. */
   backH: 90,
   backOy: 44,
   /** Front piece (parapet): origin = left edge on the ground line. */
-  frontH: 64,
-  frontOy: 8,
+  frontH: 70,
+  frontOy: 14,
   bagW: 18,
   bagH: 10,
 } as const;

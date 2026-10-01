@@ -260,9 +260,17 @@ export class BattleViewImpl implements BattleView {
     const colours = getTheatreColours(mission.theatre, mission.timeOfDay);
     this.nightAlpha = colours.nightTintAlpha;
     if (this.nightTint) this.nightTint.setTint(colours.int.nightTint);
-    const specs = StructureViews.battleSpecs(state);
+    // Trenches are dug in this theatre's earth.
+    const earth = {
+      id: `${mission.theatre}-${mission.timeOfDay}`,
+      ground: colours.ground,
+      groundDark: colours.groundDark,
+      soil: colours.soil,
+      soilDark: colours.soilDark,
+    };
+    const specs = StructureViews.battleSpecs(state, earth);
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
-    this.structures.build(state);
+    this.structures.build(state, earth);
     this.units.reset(opts.visualSeed);
     this.effects.clear();
     this.effects.ctx.state = state;

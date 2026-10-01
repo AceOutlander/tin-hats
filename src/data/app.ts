@@ -95,8 +95,9 @@ export const APP: AppTunables = {
     airStrike: 'A fighter-bomber rockets a strip of the battlefield. Strong against tanks and clusters.',
   },
   statLabels: {
-    sapperSpeed: 'sapper speed',
-    sapperCarry: 'supplies carried',
+    // Short: each level line sits beside the card's buttons (the card is already the Sapper Drill).
+    sapperSpeed: 'speed',
+    sapperCarry: 'load',
     hqIncome: 'HQ income',
     hqHealth: 'HQ health',
     hqGunDamage: 'HQ gun damage',

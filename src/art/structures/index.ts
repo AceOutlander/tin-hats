@@ -13,7 +13,7 @@ export { FLAG_KEYS, flagSpecs, flagStripTint, flagWave, type FlagId, type FlagWa
 export { hqKey, hqSpecs } from './hq';
 export { pillboxKey, pillboxSpecs } from './pillbox';
 export { createTileSpan, tileSpan, type TileSpan } from './span';
-export { TRENCH_KEYS, trenchKey, trenchKitSpecs, trenchSpec, type TrenchLayer } from './trench';
+export { TRENCH_BASE_PALETTE, TRENCH_KEYS, trenchKey, trenchKitSpecs, trenchSpec, type TrenchLayer, type TrenchPalette } from './trench';
 export { WIRE_KEYS, wireSpecs } from './wire';
 
 /** Every fixed structure sprite. (trenchSpec(layer, width) builds extra one-piece trench sprites on demand.) */

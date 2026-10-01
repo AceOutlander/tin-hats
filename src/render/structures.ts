@@ -5,7 +5,19 @@
  * for the left side facing right and mirrored for side 1.
  */
 import Phaser from 'phaser';
-import { FLAG_KEYS, WIRE_KEYS, createTileSpan, flagStripTint, flagWave, hqKey, pillboxKey, tileSpan, trenchKey, trenchSpec } from '../art/structures';
+import {
+  FLAG_KEYS,
+  WIRE_KEYS,
+  createTileSpan,
+  flagStripTint,
+  flagWave,
+  hqKey,
+  pillboxKey,
+  tileSpan,
+  trenchKey,
+  trenchSpec,
+  type TrenchPalette,
+} from '../art/structures';
 import { SUPPLY_KEYS } from '../art/props';
 import type { SpriteSpec } from '../art/types';
 import { FLAG_LAYOUT, HQ_LAYOUT, PILLBOX_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
@@ -159,15 +171,15 @@ export class StructureViews {
     this.flashInv = 1 / reg.get(FX_SPRITES.muzzle[1]).scale;
   }
 
-  /** One-piece trench sprites this battle needs (built into a per-battle atlas by the view). */
-  static battleSpecs(state: BattleState): SpriteSpec[] {
+  /** One-piece trench sprites this battle needs, dug in its theatre's earth (built into a per-battle atlas by the view). */
+  static battleSpecs(state: BattleState, palette: TrenchPalette): SpriteSpec[] {
     const out: SpriteSpec[] = [];
     const seen = new Set<number>();
     for (const t of state.trenches) {
       const w = Math.round(t.width);
       if (seen.has(w)) continue;
       seen.add(w);
-      out.push(trenchSpec('back', w), trenchSpec('front', w));
+      out.push(trenchSpec('back', w, palette), trenchSpec('front', w, palette));
     }
     return out;
   }
@@ -189,20 +201,22 @@ export class StructureViews {
     this.pillboxState.length = 0;
   }
 
-  /** Create the views for a battle's structures. */
-  build(state: BattleState): void {
+  /** Create the views for a battle's structures (`palette`: the one battleSpecs built its trenches in). */
+  build(state: BattleState, palette: TrenchPalette): void {
     this.clear();
     const reg = this.reg;
     const gy = VIEW.groundY;
     // Trench back walls first (DEPTH.trenchBack), then fronts (DEPTH.trenchFront).
     for (const t of state.trenches) {
-      const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(trenchKey('back', t.width)).frame);
-      setKey(back, reg, trenchKey('back', t.width), 1);
+      const backKey = trenchKey('back', t.width, palette);
+      const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(backKey).frame);
+      setKey(back, reg, backKey, 1);
       back.x = t.x;
       back.y = gy;
       this.trenchBack.push(back);
-      const front = addImage(this.scene, this.layers.byName.trenchFront, reg.get(trenchKey('front', t.width)).frame);
-      setKey(front, reg, trenchKey('front', t.width), 1);
+      const frontKey = trenchKey('front', t.width, palette);
+      const front = addImage(this.scene, this.layers.byName.trenchFront, reg.get(frontKey).frame);
+      setKey(front, reg, frontKey, 1);
       front.x = t.x;
       front.y = gy;
       this.trenchFront.push(front);

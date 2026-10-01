@@ -616,9 +616,15 @@ async function hudRun(browser: Browser, port: number): Promise<void> {
 
 // --- Phase 3: every mission, and the campaign screens ----------------------------------------
 
-/** Missions to capture (--missions=1,5,10; default all ten) and the battle seed (--mseed). */
+/**
+ * Missions to capture (--missions=1,5,10; default all ten), the base battle seed (--mseed; mission N uses
+ * mseed + N) and the missions shot in rain (--rainy=8; the others are forced clear so each theatre shows).
+ */
 const MISSION_IDS = (flags.get('missions') ?? '1,2,3,4,5,6,7,8,9,10').split(',').map(Number);
 const MISSION_SEED = Number(flags.get('mseed') ?? 7);
+const RAINY = new Set((flags.get('rainy') ?? '8').split(',').map(Number));
+/** Seed for a deadline mission (--lateseed): one where the bot is still fighting as night falls. */
+const LATE_SEED = Number(flags.get('lateseed') ?? 31);
 
 /** The most forward fighting unit of each side on the field (the player faces +x), or null. */
 async function fronts(page: Page): Promise<{ mine: number | null; theirs: number | null }> {
@@ -649,9 +655,11 @@ async function missionsRun(browser: Browser, port: number): Promise<void> {
     const m = MISSIONS.find((x) => x.id === id);
     if (!m) continue;
     const tag = `m${String(id).padStart(2, '0')}`;
-    await th<boolean>(page, `startMission(${id}, 'normal', ${MISSION_SEED})`);
+    const seed = m.timer && m.timer.onExpire === 'lose' ? LATE_SEED : MISSION_SEED + id;
+    await th<boolean>(page, `startMission(${id}, 'normal', ${seed})`);
     await waitFor(page, 'battle', async () => (await st(page)).screen === 'battle');
     await page.getByTestId('order-advance').waitFor({ timeout: 20_000 });
+    await th<void>(page, `forceWeather('${RAINY.has(id) ? 'rain' : 'clear'}')`);
     await waitFor(page, 'tick 45', async () => (await st(page)).tick > 45);
     await shot(page, `${tag}-open`);
     const enemy = [...m.trenches.filter((t) => t.owner === 1).map((t) => t.x), ...m.pillboxes.filter((p) => p.side === 1).map((p) => p.x)];
