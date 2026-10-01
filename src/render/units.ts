@@ -94,6 +94,8 @@ abstract class UnitViewBase {
   /** Crowd spread offset (wu, eased) and this frame's unspread x, see UnitViews.spreadCrowds. */
   crowd = 0;
   crowdTarget = 0;
+  /** True while a standing figure steps aside to make room (see UnitViews.spreadCrowds). */
+  shuffling = false;
   /** Seconds since death. */
   deadTime = 0;
   /** How far the unit is drawn below its row's ground line (wu), and how far it has stepped into a trench (0..1). */
@@ -252,6 +254,7 @@ class FigureView extends UnitViewBase {
     inp.inTrench = false;
     inp.carrying = false;
     inp.controlled = false;
+    inp.stepping = false;
     inp.victory = false;
     inp.fired = false;
     inp.hit = false;
@@ -539,8 +542,8 @@ export class UnitViews {
   drawn = 0;
   private readonly ring: Img;
   private readonly ringScale: number;
-  /** Scratch for the crowd spread: live figure views per (side, row), sorted by x, and their relaxed positions. */
-  private readonly lanes: FigureView[][] = [];
+  /** Scratch for the crowd spread: live figure views per side, sorted by x, and their spread positions. */
+  private readonly lanes: FigureView[][] = [[], []];
   private relaxed = new Float64Array(64);
 
   constructor(
@@ -551,7 +554,6 @@ export class UnitViews {
     for (let r = 0; r < VIEW.rows; r++) {
       this.figurePool.push([]);
       this.tankPool.push([]);
-      this.lanes.push([], []);
     }
     this.rng = createRng(1);
     const ring = reg.get(FX_KEYS.ui.selectRing);
@@ -626,6 +628,7 @@ export class UnitViews {
     v.jitter = isVehicle(u.kind) ? 0 : U.rowStagger[row] + (mixSeed(this.seed, u.id) / 4294967296 - 0.5) * 2 * U.xJitter;
     v.simX = u.prevX;
     v.crowd = 0;
+    v.shuffling = false;
     v.x = u.prevX + v.jitter * doorSpread(u, state);
     v.lastX = v.x;
     v.y = VIEW.groundY + VIEW.rowDy[row] * doorSpread(u, state);
@@ -738,9 +741,11 @@ export class UnitViews {
   }
 
   /**
-   * Crowd spread (view only): figures of one side on one depth row that stand closer than U.crowdGap are eased
-   * apart, up to U.crowdMax each, so a packed firing line reads as men rather than one black mass. Offsets only
-   * change while a unit is walking, so a standing figure never slides on the spot.
+   * Crowd spread (view only): figures of one side (all depth rows together) that stand closer than U.crowdGap along
+   * x are spread apart so a packed firing line reads as men rather than one black mass. The leading man keeps his
+   * place and the rest open out behind him (up to U.crowdMax), so the front of a line is always where the sim has it.
+   * A walking unit eases toward its spread place; a standing one that is badly crowded steps aside at
+   * U.crowdShuffle wu/s with its legs walking (never sliding on the spot).
    */
   private spreadCrowds(state: BattleState, dt: number): void {
     const lanes = this.lanes;
@@ -750,7 +755,7 @@ export class UnitViews {
       const v = this.bySlot[i];
       if (!(v instanceof FigureView) || units[i].inside) continue;
       v.crowdTarget = v.simX + v.jitter;
-      const lane = lanes[v.side * VIEW.rows + v.row];
+      const lane = lanes[v.side];
       // Insertion keeps the lane sorted by x (nearly sorted already from frame to frame).
       let k = lane.length;
       lane.push(v);
@@ -763,26 +768,35 @@ export class UnitViews {
     const gap = U.crowdGap;
     const max = U.crowdMax;
     const ease = dt > 0 ? 1 - Math.exp(-dt / U.crowdEase) : 0;
-    for (const lane of lanes) {
+    for (let side = 0; side < 2; side++) {
+      const lane = lanes[side];
       const m = lane.length;
       if (m === 0) continue;
       if (this.relaxed.length < m) this.relaxed = new Float64Array(m * 2);
       const p = this.relaxed;
-      for (let i = 0; i < m; i++) p[i] = lane[i].crowdTarget;
-      for (let pass = 0; pass < U.crowdPasses; pass++) {
-        for (let i = 1; i < m; i++) {
-          const d = p[i] - p[i - 1];
-          if (d < gap) {
-            const push = (gap - d) * 0.5;
-            p[i - 1] -= push;
-            p[i] += push;
-          }
-        }
+      // Sweep from the front (the side's facing end) back: each man stands at least `gap` behind the one ahead.
+      if (side === 0) {
+        p[m - 1] = lane[m - 1].crowdTarget;
+        for (let i = m - 2; i >= 0; i--) p[i] = Math.min(lane[i].crowdTarget, p[i + 1] - gap);
+      } else {
+        p[0] = lane[0].crowdTarget;
+        for (let i = 1; i < m; i++) p[i] = Math.max(lane[i].crowdTarget, p[i - 1] + gap);
       }
       for (let i = 0; i < m; i++) {
         const v = lane[i];
+        const u = units[v.slot];
         const want = Math.max(-max, Math.min(max, p[i] - v.crowdTarget));
-        if (Math.abs(units[v.slot].velX) > U.crowdMinSpeed) v.crowd += (want - v.crowd) * ease;
+        const d = want - v.crowd;
+        if (Math.abs(u.velX) > U.crowdMinSpeed) {
+          v.crowd += d * ease;
+          v.shuffling = false;
+        } else if (u.trenchId < 0 && (v.shuffling || Math.abs(d) > U.crowdDeadband)) {
+          // A man standing too close to his neighbour steps aside (the gait is driven by the drawn motion, so his
+          // feet step rather than slide).
+          const stepMax = U.crowdShuffle * dt;
+          v.crowd += Math.max(-stepMax, Math.min(stepMax, d));
+          v.shuffling = Math.abs(d) > stepMax;
+        }
       }
     }
   }
@@ -849,7 +863,11 @@ export class UnitViews {
       // When the battle is over the sim stops stepping, so velX and the action are stale: stand still, and the winners cheer.
       inp.action = state.over || u.action === 'inside' ? 'idle' : u.action;
       // The pose lives in figure space, drawn at row scale s: feed it figure-space distances so planted feet stay put.
-      inp.speed = state.over ? 0 : (u.velX * v.facing) / v.s;
+      // A standing man stepping aside walks with the drawn motion (a few short steps), not the sim's speed.
+      const stepping = v.shuffling && Math.abs(u.velX) <= U.crowdMinSpeed && dt > 0;
+      const speed = stepping ? moved / dt : state.over ? 0 : u.velX;
+      inp.speed = (speed * v.facing) / v.s;
+      inp.stepping = stepping;
       inp.moved = (moved * v.facing) / v.s;
       inp.inTrench = v.trenchW > 0.5;
       inp.carrying = u.carrying > 0;

@@ -106,15 +106,17 @@ export const RENDER = {
     /** Within this distance of their own HQ door units leave their depth row and formation offset (file in and out). */
     doorFunnel: 80,
     /**
-     * Crowd spread (view only): figures of one side on one row closer than crowdGap (wu) are eased apart, by at most
-     * crowdMax each, over crowdEase seconds, and only while walking faster than crowdMinSpeed (wu/s) so nobody slides
-     * on the spot. crowdPasses = relaxation sweeps per frame.
+     * Crowd spread (view only): figures of one side (every row) closer than crowdGap (wu) along x open out behind the
+     * leading man, by at most crowdMax each, easing over crowdEase seconds while walking faster than crowdMinSpeed
+     * (wu/s).
      */
-    crowdGap: 21,
-    crowdMax: 22,
+    crowdGap: 15,
+    crowdMax: 80,
     crowdEase: 0.4,
     crowdMinSpeed: 4,
-    crowdPasses: 3,
+    /** A standing figure more than crowdDeadband wu from its spread place steps aside at crowdShuffle wu/s. */
+    crowdDeadband: 5,
+    crowdShuffle: 30,
     /** Seed salt for each unit's animation seed and death roll. */
     seedSalt: 0x51ed27,
     /**
@@ -244,9 +246,9 @@ export const RENDER = {
       /** Most projectile sprites at once. */
       max: 48,
       /** Apex height of a lob as a fraction of its distance, with limits (wu). */
-      apexRatio: 0.55,
+      apexRatio: 0.48,
       apexMin: 70,
-      apexMax: 360,
+      apexMax: 285,
       /** Direct shells and rockets sag slightly; this is the drop as a fraction of the distance, at most dropMax wu. */
       dropRatio: 0.03,
       dropMax: 26,

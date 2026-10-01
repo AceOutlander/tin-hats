@@ -7,11 +7,13 @@ export const VIEW = {
   /** Height of the scene in wu: the backdrop, sky and ground art span y = 0 .. heightWu. */
   heightWu: 540,
   /**
-   * World units visible vertically, whatever the aspect ratio. The camera zoom is canvasHeight / viewHeightWu and
-   * the view is anchored at the bottom of the scene (y = heightWu), so a value below heightWu crops only upper sky
-   * and makes the battlefield bigger. Wider phones see more of the front.
+   * World units visible vertically, whatever the aspect ratio. The camera zoom is canvasHeight / viewHeightWu, so a
+   * value below heightWu makes the battlefield bigger; the crop is upper sky plus a thin strip of foreground grass
+   * under the HUD (the view's bottom edge is viewBottomWu). Wider phones see more of the front.
    */
   viewHeightWu: 410,
+  /** World y of the bottom edge of the battle view: low enough for the near row, high enough that the HQ flags clear the HUD's top bar. */
+  viewBottomWu: 524,
   /** Nominal width of one screen in wu, used to size missions. */
   screenWu: 1000,
   /** y of the centre of the walkable band (feet line of the middle rows). */
@@ -20,7 +22,7 @@ export const VIEW = {
   horizonY: 352,
   /** Units are spread over a few depth rows purely for looks. Row 0 is farthest from the camera. */
   rows: 4,
-  rowDy: [-27, -9, 9, 27],
+  rowDy: [-30, -10, 10, 30],
   rowScale: [0.92, 0.97, 1.03, 1.08],
   /** Standing stick-figure height, feet to helmet top, in wu at scale 1. */
   figureHeight: 58,
@@ -39,7 +41,7 @@ export const VIEW = {
 } as const;
 
 /** World y of the top edge of the battle view (everything above it is cropped sky). */
-export const VIEW_TOP_WU: number = VIEW.heightWu - VIEW.viewHeightWu;
+export const VIEW_TOP_WU: number = VIEW.viewBottomWu - VIEW.viewHeightWu;
 
 /** Draw order, back to front. Everything in the battlefield scene uses these depths. */
 export const DEPTH = {

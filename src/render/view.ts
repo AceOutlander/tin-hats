@@ -6,9 +6,9 @@
  * Device pixels: the game is sized to the parent's CSS size x devicePixelRatio
  * (capped at VIEW.maxDevicePixelRatio) with Scale mode NONE and zoom 1/dpr, so
  * the canvas is styled at CSS size and drawn at full resolution. The camera
- * zoom is canvasHeight / VIEW.viewHeightWu: the same slice of the scene (anchored
- * at its bottom, so only upper sky is cropped) shows vertically on any aspect
- * ratio; wider screens see more of the front.
+ * zoom is canvasHeight / VIEW.viewHeightWu: the same slice of the scene
+ * (VIEW_TOP_WU .. VIEW.viewBottomWu: upper sky is cropped) shows vertically on
+ * any aspect ratio; wider screens see more of the front.
  */
 import Phaser from 'phaser';
 import { getTheatreColours } from '../art/backdrops';

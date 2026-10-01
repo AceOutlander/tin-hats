@@ -155,6 +155,8 @@ export interface FigureInput {
   inTrench: boolean;
   carrying: boolean;
   controlled: boolean;
+  /** Taking a few steps aside in a firing line: the weapon stays up (as if moving and firing). */
+  stepping: boolean;
   /** Victory cheer. */
   victory: boolean;
   /** One-shot triggers: set for the frame the event happens, then clear. */
@@ -174,6 +176,7 @@ export function createFigureInput(kind: UnitKind = 'rifle'): FigureInput {
     inTrench: false,
     carrying: false,
     controlled: false,
+    stepping: false,
     victory: false,
     fired: false,
     hit: false,
