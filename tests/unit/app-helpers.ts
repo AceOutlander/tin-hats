@@ -54,6 +54,8 @@ export function createFakeView(): FakeView {
     imagesVisible: 0,
     tracers: 0,
     particles: 0,
+    particlesLive: 0,
+    quality: 0,
     atlasPages: 0,
     atlasPixels: 0,
     backdropPixels: 0,

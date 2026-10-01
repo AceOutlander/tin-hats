@@ -274,6 +274,7 @@ const mock = {
   levels: {} as Record<string, number>,
   settings: { muted: false, difficulty: 'normal', hints: true } as SettingsView,
   sounds: [] as string[],
+  replayed: 0,
   started: null as { id: number; difficulty: Difficulty } | null,
 };
 
@@ -457,6 +458,9 @@ const app: AppApi = {
     mock.clearedCount = 0;
     mock.levels = {};
     mock.settings = { muted: false, difficulty: 'normal', hints: true };
+  },
+  replayHints() {
+    mock.replayed++;
   },
   dispatch() {
     // No battle behind this page.

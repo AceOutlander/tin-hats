@@ -34,6 +34,7 @@ import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsVie
 import { buildCampaignView, buildResult } from './campaignView';
 import { GameLoop } from './loop';
 import { BattleSession } from './session';
+import { TipMemory, Tutorial } from './tutorial';
 
 export interface AppDeps {
   view: BattleView;
@@ -68,6 +69,8 @@ export class App implements AppApi {
   /** Debug only: battles started from now on are played for the player by the sim's test bot. */
   autopilot = false;
   private pendingResult: ResultView | null = null;
+  /** Which tutorial tips have ended; they never come back (until the player asks for them again). */
+  readonly tips: TipMemory;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
   private readonly storage: StorageLike | null;
@@ -77,6 +80,7 @@ export class App implements AppApi {
     this.view = deps.view;
     this.audio = deps.audio;
     this.storage = deps.storage;
+    this.tips = new TipMemory(deps.storage);
     this.missions = deps.missions ?? MISSIONS;
     this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
     this.random = deps.random ?? Math.random;
@@ -141,8 +145,9 @@ export class App implements AppApi {
 
   private launch(mission: MissionDef, difficulty: Difficulty, seed: number): void {
     this.endSession();
+    const campaign = this.missions.some((m) => m.id === mission.id);
     // The map opens on the mission last played (the sandbox grounds are not part of the campaign).
-    if (this.missions.some((m) => m.id === mission.id) && this.save.lastMission !== mission.id) {
+    if (campaign && this.save.lastMission !== mission.id) {
       this.save.lastMission = mission.id;
       this.persist();
     }
@@ -162,6 +167,8 @@ export class App implements AppApi {
       hints: () => this.save.settings.hints,
       sound: () => this.loop.timeScale <= APP.soundMaxTimeScale,
       onEnded: () => this.battleEnded(),
+      // Guided tips belong to the campaign: the proving ground and a bot at the controls need none.
+      tutorial: campaign && !this.autopilot ? new Tutorial(mission, this.tips) : null,
     });
     this.pendingResult = null;
     this.lastResult = null;
@@ -316,7 +323,12 @@ export class App implements AppApi {
   resetSave(): void {
     this.save = defaultSave();
     clearSave(this.storage);
+    this.tips.clear();
     this.audio.setMuted(this.save.settings.muted);
+  }
+
+  replayHints(): void {
+    this.tips.clear();
   }
 
   uiSound(name: 'click' | 'deny' | 'confirm'): void {

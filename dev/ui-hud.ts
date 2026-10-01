@@ -10,6 +10,7 @@
  *   timer=SECONDS  urgent=1   show a countdown instead of the objective
  *   survival=1                no enemy HQ bar
  *   banner=0  hint=0          suppress the announcement or the tutorial hint
+ *   tip=<target>              show a tutorial tip pointing at train-sapper, order-advance, minimap, supplies, support-smoke or field
  *   rich=1  broke=1           plenty of supplies, or none
  *   bg=bright | dark          battlefield stand-in brightness
  *   guides=1                  mark the band where units walk
@@ -26,6 +27,8 @@ import type {
   HudAction,
   HudState,
   SupportButtonState,
+  TipState,
+  TipTarget,
   TrainButtonState,
 } from '../src/ui/contracts';
 import { createHud, type Hud } from '../src/ui/hud/index';
@@ -124,6 +127,22 @@ const unitHome = new Float32Array(MAX_UNITS);
 
 const timerSeconds = flag('urgent') ? 24 : count('timer', 0, 3600);
 
+/** A tutorial tip for the page's `tip` parameter, worded like the real ones. */
+function tipFromQuery(): TipState | null {
+  const target = params.get('tip') as TipTarget | null;
+  if (target === null) return null;
+  const texts: Partial<Record<TipTarget, string>> = {
+    'train-sapper': 'Train a Sapper: more Sappers, more supplies. Tap the Sapper button.',
+    'order-advance': 'Your army is ready. ADVANCE sends everyone forward to destroy the enemy HQ.',
+    'order-fallBack': 'In trouble? FALL BACK pulls everyone into the HQ, where its machine gun covers them.',
+    minimap: 'Drag the battlefield to look around, or touch the map strip up here to jump along it.',
+    supplies: 'Supplies buy troops. Your Sappers carry them from the dump to your HQ.',
+    'support-smoke': 'New: Smoke Screen. Tap it, then tap the ground in front of your men to hide them.',
+    field: 'Tap one of your soldiers to take control of him. A joystick and a FIRE button appear.',
+  };
+  return { seq: 1, text: texts[target] ?? 'A tutorial tip.', target };
+}
+
 const state: HudState = {
   supplies: flag('rich') ? 2400 : flag('broke') ? 12 : 310,
   incomePerSec: 3.5,
@@ -145,6 +164,7 @@ const state: HudState = {
   banner: null,
   bannerSeq: 0,
   hint: null,
+  tip: tipFromQuery(),
   minimap: {
     length: MAP_LENGTH,
     camX: 2400,
@@ -229,6 +249,7 @@ const app: AppApi = {
   refundAll: () => undefined,
   setSetting: () => undefined,
   resetSave: () => undefined,
+  replayHints: () => undefined,
   uiSound: () => undefined,
   dispatch(action: HudAction): void {
     // The HUD reuses one object for its per-frame stick repeat, so log a copy.

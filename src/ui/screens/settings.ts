@@ -51,6 +51,18 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     },
   });
 
+  // The guided tips are shown once and remembered; this brings them back.
+  const replay = button({
+    testid: 'setting-replay',
+    label: 'Replay tutorial',
+    onTap: () => {
+      ctx.app.uiSound('confirm');
+      ctx.app.replayHints();
+      replay.dataset.done = 'true';
+      replay.querySelector('.th-btn-label')?.replaceChildren('Tips reset');
+    },
+  });
+
   const diffRow = el('div', 'th-set-row');
   diffRow.append(el('div', 'th-label', 'Default difficulty'));
   const seg = el('div', 'th-seg');
@@ -98,7 +110,7 @@ export const settingsScreen: ScreenFactory = (ctx) => {
   });
 
   const grid = el('div', 'th-set-grid');
-  add(grid, mute, hints, diffRow, reset);
+  add(grid, mute, hints, diffRow, replay, reset);
   add(plate, head, grid);
   root.append(plate);
 

@@ -8,7 +8,7 @@
  */
 import type { Order, SupportKind, UnitKind } from '../../data/schema';
 import { VIEW } from '../../data/view';
-import type { AppApi, ControlState, HudState, SupportButtonState, TrainButtonState } from '../contracts';
+import type { AppApi, ControlState, HudState, SupportButtonState, TipState, TipTarget, TrainButtonState } from '../contracts';
 import {
   FRAC,
   clockSeconds,
@@ -62,6 +62,27 @@ const STICK_DEAD_ZONE = 0.14;
 const MINIMAP_EVERY = 4;
 const BANNER_CLASS_A = 'th-banner show-a';
 const BANNER_CLASS_B = 'th-banner show-b';
+/** Where a tutorial bubble sits relative to the control it explains (`float` = the control is the battlefield itself). */
+type TipSide = 'above' | 'below' | 'right' | 'float';
+/** The tip bubble is re-measured on every Nth update while it is up (the training bar may scroll under it). */
+const TIP_EVERY = 12;
+/** Gap between a bubble and its control, and the margin it keeps from the screen edge (CSS px). */
+const TIP_GAP = 10;
+const TIP_MARGIN = 6;
+/** Keep the bubble's arrow this far from the bubble's corners. */
+const TIP_ARROW_INSET = 16;
+/** A bubble is narrowed to fit beside the objective plate only if it can stay at least this wide (CSS px). */
+const TIP_NARROW_MIN = 170;
+
+function tipSideOf(target: TipTarget): TipSide {
+  if (target === 'supplies' || target === 'minimap') return 'below';
+  if (target === 'field') return 'float';
+  return target.startsWith('support-') ? 'right' : 'above';
+}
+
+function clampTo(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -306,6 +327,21 @@ class HudView implements Hud {
   private bannerAlt = false;
   private readonly hintText: TextCell;
   private readonly hintOn: FlagCell;
+  private readonly objBox: HTMLElement;
+
+  // Tutorial tip.
+  private readonly tipBox: HTMLElement;
+  private readonly tipText: HTMLElement;
+  private readonly ordersBox: HTMLElement;
+  private tipSeq = -1;
+  private tipTarget: HTMLElement | null = null;
+  private tipSide: TipSide = 'float';
+  private tipAlt = false;
+  private tipTick = 0;
+  private tipX = Number.NaN;
+  private tipY = Number.NaN;
+  private tipArrow = Number.NaN;
+  private tipArrowOn: boolean | null = null;
 
   // Bottom bar.
   private readonly trainWrap: HTMLElement;
@@ -359,6 +395,7 @@ class HudView implements Hud {
     const top = el('div', 'th-top', root);
 
     const supplies = el('div', 'th-res th-supplies', top);
+    supplies.dataset.tip = 'supplies';
     icon('crate', supplies);
     const supCol = el('div', 'th-res-col', supplies);
     this.supplies = new TextCell(el('span', 'th-supplies-num', supCol, '0'));
@@ -401,6 +438,7 @@ class HudView implements Hud {
     // ----- Top centre -----
     const center = el('div', 'th-center', root);
     const obj = el('div', 'th-obj', center);
+    this.objBox = obj;
     this.objText = new TextCell(el('span', 'th-obj-text', obj));
     this.objTime = el('span', 'th-obj-time', obj);
     this.hasTimer = new FlagCell(obj, 'has-timer');
@@ -490,6 +528,7 @@ class HudView implements Hud {
     );
 
     const orders = el('div', 'th-hplate th-horders', bottom);
+    this.ordersBox = orders;
     for (let i = 0; i < ORDERS.length; i++) {
       const order = ORDERS[i];
       const b = button('th-hbtn th-obtn', `order-${order}`, ORDER_LABEL[order], orders);
@@ -498,6 +537,16 @@ class HudView implements Hud {
       onPress(b, () => this.doOrder(order));
       this.orderButtons.push(b);
     }
+
+    // ----- Tutorial tip: a bubble beside the control it explains, which pulses while the tip is up -----
+    const tip = el('div', 'th-tip', root);
+    tip.dataset.testid = 'tip';
+    this.tipBox = tip;
+    this.tipText = el('span', 'th-tip-text', tip);
+    const tipClose = button('th-tip-x', 'tip-dismiss', 'Close hint', tip);
+    icon('close', tipClose);
+    onTap(tipClose, () => this.doDismissTip());
+    el('i', 'th-tip-arrow', tip);
 
     // ----- Pause overlay -----
     const overlay = el('div', 'th-pause', root);
@@ -634,6 +683,15 @@ class HudView implements Hud {
     this.hintOn.set(hint !== null);
     if (hint !== null) this.hintText.set(hint);
 
+    const tip = s.tip;
+    if (tip === null) {
+      if (this.tipSeq !== -1) this.hideTip();
+    } else if (tip.seq !== this.tipSeq) {
+      this.showTip(tip);
+    } else if (++this.tipTick % TIP_EVERY === 0) {
+      this.placeTip();
+    }
+
     const map = s.minimap;
     const camMoved = map.camX !== this.lastCamX || map.camW !== this.lastCamW;
     if (camMoved || this.mapFrame === 0) {
@@ -720,7 +778,125 @@ class HudView implements Hud {
     }
     if (this.cardKind !== null) this.paintIcon(this.cardCanvas, this.cardKind);
     this.onTrainScroll();
+    if (this.tipSeq !== -1) this.placeTip();
   };
+
+  // ------------------------------------------------------------------ tutorial tip
+
+  private tipElement(target: TipTarget): HTMLElement | null {
+    if (target === 'field') return null;
+    const selector = target === 'supplies' ? '[data-tip="supplies"]' : `[data-testid="${target}"]`;
+    return this.root.querySelector<HTMLElement>(selector);
+  }
+
+  private showTip(tip: TipState): void {
+    this.clearTipTarget();
+    this.tipSeq = tip.seq;
+    this.tipText.textContent = tip.text;
+    this.tipSide = tipSideOf(tip.target);
+    const target = this.tipElement(tip.target);
+    this.tipTarget = target;
+    if (target !== null) {
+      target.classList.add('th-glow');
+      if (this.trainBar.contains(target)) this.scrollTrainTo(target);
+    }
+    // Two identical animations: swapping between them replays the pop-in for the next tip.
+    this.tipAlt = !this.tipAlt;
+    this.tipBox.className = this.tipAlt ? 'th-tip show-a' : 'th-tip show-b';
+    this.tipBox.dataset.side = this.tipSide;
+    this.tipX = Number.NaN;
+    this.tipY = Number.NaN;
+    this.tipArrow = Number.NaN;
+    this.tipArrowOn = null;
+    this.tipBox.style.maxWidth = '';
+    this.placeTip();
+  }
+
+  private hideTip(): void {
+    this.clearTipTarget();
+    this.tipSeq = -1;
+    this.tipBox.className = 'th-tip';
+  }
+
+  private clearTipTarget(): void {
+    if (this.tipTarget !== null) this.tipTarget.classList.remove('th-glow');
+    this.tipTarget = null;
+  }
+
+  /** Scroll the training bar just far enough that the highlighted button is fully in view. */
+  private scrollTrainTo(button: HTMLElement): void {
+    const bar = this.trainBar;
+    const b = button.getBoundingClientRect();
+    const r = bar.getBoundingClientRect();
+    if (b.left < r.left) bar.scrollLeft -= r.left - b.left + 4;
+    else if (b.right > r.right) bar.scrollLeft += b.right - r.right + 4;
+  }
+
+  /** Put the bubble beside its control, inside the screen, with its arrow on the control. */
+  private placeTip(): void {
+    const box = this.tipBox;
+    let bw = box.offsetWidth;
+    let bh = box.offsetHeight;
+    if (bw === 0 || bh === 0) return;
+    const root = this.root.getBoundingClientRect();
+    const t = this.tipTarget !== null ? this.tipTarget.getBoundingClientRect() : null;
+    let x = (root.width - bw) / 2;
+    let y: number;
+    let arrow = 0;
+    let arrowOn = t !== null;
+    if (t === null || this.tipSide === 'float') {
+      // No control to point at: float above the bottom bar, in the middle.
+      y = this.ordersBox.getBoundingClientRect().top - root.top - bh - TIP_GAP;
+      arrowOn = false;
+    } else if (this.tipSide === 'right') {
+      x = t.right - root.left + TIP_GAP;
+      y = t.top + t.height / 2 - root.top - bh / 2;
+      arrow = clampTo(t.top + t.height / 2 - root.top - y, TIP_ARROW_INSET, bh - TIP_ARROW_INSET);
+    } else {
+      const centre = t.left + t.width / 2 - root.left;
+      if (this.tipSide === 'above') {
+        y = t.top - root.top - bh - TIP_GAP;
+      } else {
+        y = t.bottom - root.top + TIP_GAP / 2;
+        // The objective plate hangs under the middle of the top bar. A bubble that would cover it is narrowed to the
+        // space beside it if there is enough, and otherwise set below it, away from its control (no arrow then).
+        const o = this.objBox.getBoundingClientRect();
+        const left = clampTo(centre - bw / 2, TIP_MARGIN, Math.max(TIP_MARGIN, root.width - TIP_MARGIN - bw));
+        if (o.right > root.left + left && o.left < root.left + left + bw && o.bottom - root.top + 2 > y) {
+          const room = o.left - root.left - TIP_GAP - left;
+          if (room >= TIP_NARROW_MIN && room < bw) {
+            box.style.maxWidth = `${Math.floor(room)}px`;
+            bw = box.offsetWidth;
+            bh = box.offsetHeight;
+          } else {
+            y = o.bottom - root.top + 4;
+            arrowOn = false;
+          }
+        }
+      }
+      x = clampTo(centre - bw / 2, TIP_MARGIN, Math.max(TIP_MARGIN, root.width - TIP_MARGIN - bw));
+      arrow = clampTo(centre - x, TIP_ARROW_INSET, bw - TIP_ARROW_INSET);
+    }
+    x = clampTo(x, TIP_MARGIN, Math.max(TIP_MARGIN, root.width - TIP_MARGIN - bw));
+    y = clampTo(y, TIP_MARGIN, Math.max(TIP_MARGIN, root.height - TIP_MARGIN - bh));
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    if (rx !== this.tipX || ry !== this.tipY) {
+      this.tipX = rx;
+      this.tipY = ry;
+      box.style.left = `${rx}px`;
+      box.style.top = `${ry}px`;
+    }
+    const ra = Math.round(arrow);
+    if (ra !== this.tipArrow) {
+      this.tipArrow = ra;
+      box.style.setProperty('--arrow', `${ra}px`);
+    }
+    if (arrowOn !== this.tipArrowOn) {
+      this.tipArrowOn = arrowOn;
+      box.dataset.arrow = arrowOn ? 'on' : 'off';
+    }
+  }
 
   /** Size a portrait canvas to its CSS box and (re)paint it; skipped while it is hidden or already current. */
   private paintIcon(canvas: HTMLCanvasElement, kind: UnitKind): void {
@@ -796,6 +972,12 @@ class HudView implements Hud {
     if (!this.live() || !this.controlOn) return;
     this.app.uiSound('click');
     this.app.dispatch({ type: 'release' });
+  }
+
+  private doDismissTip(): void {
+    if (!this.live()) return;
+    this.app.uiSound('click');
+    this.app.dispatch({ type: 'dismissTip' });
   }
 
   private doPause(): void {
@@ -998,7 +1180,10 @@ class HudView implements Hud {
 
   setVisible(v: boolean): void {
     if (v === this.visible) return;
-    if (!v) this.releaseInputs();
+    if (!v) {
+      this.releaseInputs();
+      this.hideTip();
+    }
     this.visible = v;
     this.root.hidden = !v;
     if (v) this.onLayout();

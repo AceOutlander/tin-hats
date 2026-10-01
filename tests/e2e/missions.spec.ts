@@ -10,6 +10,7 @@ import type { Page } from '@playwright/test';
 import { FACTIONS } from '../../src/data/factions';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
+import { TUTORIAL } from '../../src/data/tutorial';
 import { UNITS } from '../../src/data/units';
 import {
   arrived,
@@ -52,8 +53,10 @@ function expectedTexts(m: MissionDef, window: number): { hints: string[]; announ
   for (const e of m.events) {
     const at = firstFire(e);
     if (at === null || at > window) continue;
-    if (e.type === 'hint') out.hints.push(e.text);
-    else if (e.type === 'announce') out.announcements.push(e.text);
+    // The guided tutorial of mission 1 stands in for its scripted hints (tests/e2e/tutorial.spec.ts covers it).
+    if (e.type === 'hint') {
+      if (!TUTORIAL.replacesScriptedHints.includes(m.id)) out.hints.push(e.text);
+    } else if (e.type === 'announce') out.announcements.push(e.text);
     else if (e.type === 'wave') {
       if (e.announce !== undefined) out.announcements.push(e.announce);
       else if (e.side === 1 && m.mode === 'survival') out.plainWave = true;

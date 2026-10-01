@@ -6,6 +6,9 @@
  * these models from the simulation and the save data.
  */
 import type { Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { TipTarget } from '../data/tutorial';
+
+export type { TipTarget };
 
 export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'battle' | 'result' | 'settings';
 
@@ -70,6 +73,14 @@ export interface MinimapState {
   colors: [string, string];
 }
 
+/** A guided tutorial tip: a bubble that points at one control, which pulses while the tip is up. */
+export interface TipState {
+  /** Changes whenever a new tip starts. */
+  seq: number;
+  text: string;
+  target: TipTarget;
+}
+
 /** Polled by the HUD every frame. The same object is reused; the HUD must only touch the DOM when a value changed. */
 export interface HudState {
   supplies: number;
@@ -95,6 +106,8 @@ export interface HudState {
   banner: string | null;
   bannerSeq: number;
   hint: string | null;
+  /** The tutorial tip on show, or null. The object is reused; compare `seq`. */
+  tip: TipState | null;
   minimap: MinimapState;
 }
 
@@ -108,6 +121,8 @@ export type HudAction =
   | { type: 'restart' }
   | { type: 'quit' }
   | { type: 'toggleMute' }
+  /** The player closed the tutorial tip. */
+  | { type: 'dismissTip' }
   /** Joystick deflection while directly controlling a unit: -1 (left) .. 1 (right). */
   | { type: 'stick'; x: number }
   | { type: 'fire'; down: boolean }
@@ -189,6 +204,8 @@ export interface AppApi {
   refundAll(): void;
   setSetting<K extends keyof SettingsView>(key: K, value: SettingsView[K]): void;
   resetSave(): void;
+  /** Forget which tutorial tips have been shown, so the guided tips come round again. */
+  replayHints(): void;
   dispatch(action: HudAction): void;
   /** Play a short UI sound (button click etc.). */
   uiSound(name: 'click' | 'deny' | 'confirm'): void;

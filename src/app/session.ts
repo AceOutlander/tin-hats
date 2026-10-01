@@ -13,6 +13,7 @@ import type { BattleCamera } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel } from './hudModel';
 import { playEventSound, type SfxAudio } from './sfx';
+import type { Tutorial } from './tutorial';
 
 /** The part of the battle view the session drives. */
 export interface SessionView {
@@ -29,6 +30,8 @@ export interface SessionOptions {
   sound(): boolean;
   /** The battleEnded event was seen. Called once. */
   onEnded(): void;
+  /** The guided tips of this battle, if it has any (campaign missions only). */
+  tutorial?: Tutorial | null;
 }
 
 /** How often the events the tests care about have happened in this battle (counted from the event stream). */
@@ -115,9 +118,11 @@ export class BattleSession {
     const battle = this.battle;
     const events = battle.events;
     const sound = events.count > 0 && this.opts.sound();
+    const tutorial = this.opts.tutorial ?? null;
     for (let i = 0; i < events.count; i++) {
       const e = events.items[i];
       if (sound) playEventSound(this.audio, e, 0);
+      if (tutorial !== null) tutorial.note(e);
       switch (e.type) {
         case 'announce':
         case 'wave':
@@ -131,7 +136,8 @@ export class BattleSession {
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
           break;
         case 'hint':
-          if (e.text !== null && this.opts.hints()) {
+          // The guided tutorial replaces the scripted hints of the mission it teaches in.
+          if (e.text !== null && this.opts.hints() && !(tutorial !== null && tutorial.replacesScriptedHints)) {
             this.hud.state.hint = e.text;
             this.hintUntil = battle.state.time + APP.hintSeconds;
           }
@@ -204,6 +210,11 @@ export class BattleSession {
     st.targeting = this.targeting;
     if (st.banner !== null && time >= this.bannerUntil) st.banner = null;
     if (st.hint !== null && time >= this.hintUntil) st.hint = null;
+    const tutorial = this.opts.tutorial ?? null;
+    if (tutorial !== null) {
+      const dragging = 'dragging' in camera && camera.dragging === true;
+      tutorial.update(this.battle, dragging, this.opts.hints(), st);
+    }
 
     const side = this.battle.state.sides[0];
     const controlled = side.controlled >= 0 ? this.battle.state.units[side.controlled] : null;
@@ -246,6 +257,7 @@ export class BattleSession {
 
   /** Handle a HUD action that concerns the battle itself. Returns false for the app-level ones. */
   dispatch(action: HudAction): boolean {
+    if (this.opts.tutorial) this.opts.tutorial.noteAction(action);
     switch (action.type) {
       case 'train':
         this.battle.command(0, { type: 'train', kind: action.kind });
@@ -273,6 +285,8 @@ export class BattleSession {
         return true;
       case 'minimap':
         this.view.camera.jumpToFrac(action.frac);
+        return true;
+      case 'dismissTip':
         return true;
       default:
         return false;

@@ -79,6 +79,7 @@ export class HudModel {
       banner: null,
       bannerSeq: 0,
       hint: null,
+      tip: null,
       minimap: emptyMinimap(CONFIG.maxUnits),
     };
   }
@@ -125,6 +126,7 @@ export class HudModel {
     st.banner = null;
     st.bannerSeq = 0;
     st.hint = null;
+    st.tip = null;
 
     const m = st.minimap;
     m.length = s.length;
