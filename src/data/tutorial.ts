@@ -176,17 +176,18 @@ export const TUTORIAL: TutorialTunables = {
       urgent: true,
     },
   ],
+  // These point at the button; the mission's own hints say what the new thing is good for.
   newUnit: {
     startAfter: 1,
     seconds: 14,
     tips: {
-      lmg: { text: 'New: {name}. Long bursts mow down infantry in the open. Tap to train one.' },
-      assault: { text: 'New: {name}. Fast, and its grenades hurt men in trenches. Tap to train one.' },
-      mortar: { text: 'New: {name}. Shells trenches and bunkers from behind your line. Tap to train one.' },
-      sniper: { text: 'New: {name}. Outranges rifles and kills with a shot. Tap to train one.' },
-      medic: { text: 'New: {name}. Heals wounded men nearby. Tap to train one.' },
-      at: { text: 'New: {name}. Rockets that wreck tanks and bunkers. Tap to train one.' },
-      tank: { text: 'New: {name}. Bullets barely scratch it. Tap to train one.' },
+      lmg: { text: 'New: {name}. Tap its button to train one.' },
+      assault: { text: 'New: {name}. Tap its button to train one.' },
+      mortar: { text: 'New: {name}. Tap its button to train one.' },
+      sniper: { text: 'New: {name}. Tap its button to train one.' },
+      medic: { text: 'New: {name}. Tap its button to train one.' },
+      at: { text: 'New: {name}. Tap its button to train one.' },
+      tank: { text: 'New: {name}. Tap its button to train one.' },
     },
   },
   newSupport: {
@@ -194,8 +195,9 @@ export const TUTORIAL: TutorialTunables = {
     seconds: 14,
     tips: {
       artillery: { text: 'New: {name}. Tap it, then tap the battlefield where the shells should fall.' },
-      smoke: { text: 'New: {name}. Tap it, then tap the ground in front of your men to hide them.' },
-      airStrike: { text: 'New: {name}. Tap it, then tap the battlefield to bring in the aircraft.' },
+      smoke: { text: 'New: {name}. Tap it, then tap the ground in front of your men.' },
+      airStrike: { text: 'New: {name}. Tap it, then tap the battlefield where the aircraft should strike.' },
     },
   },
 };
+

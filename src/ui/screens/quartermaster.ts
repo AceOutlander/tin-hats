@@ -7,6 +7,7 @@ import type { UnitKind } from '../../data/schema';
 import type { UpgradeView } from '../contracts';
 import { add, button, clear, el, stencil } from '../shell/dom';
 import { glyph, helmetIcon, unitIcon } from '../shell/icons';
+import { withScrollCue } from '../shell/scrollCue';
 import type { ScreenFactory } from '../shell/types';
 
 interface Group {
@@ -68,7 +69,8 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
 
   const list = el('div', 'th-qm-list th-scroll');
   list.dataset.scroll = '';
-  add(root, bar, list);
+  const listCue = withScrollCue(list, 'dark');
+  add(root, bar, listCue.el);
 
   function upgradeCard(up: UpgradeView): HTMLElement {
     const card = el('article', 'th-up');
@@ -146,6 +148,7 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
       list.append(section);
     }
     list.scrollTop = scrollTop;
+    listCue.update();
     if (active) {
       const again = list.querySelector<HTMLButtonElement>(`[data-testid="${active}"]`);
       if (again) {
@@ -163,6 +166,8 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
   return {
     el: root,
     refresh: render,
+    resize: () => listCue.update(),
+    destroy: () => listCue.destroy(),
     back() {
       ctx.go('campaign');
     },

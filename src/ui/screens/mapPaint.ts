@@ -4,6 +4,13 @@
  * The mission pins themselves are DOM buttons laid over this canvas.
  */
 import { CAMPAIGN_MAP_VIEW, MAP_BOUNDS, MAP_LABELS, MAP_LAND, MAP_WATER, mapX, mapY, type MapShape } from '../../data/campaignMap';
+import { clearLabels, type LabelBox, type Obstacle } from './mapLayout';
+
+/**
+ * The room a mission pin takes on the map (CSS px around its centre): the 30 px disc and its selection ring, and
+ * the three pips under it. Lettering keeps `pad` clear of this and is moved at most `maxShift`, in `step` px tries.
+ */
+const PIN_FOOTPRINT = { halfW: 22, up: 21, down: 27, pad: 3, maxShift: 70, step: 4 } as const;
 
 export type PinState = 'locked' | 'open' | 'cleared';
 
@@ -52,10 +59,15 @@ function ringPath(shapes: readonly MapShape[], w: number, h: number): Path2D {
   return path;
 }
 
-function spacedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number, angleDeg: number): void {
+/** Width of `text` set with `spacing` between its letters, in the context's current font. */
+function spacedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: number): number {
   let total = 0;
   for (const ch of text) total += ctx.measureText(ch).width + spacing;
-  total -= spacing;
+  return total - spacing;
+}
+
+function spacedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number, angleDeg: number): void {
+  const total = spacedWidth(ctx, text, spacing);
   ctx.save();
   ctx.translate(x, y);
   if (angleDeg !== 0) ctx.rotate((angleDeg * Math.PI) / 180);
@@ -264,24 +276,38 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
     ctx.stroke();
   }
 
-  // Lettering.
-  for (const label of MAP_LABELS) {
-    const x = mapX(label.lon) * w;
-    const y = mapY(label.lat) * h;
+  // Lettering. A label that a mission pin would sit on is moved to the nearest clear spot, so no name is hidden.
+  const looks = MAP_LABELS.map((label) => {
     if (label.kind === 'country') {
-      ctx.fillStyle = 'rgba(74, 58, 30, 0.6)';
-      ctx.font = `700 ${11.5 * u}px ${display}`;
-      spacedText(ctx, label.text, x, y, 3.4 * u, label.angle ?? 0);
-    } else if (label.kind === 'region') {
-      ctx.fillStyle = 'rgba(74, 58, 30, 0.5)';
-      ctx.font = `700 ${7.6 * u}px ${display}`;
-      spacedText(ctx, label.text, x, y, 1.6 * u, label.angle ?? 0);
-    } else {
-      ctx.fillStyle = 'rgba(40, 70, 78, 0.62)';
-      ctx.font = `italic ${9.4 * u}px Georgia, 'Times New Roman', serif`;
-      spacedText(ctx, label.text, x, y, 2.6 * u, label.angle ?? 0);
+      return { fill: 'rgba(74, 58, 30, 0.6)', size: 11.5 * u, font: `700 ${11.5 * u}px ${display}`, spacing: 3.4 * u };
     }
-  }
+    if (label.kind === 'region') {
+      return { fill: 'rgba(74, 58, 30, 0.5)', size: 7.6 * u, font: `700 ${7.6 * u}px ${display}`, spacing: 1.6 * u };
+    }
+    return { fill: 'rgba(40, 70, 78, 0.62)', size: 9.4 * u, font: `italic ${9.4 * u}px Georgia, 'Times New Roman', serif`, spacing: 2.6 * u };
+  });
+  const boxes = MAP_LABELS.map((label, i): LabelBox => {
+    ctx.font = looks[i].font;
+    return {
+      x: mapX(label.lon) * w,
+      y: mapY(label.lat) * h,
+      hw: spacedWidth(ctx, label.text, looks[i].spacing) / 2,
+      hh: looks[i].size * 0.6,
+      angle: ((label.angle ?? 0) * Math.PI) / 180,
+    };
+  });
+  const footprints: Obstacle[] = pins.map((p) => ({
+    x0: p.x - PIN_FOOTPRINT.halfW,
+    y0: p.y - PIN_FOOTPRINT.up,
+    x1: p.x + PIN_FOOTPRINT.halfW,
+    y1: p.y + PIN_FOOTPRINT.down,
+  }));
+  const shifts = clearLabels(boxes, footprints, PIN_FOOTPRINT.maxShift, PIN_FOOTPRINT.step, PIN_FOOTPRINT.pad);
+  MAP_LABELS.forEach((label, i) => {
+    ctx.fillStyle = looks[i].fill;
+    ctx.font = looks[i].font;
+    spacedText(ctx, label.text, boxes[i].x + shifts[i].dx, boxes[i].y + shifts[i].dy, looks[i].spacing, label.angle ?? 0);
+  });
 
   // Degree figures along the top and left edges.
   ctx.fillStyle = 'rgba(58, 48, 28, 0.5)';

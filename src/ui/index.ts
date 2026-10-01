@@ -29,6 +29,14 @@ export { installLockdown } from './shell/lockdown';
 /** Must match --th-fade in menus.css. */
 const FADE_MS = 150;
 
+/**
+ * A screen takes no touch for this many milliseconds after it appears, so the second tap of a double-tap (or a thumb
+ * still mashing buttons as a battle ends) does not land on whatever sits where the old button was. The result
+ * screen waits longest: the player is most likely to be tapping hard when it comes up.
+ */
+const ARRIVE_MS_DEFAULT = 260;
+const ARRIVE_MS: Partial<Record<ScreenId, number>> = { result: 800 };
+
 export interface UiHandle extends UiApi {
   /** Whatever the HUD's getButtonRects() returns, or null while there is no HUD. */
   getHudButtonRects(): unknown;
@@ -138,6 +146,14 @@ export function createUi(root: HTMLElement, app: AppApi, opts: UiOptions = {}): 
 
   function mount(screen: Exclude<ScreenId, 'battle'>, fade: boolean): void {
     const next = SCREENS[screen](ctx);
+    if (fade) {
+      next.el.classList.add('is-arriving');
+      const timer = win.setTimeout(() => {
+        timers.delete(timer);
+        next.el.classList.remove('is-arriving');
+      }, ARRIVE_MS[screen] ?? ARRIVE_MS_DEFAULT);
+      timers.add(timer);
+    }
     screens.append(next.el);
     if (next.mounted) next.mounted();
     if (fade) void next.el.offsetWidth;

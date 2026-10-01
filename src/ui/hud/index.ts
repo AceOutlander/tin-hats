@@ -62,6 +62,12 @@ const STICK_DEAD_ZONE = 0.14;
 const MINIMAP_EVERY = 4;
 const BANNER_CLASS_A = 'th-banner show-a';
 const BANNER_CLASS_B = 'th-banner show-b';
+/**
+ * A tap on a control that lands within HUD_SPOT_PX of the last tap on a menu screen, less than HUD_ARM_MS after it, is the
+ * second tap of a double-tap on Begin (or Retry) and not a command: the Advance button now sits where the thumb is.
+ */
+const HUD_ARM_MS = 400;
+const HUD_SPOT_PX = 24;
 /** Where a tutorial bubble sits relative to the control it explains (`float` = the control is the battlefield itself). */
 type TipSide = 'above' | 'below' | 'right' | 'float';
 /** The tip bubble is re-measured on every Nth update while it is up (the training bar may scroll under it). */
@@ -287,6 +293,9 @@ class HudView implements Hud {
   private readonly root: HTMLDivElement;
   private state: HudState | null = null;
   private visible = true;
+  /** The last tap that ended on a menu screen (the HUD was hidden), and where the latest finger went down: see HUD_ARM_MS. */
+  private menuTap = { t: -Infinity, x: 0, y: 0 };
+  private lastDown = { x: 0, y: 0 };
   private dpr = 1;
   private readonly observer: ResizeObserver | null;
 
@@ -573,6 +582,8 @@ class HudView implements Hud {
     this.pausedFlag = new FlagCell(root, 'is-paused');
     this.mutedFlag = new FlagCell(root, 'is-muted');
 
+    document.addEventListener('pointerdown', this.onAnyDown, true);
+    document.addEventListener('pointerup', this.onAnyUp, true);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
@@ -920,7 +931,10 @@ class HudView implements Hud {
   // ------------------------------------------------------------------ actions
 
   private live(): boolean {
-    return this.visible && this.state !== null && !this.state.paused;
+    if (!this.visible || this.state === null || this.state.paused) return false;
+    const m = this.menuTap;
+    const again = performance.now() - m.t < HUD_ARM_MS && Math.hypot(this.lastDown.x - m.x, this.lastDown.y - m.y) < HUD_SPOT_PX;
+    return !again;
   }
 
   private doTrain(view: TrainView): void {
@@ -1172,6 +1186,16 @@ class HudView implements Hud {
     }
   };
 
+  private readonly onAnyDown = (e: PointerEvent): void => {
+    this.lastDown.x = e.clientX;
+    this.lastDown.y = e.clientY;
+  };
+
+  private readonly onAnyUp = (e: PointerEvent): void => {
+    if (this.visible) return;
+    this.menuTap = { t: performance.now(), x: e.clientX, y: e.clientY };
+  };
+
   private readonly onBlur = (): void => {
     this.releaseInputs();
   };
@@ -1191,6 +1215,8 @@ class HudView implements Hud {
 
   destroy(): void {
     this.releaseInputs();
+    document.removeEventListener('pointerdown', this.onAnyDown, true);
+    document.removeEventListener('pointerup', this.onAnyUp, true);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);

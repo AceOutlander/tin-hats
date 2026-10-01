@@ -126,6 +126,102 @@ export function relaxPins(xs: number[], ys: number[], minDist: number, width: nu
   }
 }
 
+/** A line of map lettering: its centre, half its width and height, and its tilt (radians). */
+export interface LabelBox {
+  x: number;
+  y: number;
+  hw: number;
+  hh: number;
+  angle: number;
+}
+
+/** An upright rectangle that lettering must stay off (a mission pin and the pips under it). */
+export interface Obstacle {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** The upright rectangle that just holds a tilted label. */
+export function labelBounds(b: LabelBox): Obstacle {
+  const c = Math.abs(Math.cos(b.angle));
+  const s = Math.abs(Math.sin(b.angle));
+  const ex = b.hw * c + b.hh * s;
+  const ey = b.hw * s + b.hh * c;
+  return { x0: b.x - ex, y0: b.y - ey, x1: b.x + ex, y1: b.y + ey };
+}
+
+/** True when a tilted label overlaps (or comes within `pad` of) an upright rectangle: separating-axis test on the four edge directions. */
+export function labelHitsRect(b: LabelBox, r: Obstacle, pad: number): boolean {
+  const rx = (r.x0 + r.x1) / 2;
+  const ry = (r.y0 + r.y1) / 2;
+  const rw = (r.x1 - r.x0) / 2 + pad;
+  const rh = (r.y1 - r.y0) / 2 + pad;
+  const dx = rx - b.x;
+  const dy = ry - b.y;
+  const cos = Math.cos(b.angle);
+  const sin = Math.sin(b.angle);
+  const axes: Array<[number, number]> = [
+    [1, 0],
+    [0, 1],
+    [cos, sin],
+    [-sin, cos],
+  ];
+  for (const [ax, ay] of axes) {
+    // Half-extent of each shape along this axis, and the gap between their centres along it.
+    const labelExtent = b.hw * Math.abs(ax * cos + ay * sin) + b.hh * Math.abs(-ax * sin + ay * cos);
+    const rectExtent = rw * Math.abs(ax) + rh * Math.abs(ay);
+    if (Math.abs(dx * ax + dy * ay) > labelExtent + rectExtent) return false;
+  }
+  return true;
+}
+
+/** Directions to try when a label has to move, nearest to straight up and down first (map lettering reads best shifted off a pin). */
+const SHIFT_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],
+  [0, -1],
+  [1, 0],
+  [-1, 0],
+  [0.7071, 0.7071],
+  [-0.7071, 0.7071],
+  [0.7071, -0.7071],
+  [-0.7071, -0.7071],
+];
+
+/**
+ * For each label, how far to move it so it is clear of every obstacle and of the labels placed before it: the
+ * smallest move found, trying `step` px more each time up to `maxShift`. A label that is already clear, or has no
+ * clear spot that close, stays where it is. Deterministic.
+ */
+export function clearLabels(
+  labels: readonly LabelBox[],
+  obstacles: readonly Obstacle[],
+  maxShift: number,
+  step: number,
+  pad: number,
+): Array<{ dx: number; dy: number }> {
+  const taken: Obstacle[] = [...obstacles];
+  const out: Array<{ dx: number; dy: number }> = [];
+  const clear = (b: LabelBox): boolean => taken.every((r) => !labelHitsRect(b, r, pad));
+  for (const label of labels) {
+    let best = { dx: 0, dy: 0 };
+    if (!clear(label)) {
+      search: for (let r = step; r <= maxShift; r += step) {
+        for (const [ux, uy] of SHIFT_DIRECTIONS) {
+          if (clear({ ...label, x: label.x + ux * r, y: label.y + uy * r })) {
+            best = { dx: ux * r, dy: uy * r };
+            break search;
+          }
+        }
+      }
+    }
+    out.push(best);
+    taken.push(labelBounds({ ...label, x: label.x + best.dx, y: label.y + best.dy }));
+  }
+  return out;
+}
+
 /** Clamp a pan offset so the map never shows a gap; a map smaller than the view is centred. */
 export function clampPan(offset: number, mapExtent: number, viewExtent: number): number {
   if (mapExtent <= viewExtent) return (viewExtent - mapExtent) / 2;

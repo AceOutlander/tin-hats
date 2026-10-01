@@ -6,6 +6,7 @@ import type { Difficulty } from '../../data/schema';
 import type { MissionCard } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
 import { glyph, supportIcon, unitIcon } from '../shell/icons';
+import { withScrollCue } from '../shell/scrollCue';
 import type { ScreenCtx, ScreenFactory } from '../shell/types';
 
 /** Typing speed: at least this many characters per second, faster for long orders so nobody waits. */
@@ -188,12 +189,18 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   begin.dataset.primary = '';
   begin.disabled = !mission || !mission.unlocked;
   add(actions, back, begin);
-  add(side, news, diffBox, actions);
-  add(root, sheet, side);
+  // Both columns can run past a short screen (the orders on a long briefing, the NEW cards of a mission that brings a
+  // unit and a support): each says so with a fade and a chevron while there is more below.
+  const sheetCue = withScrollCue(sheet, 'paper');
+  const newsCue = withScrollCue(news, 'dark');
+  add(side, newsCue.el, diffBox, actions);
+  add(root, sheetCue.el, side);
 
   return {
     el: root,
     mounted() {
+      sheetCue.update();
+      newsCue.update();
       const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (still || total === 0) reveal(total);
       else {
@@ -201,12 +208,18 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         raf = requestAnimationFrame(tick);
       }
     },
+    resize() {
+      sheetCue.update();
+      newsCue.update();
+    },
     back() {
       ctx.go('campaign');
     },
     destroy() {
       if (raf !== 0) cancelAnimationFrame(raf);
       raf = 0;
+      sheetCue.destroy();
+      newsCue.destroy();
     },
   };
 };
