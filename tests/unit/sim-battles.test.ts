@@ -357,8 +357,15 @@ describe('scripted events', () => {
     expect(wave?.value).toBe(4);
     expect(wave?.text).toBe('They come');
     expect(events.find((e) => e.type === 'announce')?.text).toBe('Stand to');
-    // A side with no HQ spawns its waves at its own map edge.
-    for (const u of unitsOf(b, 1, 'rifle')) expect(u.x).toBeGreaterThan(b.state.length - 400);
+    // A side with no HQ spawns its waves at its own map edge, as assault troops (who then advance).
+    const fresh = makeBattle({ mission });
+    run(fresh, 3.1);
+    const arrived = unitsOf(fresh, 1, 'rifle');
+    expect(arrived).toHaveLength(4);
+    for (const u of arrived) {
+      expect(u.x).toBeGreaterThan(fresh.state.length - 400);
+      expect(u.behaviour).toBe('assault');
+    }
   });
 
   it('scales waves for an AI side by the difficulty, and not for anyone else', () => {
@@ -371,7 +378,7 @@ describe('scripted events', () => {
       return collect(b, 2, 'wave')[0].value;
     };
     expect(size('normal', 'ai')).toBe(4);
-    expect(size('insane', 'ai')).toBe(Math.round(4 * DIFFICULTIES.insane.aiAggression));
+    expect(size('insane', 'ai')).toBe(Math.round(4 * DIFFICULTIES.insane.aiWaveMul));
     expect(size('insane', 'human')).toBe(4);
   });
 

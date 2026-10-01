@@ -232,8 +232,10 @@ export interface DifficultyDef {
   name: string;
   /** Multiplier on the AI side's supply income (passive, sappers and scripted). */
   aiIncomeMul: number;
-  /** Multiplier on AI aggression: scales attack thresholds and wave strength, never unit stats. */
+  /** Multiplier on AI aggression: scales attack thresholds and timings, never unit stats. */
   aiAggression: number;
+  /** Multiplier on the unit counts of scripted waves sent by an AI side (rounded, at least 1 per group). */
+  aiWaveMul: number;
   /** Seconds between AI decisions. */
   aiThinkInterval: number;
 }

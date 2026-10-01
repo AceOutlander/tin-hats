@@ -50,8 +50,8 @@ export interface BattleConfig {
   /** Commander of side 0 and of side 1. */
   commanders: [CommanderKind, CommanderKind];
   /**
-   * The upgrade definitions `upgrades` refers to (src/data/upgrades.ts once it exists).
-   * Omitted or empty = upgrades have no effect.
+   * The upgrade definitions `upgrades` refers to. Omitted = UPGRADES from src/data/upgrades.ts;
+   * an empty list = upgrades have no effect.
    */
   upgradeDefs?: readonly UpgradeDef[];
 }
@@ -433,6 +433,8 @@ export interface SmokeState {
 export interface TimerState {
   secondsLeft: number;
   total: number;
+  /** Fraction of the clock used up, 0 at the start to 1 when it runs out (the view darkens a deadline sky by it). */
+  progress: number;
   /** win = side 0 wins when it runs out (survival); lose = side 0 loses (deadline). */
   onExpire: 'win' | 'lose';
   label: string;

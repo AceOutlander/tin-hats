@@ -6,6 +6,7 @@ import { DIFFICULTIES } from '../data/difficulty';
 import type { MissionDef, Side, SupportKind, UnitKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
+import { UPGRADES } from '../data/upgrades';
 import { applyDamage } from './combat';
 import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
@@ -238,6 +239,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
       ? {
           secondsLeft: mission.timer.seconds,
           total: mission.timer.seconds,
+          progress: 0,
           onExpire: mission.timer.onExpire,
           label: mission.timer.label,
         }
@@ -302,11 +304,12 @@ class BattleImpl implements Battle, World {
 
     // Upgrades belong to side 0 only; difficulty scales AI-commanded sides only.
     this.mods = [createSideMods(), createSideMods()];
-    applyUpgrades(this.mods[0], config.upgrades, config.upgradeDefs);
+    applyUpgrades(this.mods[0], config.upgrades, config.upgradeDefs ?? UPGRADES);
     for (let si = 0; si < 2; si++) {
       const isAi = config.commanders[si] === 'ai';
       this.mods[si].income = mission.start[si].incomeMul * (isAi ? difficulty.aiIncomeMul : 1);
-      this.mods[si].wave = isAi ? difficulty.aiAggression : 1;
+      this.mods[si].airdrop = isAi ? difficulty.aiIncomeMul : 1;
+      this.mods[si].wave = isAi ? difficulty.aiWaveMul : 1;
     }
 
     const cellCount = CONFIG.formationColumns * CONFIG.rows;

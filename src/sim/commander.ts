@@ -227,7 +227,8 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   if (time - ai.lastOrderTime < AI.minOrderInterval) return;
   const order = side.order;
   const capped = side.pop >= side.popCap * AI.popCapAttackFrac;
-  const mayAttack = time >= ai.plan.firstAttackAfter / ai.aggression;
+  // With no enemy HQ to take (survival) there is nothing to attack: hold the line until the clock runs out.
+  const mayAttack = w.state.sides[1 - si].hq !== null && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
   const broken = AI.minAttackStrength * AI.regroupFrac;
   let next: Order = order;

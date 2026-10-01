@@ -22,9 +22,11 @@ export interface SideMods {
   unitHealth: Float64Array;
   unitDamage: Float64Array;
   unitHeal: Float64Array;
-  /** Mission incomeMul x difficulty aiIncomeMul (AI sides only): scales every supply gain. */
+  /** Mission incomeMul x difficulty aiIncomeMul (AI sides only): scales passive income and sapper deliveries. */
   income: number;
-  /** Multiplier on scripted wave sizes (difficulty aggression, AI sides only). */
+  /** Difficulty aiIncomeMul (AI sides only): scales scripted airdrops, which the mission sizes itself. */
+  airdrop: number;
+  /** Multiplier on scripted wave sizes (difficulty aiWaveMul, AI sides only). */
   wave: number;
 }
 
@@ -40,6 +42,7 @@ export function createSideMods(): SideMods {
     unitDamage: new Float64Array(KIND_COUNT).fill(1),
     unitHeal: new Float64Array(KIND_COUNT).fill(1),
     income: 1,
+    airdrop: 1,
     wave: 1,
   };
 }

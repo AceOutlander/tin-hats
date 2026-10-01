@@ -17,6 +17,7 @@ import type { World } from './world';
  * - `trenchId` given: seated in that trench's free slots (taking it for the side), the rest just behind it;
  * - otherwise at the HQ door, or at the map edge for a side with no HQ.
  * At mission start, army units with no position stand ready in the hold formation instead.
+ * Units of a side with no HQ (survival attackers) default to 'assault': they always advance.
  * Returns the number of units spawned.
  */
 function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): number {
@@ -24,7 +25,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   const side = s.sides[si];
   const dir = si === 0 ? 1 : -1;
   const kindIndex = KIND_INDEX[force.kind];
-  const behaviour = force.behaviour ?? 'army';
+  const behaviour = force.behaviour ?? (side.hq ? 'army' : 'assault');
   const count = atStart ? force.count : Math.max(1, Math.round(force.count * w.mods[si].wave));
   const edge = si === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
 
@@ -80,14 +81,17 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   return spawned;
 }
 
-/** Place each side's starting sappers and forces. Called once, with the hold lines already known. */
+/**
+ * Place each side's starting sappers and forces. Called once, with the hold lines already known.
+ * A side whose mission unit list has no sapper (mission 9) starts with none, whatever `sappers` says.
+ */
 export function placeStartingForces(w: World): void {
   const s = w.state;
   for (let si = 0; si < 2; si++) {
     const start = w.mission.start[si];
     const side = s.sides[si];
     const dir = si === 0 ? 1 : -1;
-    if (side.hq && start.sappers > 0) {
+    if (side.hq && start.sappers > 0 && w.mission.units[si].includes('sapper')) {
       // Spread along the road to the dump so their deliveries do not all arrive together.
       for (let j = 0; j < start.sappers; j++) {
         const x = side.hq.doorX + (dir * CONFIG.dumpDistance * (j + 1)) / (start.sappers + 1);
@@ -113,7 +117,8 @@ function fireEvent(w: World, ev: MissionEventDef): void {
     }
     case 'airdrop': {
       const side = s.sides[ev.side];
-      const amount = ev.supplies * w.mods[ev.side].income;
+      // Sized by the mission itself: only the difficulty scales it, not the side's incomeMul.
+      const amount = ev.supplies * w.mods[ev.side].airdrop;
       side.supplies += amount;
       side.stats.suppliesGathered += amount;
       const e = w.events.emit('airdrop');
@@ -141,6 +146,7 @@ export function updateMission(w: World): void {
   if (s.timer) {
     const left = s.timer.total - time;
     s.timer.secondsLeft = left > 0 ? left : 0;
+    s.timer.progress = s.timer.total > 0 ? 1 - s.timer.secondsLeft / s.timer.total : 1;
   }
 
   const events = w.mission.events;
