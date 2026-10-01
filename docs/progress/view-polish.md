@@ -1,10 +1,9 @@
-# Track view-polish (animation, readability, layering, Phase 2 visuals)
+# Track view-polish: DONE
 
-Done (milestone 1, committed): VIEW.viewHeightWu 450 (zoom anchored at the bottom, VIEW_TOP_WU), camera edgeMargin 64 so
-both HQs and flags clear the screen edge, smooth turn (RENDER.unit.turnTime, bone-preserving squash in placePart),
-tank suspension (bob, pitch spring, fire kick, squat), tanks ride above trench parapets/wire (DEPTH.vehicleOver) with
-a lip bump, muzzle flashes hidden behind nearer tanks (UnitViews.coverEdge), kneel-by-row firing tiers, wider row
-spread, bodies lowered onto the ground, bigger hugged crate, AT reload and medic idle overlays, pack/helmet secondary
-motion. tools/qa.ts --only=page (dev pages on the Vite dev server, fake clock).
-In progress: Phase 2 puppet scenes in dev/render-preview (?scene=...).
-Next: capture-critique-fix rounds, final polish2-*.png, DECISIONS, PROGRESS known issues.
+Done: zoom (VIEW.viewHeightWu 410, viewBottomWu 524, VIEW_TOP_WU), camera edgeMargin and opening view, smooth turns,
+firing-line spread behind the leader with stepping and kneel-by-row tiers, tank suspension and lip bump,
+DEPTH.vehicleOver, muzzle flashes hidden behind tanks (UnitViews.coverEdge), trench fire-step feet line, bodies on the
+ground, bigger crate, AT reload, medic idle, pack/helmet springs, lob apex. Puppet scenes dev/scenes.ts
+(render-preview ?scene=trench|tank|assault|support|turn), tools/qa.ts --only=page. DECISIONS 98-106.
+Final pictures: docs/screenshots/polish2-*.png. Three capture-critique-fix rounds (zoom, firing line x2, trench).
+Next (not done): real-phone check; the qa door-in strip timed out in the last run (sim fall-back positions changed).
