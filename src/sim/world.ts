@@ -291,4 +291,20 @@ export interface World {
   trenchInside: Int32Array;
   /** Per unit pool index: units of its side (itself included) within config.clusterRadius, 0 if not on the field. */
   cluster: Uint8Array;
+  /** Per side: armed army units on the field that lead the line (not followsLine). */
+  leadCount: Int32Array;
+
+  /** Per side: the stick (-1..1), fire button (1 held) and pending ability press of its controlled unit. */
+  ctrlMove: Float64Array;
+  ctrlFire: Uint8Array;
+  ctrlAbility: Uint8Array;
+
+  /** Per side and support kind ([side * SUPPORT_COUNT + k]): seconds since the call of the strike in progress, -1 if none. */
+  strikeTime: Float64Array;
+  /** Target x of that strike. */
+  strikeX: Float64Array;
+  /** Rounds of it launched so far. */
+  strikeFired: Int32Array;
+  /** 1 once its supportIncoming has been emitted. */
+  strikeWarned: Uint8Array;
 }

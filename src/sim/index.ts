@@ -9,6 +9,19 @@
  */
 export { createBattle } from './battle';
 export { runBattle, summarize } from './run';
+export {
+  armyCost,
+  armyPop,
+  compare,
+  equalCounts,
+  matchupMission,
+  monoArmy,
+  runDuel,
+  runMatchup,
+  type DuelResult,
+  type MatchupGround,
+  type MatchupResult,
+} from './matchup';
 export { SIM_FEATURES } from './features';
 export { Rng } from './rng';
 export { TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';

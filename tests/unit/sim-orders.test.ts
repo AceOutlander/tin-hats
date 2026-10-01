@@ -349,6 +349,8 @@ describe('Fall Back', () => {
     expect(allInside).toBe(true);
     const killedBefore = b.state.sides[0].stats.lost;
     const killsBefore = b.state.sides[0].stats.kills;
+    // Health as they went in (the enemy may have winged one on the way back).
+    const hpInside = unitsOf(b, 0).map((u) => [u.id, u.hp]);
 
     const events = collect(b, 25, 'shot', 'unitDied');
     const gunShots = events.filter((e) => e.type === 'shot' && e.source === 'hq' && e.side === 0);
@@ -364,7 +366,7 @@ describe('Fall Back', () => {
     expect(b.state.sides[0].stats.kills - killsBefore).toBe(enemyDeaths.length);
     // ...while the men inside take nothing, and the HQ is what is shot at.
     expect(b.state.sides[0].stats.lost).toBe(killedBefore);
-    expect(unitsOf(b, 0).every((u) => u.hp === u.maxHp)).toBe(true);
+    expect(unitsOf(b, 0).map((u) => [u.id, u.hp])).toEqual(hpInside);
   });
 });
 

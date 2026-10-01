@@ -1,6 +1,9 @@
 import type { SupportDef, SupportKind } from './schema';
 
-/** Support call-ins. Simulated from Phase 2; the numbers are first-pass. */
+/**
+ * Support call-ins. Each side has its own cooldown per kind; the first round leaves `delay` seconds
+ * after the call and the rest follow evenly over `duration`.
+ */
 export const SUPPORTS: Record<SupportKind, SupportDef> = {
   artillery: {
     kind: 'artillery',
@@ -12,6 +15,10 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     weapon: 'artilleryShell',
     smokeRadius: 0,
     smokeTime: 0,
+    warning: 1.5,
+    launchOffset: 260,
+    hqDamageMul: 0.25,
+    pattern: 'scatter',
   },
   smoke: {
     kind: 'smoke',
@@ -23,6 +30,10 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     weapon: null,
     smokeRadius: 170,
     smokeTime: 9,
+    warning: 1.5,
+    launchOffset: 0,
+    hqDamageMul: 0,
+    pattern: 'scatter',
   },
   airStrike: {
     kind: 'airStrike',
@@ -34,6 +45,10 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     weapon: 'airRocket',
     smokeRadius: 0,
     smokeTime: 0,
+    warning: 2.5,
+    launchOffset: 140,
+    hqDamageMul: 0.25,
+    pattern: 'sweep',
   },
 };
 

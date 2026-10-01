@@ -11,6 +11,7 @@ import type { UnitAction } from '../data/schema';
 import { senseMount, updateMount } from './combat';
 import { crushWire, inEnemyWire } from './projectiles';
 import { DT, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
+import { senseControlled } from './control';
 import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq } from './units';
@@ -102,7 +103,8 @@ function senseHold(w: World, u: UnitState, side: SideState, dir: number, hasTarg
 function senseAdvance(w: World, u: UnitState, dir: number, hasTarget: boolean, patient: boolean): void {
   releaseSlot(w, u);
   let goal = dir > 0 ? w.state.length : 0;
-  if (u.def.followsLine) {
+  // With no line to follow (nothing but support troops left), they advance like everyone else.
+  if (u.def.followsLine && w.leadCount[u.side] > 0) {
     const back = w.armedFront[u.side] - dir * (u.def.formationDepth + u.jitter * CONFIG.engageSpread);
     if ((goal - back) * dir > 0) goal = back;
   }
@@ -157,15 +159,11 @@ export function senseUnits(w: World): void {
 
     let hasTarget = false;
     if (m.weaponIndex >= 0) {
-      const prevType = m.targetType;
-      const prevIndex = m.targetIndex;
-      const prevId = m.targetId;
       m.x = u.x;
       hasTarget = senseMount(w, m, u.side, retarget);
-      // A new target means deciding afresh whether to close in or stand.
-      if (!hasTarget || m.targetType !== prevType || m.targetIndex !== prevIndex || m.targetId !== prevId) {
-        u.engaged = false;
-      }
+      // With nothing left in range it decides afresh whether to move on; a unit already standing
+      // to fight swings to its next target from where it stands.
+      if (!hasTarget) u.engaged = false;
     }
     const m2 = u.mount2;
     if (m2.weaponIndex >= 0) {
@@ -173,9 +171,11 @@ export function senseUnits(w: World): void {
       senseMount(w, m2, u.side, retarget);
     }
     const patient = u.def.healRate > 0 && findPatient(w, u);
-    // Phase 2 part 2: a directly controlled unit takes its movement and fire from controlInput here.
 
-    if (order === 'fallBack') {
+    if (u.controlled) {
+      // Direct control: the stick, not the order, says where it goes.
+      senseControlled(w, u);
+    } else if (order === 'fallBack') {
       releaseSlot(w, u);
       u.engaged = false;
       if (side.hq && side.hq.alive) u.goalX = side.hq.doorX;
@@ -320,6 +320,16 @@ export function moveUnits(w: World): void {
       continue;
     }
 
+    if (u.controlled) {
+      // At the stick's speed (full speed when stepping onto a trench slot by itself), still front-clamped.
+      const mx = w.ctrlMove[u.side];
+      u.moveSpeed = u.def.speed * (mx > 0 ? mx : mx < 0 ? -mx : 1);
+      if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
+      walk(w, u, dir);
+      if (anyWire && u.def.crushesWire && u.velX !== 0) crushWire(w, u);
+      continue;
+    }
+
     if (u.engaged) {
       u.velX = 0;
       continue;
@@ -405,26 +415,43 @@ export function fireUnits(w: World): void {
     }
     const ready = u.setup <= 0;
     const hasTarget = m.targetType !== TARGET_NONE;
-    const fleeing = u.behaviour === 'army' && s.sides[u.side].order === 'fallBack';
+    const ctrl = u.controlled;
+    const fleeing = !ctrl && u.behaviour === 'army' && s.sides[u.side].order === 'fallBack';
     const m2 = u.mount2;
-    const active = ready && m2.windup <= 0 && hasTarget && (u.engaged || (weapon.moveAndFire && !fleeing));
+    // A controlled unit keeps its aim on the target even on the move (crew weapons still set up)
+    // and shoots only while the fire button is held.
+    const active = ready && m2.windup <= 0 && hasTarget && (ctrl || u.engaged || (weapon.moveAndFire && !fleeing));
     m.x = u.x;
     m.damageMul = w.mods[u.side].unitDamage[u.kindIndex];
     m.rateMul = 1;
-    if (u.controlled) {
+    m.trigger = true;
+    if (ctrl) {
       m.damageMul *= CONFIG.controlDamageMul;
       m.rateMul = CONFIG.controlReloadMul;
+      m.trigger = w.ctrlFire[u.side] === 1;
     }
     updateMount(w, m, active, u.side, u.row, u, 'unit');
 
     // The secondary fires on its own: a coaxial MG whenever it has a target (even on the move),
-    // a grenade only while the unit stands to fight between bursts of its primary.
+    // a grenade only while the unit stands to fight between bursts of its primary. Under direct
+    // control a grenade waits for the ability button and then goes at once.
     let thrower = false;
     if (m2.weaponIndex >= 0) {
       const weapon2 = WEAPON_LIST[m2.weaponIndex];
       thrower = weapon2.thrown;
       const has2 = m2.targetType !== TARGET_NONE;
-      const active2 = has2 && (weapon2.moveAndFire ? !fleeing : u.engaged && ready && m.burstLeft === 0);
+      let active2 = has2 && (weapon2.moveAndFire ? !fleeing : u.engaged && ready && m.burstLeft === 0);
+      m2.trigger = true;
+      if (ctrl) {
+        const press = w.ctrlAbility[u.side] === 1;
+        if (press && has2 && ready && m2.cooldown <= 0 && m2.windup <= 0 && m2.burstLeft === 0) {
+          m2.aim = 0;
+          active2 = true;
+        } else {
+          active2 = has2 && weapon2.moveAndFire;
+          m2.trigger = weapon2.moveAndFire;
+        }
+      }
       m2.x = u.x;
       m2.damageMul = m.damageMul;
       m2.rateMul = m.rateMul;
@@ -437,7 +464,8 @@ export function fireUnits(w: World): void {
     u.weaponCharge = weapon.cooldown > 0 ? 1 - m.cooldown / weapon.cooldown : 1;
     if (!moving) {
       if (throwing && u.aimX !== u.x) u.facing = u.aimX > u.x ? 1 : -1;
-      else u.facing = active && m.aimX !== u.x ? (m.aimX > u.x ? 1 : -1) : dir;
+      else if (active && m.aimX !== u.x) u.facing = m.aimX > u.x ? 1 : -1;
+      else if (!ctrl) u.facing = dir; // a controlled unit keeps facing the way it last walked
     }
 
     if (throwing) setAction(u, 'throw');
@@ -448,4 +476,7 @@ export function fireUnits(w: World): void {
     else if (active) setAction(u, 'aim');
     else setAction(u, 'idle');
   }
+  // An ability press lasts one tick, used or not.
+  w.ctrlAbility[0] = 0;
+  w.ctrlAbility[1] = 0;
 }

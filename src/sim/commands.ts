@@ -3,8 +3,11 @@
  * the test bot all pass through the same queue and the same checks.
  */
 import { CONFIG } from '../data/config';
-import type { Order, UnitKind } from '../data/schema';
+import type { Order, SupportKind, UnitKind } from '../data/schema';
+import { SUPPORTS } from '../data/supports';
 import { UNITS } from '../data/units';
+import { releaseControl, setControlInput, takeControl } from './control';
+import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX } from './tables';
 import { CMD_CONTROL, CMD_CONTROL_INPUT, CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type World } from './world';
 
@@ -47,6 +50,12 @@ function applyOrder(w: World, si: number, order: Order): void {
   e.order = order;
 }
 
+function applySupport(w: World, si: number, kind: SupportKind, x: number): void {
+  if (!(kind in SUPPORTS) || !Number.isFinite(x)) return;
+  if (!canCallSupport(w, si, kind)) return;
+  callSupport(w, si, kind, x);
+}
+
 /** Apply everything queued since the last tick, in the order it was issued. */
 export function applyCommands(w: World): void {
   const q = w.commands;
@@ -60,11 +69,14 @@ export function applyCommands(w: World): void {
         applyOrder(w, c.side, c.order);
         break;
       case CMD_SUPPORT:
-        // Phase 2: support call-ins (availability, cooldown, target x). NOT YET IMPLEMENTED: ignored.
+        applySupport(w, c.side, c.support, c.x);
         break;
       case CMD_CONTROL:
+        if (c.unit < 0) releaseControl(w, c.side);
+        else takeControl(w, c.side, c.unit);
+        break;
       case CMD_CONTROL_INPUT:
-        // Phase 2: direct control. NOT YET IMPLEMENTED: ignored.
+        setControlInput(w, c.side, c.moveX, c.fire, c.ability);
         break;
       default:
         break;

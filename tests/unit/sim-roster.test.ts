@@ -97,16 +97,23 @@ describe('assault troops', () => {
     expect(hits.length + b.state.sides[0].stats.kills).toBeGreaterThan(0);
   });
 
-  it('do not waste grenades on a lone man in the open, but do on a bunch', () => {
-    const lone = makeBattle({ mission: targets([{ kind: 'assault', count: 1 }], 1300, 1, 30) });
-    lone.command(0, { type: 'order', order: 'advance' });
-    const loneShots = collect(lone, 20, 'shot');
-    expect(loneShots.some((e) => e.weapon === 'smg')).toBe(true);
-    expect(loneShots.some((e) => e.weapon === 'grenade')).toBe(false);
+  it('keep their grenades for trenches, pillboxes and the HQ: never at men in the open, lone or bunched', () => {
+    for (const count of [1, 4]) {
+      const open = makeBattle({ mission: targets([{ kind: 'assault', count: 1 }], 1300, count, 30) });
+      open.command(0, { type: 'order', order: 'advance' });
+      const shots = collect(open, 20, 'shot');
+      expect(shots.some((e) => e.weapon === 'smg')).toBe(true);
+      expect(shots.some((e) => e.weapon === 'grenade')).toBe(false);
+    }
 
-    const bunch = makeBattle({ mission: targets([{ kind: 'assault', count: 1 }], 1300, 4, 30) });
-    bunch.command(0, { type: 'order', order: 'advance' });
-    expect(collect(bunch, 20, 'shot').some((e) => e.weapon === 'grenade')).toBe(true);
+    const box = makeBattle({
+      mission: testMission({ length: 3000, a: { forces: [{ kind: 'assault', count: 1 }] }, pillboxes: [{ id: 1, x: 1300, side: 1, hpMul: 1 }] }),
+      ...tough('assault'),
+    });
+    box.command(0, { type: 'order', order: 'advance' });
+    const grenades = collect(box, 30, 'shot').filter((e) => e.weapon === 'grenade');
+    expect(grenades.length).toBeGreaterThan(0);
+    expect(grenades.every((e) => e.target === 'pillbox')).toBe(true);
   });
 });
 

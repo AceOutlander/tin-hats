@@ -30,13 +30,15 @@ export const CONFIG: GameConfig = {
   formationColumns: 64,
   rows: 4,
   formationRowOrder: [1, 2, 0, 3],
-  engageSpread: 40,
+  engageSpread: 100,
   mapMargin: 20,
   fallBackSpeedMul: 1.25,
   moveDeadband: 14,
 
   firePoseTime: 0.18,
   retargetInterval: 0.5,
+  targetSpread: 60,
+  switchAimFrac: 0.4,
 
   controlDamageMul: 1.25,
   controlReloadMul: 1.25,

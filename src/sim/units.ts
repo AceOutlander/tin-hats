@@ -36,6 +36,8 @@ export function createMount(): MountState {
     x: 0,
     damageMul: 1,
     rateMul: 1,
+    trigger: true,
+    spread: 0,
   };
 }
 
@@ -55,6 +57,7 @@ export function resetMount(m: MountState, weaponId: string | null, x: number): v
   m.burstTimer = 0;
   m.sinceShot = LONG_AGO;
   m.windup = 0;
+  m.trigger = true;
 }
 
 /** A blank pool slot. */
@@ -213,6 +216,8 @@ export function spawnUnit(
   u.taskTime = 0;
   const serial = ++w.spawnCount[side];
   u.jitter = (serial * JITTER_STEP) % 1;
+  u.mount.spread = u.jitter;
+  u.mount2.spread = u.jitter;
   u.postX = px;
   u.trench = -1;
   u.slot = -1;

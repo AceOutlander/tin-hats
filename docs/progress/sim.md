@@ -1,5 +1,5 @@
-# SIM track progress (Phase 2, part 1: fortifications, projectiles, full roster)
-Done (committed): trenches (src/sim/trenches.ts), pillbox guns sharing the HQ structure-gun code + rubble, wire slow/splash/crush, projectiles + linear splash + smoke (src/sim/projectiles.ts), full roster (lmg/mortar deploy, assault grenades with 'throw', mortar dug-in preference, sniper priorities, medic heal, AT preferStructures, tank coax, guard leash), sandbox grounds (src/data/missions/sandbox.ts), sim-cli --mission sandbox|sandbox-mirror, contact-gap test fixed. SIM_FEATURES trenches/pillboxes/wire/projectiles = true.
-Tests: sim-trenches, sim-structures, sim-projectiles, sim-roster, sim-matrix (15 cells), sim-sandbox (20-seed invariants, determinism, mirror fairness, 80-unit perf + allocation). Whole unit suite 36 files / 518 tests green; tsc sim and eslint clean. DECISIONS 86-97.
-Step time, 80 units on the sandbox: 21.5 us/step marching, 16.4 us in contact (about 69 units).
-In progress: nothing. Next (part 2): supports and direct control.
+# SIM track progress (Phase 2, part 2: direct control, supports, AI, matchup harness)
+Part 1 (trenches, pillboxes, wire, projectiles, roster, sandbox) is done and committed (614aea6, c077249, 3aecfdc).
+Done (part 2, milestone 1): direct control (src/sim/control.ts), supports (src/sim/supports.ts), SIM_FEATURES directControl/supports = true, matchup harness (src/sim/matchup.ts, src/data/balance.ts, tools/balance-table.ts), tests/balance/matchups.test.ts green (19), combat tuning (fire spread config.targetSpread, switchAimFrac, burst carries over, engageSpread 100, grenades only at trenches/pillboxes/HQ, unit and weapon numbers).
+In progress: AI (reactions, supports, trench-aware holding, stalemates), mirror test, mission-1 check (sim-battles mission-1 mirror share was 0.34 < 0.35 after tuning).
+Next: unit tests for control and supports (tests/unit/sim-control.test.ts, sim-supports.test.ts), sim-cli --mission mirror, docs/BALANCE.md, DECISIONS.

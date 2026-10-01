@@ -27,10 +27,11 @@ const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
 /**
  * Inputs of launch() that are doubles (passed in a typed array so nothing is boxed, see the
  * allocation note in combat.ts): [0] launch x, [1] landing x, [2] damage multiplier,
- * [3] flight time in seconds, or 0 to derive it from the distance and weapon.projectileSpeed.
- * Set all four before every call.
+ * [3] flight time in seconds, or 0 to derive it from the distance and weapon.projectileSpeed,
+ * [4] extra multiplier on damage to an HQ (1 for weapons; support call-ins use their hqDamageMul).
+ * Set all five before every call.
  */
-export const LAUNCH = new Float64Array(4);
+export const LAUNCH = new Float64Array(5);
 
 /**
  * Put a projectile of weapon `wi` in flight from LAUNCH[0] to LAUNCH[1] and emit its `projectile`
@@ -71,6 +72,7 @@ export function launch(
   p.weapon = weapon;
   p.weaponIndex = wi;
   p.damageMul = LAUNCH[2];
+  p.hqMul = LAUNCH[4];
   p.fromX = fromX;
   p.toX = toX;
   p.x = fromX;
@@ -157,7 +159,7 @@ function explode(w: World, pi: number): void {
     const d = (hq.x > x ? hq.x - x : x - hq.x) - CONFIG.hqWidth / 2;
     if (d <= r) {
       const falloff = d <= 0 ? 1 : 1 - d / r;
-      const amount = weapon.damage * p.damageMul * falloff * damageFactor(dtype, CLASS_HQ);
+      const amount = weapon.damage * p.damageMul * p.hqMul * falloff * damageFactor(dtype, CLASS_HQ);
       w.damage.push(TARGET_HQ, enemy, -1, amount, side, dtype, hq.x >= x ? 1 : -1);
     }
   }

@@ -22,4 +22,16 @@ export const AI: AiDef = {
   assaultVsDugIn: 3,
   infantryPerLmg: 8,
   maxReaction: 4,
+
+  dugInWeight: 1.5,
+  pillboxValue: 150,
+  hqThreatDistance: 500,
+  commitRatio: 1.6,
+  advantageRatio: 1.8,
+
+  artilleryRadius: 140,
+  artilleryMinValue: 240,
+  airStrikeMinValue: 360,
+  smokeMinGap: 220,
+  smokeMaxGap: 700,
 };

@@ -4,6 +4,7 @@
  */
 import { CONFIG } from '../data/config';
 import type { ForceDef, MissionEventDef, Side } from '../data/schema';
+import { releaseAll } from './control';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
 import { claimSlot, enterSlot } from './trenches';
 import type { EndReason } from './types';
@@ -182,6 +183,7 @@ function endBattle(w: World, winner: number, reason: EndReason): void {
   s.over = true;
   s.winner = winner;
   s.endReason = reason;
+  releaseAll(w);
   const e = w.events.emit('battleEnded');
   e.side = winner;
   e.value = s.time;

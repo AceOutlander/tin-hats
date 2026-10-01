@@ -101,10 +101,13 @@ export function computeFronts(w: World): void {
   }
 
   const units = s.units;
+  w.leadCount[0] = 0;
+  w.leadCount[1] = 0;
   for (let i = 0; i < s.unitCount; i++) {
     const u = units[i];
     if (!u.alive || u.inside) continue;
     const lead = u.def.armed && u.behaviour === 'army' && !u.def.followsLine;
+    if (lead) w.leadCount[u.side]++;
     if (u.side === 0) {
       if (u.x > f0) f0 = u.x;
       if (lead && u.x > a0) a0 = u.x;

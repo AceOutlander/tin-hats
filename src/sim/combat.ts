@@ -107,6 +107,8 @@ function search(w: World, m: MountState, side: number): boolean {
 
   let best = Infinity;
   const units = s.units;
+  const spreadWu = CONFIG.targetSpread;
+  const offset = m.spread;
   for (let i = 0; i < s.unitCount; i++) {
     const t = units[i];
     if (!t.alive || t.side !== enemy || t.inside) continue;
@@ -115,7 +117,10 @@ function search(w: World, m: MountState, side: number): boolean {
     if ((mask & (1 << unitClass(t))) === 0) continue;
     const rank = unitRank(w, wi, t);
     if (rank < 0) continue;
-    const score = rank * RANK_WEIGHT + d;
+    // Fire distribution: this shooter's own fixed bias for each target (see config.targetSpread).
+    let bias = t.jitter + offset;
+    if (bias >= 1) bias -= 1;
+    const score = rank * RANK_WEIGHT + d + bias * spreadWu;
     if (score >= best) continue;
     if (direct && w.smokeCount > 0 && smokeBlocks(w, x, t.x)) continue;
     best = score;
@@ -165,18 +170,18 @@ function search(w: World, m: MountState, side: number): boolean {
   return foundType !== TARGET_NONE;
 }
 
-/** Point the mount at the last search() result and start settling on it. */
-function takeFound(m: MountState): void {
+/**
+ * Point the mount at the last search() result and start settling on it: the full aim time from
+ * nothing, config.switchAimFrac of it when swinging over from another target (`switching`). A burst
+ * in progress carries on at the new target (a gunner swings to the next man).
+ */
+function takeFound(m: MountState, switching: boolean): void {
   const weapon = WEAPON_LIST[m.weaponIndex];
   m.targetType = foundType;
   m.targetIndex = foundIndex;
   m.targetId = foundId;
   m.aimX = FOUND_X[0];
-  m.aim = weapon.aimTime;
-  if (m.burstLeft > 0) {
-    m.burstLeft = 0;
-    m.cooldown = weapon.cooldown;
-  }
+  m.aim = switching ? weapon.aimTime * CONFIG.switchAimFrac : weapon.aimTime;
 }
 
 function dropTarget(m: MountState): void {
@@ -241,18 +246,19 @@ function currentRank(w: World, m: MountState): number {
  */
 export function senseMount(w: World, m: MountState, side: number, retarget: boolean): boolean {
   if (m.weaponIndex < 0) return false;
-  if (m.targetType !== TARGET_NONE) {
+  const had = m.targetType !== TARGET_NONE;
+  if (had) {
     if (targetValid(w, m)) {
       if (retarget) {
         const rank = currentRank(w, m);
-        if (rank > WEAPON_MIN_RANK[m.weaponIndex] && search(w, m, side) && foundRank < rank) takeFound(m);
+        if (rank > WEAPON_MIN_RANK[m.weaponIndex] && search(w, m, side) && foundRank < rank) takeFound(m, true);
       }
       return true;
     }
     dropTarget(m);
   }
   if (search(w, m, side)) {
-    takeFound(m);
+    takeFound(m, had);
     return true;
   }
   return false;
@@ -318,6 +324,7 @@ function fireShot(
     LAUNCH[1] = land;
     LAUNCH[2] = m.damageMul;
     LAUNCH[3] = 0;
+    LAUNCH[4] = 1;
     launch(w, side, wi, row, trow, shooter, source);
   } else if (target !== 'ground') {
     let t = weapon.range > 0 ? dist / weapon.range : 0;
@@ -353,7 +360,7 @@ function fireShot(
 /**
  * Advance a mount by one tick. The reload always runs; the aim only settles
  * while `active` (the shooter is standing on a target) and resets otherwise.
- * It fires when both are done, then plays out its burst. A thrown weapon first
+ * It fires when both are done and `m.trigger` is set, then plays out its burst. A thrown weapon first
  * winds up for config.throwReleaseTime and lets go even if the thrower is interrupted.
  * The caller sets `m.x` (muzzle position), `m.damageMul` and `m.rateMul` first.
  */
@@ -406,7 +413,7 @@ export function updateMount(
     if (m.aim > 0) return;
     m.aim = 0;
   }
-  if (m.cooldown > 0) return;
+  if (m.cooldown > 0 || !m.trigger) return;
   if (weapon.thrown && CONFIG.throwReleaseTime > 0) {
     m.windup = CONFIG.throwReleaseTime;
     return;

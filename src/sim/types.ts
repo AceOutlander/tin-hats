@@ -66,11 +66,22 @@ export type Command =
   | { type: 'train'; kind: UnitKind }
   /** Change the army-wide order. Instant and free. */
   | { type: 'order'; order: Order }
-  /** Call a support at world x. NOT YET IMPLEMENTED (Phase 2): accepted and ignored. */
+  /**
+   * Call a support at world x (clamped to the map). Dropped unless the mission offers it to this
+   * side and its cooldown is 0. Starts the cooldown and emits supportCalled.
+   */
   | { type: 'support'; kind: SupportKind; x: number }
-  /** Take direct control of the unit with this `id`, or -1 to release. NOT YET IMPLEMENTED (Phase 2): ignored. */
+  /**
+   * Take direct control of the unit with this unique `id` (not the pool index), or -1 to release.
+   * Dropped unless it is a living, controllable unit of this side on the field (not a sapper, not in
+   * the HQ). Taking another unit releases the previous one: one unit per side at a time.
+   */
   | { type: 'control'; unit: number }
-  /** Stick and buttons for the controlled unit. NOT YET IMPLEMENTED (Phase 2): ignored. */
+  /**
+   * Stick and buttons for the controlled unit; they stay in force until the next controlInput.
+   * moveX -1..1 (clamped); fire = the fire button is held; ability = the ability button was pressed
+   * (a one-off press, used on the next tick).
+   */
   | { type: 'controlInput'; moveX: number; fire: boolean; ability: boolean };
 
 /** Which parts of the design the sim currently simulates. The app guards its UI on these. */
@@ -148,6 +159,13 @@ export interface MountState {
   x: number;
   damageMul: number;
   rateMul: number;
+  /**
+   * internal: false holds fire: the mount keeps its target and settles its aim but does not shoot
+   * (a directly controlled unit whose fire button is up). True for every other mount.
+   */
+  trigger: boolean;
+  /** internal: this shooter's fixed 0..1 offset for fire distribution (config.targetSpread); 0 for structures. */
+  spread: number;
 }
 
 /**
@@ -198,7 +216,11 @@ export interface UnitState {
   carrying: number;
   /** Id of the trench the unit occupies (it has dropped into a slot and has cover), or -1. */
   trenchId: number;
-  /** True while the player directly controls this unit. Always false until Phase 2. */
+  /**
+   * True while the player directly controls this unit: it ignores orders, walks with the stick
+   * (front-clamped), fires while the fire button is held (crew weapons still set up first) and gets
+   * config.controlDamageMul / controlReloadMul.
+   */
   controlled: boolean;
 
   /** World x of what the unit is aiming at (or, for a medic, the man it is healing); equal to x when it has neither. */
@@ -306,13 +328,13 @@ export interface SideState {
   alive: Record<UnitKind, number>;
   /** Supports this side may call in this mission. */
   supportAvailable: Record<SupportKind, boolean>;
-  /** Seconds until each support is ready again; 0 = ready. Always 0 until Phase 2. */
+  /** Seconds until each support is ready again; 0 = ready. */
   supportCooldown: Record<SupportKind, number>;
   /** The HQ, or null if the side has none. Stays non-null (with alive false) after it is destroyed. */
   hq: HqState | null;
   /** World x of the line the army holds under Hold. */
   holdLineX: number;
-  /** Pool index of the unit under direct control, or -1. Always -1 until Phase 2. */
+  /** Pool index of the unit under direct control, or -1. */
   controlled: number;
   stats: SideStats;
 }
@@ -392,6 +414,8 @@ export interface ProjectileState {
   weaponIndex: number;
   damageMul: number;
   targetRow: number;
+  /** internal: extra multiplier on its damage to an HQ (support call-ins; 1 otherwise). */
+  hqMul: number;
 }
 
 /** A smoke cloud (pool slots): blocks direct fire along any line that crosses it, see smokeBlocks. */
@@ -515,14 +539,21 @@ export type SimEventType =
  * trainStarted      A unit was queued. side, kind, value = that kind's queue length afterwards.
  * trainDone         A unit finished training. side, kind, unit, unitId (a unitSpawned event follows).
  * orderChanged      side, order.
- * supportCalled     (Phase 2) side, support, x.
- * supportIncoming   (Phase 2) side, support, x, value = seconds until the first round.
+ * supportCalled     A call-in was accepted (its cooldown starts). side, support, x = target centre,
+ *                   value = seconds until the first round (SUPPORTS[support].delay), dir = the caller's
+ *                   facing (+1 for side 0): shells come from and the aircraft flies that way.
+ * supportIncoming   The rounds are about to arrive: emitted SUPPORTS[support].warning seconds before the
+ *                   first round (on the call itself when warning >= delay). side, support, x, dir as above,
+ *                   value = seconds until the first round. Artillery shells land at random within
+ *                   x +- spread; air-strike rockets leave the aircraft in order along the strip from
+ *                   x - dir * spread to x + dir * spread over `duration`; smoke appears at x (smokeSpawned).
  * smokeSpawned      side = who made it (-1 none), x, value = radius, x2 = lifetime in seconds.
  * wave              A scripted wave arrived. side, value = units spawned, text = announcement or null.
  * airdrop           Scripted supplies. side, value = supplies credited, x = where the crate lands (HQ door).
  * announce          text = banner text.
  * hint              text = tutorial hint.
- * controlLost       (Phase 2) side, unit, unitId, kind: the controlled unit died.
+ * controlLost       The controlled unit died (control simply ends, with no event, on a release or when
+ *                   the battle ends). side, unit, unitId, kind, x, row.
  * battleEnded       side = winner (-1 for a draw), value = battle time in seconds; see state.endReason.
  */
 export interface SimEvent {

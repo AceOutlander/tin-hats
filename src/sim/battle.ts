@@ -16,6 +16,7 @@ import { fireUnits, moveUnits, senseUnits } from './orders';
 import { Rng } from './rng';
 import { updateProjectiles, updateSmokes } from './projectiles';
 import { computeFronts, fireStructures, senseStructures } from './structures';
+import { SUPPORT_COUNT, updateSupports } from './supports';
 import { KIND_COUNT, KIND_LIST } from './tables';
 import { layoutTrenches, slotCount, updateTrenches } from './trenches';
 import type {
@@ -142,6 +143,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
       weaponIndex: -1,
       damageMul: 1,
       targetRow: -1,
+      hqMul: 1,
     });
   }
   const smokes: SmokeState[] = [];
@@ -238,6 +240,14 @@ class BattleImpl implements Battle, World {
   readonly slotUnit: Int32Array;
   readonly trenchInside: Int32Array;
   readonly cluster = new Uint8Array(CONFIG.maxUnits);
+  readonly leadCount = new Int32Array(2);
+  readonly ctrlMove = new Float64Array(2);
+  readonly ctrlFire = new Uint8Array(2);
+  readonly ctrlAbility = new Uint8Array(2);
+  readonly strikeTime = new Float64Array(2 * SUPPORT_COUNT).fill(-1);
+  readonly strikeX = new Float64Array(2 * SUPPORT_COUNT);
+  readonly strikeFired = new Int32Array(2 * SUPPORT_COUNT);
+  readonly strikeWarned = new Uint8Array(2 * SUPPORT_COUNT);
 
   constructor(config: BattleConfig) {
     const mission = config.mission;
@@ -299,6 +309,7 @@ class BattleImpl implements Battle, World {
     runCommanders(this); // their commands apply at the start of the next tick, like the player's
     updateMission(this);
     updateEconomy(this);
+    updateSupports(this); // cooldowns; strikes launch their rounds and lay their smoke
 
     computeFronts(this);
     senseUnits(this);
@@ -309,7 +320,6 @@ class BattleImpl implements Battle, World {
     fireUnits(this);
     fireStructures(this);
     updateSmokes(this);
-    // Phase 2 part 2: support call-ins. NOT YET IMPLEMENTED.
 
     applyDamage(this);
     checkEnd(this);

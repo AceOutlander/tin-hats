@@ -77,6 +77,15 @@ describe('rifle fire', () => {
     expect(near.observed - far.observed).toBeGreaterThan(0.25);
   });
 
+  /**
+   * The nearest distance at which an advancing unit of this kind may stop to fire (its engage
+   * distance at the worst jitter), less a margin: placed there, it stands and fires at once.
+   */
+  function standingDistance(kind: 'rifle' | 'lmg'): number {
+    const w = WEAPONS[UNITS[kind].weapon as string];
+    return Math.floor(w.range * UNITS[kind].engageFrac - CONFIG.engageSpread) - 10;
+  }
+
   /** One rifleman or machine gunner, tough enough to last, in range of an HQ that is too big to fall. */
   function marksman(kind: 'rifle' | 'lmg', distance: number) {
     const toughen: UpgradeDef = {
@@ -100,7 +109,7 @@ describe('rifle fire', () => {
 
   it('aims, fires, then reloads: one aimed shot every cooldown', () => {
     const w = WEAPONS.rifle;
-    const { b, door } = marksman('rifle', 250);
+    const { b, door } = marksman('rifle', standingDistance('rifle'));
     const rifle = unitsOf(b, 0, 'rifle')[0];
     expect(rifle.maxHp).toBe(UNITS.rifle.hp * 100);
     const actions = new Set<string>();
@@ -149,7 +158,7 @@ describe('rifle fire', () => {
 
   it('fires a machine gun in bursts: shots a burstInterval apart, then a cooldown', () => {
     const w = WEAPONS.lmg;
-    const { b } = marksman('lmg', 300);
+    const { b } = marksman('lmg', standingDistance('lmg'));
     const times: number[] = [];
     run(b, 25, () => {
       for (const e of eventsOf(b, 'shot')) if (e.source === 'unit') times.push(e.time);

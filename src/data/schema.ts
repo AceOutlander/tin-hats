@@ -191,6 +191,20 @@ export interface SupportDef {
   /** Smoke only: cloud radius (wu) and lifetime (s). */
   smokeRadius: number;
   smokeTime: number;
+  /**
+   * Seconds before the first round at which `supportIncoming` is announced (with the time left).
+   * At or above `delay` it is announced on the call itself.
+   */
+  warning: number;
+  /** Each round starts this far behind its landing point, toward the caller's side (shell arc, aircraft run-in). */
+  launchOffset: number;
+  /** Multiplier on this call-in's damage to an HQ, so a barrage cannot stand in for an army. */
+  hqDamageMul: number;
+  /**
+   * Where the rounds land: 'scatter' = at random within x +- spread (artillery); 'sweep' = evenly along
+   * the strip from x - dir * spread to x + dir * spread in the caller's direction (an aircraft's run).
+   */
+  pattern: 'scatter' | 'sweep';
 }
 
 export type UpgradeEffect =
@@ -284,6 +298,14 @@ export interface GameConfig {
   firePoseTime: number;
   /** Seconds between checks for a more preferred target (weapons with a `prefer` list). */
   retargetInterval: number;
+  /**
+   * Fire distribution: when choosing among targets of the same rank, each shooter adds its own
+   * fixed 0..this many wu to each target's distance, so a firing line spreads its fire over the
+   * enemies near the front instead of all shooting the single nearest man.
+   */
+  targetSpread: number;
+  /** A weapon swinging from one target straight to the next settles for this fraction of its aimTime. */
+  switchAimFrac: number;
 
   /** Direct control buffs. */
   controlDamageMul: number;
@@ -370,6 +392,58 @@ export interface AiDef {
   infantryPerLmg: number;
   /** Reactions never add more than this many units of one kind. */
   maxReaction: number;
+
+  /** Enemy infantry in a trench count this many times their cost when the AI weighs an attack. */
+  dugInWeight: number;
+  /** Strength a living enemy pillbox adds to the enemy when the AI weighs an attack. */
+  pillboxValue: number;
+  /** An armed enemy within this distance of the HQ door means the HQ is under threat (Fall Back is allowed). */
+  hqThreatDistance: number;
+  /** Leave Fall Back straight for Advance when total own strength >= enemy strength * commitRatio. */
+  commitRatio: number;
+  /**
+   * Hold with this much more total strength than the visible enemy (own >= enemy * advantageRatio)
+   * and the AI advances even if its group at the line is still small (no sheltering while ahead).
+   */
+  advantageRatio: number;
+
+  /** Supports: value (summed supply cost) of enemies within artilleryRadius worth an artillery barrage. */
+  artilleryRadius: number;
+  artilleryMinValue: number;
+  /** Supports: value within artilleryRadius worth an air strike when no enemy tank is on the field. */
+  airStrikeMinValue: number;
+  /** Supports: smoke is laid while advancing when the enemy line is between these distances ahead of the leading unit. */
+  smokeMinGap: number;
+  smokeMaxGap: number;
+}
+
+/** One group of an army in the matchup harness and the balance tests. */
+export interface ArmyEntry {
+  kind: UnitKind;
+  count: number;
+}
+
+/** Tunables of the headless matchup harness (src/sim/matchup.ts, src/data/balance.ts). */
+export interface MatchupDef {
+  /** Unit kinds in the matchup tables (combat units only). */
+  kinds: UnitKind[];
+  /** Each side's budget in supplies lies in this range; unit counts are picked so both sides cost (nearly) the same. */
+  budgetMin: number;
+  budgetMax: number;
+  /** Battles per pairing (seeds 1..seeds). */
+  seeds: number;
+  /** A duel still running after this many seconds is undecided. */
+  maxSeconds: number;
+  /** Field length. */
+  length: number;
+  /** Open field: x of side 0's and of side 1's leading unit at the start (both advance). */
+  openX: [number, number];
+  /** Trench test: centre and width of the defenders' trench (side 1, one slot per defender) and the attackers' start x. */
+  trenchX: number;
+  trenchWidth: number;
+  attackX: number;
+  /** A sensible mixed army; at equal total cost it must beat a mono-spam of every unit kind. */
+  mixedArmy: ArmyEntry[];
 }
 
 export interface TrenchDef {
