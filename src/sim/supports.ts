@@ -82,6 +82,7 @@ function fireRound(w: World, si: number, k: number, n: number): void {
   LAUNCH[2] = 1;
   LAUNCH[3] = 0;
   LAUNCH[4] = def.hqDamageMul;
+  LAUNCH[5] = def.vehicleDamageMul;
   launch(w, si, SUPPORT_WEAPON[k], n % CONFIG.rows, -1, null, 'none');
 }
 
@@ -90,12 +91,12 @@ export function updateSupports(w: World): void {
   const s = w.state;
   const dt = w.dt;
   for (let si = 0; si < 2; si++) {
-    const cooldowns = s.sides[si].supportCooldown;
+    // Named stores (not cooldowns[kind]) keep the fractional seconds from being boxed every tick.
+    const cd = s.sides[si].supportCooldown;
+    if (cd.artillery > 0) cd.artillery = cd.artillery > dt ? cd.artillery - dt : 0;
+    if (cd.smoke > 0) cd.smoke = cd.smoke > dt ? cd.smoke - dt : 0;
+    if (cd.airStrike > 0) cd.airStrike = cd.airStrike > dt ? cd.airStrike - dt : 0;
     for (let k = 0; k < SUPPORT_COUNT; k++) {
-      const kind = SUPPORT_KINDS[k];
-      const left = cooldowns[kind];
-      if (left > 0) cooldowns[kind] = left > dt ? left - dt : 0;
-
       const slot = si * SUPPORT_COUNT + k;
       if (w.strikeTime[slot] < 0) continue;
       const def = SUPPORT_DEFS[k];

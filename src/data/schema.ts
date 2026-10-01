@@ -200,6 +200,8 @@ export interface SupportDef {
   launchOffset: number;
   /** Multiplier on this call-in's damage to an HQ, so a barrage cannot stand in for an army. */
   hqDamageMul: number;
+  /** Multiplier on this call-in's damage to vehicles (the air strike's anti-tank punch). */
+  vehicleDamageMul: number;
   /**
    * Where the rounds land: 'scatter' = at random within x +- spread (artillery); 'sweep' = evenly along
    * the strip from x - dir * spread to x + dir * spread in the caller's direction (an aircraft's run).
@@ -397,8 +399,15 @@ export interface AiDef {
   dugInWeight: number;
   /** Strength a living enemy pillbox adds to the enemy when the AI weighs an attack. */
   pillboxValue: number;
-  /** An armed enemy within this distance of the HQ door means the HQ is under threat (Fall Back is allowed). */
+  /**
+   * The HQ is under threat (Fall Back is allowed, and kept) while an armed enemy is within this distance
+   * of the HQ door or within threatDistance of the hold line.
+   */
   hqThreatDistance: number;
+  /** Strength the enemy HQ's machine gun adds to the enemy once the leading unit is within hqThreatDistance of it. */
+  hqValue: number;
+  /** An Advance is not called off before it has run this many seconds (the army needs time to arrive). */
+  minAdvanceTime: number;
   /** Leave Fall Back straight for Advance when total own strength >= enemy strength * commitRatio. */
   commitRatio: number;
   /**
@@ -407,6 +416,10 @@ export interface AiDef {
    */
   advantageRatio: number;
 
+  /** Supports: targets only within this distance ahead of its own leading unit (or behind it), never deep in enemy country. */
+  supportReach: number;
+  /** Supports: seconds between two call-ins of its own (so it does not drop everything on one cluster). */
+  supportGap: number;
   /** Supports: value (summed supply cost) of enemies within artilleryRadius worth an artillery barrage. */
   artilleryRadius: number;
   artilleryMinValue: number;

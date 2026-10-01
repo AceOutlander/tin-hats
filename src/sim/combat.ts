@@ -59,6 +59,18 @@ const FOUND_X = new Float64Array(1);
  * in one, and the shooter is not within config.smokePointBlank. Lobbed weapons never call this.
  */
 export function smokeBlocks(w: World, fromX: number, toX: number): boolean {
+  SMOKE_LINE[0] = fromX;
+  SMOKE_LINE[1] = toX;
+  return lineSmoked(w);
+}
+
+/** The two ends of the line lineSmoked() tests (a typed array, so hot callers pass no boxed doubles). */
+const SMOKE_LINE = new Float64Array(2);
+
+/** smokeBlocks() for the line SMOKE_LINE[0] to SMOKE_LINE[1]. */
+function lineSmoked(w: World): boolean {
+  const fromX = SMOKE_LINE[0];
+  const toX = SMOKE_LINE[1];
   const smokes = w.state.smokes;
   const dist = fromX < toX ? toX - fromX : fromX - toX;
   if (dist <= CONFIG.smokePointBlank) return false;
@@ -122,7 +134,11 @@ function search(w: World, m: MountState, side: number): boolean {
     if (bias >= 1) bias -= 1;
     const score = rank * RANK_WEIGHT + d + bias * spreadWu;
     if (score >= best) continue;
-    if (direct && w.smokeCount > 0 && smokeBlocks(w, x, t.x)) continue;
+    if (direct && w.smokeCount > 0) {
+      SMOKE_LINE[0] = x;
+      SMOKE_LINE[1] = t.x;
+      if (lineSmoked(w)) continue;
+    }
     best = score;
     foundType = TARGET_UNIT;
     foundIndex = i;
@@ -141,7 +157,11 @@ function search(w: World, m: MountState, side: number): boolean {
       if (d > range || d < minRange) continue;
       const score = structRank * RANK_WEIGHT + d;
       if (score >= best) continue;
-      if (direct && w.smokeCount > 0 && smokeBlocks(w, x, p.x)) continue;
+      if (direct && w.smokeCount > 0) {
+        SMOKE_LINE[0] = x;
+        SMOKE_LINE[1] = p.x;
+        if (lineSmoked(w)) continue;
+      }
       best = score;
       foundType = TARGET_PILLBOX;
       foundIndex = i;
@@ -157,7 +177,13 @@ function search(w: World, m: MountState, side: number): boolean {
       const d = hq.doorX > x ? hq.doorX - x : x - hq.doorX;
       if (d <= range && d >= minRange) {
         const score = structRank * RANK_WEIGHT + d;
-        if (score < best && !(direct && w.smokeCount > 0 && smokeBlocks(w, x, hq.doorX))) {
+        let blocked = false;
+        if (direct && w.smokeCount > 0) {
+          SMOKE_LINE[0] = x;
+          SMOKE_LINE[1] = hq.doorX;
+          blocked = lineSmoked(w);
+        }
+        if (score < best && !blocked) {
           foundType = TARGET_HQ;
           foundIndex = enemy;
           foundId = -1;
@@ -226,7 +252,11 @@ function targetValid(w: World, m: MountState): boolean {
   }
   const d = tx > x ? tx - x : x - tx;
   if (d > weapon.range || d < weapon.minRange) return false;
-  if (weapon.delivery !== 'lob' && w.smokeCount > 0 && smokeBlocks(w, x, tx)) return false;
+  if (weapon.delivery !== 'lob' && w.smokeCount > 0) {
+    SMOKE_LINE[0] = x;
+    SMOKE_LINE[1] = tx;
+    if (lineSmoked(w)) return false;
+  }
   m.aimX = tx;
   return true;
 }
@@ -325,6 +355,7 @@ function fireShot(
     LAUNCH[2] = m.damageMul;
     LAUNCH[3] = 0;
     LAUNCH[4] = 1;
+    LAUNCH[5] = 1;
     launch(w, side, wi, row, trow, shooter, source);
   } else if (target !== 'ground') {
     let t = weapon.range > 0 ? dist / weapon.range : 0;

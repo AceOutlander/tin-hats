@@ -2,16 +2,22 @@
  * The AI commander. One implementation drives the campaign enemy ('ai',
  * following mission.ai and scaled by the difficulty) and the reasonable-player
  * test bot ('bot', following mission.bot). It reads the same state the player
- * sees and issues the same commands through the same queue.
+ * sees and issues the same commands through the same queue, under the same
+ * rules (cost, population, cooldowns, availability).
+ *
+ * Each think: survey the field, keep the economy and the build plan going (plus
+ * reactions to what it sees), pick the order from relative strength with
+ * hysteresis, and call in supports.
  */
 import { AI } from '../data/ai';
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
-import type { Order, UnitKind } from '../data/schema';
+import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { canTrain } from './commands';
+import { canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
 import type { CommanderKind } from './types';
-import { CMD_ORDER, CMD_TRAIN, type AiState, type World } from './world';
+import { CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
 
 /** Build the commander memory for a side, or null for human and idle commanders. */
 export function createAi(w: World, kind: CommanderKind): AiState | null {
@@ -24,9 +30,39 @@ export function createAi(w: World, kind: CommanderKind): AiState | null {
     aggression: kind === 'ai' ? difficulty.aiAggression : 1,
     lastOrderTime: -AI.minOrderInterval,
     holdSince: 0,
+    advanceSince: 0,
+    lastSupportTime: -AI.supportGap,
     desired: new Int16Array(KIND_COUNT),
   };
 }
+
+/**
+ * What one think saw (module scratch, overwritten by every survey; numbers live in fields so
+ * nothing is allocated).
+ * own      summed cost of its armed army units, on the field or in the HQ;
+ * field    the same, on the field only;
+ * group    on the field within AI.groupRadius of the rally point (the hold line, or the leading unit
+ *          while advancing); units in a trench count AI.dugInWeight times (they are worth more there);
+ * foe      summed cost of the enemy's armed units on the field (what is visible);
+ * foeW     the same with enemy infantry in trenches counted AI.dugInWeight times, AI.pillboxValue
+ *          per living enemy pillbox, and AI.hqValue once its leading unit is near the enemy HQ's gun:
+ *          what an attack has to beat;
+ * foeAhead how far the nearest armed enemy is in front of its hold line (negative once past it);
+ * hqThreat true when an armed enemy is within AI.hqThreatDistance of its HQ door or within
+ *          AI.threatDistance of its hold line.
+ */
+const SV = {
+  own: 0,
+  field: 0,
+  group: 0,
+  foe: 0,
+  foeW: 0,
+  foeTanks: 0,
+  foeDugIn: 0,
+  foeOpen: 0,
+  foeAhead: 0,
+  hqThreat: false,
+};
 
 function issueTrain(w: World, si: number, kind: UnitKind): void {
   w.commands.push(si, CMD_TRAIN).kind = kind;
@@ -36,144 +72,293 @@ function issueOrder(w: World, si: number, order: Order): void {
   w.commands.push(si, CMD_ORDER).order = order;
 }
 
+function issueSupport(w: World, si: number, ai: AiState, kind: SupportKind, x: number): void {
+  const c = w.commands.push(si, CMD_SUPPORT);
+  c.support = kind;
+  c.x = x;
+  ai.lastSupportTime = w.state.time;
+}
+
 function react(w: World, si: number, ai: AiState, kind: UnitKind, extra: number): void {
   if (extra <= 0 || w.state.sides[si].available[kind] !== true) return;
   ai.desired[KIND_INDEX[kind]] += extra > AI.maxReaction ? AI.maxReaction : extra;
 }
 
-function think(w: World, si: number, ai: AiState): void {
+function survey(w: World, si: number): void {
   const s = w.state;
   const side = s.sides[si];
-  const hq = side.hq;
-  if (!side.hasHq || !hq || !hq.alive) return;
   const dir = si === 0 ? 1 : -1;
-  const time = s.time;
-
-  // Survey: army strength is the summed supply cost of armed units. Only enemies on the field are visible.
-  // The group is what has gathered at the hold line, or around the leading unit during an advance.
-  let own = 0;
-  let group = 0;
-  let foe = 0;
-  let foeTanks = 0;
-  let foeDugIn = 0;
-  let foeOpen = 0;
-  let foeAhead = Infinity;
   const rally = side.order === 'advance' ? w.armedFront[si] : side.holdLineX;
+  const hq = side.hq;
+  SV.own = 0;
+  SV.field = 0;
+  SV.group = 0;
+  SV.foe = 0;
+  SV.foeW = 0;
+  SV.foeTanks = 0;
+  SV.foeDugIn = 0;
+  SV.foeOpen = 0;
+  SV.foeAhead = Infinity;
+  SV.hqThreat = false;
   const units = s.units;
   for (let i = 0; i < s.unitCount; i++) {
     const u = units[i];
     if (!u.alive) continue;
     if (u.side === si) {
-      if (u.def.armed && u.behaviour === 'army') {
-        own += u.def.cost;
-        const away = u.x > rally ? u.x - rally : rally - u.x;
-        if (!u.inside && away <= AI.groupRadius) group += u.def.cost;
-      }
+      if (!u.def.armed || u.behaviour !== 'army') continue;
+      const cost = u.def.cost;
+      SV.own += cost;
+      if (u.inside) continue;
+      SV.field += cost;
+      const away = u.x > rally ? u.x - rally : rally - u.x;
+      if (away <= AI.groupRadius) SV.group += u.trenchId >= 0 ? cost * AI.dugInWeight : cost;
     } else if (!u.inside) {
       if (u.def.armed) {
-        foe += u.def.cost;
+        SV.foe += u.def.cost;
+        SV.foeW += u.trenchId >= 0 ? u.def.cost * AI.dugInWeight : u.def.cost;
+        // Negative once past the hold line, so an enemy behind the line is always "near".
         const ahead = (u.x - side.holdLineX) * dir;
-        if (ahead < foeAhead) foeAhead = ahead;
+        if (ahead < SV.foeAhead) SV.foeAhead = ahead;
+        if (hq && hq.alive) {
+          const toHq = u.x > hq.doorX ? u.x - hq.doorX : hq.doorX - u.x;
+          if (toHq <= AI.hqThreatDistance) SV.hqThreat = true;
+        }
       }
-      if (u.def.class === 'vehicle') foeTanks++;
-      else if (u.trenchId >= 0) foeDugIn++;
-      else if (u.def.armed) foeOpen++;
+      if (u.def.class === 'vehicle') SV.foeTanks++;
+      else if (u.trenchId >= 0) SV.foeDugIn++;
+      else if (u.def.armed) SV.foeOpen++;
     }
   }
   for (let i = 0; i < s.pillboxes.length; i++) {
-    if (s.pillboxes[i].alive && s.pillboxes[i].side !== si) foeDugIn++;
+    if (s.pillboxes[i].alive && s.pillboxes[i].side !== si) {
+      SV.foeDugIn++;
+      SV.foeW += AI.pillboxValue;
+    }
   }
-  const foeNear = foeAhead <= AI.threatDistance;
+  if (SV.foeAhead <= AI.threatDistance) SV.hqThreat = true;
+  const enemyHq = s.sides[1 - si].hq;
+  if (enemyHq && enemyHq.alive) {
+    const lead = w.armedFront[si];
+    const toHq = lead > enemyHq.doorX ? lead - enemyHq.doorX : enemyHq.doorX - lead;
+    if (toHq <= AI.hqThreatDistance) SV.foeW += AI.hqValue;
+  }
+}
 
-  // Economy first: sappers up to the plan, unless the enemy is at the gates and winning.
-  let saving = false;
-  if (side.available.sapper && side.alive.sapper + side.queue.sapper < ai.plan.sappers && !(foeNear && own < foe)) {
-    saving = true;
+/** Economy first, then the build plan plus reactions to what it sees. */
+function build(w: World, si: number, ai: AiState): void {
+  const side = w.state.sides[si];
+  const time = w.state.time;
+  const foeNear = SV.foeAhead <= AI.threatDistance;
+
+  // Sappers up to the plan, unless the enemy is at the gates and winning.
+  if (side.available.sapper && side.alive.sapper + side.queue.sapper < ai.plan.sappers && !(foeNear && SV.own < SV.foe)) {
     if (side.queue.sapper < AI.maxQueueDepth && canTrain(w, si, 'sapper')) issueTrain(w, si, 'sapper');
+    return;
   }
 
-  if (!saving) {
-    // Build plan: keep `count` of `kind` alive once `after` seconds have passed, plus reactions to what is visible.
-    const desired = ai.desired;
-    desired.fill(0);
-    const build = ai.plan.build;
-    for (let i = 0; i < build.length; i++) {
-      const step = build[i];
-      if (time < step.after) continue;
-      const k = KIND_INDEX[step.kind];
-      if (step.count > desired[k]) desired[k] = step.count;
-    }
-    react(w, si, ai, 'at', Math.ceil(foeTanks * AI.atPerTank));
-    if (foeDugIn > 0) {
-      react(w, si, ai, 'mortar', AI.mortarsVsDugIn);
-      react(w, si, ai, 'assault', AI.assaultVsDugIn);
-    }
-    if (AI.infantryPerLmg > 0) react(w, si, ai, 'lmg', Math.floor(foeOpen / AI.infantryPerLmg));
+  // Build plan: keep `count` of `kind` alive once `after` seconds have passed, plus reactions.
+  const desired = ai.desired;
+  desired.fill(0);
+  const plan = ai.plan.build;
+  for (let i = 0; i < plan.length; i++) {
+    const step = plan[i];
+    if (time < step.after) continue;
+    const k = KIND_INDEX[step.kind];
+    if (step.count > desired[k]) desired[k] = step.count;
+  }
+  react(w, si, ai, 'at', Math.ceil(SV.foeTanks * AI.atPerTank));
+  if (SV.foeDugIn > 0) {
+    react(w, si, ai, 'mortar', AI.mortarsVsDugIn);
+    react(w, si, ai, 'assault', AI.assaultVsDugIn);
+  }
+  if (AI.infantryPerLmg > 0) react(w, si, ai, 'lmg', Math.floor(SV.foeOpen / AI.infantryPerLmg));
 
-    // Train the kind furthest below its target.
-    let pick = -1;
-    let worst = 0;
+  // Train the kind furthest below its target.
+  let pick = -1;
+  let worst = 0;
+  for (let k = 0; k < KIND_COUNT; k++) {
+    if (desired[k] <= 0) continue;
+    const kind = KIND_LIST[k];
+    if (side.available[kind] !== true) continue;
+    const short = (desired[k] - side.alive[kind] - side.queue[kind]) / desired[k];
+    if (short > worst) {
+      worst = short;
+      pick = k;
+    }
+  }
+  if (pick < 0 && side.supplies >= AI.surplusSupplies) {
+    // Plan satisfied and supplies banked: keep growing in the plan's proportions.
+    let lowest = Infinity;
     for (let k = 0; k < KIND_COUNT; k++) {
       if (desired[k] <= 0) continue;
       const kind = KIND_LIST[k];
       if (side.available[kind] !== true) continue;
-      const short = (desired[k] - side.alive[kind] - side.queue[kind]) / desired[k];
-      if (short > worst) {
-        worst = short;
+      const ratio = (side.alive[kind] + side.queue[kind]) / desired[k];
+      if (ratio < lowest) {
+        lowest = ratio;
         pick = k;
       }
     }
-    if (pick < 0 && side.supplies >= AI.surplusSupplies) {
-      // Plan satisfied and supplies banked: keep growing in the plan's proportions.
-      let lowest = Infinity;
-      for (let k = 0; k < KIND_COUNT; k++) {
-        if (desired[k] <= 0) continue;
-        const kind = KIND_LIST[k];
-        if (side.available[kind] !== true) continue;
-        const ratio = (side.alive[kind] + side.queue[kind]) / desired[k];
-        if (ratio < lowest) {
-          lowest = ratio;
-          pick = k;
-        }
-      }
-    }
-    if (pick >= 0) {
-      const kind = KIND_LIST[pick];
-      if (side.queue[kind] < AI.maxQueueDepth && canTrain(w, si, kind)) issueTrain(w, si, kind);
-    }
   }
+  if (pick >= 0) {
+    const kind = KIND_LIST[pick];
+    if (side.queue[kind] < AI.maxQueueDepth && canTrain(w, si, kind)) issueTrain(w, si, kind);
+  }
+}
 
-  // Orders, from relative strength, with hysteresis and a minimum time between changes.
+/**
+ * Orders from relative strength, with hysteresis and a minimum time between changes.
+ * Hold -> Advance: once allowed (firstAttackAfter) and with a real force gathered at the line, when
+ *   that group outweighs what an attack has to beat (foeW x attackRatio), or the population is
+ *   capped, or it has waited long enough (impatience), or its whole army is far stronger
+ *   (advantageRatio) - it never shelters while ahead.
+ * Advance -> Hold: once the advance has had AI.minAdvanceTime to arrive, when the group at the
+ *   front has fallen well below what it faces (holdRatio, not at the population cap), or at any
+ *   time when the attack is broken (regroupFrac). The wide band between attackRatio and holdRatio
+ *   is the hysteresis; recalling a trickle lets the army gather and attack together.
+ * Hold -> Fall Back: only when the HQ is threatened (the enemy at the hold line or near the HQ) and
+ *   it is badly outnumbered.
+ * Fall Back -> out: as soon as the HQ is no longer threatened or the garrison is strong enough;
+ *   straight to Advance when it is clearly stronger.
+ */
+function decideOrder(w: World, si: number, ai: AiState): void {
+  const side = w.state.sides[si];
+  const time = w.state.time;
   if (time - ai.lastOrderTime < AI.minOrderInterval) return;
   const order = side.order;
+  const capped = side.pop >= side.popCap * AI.popCapAttackFrac;
+  const mayAttack = time >= ai.plan.firstAttackAfter / ai.aggression;
+  const foeW = SV.foeW;
+  const broken = AI.minAttackStrength * AI.regroupFrac;
   let next: Order = order;
   if (order === 'hold') {
-    if (foeNear && group < foe * AI.retreatRatio) {
+    if (SV.hqThreat && SV.group < SV.foe * AI.retreatRatio) {
       next = 'fallBack';
-    } else if (time >= ai.plan.firstAttackAfter / ai.aggression && group >= AI.minAttackStrength) {
+    } else if (mayAttack && SV.group >= AI.minAttackStrength) {
       const impatient = time - ai.holdSince >= AI.impatienceAfter / ai.aggression;
       if (
-        group >= (foe * AI.attackRatio) / ai.aggression ||
-        side.pop >= side.popCap * AI.popCapAttackFrac ||
-        (impatient && group >= foe * AI.impatientRatio)
+        SV.group >= (foeW * AI.attackRatio) / ai.aggression ||
+        capped ||
+        (impatient && SV.group >= foeW * AI.impatientRatio) ||
+        SV.own >= (foeW * AI.advantageRatio) / ai.aggression
       ) {
         next = 'advance';
       }
     }
   } else if (order === 'advance') {
+    const settled = time - ai.advanceSince >= AI.minAdvanceTime;
     // At the population cap waiting cannot make the army any bigger, so only a broken attack stops.
-    const capped = side.pop >= side.popCap * AI.popCapAttackFrac;
-    if ((!capped && group < foe * AI.holdRatio) || group < AI.minAttackStrength * AI.regroupFrac) next = 'hold';
-  } else if (!foeNear || own >= foe * AI.returnRatio) {
+    if (SV.field < broken || (settled && (SV.group < broken || (!capped && SV.group < foeW * AI.holdRatio)))) next = 'hold';
+  } else if (mayAttack && SV.own >= AI.minAttackStrength && SV.own >= foeW * AI.commitRatio) {
+    next = 'advance';
+  } else if (!SV.hqThreat || SV.own >= SV.foe * AI.returnRatio) {
     next = 'hold';
   }
   if (next !== order) {
     issueOrder(w, si, next);
     ai.lastOrderTime = time;
     if (next === 'hold') ai.holdSince = time;
+    else if (next === 'advance') ai.advanceSince = time;
   }
-  // Phase 2: support call-ins (artillery on clusters and trenches, smoke ahead of an advance,
-  // air strikes on tanks). NOT YET IMPLEMENTED.
+}
+
+/** Scratch for the best target found by bestCluster: [0] x, [1] its value, [2] working sum. */
+const BEST = new Float64Array(3);
+
+/**
+ * The armed enemy's position with the most enemy value within AI.artilleryRadius around it (summed
+ * cost, men in trenches weighted AI.dugInWeight, AI.pillboxValue per pillbox): BEST[0] = x,
+ * BEST[1] = value (0 if there is none).
+ */
+function bestCluster(w: World, si: number): void {
+  const s = w.state;
+  const r = AI.artilleryRadius;
+  const dir = si === 0 ? 1 : -1;
+  const lead = w.armedFront[si];
+  BEST[0] = 0;
+  BEST[1] = 0;
+  // Integer sums and bound comparisons only in the inner loops: this runs at think rate, often
+  // before the optimiser has compiled it, where every fractional intermediate would be boxed.
+  for (let i = 0; i < s.unitCount; i++) {
+    const c = s.units[i];
+    if (!c.alive || c.side === si || c.inside || !c.def.armed) continue;
+    if ((c.x - lead) * dir > AI.supportReach) continue;
+    const lo = c.x - r;
+    const hi = c.x + r;
+    let open = 0;
+    let dug = 0;
+    let boxes = 0;
+    for (let j = 0; j < s.unitCount; j++) {
+      const u = s.units[j];
+      if (!u.alive || u.side === si || u.inside || u.x < lo || u.x > hi) continue;
+      if (u.trenchId >= 0) dug += u.def.cost;
+      else open += u.def.cost;
+    }
+    for (let j = 0; j < s.pillboxes.length; j++) {
+      const p = s.pillboxes[j];
+      if (p.alive && p.side !== si && p.x >= lo && p.x <= hi) boxes++;
+    }
+    BEST[2] = open + dug * AI.dugInWeight + boxes * AI.pillboxValue;
+    if (BEST[2] > BEST[1]) {
+      BEST[1] = BEST[2];
+      BEST[0] = c.x;
+    }
+  }
+}
+
+/**
+ * Supports, under the same cooldowns and availability as the player: artillery on the densest
+ * enemy cluster or an occupied trench, an air strike on a tank (the one nearest its own HQ) or a
+ * big cluster, smoke between its leading unit and the enemy line while it advances on dug-in troops.
+ */
+function callSupports(w: World, si: number, ai: AiState): void {
+  const s = w.state;
+  if (s.time - ai.lastSupportTime < AI.supportGap) return;
+  const side = s.sides[si];
+  const dir = si === 0 ? 1 : -1;
+  const artillery = canCallSupport(w, si, 'artillery');
+  const air = canCallSupport(w, si, 'airStrike');
+  if (artillery || air) {
+    bestCluster(w, si);
+    if (artillery && BEST[1] >= AI.artilleryMinValue) {
+      issueSupport(w, si, ai, 'artillery', BEST[0]);
+    } else if (air) {
+      // A tank first (the one closest to this side's HQ), else a big cluster.
+      let tankX = -1;
+      let tankD = Infinity;
+      const hq = side.hq;
+      const home = hq ? hq.x : si === 0 ? 0 : s.length;
+      const lead = w.armedFront[si];
+      for (let i = 0; i < s.unitCount; i++) {
+        const u = s.units[i];
+        if (!u.alive || u.side === si || u.inside || u.def.class !== 'vehicle') continue;
+        if ((u.x - lead) * dir > AI.supportReach) continue;
+        const d = u.x > home ? u.x - home : home - u.x;
+        if (d < tankD) {
+          tankD = d;
+          tankX = u.x;
+        }
+      }
+      if (tankX >= 0) issueSupport(w, si, ai, 'airStrike', tankX);
+      else if (BEST[1] >= AI.airStrikeMinValue) issueSupport(w, si, ai, 'airStrike', BEST[0]);
+    }
+  }
+  if (s.time - ai.lastSupportTime < AI.supportGap) return;
+  if (side.order === 'advance' && SV.foeDugIn > 0 && canCallSupport(w, si, 'smoke')) {
+    const lead = w.armedFront[si];
+    const gap = (w.front[1 - si] - lead) * dir;
+    if (gap >= AI.smokeMinGap && gap <= AI.smokeMaxGap) issueSupport(w, si, ai, 'smoke', lead + (dir * gap) / 2);
+  }
+}
+
+function think(w: World, si: number, ai: AiState): void {
+  const side = w.state.sides[si];
+  const hq = side.hq;
+  if (!side.hasHq || !hq || !hq.alive) return;
+  survey(w, si);
+  build(w, si, ai);
+  decideOrder(w, si, ai);
+  callSupports(w, si, ai);
 }
 
 /** Let each AI or bot commander think when its interval comes round. Both sides read the same state. */

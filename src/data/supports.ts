@@ -18,6 +18,7 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     warning: 1.5,
     launchOffset: 260,
     hqDamageMul: 0.25,
+    vehicleDamageMul: 1,
     pattern: 'scatter',
   },
   smoke: {
@@ -33,6 +34,7 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     warning: 1.5,
     launchOffset: 0,
     hqDamageMul: 0,
+    vehicleDamageMul: 1,
     pattern: 'scatter',
   },
   airStrike: {
@@ -48,6 +50,7 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     warning: 2.5,
     launchOffset: 140,
     hqDamageMul: 0.25,
+    vehicleDamageMul: 3,
     pattern: 'sweep',
   },
 };

@@ -4,10 +4,53 @@
  * in orders.ts where the sappers walk.)
  */
 import { CONFIG } from '../data/config';
-import type { Side } from '../data/schema';
+import type { Side, UnitKind } from '../data/schema';
 import { KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER } from './tables';
 import { spawnUnit } from './units';
 import type { World } from './world';
+
+/** The value setProgress() stores (a typed array, so the fraction is not boxed on the way). */
+const PROGRESS = new Float64Array(1);
+
+/**
+ * progress[KIND_LIST[k]] = PROGRESS[0], with a named store per kind: a keyed store over ten
+ * different names goes megamorphic and allocates a heap number for every fraction it writes.
+ */
+function setProgress(p: Record<UnitKind, number>, k: number): void {
+  const v = PROGRESS[0];
+  switch (KIND_LIST[k]) {
+    case 'sapper':
+      p.sapper = v;
+      break;
+    case 'rifle':
+      p.rifle = v;
+      break;
+    case 'lmg':
+      p.lmg = v;
+      break;
+    case 'assault':
+      p.assault = v;
+      break;
+    case 'mortar':
+      p.mortar = v;
+      break;
+    case 'sniper':
+      p.sniper = v;
+      break;
+    case 'medic':
+      p.medic = v;
+      break;
+    case 'at':
+      p.at = v;
+      break;
+    case 'tank':
+      p.tank = v;
+      break;
+    case 'heavyTank':
+      p.heavyTank = v;
+      break;
+  }
+}
 
 export function updateEconomy(w: World): void {
   const s = w.state;
@@ -52,7 +95,8 @@ export function updateEconomy(w: World): void {
         }
       }
       w.trainLeft[slot] = left;
-      side.progress[kind] = side.queue[kind] > 0 && trainTime > 0 ? 1 - left / trainTime : 0;
+      PROGRESS[0] = side.queue[kind] > 0 && trainTime > 0 ? 1 - left / trainTime : 0;
+      setProgress(side.progress, k);
     }
 
     // Income estimate: the trickle plus what the working sappers bring in over a full round trip.

@@ -35,15 +35,20 @@ export function slotCount(slots: readonly { slots: number }[]): number {
   return n;
 }
 
-/** Reserve the free slot of trench `t` nearest to the unit. Returns false if the trench is full. */
+/**
+ * Reserve the free slot of trench `t` nearest to the unit; between two equally near slots, the one
+ * further back from its side's point of view (slots are scanned rear first), so mirrored sides match.
+ * Returns false if the trench is full.
+ */
 export function claimSlot(w: World, u: UnitState, t: number): boolean {
   const trench = w.state.trenches[t];
   if (w.trenchTaken[t] >= trench.slots) return false;
   const first = w.trenchSlot0[t];
+  const last = trench.slots - 1;
   let best = -1;
   let bestD = Infinity;
-  for (let k = 0; k < trench.slots; k++) {
-    const g = first + k;
+  for (let n = 0; n < trench.slots; n++) {
+    const g = first + (u.side === 0 ? n : last - n);
     if (w.slotUnit[g] >= 0) continue;
     const d = w.slotX[g] > u.x ? w.slotX[g] - u.x : u.x - w.slotX[g];
     if (d < bestD) {

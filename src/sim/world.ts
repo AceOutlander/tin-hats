@@ -227,6 +227,10 @@ export interface AiState {
   lastOrderTime: number;
   /** Battle time since which it has been holding. */
   holdSince: number;
+  /** Battle time its current (or last) Advance began. */
+  advanceSince: number;
+  /** Battle time of its last support call-in. */
+  lastSupportTime: number;
   /** Scratch: wanted number of units per kind index. */
   desired: Int16Array;
 }

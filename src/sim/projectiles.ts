@@ -12,6 +12,7 @@ import type { Side } from '../data/schema';
 import {
   CLASS_FORT,
   CLASS_HQ,
+  CLASS_VEHICLE,
   DAMAGE_TYPES,
   WEAPON_DTYPE,
   WEAPON_LIST,
@@ -28,10 +29,10 @@ const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
  * Inputs of launch() that are doubles (passed in a typed array so nothing is boxed, see the
  * allocation note in combat.ts): [0] launch x, [1] landing x, [2] damage multiplier,
  * [3] flight time in seconds, or 0 to derive it from the distance and weapon.projectileSpeed,
- * [4] extra multiplier on damage to an HQ (1 for weapons; support call-ins use their hqDamageMul).
- * Set all five before every call.
+ * [4] extra multiplier on damage to an HQ and [5] to vehicles (1 for weapons; support call-ins use
+ * their hqDamageMul and vehicleDamageMul). Set all six before every call.
  */
-export const LAUNCH = new Float64Array(5);
+export const LAUNCH = new Float64Array(6);
 
 /**
  * Put a projectile of weapon `wi` in flight from LAUNCH[0] to LAUNCH[1] and emit its `projectile`
@@ -73,6 +74,7 @@ export function launch(
   p.weaponIndex = wi;
   p.damageMul = LAUNCH[2];
   p.hqMul = LAUNCH[4];
+  p.vehicleMul = LAUNCH[5];
   p.fromX = fromX;
   p.toX = toX;
   p.x = fromX;
@@ -139,7 +141,9 @@ function explode(w: World, pi: number): void {
     const d = (t.x > x ? t.x - x : x - t.x) - t.def.width / 2;
     if (d > r) continue;
     const falloff = d <= 0 ? 1 : 1 - d / r;
-    const amount = weapon.damage * p.damageMul * falloff * damageFactor(dtype, unitClass(t));
+    const cls = unitClass(t);
+    const mul = cls === CLASS_VEHICLE ? p.damageMul * p.vehicleMul : p.damageMul;
+    const amount = weapon.damage * mul * falloff * damageFactor(dtype, cls);
     w.damage.push(TARGET_UNIT, i, t.id, amount, side, dtype, t.x >= x ? 1 : -1);
   }
 

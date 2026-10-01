@@ -414,8 +414,9 @@ export interface ProjectileState {
   weaponIndex: number;
   damageMul: number;
   targetRow: number;
-  /** internal: extra multiplier on its damage to an HQ (support call-ins; 1 otherwise). */
+  /** internal: extra multipliers on its damage to an HQ and to vehicles (support call-ins; 1 otherwise). */
   hqMul: number;
+  vehicleMul: number;
 }
 
 /** A smoke cloud (pool slots): blocks direct fire along any line that crosses it, see smokeBlocks. */

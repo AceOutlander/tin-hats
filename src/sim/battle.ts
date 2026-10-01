@@ -64,6 +64,44 @@ function supportRecord<T>(value: T): Record<SupportKind, T> {
   return out;
 }
 
+/*
+ * Records whose values are fractional and rewritten every tick (training progress, support
+ * cooldowns) are instances of classes of their own, with fields started at a fraction: their hidden
+ * class then holds doubles that are updated in place. A plain object with the same keys shares its
+ * hidden class with every other literal of those keys (UNITS, SUPPORTS, the faction names), whose
+ * values are objects and strings, and then every store of a fraction allocates a heap number.
+ */
+class ProgressRecord implements Record<UnitKind, number> {
+  sapper = 0.5;
+  rifle = 0.5;
+  lmg = 0.5;
+  assault = 0.5;
+  mortar = 0.5;
+  sniper = 0.5;
+  medic = 0.5;
+  at = 0.5;
+  tank = 0.5;
+  heavyTank = 0.5;
+}
+
+class CooldownRecord implements Record<SupportKind, number> {
+  artillery = 0.5;
+  smoke = 0.5;
+  airStrike = 0.5;
+}
+
+function progressRecord(): Record<UnitKind, number> {
+  const out = new ProgressRecord();
+  for (const kind of KIND_LIST) out[kind] = 0;
+  return out;
+}
+
+function cooldownRecord(): Record<SupportKind, number> {
+  const out = new CooldownRecord();
+  for (const kind of SUPPORT_KINDS) out[kind] = 0;
+  return out;
+}
+
 function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
   const dir = side === 0 ? 1 : -1;
   const x = side === 0 ? CONFIG.hqInset : mission.length - CONFIG.hqInset;
@@ -105,10 +143,10 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     order: 'hold',
     available,
     queue: kindRecord(0),
-    progress: kindRecord(0),
+    progress: progressRecord(),
     alive: kindRecord(0),
     supportAvailable,
-    supportCooldown: supportRecord(0),
+    supportCooldown: cooldownRecord(),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
     holdLineX: 0,
     controlled: -1,
@@ -144,6 +182,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
       damageMul: 1,
       targetRow: -1,
       hqMul: 1,
+      vehicleMul: 1,
     });
   }
   const smokes: SmokeState[] = [];

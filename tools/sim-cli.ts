@@ -4,7 +4,7 @@
  *   x.cmd npx tsx tools/sim-cli.ts --mission 1 --p0 bot --p1 ai --seeds 20 --difficulty normal
  *
  * Options
- *   --mission N      mission id (default 1), or 'sandbox' / 'sandbox-mirror' for the test grounds
+ *   --mission N      mission id (default 1), or 'sandbox' / 'mirror' (alias 'sandbox-mirror') for the test grounds
  *   --p0, --p1 K     commander of side 0 / side 1: human | ai | bot | idle (default bot / ai)
  *   --seeds N        number of battles (default 20)
  *   --seed N         first seed (default 1); battles use seed, seed+1, ...
@@ -111,7 +111,11 @@ function fmt(n: number, digits = 1): string {
 function main(): void {
   const opts = parseArgs(process.argv.slice(2));
   const found =
-    opts.mission === 'sandbox' ? SANDBOX : opts.mission === 'sandbox-mirror' ? SANDBOX_MIRROR : getMission(Number(opts.mission));
+    opts.mission === 'sandbox'
+      ? SANDBOX
+      : opts.mission === 'mirror' || opts.mission === 'sandbox-mirror'
+        ? SANDBOX_MIRROR
+        : getMission(Number(opts.mission));
   if (!found) fail(`Mission ${opts.mission} does not exist`);
   const mission = opts.mirror ? mirrored(found) : found;
   const maxTicks = Math.ceil(opts.max * CONFIG.tickRate);
