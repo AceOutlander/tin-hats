@@ -15,7 +15,7 @@ export const M09: MissionDef = {
   mapPos: { lon: 5.91, lat: 51.98 },
   briefing: [
     'The 1st Airborne Division was to seize the bridge at Arnhem and hold it for two days, until XXX Corps came up the road from the south. The drop went well enough. Unfortunately two SS panzer divisions were refitting a few miles away, nobody had mentioned it, and the radios have been behaving with great independence.',
-    'Your battalion has the northern end of the bridge. You have a trench, a section of riflemen, a Bren gun, two PIATs and a medical orderly. You have no tanks, as gliders cannot carry them, and no sappers, because everyone who could carry a rifle was needed to carry one. The only supplies are what the Dakotas can drop: a crate every half minute, and the Germans will see them come down too.',
+    'Your battalion has the northern end of the bridge. You have a trench, a section of riflemen, a Bren gun, two PIATs and a medical orderly. You have no armour of your own, and nobody to spare to carry supplies. The only resupply is what the RAF can drop, a crate every half minute, and the Germans can see where each one lands.',
     'Hold the position. The relief column is said to be close, which in this campaign means that nobody knows how close. We have asked the staff for six minutes of your time and the signallers will tell you when the road is open. Spend each drop as it arrives; a PIAT team in the trench is worth three on the lorry.',
   ],
   objective: 'Hold the bridge until the relief column arrives.',

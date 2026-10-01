@@ -4,7 +4,7 @@ import type { MissionDef } from '../schema';
  * Mission 10: the Siegfried Line, Reichswald, February 1945. The longest map: four German trench
  * lines with wire in front and pillboxes in pairs, and a King Tiger on guard before the German HQ.
  * The enemy fields every unit and both of its supports. Introduces the Typhoon Air Strike, the
- * answer to the King Tiger and to tanks in general.
+ * help against the King Tiger and tanks (its rockets are mild against armour but ruin infantry in a trench).
  */
 export const M10: MissionDef = {
   id: 10,
@@ -14,11 +14,11 @@ export const M10: MissionDef = {
   date: 'February 1945',
   mapPos: { lon: 6.05, lat: 51.76 },
   briefing: [
-    'Operation Veritable: the First Canadian Army is to drive south-east from Nijmegen through the Reichswald and break into the Rhineland. The Germans have flooded the low ground and the thaw has done the rest, so the roads are rivers and the fields are porridge. The attack goes in behind the heaviest barrage of the war so far, which is as well, because the Siegfried Line lies directly across the way.',
-    'It is not a line so much as a belt: four successive trench systems, each fronted with wire and covered by pairs of concrete pillboxes, built over six years by people who expected to be using them. The garrison has everything the German Army can still spare, mortars, snipers, Panzers and guns, and behind the last trench, guarding the headquarters, there is a King Tiger. A PIAT will tickle it. The Typhoons will not.',
-    'The Typhoon Air Strike is now available. A flight of rocket-armed fighters will sweep a long strip of ground when you call them in; save them for tanks and for the King Tiger. Break each belt in turn with artillery, PIATs and the Churchills, rest your men in the captured trenches, and take the German headquarters. It will take most of the afternoon.',
+    'Operation Veritable: First Canadian Army, with XXX Corps under command, is to drive south-east from Nijmegen through the Reichswald and into the Rhineland. The Germans have flooded the low ground and the thaw has done the rest, so the roads are rivers and the fields are porridge. The attack goes in behind the heaviest barrage the army has yet fired, which is as well, because the Siegfried Line lies directly across the way.',
+    'It is not a line so much as a belt: successive trench systems, each fronted with wire and covered by concrete pillboxes, begun before the war by people who expected one day to be glad of them. The garrison has everything the German Army can still spare, mortars, snipers, Panzers and guns, and in front of their headquarters intelligence reports a King Tiger. Rifles will not trouble it. PIATs will, and so will the Typhoons.',
+    'The Typhoon Air Strike is now available: a flight of rocket-armed fighters sweeps a long strip of ground when you call it in. The pilots describe the weather as flyable, a judgement they have been known to revise. Use them on tanks, on trenches and on columns on the road. Break each belt in turn with artillery, PIAT teams and Churchills, rest in the captured trenches while the next echelon comes up, and take the German headquarters. It will take most of the afternoon.',
   ],
-  objective: 'Break the Siegfried Line, destroy the King Tiger and the German HQ.',
+  objective: 'Break the Siegfried Line and destroy the German HQ.',
   theatre: 'germany',
   timeOfDay: 'overcast',
   mode: 'assault',
@@ -53,7 +53,7 @@ export const M10: MissionDef = {
       hasHq: true,
       supplies: 300,
       hqHpMul: 1.3,
-      incomeMul: 0.8,
+      incomeMul: 1,
       sappers: 3,
       forces: [
         { kind: 'rifle', count: 5, trenchId: 2 },
@@ -95,7 +95,7 @@ export const M10: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
-      text: 'The Typhoon Air Strike rakes a long strip of ground with rockets. Tap its button, then the target. Save it for tanks.',
+      text: 'The Typhoon Air Strike rakes a long strip of ground with rockets. Tap its button, then the target: tanks, trenches and columns.',
     },
     {
       type: 'hint',
@@ -109,9 +109,21 @@ export const M10: MissionDef = {
       side: 0,
       forces: [
         { kind: 'at', count: 2, x: 4000 },
-        { kind: 'rifle', count: 3, x: 3900 },
+        { kind: 'assault', count: 3, x: 3900 },
+        { kind: 'rifle', count: 3, x: 3800 },
       ],
       announce: 'Reinforcements are up from the Reichswald.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 2, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 5, x: 7400, behaviour: 'assault' },
+        { kind: 'lmg', count: 1, x: 7300, behaviour: 'assault' },
+        { kind: 'at', count: 1, x: 7200, behaviour: 'assault' },
+      ],
+      announce: 'German reserves are moving up.',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'Second belt broken.' },
     {
@@ -119,11 +131,21 @@ export const M10: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 3, delay: 10 },
       side: 0,
       forces: [
-        { kind: 'tank', count: 1, x: 6500 },
-        { kind: 'at', count: 2, x: 6400 },
+        { kind: 'tank', count: 2, x: 6500 },
+        { kind: 'at', count: 3, x: 6400 },
         { kind: 'medic', count: 1, x: 6300 },
       ],
       announce: 'A troop of Churchills has come up.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 3, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, x: 9900, behaviour: 'assault' },
+        { kind: 'rifle', count: 4, x: 9700, behaviour: 'assault' },
+      ],
+      announce: 'German reserves are counter-attacking.',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 4 }, text: 'Third belt broken. The last line lies ahead.' },
     {
@@ -131,10 +153,21 @@ export const M10: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 4, delay: 10 },
       side: 0,
       forces: [
-        { kind: 'tank', count: 1, x: 8900 },
-        { kind: 'at', count: 3, x: 8800 },
+        { kind: 'tank', count: 2, x: 8900 },
+        { kind: 'at', count: 4, x: 8800 },
       ],
       announce: 'The last PIAT teams are up for the King Tiger.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 4, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, x: 12100, behaviour: 'assault' },
+        { kind: 'at', count: 1, x: 12000, behaviour: 'assault' },
+        { kind: 'rifle', count: 3, x: 11900, behaviour: 'assault' },
+      ],
+      announce: 'The last German reserves are thrown in.',
     },
     {
       type: 'announce',
@@ -144,7 +177,18 @@ export const M10: MissionDef = {
     {
       type: 'hint',
       when: { trenchCapturedBy: 0, trenchId: 5, delay: 3 },
-      text: 'The King Tiger shrugs off most weapons. Call in the Typhoons and bring up every PIAT Team at once.',
+      text: 'The King Tiger shrugs off bullets. Bring up every PIAT Team at once, and call in the Typhoons to help.',
+    },
+    {
+      type: 'wave',
+      when: { every: 150, from: 600 },
+      side: 0,
+      forces: [
+        { kind: 'tank', count: 1, x: 900 },
+        { kind: 'at', count: 2, x: 800 },
+        { kind: 'rifle', count: 2, x: 700 },
+      ],
+      announce: 'Another echelon has come up from Nijmegen.',
     },
     {
       type: 'hint',
@@ -157,16 +201,17 @@ export const M10: MissionDef = {
     build: [
       { kind: 'rifle', count: 6, after: 0 },
       { kind: 'lmg', count: 2, after: 40 },
-      { kind: 'mortar', count: 1, after: 100 },
+      { kind: 'mortar', count: 2, after: 100 },
       { kind: 'at', count: 2, after: 150 },
       { kind: 'sniper', count: 1, after: 200 },
-      { kind: 'tank', count: 1, after: 240 },
+      { kind: 'tank', count: 1, after: 220 },
       { kind: 'rifle', count: 12, after: 300 },
-      { kind: 'tank', count: 2, after: 420 },
+      { kind: 'tank', count: 2, after: 380 },
+      { kind: 'at', count: 3, after: 400 },
+      { kind: 'tank', count: 3, after: 560 },
     ],
     firstAttackAfter: 480,
-  },
-  bot: {
+  },  bot: {
     sappers: 5,
     build: [
       { kind: 'rifle', count: 5, after: 0 },
@@ -179,7 +224,7 @@ export const M10: MissionDef = {
       { kind: 'at', count: 5, after: 300 },
       { kind: 'tank', count: 3, after: 400 },
     ],
-    firstAttackAfter: 200,
+    firstAttackAfter: 160,
   },
   expectedMinutes: [12, 15],
 };

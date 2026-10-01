@@ -14,7 +14,7 @@ export const M08: MissionDef = {
   date: 'July 1944',
   mapPos: { lon: -0.51, lat: 49.12 },
   briefing: [
-    'Hill 112 is not much of a hill: a long bare swell of cornfield between the Odon and the Orne, a hundred and twelve metres at its crest. But whoever holds the top can see everything for miles, and for three weeks both sides have been finding that out the expensive way. Our infantry have taken it twice and been shelled off it twice.',
+    'Hill 112 is not much of a hill: a long bare swell of cornfield between the Odon and the Orne, a hundred and twelve metres at its crest. But whoever holds the top can see everything for miles, and for three weeks both sides have been finding that out the expensive way. The Wessex infantry took it once and were shelled off it again, and the Germans have since had the same experience in the other direction.',
     'This time the tanks have come up with the infantry. The Churchill is slow, rather ugly and quite remarkably well armoured; rifle bullets bounce off it and the Germans have little else at hand except anti-tank teams and their own Panzers. The ground is open and there is nowhere to hide a tank, so expect the Panzers to be waiting for you.',
     'Bring a Churchill or two up behind the riflemen, let them roll over the wire and flatten the trenches, and keep the infantry close enough to deal with the anti-tank teams that will come for it. Take the crest, then the village behind it, and put the German headquarters out of action.',
   ],
@@ -47,9 +47,9 @@ export const M08: MissionDef = {
     {
       faction: 'german',
       hasHq: true,
-      supplies: 200,
+      supplies: 150,
       hqHpMul: 1,
-      incomeMul: 0.7,
+      incomeMul: 0.55,
       sappers: 3,
       forces: [
         { kind: 'rifle', count: 7, trenchId: 2 },
@@ -93,13 +93,25 @@ export const M08: MissionDef = {
     },
     {
       type: 'wave',
-      when: { at: 400 },
+      when: { at: 330 },
       side: 1,
       forces: [
         { kind: 'tank', count: 2, x: 8200, behaviour: 'assault' },
-        { kind: 'rifle', count: 4, x: 7900, behaviour: 'assault' },
+        { kind: 'rifle', count: 3, x: 7900, behaviour: 'assault' },
+        { kind: 'at', count: 1, x: 7800, behaviour: 'assault' },
       ],
       announce: 'German armour is counter-attacking.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 2, delay: 10 },
+      side: 0,
+      forces: [
+        { kind: 'tank', count: 1, x: 4400 },
+        { kind: 'at', count: 1, x: 4350 },
+        { kind: 'rifle', count: 3, x: 4300 },
+      ],
+      announce: 'A second Churchill squadron has come up.',
     },
     {
       type: 'hint',
