@@ -223,7 +223,8 @@ export class StructureViews {
     }
     for (let side = 0; side < 2; side++) {
       const d = state.dumps[side];
-      if (!d) continue;
+      // A side that can never have sappers (mission 9 lives on airdrops) has no use for a dump.
+      if (!d || state.sides[side].available.sapper !== true) continue;
       const img = addImage(this.scene, this.layers.byName.structures, reg.get(SUPPLY_KEYS.dump).frame);
       setKey(img, reg, SUPPLY_KEYS.dump, dirOf(side));
       img.x = d.x;

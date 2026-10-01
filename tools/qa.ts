@@ -756,7 +756,8 @@ async function campaignRun(browser: Browser, port: number): Promise<void> {
   await page.waitForTimeout(400);
   await tapId(page, 'mission-start');
   await screenIs('briefing');
-  await page.waitForTimeout(900);
+  // Let the typewriter finish the three paragraphs.
+  await page.waitForTimeout(9000);
   await shot(page, 'briefing');
   await th<void>(page, 'autopilot(true)');
   await tapId(page, 'begin');

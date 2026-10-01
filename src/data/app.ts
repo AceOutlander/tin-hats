@@ -95,13 +95,14 @@ export const APP: AppTunables = {
     airStrike: 'A fighter-bomber rockets a strip of the battlefield. Strong against tanks and clusters.',
   },
   statLabels: {
-    // Short: each level line sits beside the card's buttons (the card is already the Sapper Drill).
+    // Short: each level line sits in a narrow column beside the card's buttons, and the card's own name
+    // already says what is improved (Sapper Drill, HQ Vickers Gun).
     sapperSpeed: 'speed',
     sapperCarry: 'load',
     hqIncome: 'HQ income',
     hqHealth: 'HQ health',
-    hqGunDamage: 'HQ gun damage',
-    hqGunRate: 'HQ gun fire rate',
+    hqGunDamage: 'damage',
+    hqGunRate: 'fire rate',
     unitHealth: 'health',
     unitDamage: 'damage',
     unitHeal: 'healing',

@@ -322,7 +322,7 @@ describe('campaign view', () => {
 
   it('reads effects as percentages', () => {
     expect(describeEffect({ stat: 'unitHealth', unit: 'rifle', mul: 1.1 })).toBe('+10% health');
-    expect(describeEffect({ stat: 'hqGunRate', mul: 0.85 })).toBe('-15% HQ gun fire rate');
+    expect(describeEffect({ stat: 'hqGunRate', mul: 0.85 })).toBe('-15% fire rate');
     expect(describeEffect({ stat: 'hqIncome', mul: 1 })).toBe('');
     expect(describeLevel([{ stat: 'unitHealth', unit: 'rifle', mul: 1.1 }, { stat: 'unitDamage', unit: 'rifle', mul: 1.05 }])).toBe('+10% health, +5% damage');
     expect(describeLevel([])).toBe(APP.effectNone);
