@@ -96,7 +96,9 @@ abstract class UnitViewBase {
   crowdTarget = 0;
   /** Seconds since death. */
   deadTime = 0;
+  /** How far the unit is drawn below its row's ground line (wu), and how far it has stepped into a trench (0..1). */
   sink = 0;
+  trenchW = 0;
   alpha = 1;
   appliedAlpha = -1;
   shown = false;
@@ -632,6 +634,7 @@ export class UnitViews {
     v.snapTurn();
     v.deadTime = 0;
     v.sink = 0;
+    v.trenchW = 0;
     v.alpha = 1;
     v.appliedAlpha = -1;
     v.fired = false;
@@ -810,22 +813,23 @@ export class UnitViews {
     }
     v.alpha = a;
 
-    // Trench sink: occupants, and infantry crossing a trench, dip into it.
-    let target = 0;
+    // Trench: occupants, and infantry crossing a trench, step down onto the fire step behind the front parapet.
+    let into = 0;
     if (!isVehicle(u.kind)) {
-      if (u.trenchId >= 0) target = VIEW.trenchDepth;
+      if (u.trenchId >= 0) into = 1;
       else {
         const tr = state.trenches;
         for (let t = 0; t < tr.length; t++) {
           const half = tr[t].width / 2;
           if (x > tr[t].x - half && x < tr[t].x + half) {
-            target = VIEW.trenchDepth;
+            into = 1;
             break;
           }
         }
       }
     }
-    v.sink += (target - v.sink) * (dt > 0 ? 1 - Math.exp(-dt / U.trenchSinkTime) : 0);
+    v.trenchW += (into - v.trenchW) * (dt > 0 ? 1 - Math.exp(-dt / U.trenchSinkTime) : 0);
+    v.sink = v.trenchW * Math.max(0, VIEW.trenchFeetY + VIEW.rowDy[v.row] * VIEW.trenchRowSpread - v.y);
 
     const visible = a > 0.01 && x > camLeft - U.cullMargin && x < camRight + U.cullMargin;
     if (!visible) {
@@ -847,7 +851,7 @@ export class UnitViews {
       // The pose lives in figure space, drawn at row scale s: feed it figure-space distances so planted feet stay put.
       inp.speed = state.over ? 0 : (u.velX * v.facing) / v.s;
       inp.moved = (moved * v.facing) / v.s;
-      inp.inTrench = v.sink > VIEW.trenchDepth * 0.5;
+      inp.inTrench = v.trenchW > 0.5;
       inp.carrying = u.carrying > 0;
       inp.controlled = u.controlled;
       inp.victory = victory;

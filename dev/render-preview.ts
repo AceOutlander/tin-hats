@@ -7,12 +7,14 @@
  * audio sink that records its calls in window.__TH.audioLog), and window.__TH.emit(type, fields)
  * to feed the view a sim event the phase 1 sim does not produce yet (explosion, projectile,
  * supportIncoming, airdrop, structureDestroyed ...).
+ * scene=trench|tank|assault|support|turn plays a scripted puppet scene instead of the simulation (see ./scenes.ts).
  */
 import { CONFIG } from '../src/data/config';
 import { MISSIONS } from '../src/data/missions';
 import type { MissionDef, TheatreId, TimeOfDay, UnitKind } from '../src/data/schema';
 import { BattleViewImpl, createBattleView, type AudioSink, type BattleView, type WeatherMode } from '../src/render';
 import { createBattle, type Battle, type SimEvent, type SimEventType } from '../src/sim';
+import { Kit, SCENES, sceneMission, sceneUnits } from './scenes';
 
 declare global {
   interface Window {
@@ -59,6 +61,7 @@ const seed = num('seed', 1);
 const visualSeed = num('vseed', 7);
 const DT = 1 / CONFIG.tickRate;
 const MAX_STEPS = 240;
+const scene = SCENES[params.get('scene') ?? ''] as (typeof SCENES)[string] | undefined;
 
 /** Test kit: extra mixed armies (?army=N per side) and Phase 2 fortifications (?fort=1). */
 function testMission(theatreOver?: TheatreId, timeOver?: TimeOfDay): MissionDef {
@@ -67,10 +70,11 @@ function testMission(theatreOver?: TheatreId, timeOver?: TimeOfDay): MissionDef 
   const fort = params.get('fort') === '1';
   const theatre = theatreOver ?? (params.get('theatre') as TheatreId | null);
   const time = timeOver ?? (params.get('time') as TimeOfDay | null);
-  if (army <= 0 && !fort && !theatre && !time) return base;
-  const m: MissionDef = structuredClone(base);
+  if (army <= 0 && !fort && !theatre && !time && !scene) return base;
+  const m: MissionDef = scene ? sceneMission(base, scene) : structuredClone(base);
   if (theatre) m.theatre = theatre;
   if (time) m.timeOfDay = time;
+  if (scene) return m;
   const mix: UnitKind[] = ['rifle', 'rifle', 'lmg', 'assault', 'rifle', 'mortar', 'sniper', 'medic', 'at', 'rifle', 'rifle', 'tank'];
   for (let side = 0; side < 2; side++) {
     const dir = side === 0 ? 1 : -1;
@@ -91,7 +95,7 @@ function testMission(theatreOver?: TheatreId, timeOver?: TimeOfDay): MissionDef 
 }
 
 function newBattle(theatre?: TheatreId, time?: TimeOfDay): Battle {
-  const idle = params.get('commanders') === 'idle';
+  const idle = params.get('commanders') === 'idle' || scene !== undefined;
   return createBattle({ mission: testMission(theatre, time), difficulty: 'normal', seed, upgrades: {}, commanders: idle ? ['idle', 'idle'] : ['bot', 'ai'] });
 }
 
@@ -135,17 +139,36 @@ async function main(): Promise<void> {
     console.log(`tap ground ${x.toFixed(0)}`);
   };
 
+  // Puppet scene: the units are moved by the script and the events come from it; the simulation never steps.
+  const q = battle.events as unknown as { emit(t: SimEventType): SimEvent; clear(): void };
+  const kit = scene ? new Kit(battle.state, sceneUnits(battle.state, scene), (type, fields) => Object.assign(q.emit(type), fields)) : null;
+  const step = (): void => {
+    if (!scene || !kit) {
+      battle.step();
+      return;
+    }
+    q.clear();
+    const s = battle.state;
+    for (let i = 0; i < s.unitCount; i++) (s.units[i] as { prevX: number; x: number }).prevX = s.units[i].x;
+    kit.dt = DT;
+    kit.t += DT;
+    kit.runTimers();
+    scene.tick(kit.t, kit);
+  };
   const skip = (seconds: number): void => {
     view.setEffectsEnabled(false);
     const n = Math.round(seconds / DT);
     for (let i = 0; i < n && !battle.state.over; i++) {
-      battle.step();
+      step();
       view.afterStep();
     }
     view.setEffectsEnabled(true);
   };
   skip(num('skip', 0));
-  if (params.has('cam')) {
+  if (scene && !params.has('cam')) {
+    follow = false;
+    view.camera.setCenter(scene.cam, true);
+  } else if (params.has('cam')) {
     follow = false;
     view.camera.setCenter(num('cam', 0.5) * battle.state.length, true);
   } else if (follow) {
@@ -164,7 +187,7 @@ async function main(): Promise<void> {
     acc += dt;
     let steps = 0;
     while (acc >= DT && steps < MAX_STEPS) {
-      battle.step();
+      step();
       view.afterStep();
       acc -= DT;
       steps++;
@@ -206,10 +229,10 @@ async function main(): Promise<void> {
     },
     frontX: () => frontX(view.camera.viewWidthWu),
     emit: (type, fields) => {
-      const q = battle.events as unknown as { emit(t: SimEventType): SimEvent; clear(): void };
-      Object.assign(q.emit(type), fields);
+      const ev = battle.events as unknown as { emit(t: SimEventType): SimEvent; clear(): void };
+      Object.assign(ev.emit(type), fields);
       view.afterStep();
-      q.clear();
+      ev.clear();
     },
     audioLog,
   };

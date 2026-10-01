@@ -272,10 +272,8 @@ export class BattleViewImpl implements BattleView {
     this.darkness = 0;
     this.weatherView?.attach(opts.visualSeed, this.weather, mission.theatre);
     this.camera.setLength(state.length);
-    const hq = state.sides[opts.playerSide].hq;
-    const dir = opts.playerSide === 0 ? 1 : -1;
-    const start = hq ? hq.x + dir * this.camera.viewWidthWu * 0.3 : opts.playerSide === 0 ? 0 : state.length;
-    this.camera.setCenter(start, true);
+    // Open on the player's own end of the map, the whole HQ clear of the screen edge (the clamp's edge margin).
+    this.camera.setCenter(opts.playerSide === 0 ? -state.length : 2 * state.length, true);
   }
 
   detach(): void {

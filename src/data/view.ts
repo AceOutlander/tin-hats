@@ -11,7 +11,7 @@ export const VIEW = {
    * the view is anchored at the bottom of the scene (y = heightWu), so a value below heightWu crops only upper sky
    * and makes the battlefield bigger. Wider phones see more of the front.
    */
-  viewHeightWu: 450,
+  viewHeightWu: 410,
   /** Nominal width of one screen in wu, used to size missions. */
   screenWu: 1000,
   /** y of the centre of the walkable band (feet line of the middle rows). */
@@ -26,6 +26,13 @@ export const VIEW = {
   figureHeight: 58,
   /** How far an occupant sinks into a trench (wu). */
   trenchDepth: 24,
+  /**
+   * Drawn feet line of trench occupants and of units crossing a trench (wu): every row steps down onto the fire step
+   * just behind the front parapet, so head, shoulders and weapon show over the sandbags whatever the row. The rows
+   * keep trenchRowSpread of their depth offset (a trench is narrow).
+   */
+  trenchFeetY: 434,
+  trenchRowSpread: 0.25,
   /** Art canvases are rasterised at this multiple of wu so they stay crisp on high-dpi phones. */
   textureScale: 2,
   maxDevicePixelRatio: 2,

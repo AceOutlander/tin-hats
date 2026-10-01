@@ -345,12 +345,13 @@ const PRONE = stance({
   twist: 1.6,
   settle: 2.1,
 });
+/** On the fire step: up on the parapet, so head, shoulders and weapon clear the sandbags. */
 const TRENCH = stance({
   hipX: -4,
-  hipY: -18.2,
-  spine: 0.52,
-  chest: 0.22,
-  head: -0.36,
+  hipY: -21.6,
+  spine: 0.36,
+  chest: 0.16,
+  head: -0.24,
   nearFootX: -8,
   farFootX: 3.6,
   twist: 1.5,
