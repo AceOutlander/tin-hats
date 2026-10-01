@@ -31,6 +31,7 @@ export function createAi(w: World, kind: CommanderKind): AiState | null {
     lastOrderTime: -AI.minOrderInterval,
     holdSince: 0,
     advanceSince: 0,
+    contactSince: -1,
     lastSupportTime: -AI.supportGap,
     desired: new Int16Array(KIND_COUNT),
   };
@@ -227,12 +228,16 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   if (time - ai.lastOrderTime < AI.minOrderInterval) return;
   const order = side.order;
   const capped = side.pop >= side.popCap * AI.popCapAttackFrac;
-  // With no enemy HQ to take (survival) there is nothing to attack: hold the line until the clock runs out.
-  const mayAttack = w.state.sides[1 - si].hq !== null && time >= ai.plan.firstAttackAfter / ai.aggression;
+  // With no enemy HQ to take (survival) there is nothing to attack, and sheltering in the HQ only
+  // hands the trench to the waves: hold the line until the clock runs out.
+  const survival = w.state.sides[1 - si].hq === null;
+  const mayAttack = !survival && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
   const broken = AI.minAttackStrength * AI.regroupFrac;
   let next: Order = order;
-  if (order === 'hold') {
+  if (survival) {
+    next = 'hold';
+  } else if (order === 'hold') {
     if (SV.hqThreat && SV.group < SV.foe * AI.retreatRatio) {
       next = 'fallBack';
     } else if (mayAttack && SV.group >= AI.minAttackStrength) {
@@ -247,7 +252,11 @@ function decideOrder(w: World, si: number, ai: AiState): void {
       }
     }
   } else if (order === 'advance') {
-    const settled = time - ai.advanceSince >= AI.minAdvanceTime;
+    // The advance is judged only once it has had AI.minAdvanceTime in contact: an army strung out
+    // on a long approach march (fast troops leading) is not yet a failed attack.
+    const dir = si === 0 ? 1 : -1;
+    if (ai.contactSince < 0 && (w.front[1 - si] - w.armedFront[si]) * dir <= AI.threatDistance) ai.contactSince = time;
+    const settled = ai.contactSince >= 0 && time - ai.contactSince >= AI.minAdvanceTime;
     // At the population cap waiting cannot make the army any bigger, so only a broken attack stops.
     if (SV.field < broken || (settled && (SV.group < broken || (!capped && SV.group < foeW * AI.holdRatio)))) next = 'hold';
   } else if (mayAttack && SV.own >= AI.minAttackStrength && SV.own >= foeW * AI.commitRatio) {
@@ -259,7 +268,10 @@ function decideOrder(w: World, si: number, ai: AiState): void {
     issueOrder(w, si, next);
     ai.lastOrderTime = time;
     if (next === 'hold') ai.holdSince = time;
-    else if (next === 'advance') ai.advanceSince = time;
+    else if (next === 'advance') {
+      ai.advanceSince = time;
+      ai.contactSince = -1;
+    }
   }
 }
 

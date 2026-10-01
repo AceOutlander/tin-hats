@@ -4,7 +4,8 @@
  *   x.cmd npx tsx tools/sim-cli.ts --mission 1 --p0 bot --p1 ai --seeds 20 --difficulty normal
  *
  * Options
- *   --mission N      mission id (default 1), or 'sandbox' / 'mirror' (alias 'sandbox-mirror') for the test grounds
+ *   --mission N      campaign mission 1..10 (default 1), 'all' for every campaign mission in turn,
+ *                    or 'sandbox' / 'mirror' (alias 'sandbox-mirror') for the test grounds
  *   --p0, --p1 K     commander of side 0 / side 1: human | ai | bot | idle (default bot / ai)
  *   --seeds N        number of battles (default 20)
  *   --seed N         first seed (default 1); battles use seed, seed+1, ...
@@ -17,7 +18,7 @@
  */
 import { CONFIG } from '../src/data/config';
 import { DIFFICULTIES } from '../src/data/difficulty';
-import { getMission } from '../src/data/missions';
+import { getMission, MISSIONS } from '../src/data/missions';
 import { SANDBOX, SANDBOX_MIRROR } from '../src/data/missions/sandbox';
 import type { Difficulty, MissionDef } from '../src/data/schema';
 import { createBattle, summarize, type BattleResult, type CommanderKind } from '../src/sim';
@@ -110,14 +111,24 @@ function fmt(n: number, digits = 1): string {
 
 function main(): void {
   const opts = parseArgs(process.argv.slice(2));
+  if (opts.mission === 'all') {
+    for (const m of MISSIONS) {
+      report(opts.mirror ? mirrored(m) : m, opts);
+      console.log('');
+    }
+    return;
+  }
   const found =
     opts.mission === 'sandbox'
       ? SANDBOX
       : opts.mission === 'mirror' || opts.mission === 'sandbox-mirror'
         ? SANDBOX_MIRROR
         : getMission(Number(opts.mission));
-  if (!found) fail(`Mission ${opts.mission} does not exist`);
-  const mission = opts.mirror ? mirrored(found) : found;
+  if (!found) fail(`Mission ${opts.mission} does not exist (campaign missions: 1 to ${MISSIONS.length}, or all)`);
+  report(opts.mirror ? mirrored(found) : found, opts);
+}
+
+function report(mission: MissionDef, opts: Options): void {
   const maxTicks = Math.ceil(opts.max * CONFIG.tickRate);
 
   const results: BattleResult[] = [];

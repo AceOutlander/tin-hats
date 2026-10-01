@@ -1,4 +1,4 @@
 # missions-core track (Phase 3: mission mechanics, upgrades in the sim, missions 2 and 3)
-Done: read docs; most mission mechanics already existed in src/sim/mission.ts (events, triggers, waves, airdrops, timer, guard).
-In progress: milestone 1, filling the gaps (timer progress, survival defaults, wave multiplier, airdrop scaling, no-sapper rule) and tests/unit/sim-mission.test.ts.
-Next: src/data/upgrades.ts + tests, missions m02/m03, placeholders m04-m10, smoke balance test, sim-cli.
+Done: mission mechanics gaps (timer progress, survival assault default, aiWaveMul, airdrop scaling, no-sapper rule, survival/contact commander rules) with tests/unit/sim-mission.test.ts; src/data/upgrades.ts + tests/unit/sim-upgrades.test.ts; missions m02 (Dunkirk survival) and m03 (Crusader) authored and tuned; m04-m10 first drafts; index.ts final (ten missions); sim-cli --mission all; tests/balance/missions-smoke.test.ts. DECISIONS 132-140.
+Results (Normal, no upgrades): m1 bot win 3.1 min, idle loss 8.6; m2 bot win (timer) 4.0, idle loss 3.0-3.4; m3 bot win 3.5-9.3 (avg ~4.1 over 12 seeds), idle loss 9-17. All ten end with bot win and idle loss.
+In progress: nothing. Next: phase 4 tuning (win/lose asserts per mission).

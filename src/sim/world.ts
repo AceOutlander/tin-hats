@@ -232,6 +232,8 @@ export interface AiState {
   holdSince: number;
   /** Battle time its current (or last) Advance began. */
   advanceSince: number;
+  /** Battle time the current Advance came within AI.threatDistance of the enemy, or -1 while still closing. */
+  contactSince: number;
   /** Battle time of its last support call-in. */
   lastSupportTime: number;
   /** Scratch: wanted number of units per kind index. */
