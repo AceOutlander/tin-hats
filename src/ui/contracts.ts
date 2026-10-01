@@ -1,0 +1,205 @@
+/**
+ * Contract between the DOM user interface (src/ui) and the app glue (src/app).
+ *
+ * The UI never imports the simulation or Phaser. It renders the view models
+ * below and reports what the player did through AppApi. The app glue builds
+ * these models from the simulation and the save data.
+ */
+import type { Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+
+export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'battle' | 'result' | 'settings';
+
+export interface TrainButtonState {
+  kind: UnitKind;
+  name: string;
+  cost: number;
+  pop: number;
+  /** Units of this kind waiting or in training. */
+  queued: number;
+  /** 0..1 progress of the one currently in training; 0 when idle. */
+  progress: number;
+  /** Alive on the field. */
+  fielded: number;
+  /** False when supplies or population are short. */
+  affordable: boolean;
+}
+
+export interface SupportButtonState {
+  kind: SupportKind;
+  name: string;
+  /** 0..1, 1 = ready. */
+  charge: number;
+  secondsLeft: number;
+}
+
+export interface ControlState {
+  kind: UnitKind;
+  name: string;
+  hp: number;
+  maxHp: number;
+  /** 0..1, 1 = ready to fire. */
+  reload: number;
+  hasAbility: boolean;
+  abilityName: string;
+  /** 0..1, 1 = ready. */
+  abilityCharge: number;
+}
+
+export interface MinimapState {
+  length: number;
+  /** Camera window in world units. */
+  camX: number;
+  camW: number;
+  /** HQ x and health fraction per side, or null when a side has no HQ. */
+  hq: [{ x: number; hp: number } | null, { x: number; hp: number } | null];
+  /** Flat arrays, reused every frame; only the first *Count entries are valid. */
+  trenchX: Float32Array;
+  trenchW: Float32Array;
+  /** -1 unowned, 0 or 1 owner side. */
+  trenchOwner: Int8Array;
+  trenchCount: number;
+  pillboxX: Float32Array;
+  pillboxSide: Int8Array;
+  pillboxCount: number;
+  unitX: Float32Array;
+  unitSide: Int8Array;
+  /** 1 for vehicles, 0 for infantry. */
+  unitBig: Int8Array;
+  unitCount: number;
+  /** Faction colours for side 0 and side 1. */
+  colors: [string, string];
+}
+
+/** Polled by the HUD every frame. The same object is reused; the HUD must only touch the DOM when a value changed. */
+export interface HudState {
+  supplies: number;
+  incomePerSec: number;
+  pop: number;
+  popCap: number;
+  order: Order;
+  train: TrainButtonState[];
+  supports: SupportButtonState[];
+  /** The support waiting for the player to tap a target on the battlefield, if any. */
+  targeting: SupportKind | null;
+  control: ControlState | null;
+  timer: { label: string; secondsLeft: number; urgent: boolean } | null;
+  objective: string;
+  hqHp: number;
+  hqMaxHp: number;
+  /** Null in survival missions. */
+  enemyHqHp: number | null;
+  enemyHqMaxHp: number;
+  paused: boolean;
+  muted: boolean;
+  /** Tutorial hint or announcement to show, with a counter that changes whenever a new one arrives. */
+  banner: string | null;
+  bannerSeq: number;
+  hint: string | null;
+  minimap: MinimapState;
+}
+
+export type HudAction =
+  | { type: 'train'; kind: UnitKind }
+  | { type: 'order'; order: Order }
+  | { type: 'support'; kind: SupportKind }
+  | { type: 'cancelTargeting' }
+  | { type: 'pause' }
+  | { type: 'resume' }
+  | { type: 'restart' }
+  | { type: 'quit' }
+  | { type: 'toggleMute' }
+  /** Joystick deflection while directly controlling a unit: -1 (left) .. 1 (right). */
+  | { type: 'stick'; x: number }
+  | { type: 'fire'; down: boolean }
+  | { type: 'ability' }
+  | { type: 'release' }
+  /** Jump the camera so that this fraction (0..1) of the map is centred. */
+  | { type: 'minimap'; frac: number };
+
+export interface MissionCard {
+  id: number;
+  title: string;
+  location: string;
+  date: string;
+  theatre: TheatreId;
+  mapPos: { lon: number; lat: number };
+  briefing: string[];
+  objective: string;
+  unlocked: boolean;
+  cleared: Record<Difficulty, boolean>;
+  newUnit: { kind: UnitKind; name: string; blurb: string } | null;
+  newSupport: { kind: SupportKind; name: string; blurb: string } | null;
+}
+
+export interface UpgradeView {
+  id: string;
+  name: string;
+  description: string;
+  unit: UnitKind | null;
+  level: number;
+  maxLevel: number;
+  cost: number;
+  /** Short text per level, e.g. "+10% health". */
+  levelText: string[];
+  canBuy: boolean;
+  canRefund: boolean;
+}
+
+export interface SettingsView {
+  muted: boolean;
+  difficulty: Difficulty;
+  hints: boolean;
+}
+
+export interface CampaignView {
+  missions: MissionCard[];
+  pointsEarned: number;
+  pointsSpent: number;
+  pointsAvailable: number;
+  upgrades: UpgradeView[];
+  settings: SettingsView;
+  difficulties: { id: Difficulty; name: string }[];
+}
+
+export interface ResultView {
+  won: boolean;
+  missionId: number;
+  title: string;
+  /** e.g. "Enemy HQ destroyed", "Your HQ was overrun", "Night fell before the bridge was taken". */
+  reason: string;
+  difficulty: Difficulty;
+  timeSec: number;
+  unitsTrained: number;
+  unitsLost: number;
+  enemiesKilled: number;
+  suppliesGathered: number;
+  /** Upgrade points awarded by this result (2 on first clear, otherwise 0). */
+  pointsAwarded: number;
+  nextMissionId: number | null;
+}
+
+/** Implemented by src/app, called by the UI. */
+export interface AppApi {
+  campaign(): CampaignView;
+  startMission(id: number, difficulty: Difficulty): void;
+  buyUpgrade(id: string): void;
+  refundUpgrade(id: string): void;
+  refundAll(): void;
+  setSetting<K extends keyof SettingsView>(key: K, value: SettingsView[K]): void;
+  resetSave(): void;
+  dispatch(action: HudAction): void;
+  /** Play a short UI sound (button click etc.). */
+  uiSound(name: 'click' | 'deny' | 'confirm'): void;
+}
+
+/** Implemented by src/ui (createUi), called by the app glue. */
+export interface UiApi {
+  show(screen: ScreenId, payload?: { missionId?: number; result?: ResultView }): void;
+  current(): ScreenId;
+  /** Called every rendered frame during a battle. Must not allocate and must only write to the DOM on change. */
+  updateHud(state: HudState): void;
+  /** Re-read campaign(), e.g. after the save changed. */
+  refresh(): void;
+}
+
+export type CreateUi = (root: HTMLElement, app: AppApi) => UiApi;
