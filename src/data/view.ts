@@ -58,6 +58,11 @@ export const DEPTH = {
   shadows: 18,
   /** Row r draws at unitRow0 + r, so nearer rows cover farther ones. */
   unitRow0: 20,
+  /**
+   * Pillboxes stand on the ground line between rows 1 and 2: men on the two far rows pass behind the bunker
+   * and men on the two near rows in front of it, instead of every soldier being painted over the concrete.
+   */
+  fortification: 21.5,
   trenchFront: 30,
   wireFront: 31,
   /** A tank driving over a trench or wire rides above the front parapet and strands. */

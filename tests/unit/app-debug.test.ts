@@ -97,6 +97,29 @@ describe('debug hooks', () => {
     const first = state.units.slice(0, state.unitCount).find((u) => u.alive);
     const info = list.find((u) => u.id === first?.id);
     expect(info).toMatchObject({ kind: first?.kind, side: first?.side, action: first?.action, x: first?.x, row: first?.row, inside: first?.inside });
+    expect(info).toMatchObject({ actionTime: first?.actionTime, trench: first?.trenchId });
+  });
+
+  it('list the rounds in flight on the proving ground', () => {
+    const { api, app } = setup();
+    expect(api.projectiles()).toEqual([]);
+    api.startSandbox(5);
+    const battle = app.session?.battle;
+    if (!battle) throw new Error('no battle');
+    // A barrage on the German trench puts shells in the air.
+    battle.command(0, { type: 'support', kind: 'artillery', x: 4700 });
+    const ours = (): ReturnType<typeof api.projectiles> => api.projectiles().filter((p) => p.side === 0);
+    let seen = ours();
+    for (let i = 0; i < 30 * 8 && seen.length === 0; i++) {
+      battle.step();
+      seen = ours();
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    const shell = seen[0];
+    expect(shell.weapon).not.toBe('');
+    expect(Math.abs(shell.toX - 4700)).toBeLessThan(400);
+    expect(shell.t).toBeGreaterThanOrEqual(0);
+    expect(shell.t).toBeLessThanOrEqual(1);
   });
 
   it('move the camera and grant supplies', () => {

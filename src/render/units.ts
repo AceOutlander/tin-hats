@@ -171,6 +171,8 @@ abstract class UnitViewBase {
   abstract applyAlpha(a: number): void;
   /** Muzzle position in world space (from last frame's pose), written to out. */
   abstract muzzle(out: { x: number; y: number }): void;
+  /** Direction the weapon points in world space (not normalised), written to out. */
+  abstract muzzleDir(out: { x: number; y: number }): void;
 
   hidePips(): void {
     if (!this.pipsShown) return;
@@ -328,6 +330,11 @@ class FigureView extends UnitViewBase {
   muzzle(out: { x: number; y: number }): void {
     out.x = this.x + this.turnK * this.s * this.anim.muzzleX;
     out.y = this.y + this.sink + this.s * this.anim.muzzleY;
+  }
+
+  muzzleDir(out: { x: number; y: number }): void {
+    out.x = (this.turnK < 0 ? -1 : 1) * this.anim.muzzleDX;
+    out.y = this.anim.muzzleDY;
   }
 }
 
@@ -506,6 +513,11 @@ class TankView extends UnitViewBase {
     out.x = this.x + this.turnK * this.s * this.pose.muzzle.x;
     out.y = this.y + this.s * (this.pose.muzzle.y + this.bob - this.lift);
   }
+
+  muzzleDir(out: { x: number; y: number }): void {
+    out.x = this.turnK < 0 ? -1 : 1;
+    out.y = 0;
+  }
 }
 
 export type UnitView = FigureView | TankView;
@@ -541,6 +553,8 @@ export class UnitViews {
   controlledId = -1;
   drawn = 0;
   private readonly ring: Img;
+  /** The same ring above the trench parapets, for a man down in a trench (the low one would be hidden). */
+  private readonly ringHigh: Img;
   private readonly ringScale: number;
   /** Scratch for the crowd spread: live figure views per side, sorted by x, and their spread positions. */
   private readonly lanes: FigureView[][] = [[], []];
@@ -559,6 +573,8 @@ export class UnitViews {
     const ring = reg.get(FX_KEYS.ui.selectRing);
     this.ring = addImage(scene, layers.byName.shadows, ring.frame);
     this.ring.visible = false;
+    this.ringHigh = addImage(scene, layers.byName.markers, ring.frame);
+    this.ringHigh.visible = false;
     this.ringScale = RENDER.marker.ringScale / ring.scale;
   }
 
@@ -573,6 +589,7 @@ export class UnitViews {
     this.seed = seed;
     this.controlledId = -1;
     this.ring.visible = false;
+    this.ringHigh.visible = false;
   }
 
   /** Views alive (live and dying). */
@@ -946,11 +963,9 @@ export class UnitViews {
   }
 
   private placeRing(): void {
-    const ring = this.ring;
-    if (this.controlledId < 0) {
-      ring.visible = false;
-      return;
-    }
+    this.ring.visible = false;
+    this.ringHigh.visible = false;
+    if (this.controlledId < 0) return;
     let v: UnitView | null = null;
     for (let i = 0; i < this.bySlot.length; i++) {
       const c = this.bySlot[i];
@@ -959,14 +974,13 @@ export class UnitViews {
         break;
       }
     }
-    if (!v || !v.shown) {
-      ring.visible = false;
-      return;
-    }
+    if (!v || !v.shown) return;
+    const M = RENDER.marker;
+    const sunk = v.sink > M.ringSinkMin;
+    const ring = sunk ? this.ringHigh : this.ring;
     ring.visible = true;
     ring.x = v.x;
-    ring.y = v.y + v.sink * 0.5;
-    const M = RENDER.marker;
+    ring.y = sunk ? v.y : v.y + v.sink * 0.5;
     const k = v instanceof TankView ? TANK_LAYOUT[v.look].length / M.ringBaseW : 1;
     ring.scaleX = this.ringScale * v.s * k;
     ring.scaleY = this.ringScale * v.s * Math.min(k, M.ringMaxTall);

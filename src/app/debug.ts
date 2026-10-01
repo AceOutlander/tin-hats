@@ -92,12 +92,29 @@ export interface UnitInfo {
   maxHp: number;
   carrying: boolean;
   inside: boolean;
+  /** Seconds since the current action started. */
+  actionTime: number;
+  /** Id of the trench the unit occupies, or -1. */
+  trench: number;
+}
+
+/** One round in flight (shell, rocket, grenade, bomb), for visual QA scripts. */
+export interface ProjectileInfo {
+  side: number;
+  weapon: string;
+  fromX: number;
+  toX: number;
+  x: number;
+  /** Fraction of the flight done (0..1). */
+  t: number;
 }
 
 export interface DebugApi {
   ready: boolean;
   /** Every living unit (empty outside a battle). */
   units(): UnitInfo[];
+  /** Rounds in flight. */
+  projectiles(): ProjectileInfo[];
   /** Sound engine state: 'running' once a first gesture has unlocked it, and how many sounds have played. */
   audio(): { state: string; played: number; dropped: number };
   /** Centre the camera on world x. */
@@ -179,7 +196,20 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           maxHp: u.maxHp,
           carrying: u.carrying > 0,
           inside: u.inside,
+          actionTime: u.actionTime,
+          trench: u.trenchId,
         });
+      }
+      return out;
+    },
+
+    projectiles() {
+      const out: ProjectileInfo[] = [];
+      const session = app.session;
+      if (!session) return out;
+      for (const p of session.battle.state.projectiles) {
+        if (!p.alive) continue;
+        out.push({ side: p.side, weapon: p.weapon ? p.weapon.id : '', fromX: p.fromX, toX: p.toX, x: p.x, t: p.flightTime > 0 ? p.age / p.flightTime : 1 });
       }
       return out;
     },

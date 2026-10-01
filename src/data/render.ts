@@ -147,6 +147,8 @@ export const RENDER = {
     ringBaseW: 60,
     ringMaxTall: 1.6,
     ringAlpha: 0.85,
+    /** A man sunk deeper than this (wu) into a trench gets his ring drawn over the front parapet, at ground level. */
+    ringSinkMin: 4,
     /** Targeting reticle scale (1 = it spans the call-in's reach), the most its height may grow (x the sprite's own) and the alpha of its ground line. */
     reticleScale: 1,
     reticleMaxTall: 1.5,

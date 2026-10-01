@@ -217,7 +217,7 @@ export class StructureViews {
       this.dumps.push(img);
     }
     for (const p of state.pillboxes) {
-      const img = addImage(this.scene, this.layers.byName.structures, reg.get(pillboxKey('intact')).frame);
+      const img = addImage(this.scene, this.layers.byName.fortification, reg.get(pillboxKey('intact')).frame);
       setKey(img, reg, pillboxKey('intact'), dirOf(p.side));
       img.x = p.x;
       img.y = gy;

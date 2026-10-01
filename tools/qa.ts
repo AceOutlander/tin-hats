@@ -8,8 +8,9 @@
  *   <w>-<scene>.png         full-screen scenes (battle start, sappers, HQ door, firefight, fall back, ...)
  *   <w>-strip-<name>.png    film strips: consecutive cropped frames around one unit, enlarged
  * Scenes are shot at --dsf; strips come from a second context at --sdsf so the limbs are sharp.
- * --only picks parts: main (the mission 1 walkthrough), strips, defeat, rain, hud, and page (dev/render-preview.html
- * on the Vite dev server, no build needed: see pageRun for its flags).
+ * --only picks parts: main (the mission 1 walkthrough), strips, defeat, rain, hud, sandbox (the Phase 2 proving
+ * ground, `<w>-sb-*.png`; add sbstrips for its film strips, --seed=11 picks the battle), and page
+ * (dev/render-preview.html on the Vite dev server, no build needed: see pageRun for its flags).
  */
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -17,7 +18,7 @@ import { createServer as createNetServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer, preview } from 'vite';
-import type { DebugState, FieldInfo, UnitInfo } from '../src/app/debug';
+import type { DebugState, FieldInfo, ProjectileInfo, UnitInfo } from '../src/app/debug';
 import { CONFIG } from '../src/data/config';
 import { VIEW, VIEW_TOP_WU } from '../src/data/view';
 
@@ -608,6 +609,372 @@ async function hudRun(browser: Browser, port: number): Promise<void> {
   await ctx.close();
 }
 
+// --- the proving ground (Phase 2) ---------------------------------------------------------
+
+/** Seed of the proving-ground run (--seed). */
+const SB_SEED = Number(flags.get('seed') ?? 11);
+/** The proving ground's fortifications (src/data/missions/sandbox.ts). */
+const SB = { ownTrench: 1700, enemyTrenches: [4700, 6000], enemyWire: 4450, pillboxes: [4900, 6200] } as const;
+
+const projOf = (page: Page): Promise<ProjectileInfo[]> => th<ProjectileInfo[]>(page, 'projectiles()');
+
+async function beginSandbox(page: Page, seed: number): Promise<void> {
+  await th<boolean>(page, `startSandbox(${seed})`);
+  await waitFor(page, 'battle', async () => (await st(page)).screen === 'battle');
+  await page.getByTestId('order-hold').waitFor({ timeout: 20_000 });
+}
+
+/** A real tap on the battlefield at world x, high on the screen where no soldier stands. */
+async function tapWorldAt(page: Page, x: number, fy = 0.3): Promise<boolean> {
+  const c = await th<{ left: number; cssPerWu: number }>(page, 'camera()');
+  const sx = (x - c.left) * c.cssPerWu;
+  if (sx < 0 || sx > W) {
+    log(`  world x ${x.toFixed(0)} is off screen (camera left ${c.left.toFixed(0)})`);
+    return false;
+  }
+  await page.touchscreen.tap(sx, H * fy);
+  return true;
+}
+
+/** Call a support on world x with real taps (button, then the field). */
+async function callSupport(page: Page, kind: string, x: number): Promise<boolean> {
+  await lookAt(page, x);
+  await page.waitForTimeout(200);
+  await tapId(page, `support-${kind}`);
+  if (!(await waitFor(page, `${kind} aimed`, async () => (await st(page)).targeting === kind, 5000))) return false;
+  if (!(await tapWorldAt(page, x))) return false;
+  return waitFor(page, `${kind} called`, async () => ((await st(page)).tally.supportCalled as Record<string, number>)[kind] > 0, 5000);
+}
+
+/** With the clock paused, step game time until `found` says so. The clock stays paused when it does. */
+async function catchUntil(page: Page, found: () => Promise<boolean>, maxMs: number, step = 33): Promise<boolean> {
+  await pauseClock(page);
+  for (let t = 0; t < maxMs; t += step) {
+    if (await found()) return true;
+    await page.clock.runFor(step);
+  }
+  await page.clock.resume();
+  return false;
+}
+
+/**
+ * Film one unit around a moment that cannot be predicted (a launch): frames STEP ms apart go into a ring of
+ * `before` frames until `fired` reports the round, then `after` more are taken. The crop stays put.
+ */
+async function launchStrip(
+  browser: Browser,
+  page: Page,
+  name: string,
+  unit: UnitInfo,
+  fired: (ps: ProjectileInfo[], me: UnitInfo) => boolean,
+  opts: { wWu: number; hWu: number; before?: number; after?: number; maxMs?: number; dx?: number; follow?: boolean },
+): Promise<boolean> {
+  await lookAt(page, unit.x + (opts.dx ?? 0));
+  await pauseClock(page);
+  let box = await boxAt(page, unit.x, unit.row, opts.wWu, opts.hWu);
+  const before = opts.before ?? 4;
+  const after = opts.after ?? 8;
+  const ring: { buf: Buffer; note: string }[] = [];
+  let left = -1;
+  for (let t = 0; t < (opts.maxMs ?? 8000) && left !== 0; t += STEP) {
+    const me = (await unitsOf(page)).find((u) => u.id === unit.id);
+    if (!me && left < 0) break;
+    if (me && opts.follow) box = await boxAt(page, me.x, me.row, opts.wWu, opts.hWu);
+    if (left < 0 && me && fired(await projOf(page), me)) left = after;
+    ring.push({ buf: await page.screenshot({ clip: box }), note: `${me ? me.action : 'dead'}${left === after ? ' LAUNCH' : ''}` });
+    if (left < 0 && ring.length > before) ring.shift();
+    if (left > 0) left--;
+    await page.clock.runFor(STEP);
+  }
+  await page.clock.resume();
+  if (left !== 0) {
+    log(`  ${name}: no launch caught`);
+    return false;
+  }
+  await compose(browser, name, ring.map((r) => r.buf), box.width * curDsf, 3 / curDsf, 6, ring.map((r) => r.note));
+  return true;
+}
+
+/** Direct control with the real joystick: out of the trench, FIRE held, back into the trench and let go. */
+async function controlScenes(browser: Browser, ctx: BrowserContext, page: Page, strips: boolean): Promise<void> {
+  const cdp = await ctx.newCDPSession(page);
+  const touch = async (type: 'touchStart' | 'touchMove' | 'touchEnd', pts: { x: number; y: number; id: number }[]): Promise<void> => {
+    await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
+  };
+  const man = (await unitsOf(page)).find((u) => u.side === 0 && u.kind === 'rifle' && u.trench === 1);
+  if (!man) return;
+  await lookAt(page, SB.ownTrench + 120);
+  await page.waitForTimeout(200);
+  const where = await th<{ x: number; y: number } | null>(page, `unitScreenPos(${man.id})`);
+  if (!where) return;
+  await page.touchscreen.tap(where.x, where.y);
+  if (!(await waitFor(page, 'control', async () => (await st(page)).controlled !== null, 5000))) return;
+  await page.waitForTimeout(300);
+  await shot(page, 'sb-control-trench');
+  const stick = await page.getByTestId('stick').boundingBox();
+  const fire = await page.getByTestId('fire').boundingBox();
+  if (!stick || !fire) return;
+  const cx = stick.x + stick.width / 2;
+  const cy = stick.y + stick.height / 2;
+  const right = { x: cx + stick.width / 2 - 6, y: cy, id: 0 };
+  const left = { x: cx - stick.width / 2 + 6, y: cy, id: 0 };
+  const thumb = { x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 1 };
+  await touch('touchStart', [{ x: cx, y: cy, id: 0 }]);
+  await touch('touchMove', [right]);
+  if (strips) await strip(browser, page, 'trench-out', man, { wWu: 200, hWu: 100, n: 12, step: 120, follow: true });
+  else await page.waitForTimeout(1200);
+  await touch('touchStart', [right, thumb]);
+  await page.waitForTimeout(600);
+  await shot(page, 'sb-control');
+  await touch('touchEnd', []);
+  // Back left; let go of the stick inside the trench so he takes a slot.
+  await touch('touchStart', [left]);
+  await waitFor(page, 'over the trench', async () => (await st(page)).controlled !== null && ((await st(page)).controlled?.x ?? 0) < SB.ownTrench + 35, 20_000, 25);
+  await touch('touchEnd', []);
+  const me = (await unitsOf(page)).find((u) => u.id === man.id);
+  if (strips && me) await strip(browser, page, 'trench-in', me, { wWu: 160, hWu: 100, n: 12, step: 100, follow: true });
+  else await page.waitForTimeout(1200);
+  log(`  back in the trench: ${String((await st(page)).controlled?.inTrench)}`);
+  await tapId(page, 'release');
+  if (!(await waitFor(page, 'released', async () => (await st(page)).controlled === null, 3000))) await page.keyboard.press('KeyR');
+  await waitFor(page, 'released (R)', async () => (await st(page)).controlled === null, 3000);
+  await cdp.detach();
+}
+
+/**
+ * --only=sandbox (and sbstrips for the film strips): the proving ground from the production build. Covers the
+ * Phase 2 scenes (trench garrison, direct control, the three call-ins, an armoured push through wire into the German
+ * trenches and pillboxes, the specialists at work, rain) and strips of a mortar, a grenade throw, a tank and a trench.
+ */
+async function sandboxRun(browser: Browser, port: number): Promise<void> {
+  const { ctx, page } = await openGame(browser, port, DSF);
+  const strips = ONLY.has('sbstrips');
+  log('sandbox');
+  await beginSandbox(page, SB_SEED);
+  await th<void>(page, `forceWeather('clear')`);
+  await grant(page, 3000);
+  await th<void>(page, 'grantPopulation(60)');
+  await waitFor(page, 'tick 60', async () => (await st(page)).tick > 60);
+  await lookAt(page, SB.ownTrench + 120);
+  await page.waitForTimeout(400);
+  await shot(page, 'sb-trench');
+
+  await controlScenes(browser, ctx, page, strips);
+
+  // The three call-ins, on the German trench and the ground in front of it.
+  if (await callSupport(page, 'artillery', SB.enemyTrenches[0])) {
+    const blasts = (await st(page)).tally.explosion;
+    await waitFor(page, 'shells', async () => (await st(page)).tally.explosion > blasts, 30_000, 50);
+    await page.waitForTimeout(250);
+    await shot(page, 'sb-artillery');
+    await page.waitForTimeout(900);
+    await shot(page, 'sb-artillery-2');
+  }
+  if (await callSupport(page, 'smoke', SB.enemyWire - 150)) {
+    await waitFor(page, 'smoke', async () => (await st(page)).smokes > 0, 30_000, 50);
+    await page.waitForTimeout(1500);
+    await shot(page, 'sb-smoke');
+  }
+  if (await callSupport(page, 'airStrike', SB.pillboxes[0])) {
+    await waitFor(page, 'the plane', async () => ((await st(page)).tally.supportIncoming as Record<string, number>).airStrike > 0, 30_000, 50);
+    await pauseClock(page);
+    await page.clock.runFor(2150);
+    await shot(page, 'sb-airstrike');
+    await page.clock.runFor(450);
+    await shot(page, 'sb-airstrike-2');
+    await page.clock.resume();
+  }
+
+  // Build an army and send it forward; shoot each sight the first time it shows up.
+  const army = ['tank', 'assault', 'mortar', 'at', 'rifle', 'assault', 'medic', 'rifle', 'tank', 'sniper', 'mortar', 'rifle'];
+  await speed(page, 6);
+  for (let i = 0; i < 80; i++) {
+    const s = await st(page);
+    if (s.units[0].tank >= 2 && s.units[0].assault >= 4 && s.units[0].mortar >= 2) break;
+    await grant(page, 1500);
+    for (const k of army) if ((s.queue as Record<string, number>)[k] < 1) await tapId(page, `train-${k}`);
+    await page.waitForTimeout(200);
+  }
+  await speed(page, 1);
+  const leaver = (await unitsOf(page)).find((u) => u.side === 0 && u.trench === 1 && u.kind === 'rifle');
+  if (strips && leaver) {
+    await lookAt(page, leaver.x + 40);
+    await page.waitForTimeout(100);
+  }
+  await tapId(page, 'order-advance');
+  if (strips && leaver) await strip(browser, page, 'trench-advance', leaver, { wWu: 200, hWu: 100, n: 12, step: 100 });
+
+  const want = new Set(['wire', 'assault', 'mortar-pillbox', 'rubble', 'duel', 'at', 'medic', 'sniper', 'rain']);
+  if (strips) for (const k of ['tank-strip', 'throw-strip', 'mortar-strip', 'tank-drive', 'drop-strip']) want.add(k);
+  const end = Date.now() + 300_000;
+  let fast = 3;
+  let ruinSeen = -1;
+  while (want.size > 0 && Date.now() < end) {
+    await speed(page, fast);
+    await grant(page, 800);
+    let s = await st(page);
+    if (s.over) break;
+    for (const k of army) {
+      if (s.pop < s.popCap - 6 && (s.queue as Record<string, number>)[k] < 1) await tapId(page, `train-${k}`);
+    }
+    s = await st(page);
+    const us = await unitsOf(page);
+    const mine = us.filter((u) => u.side === 0 && !u.inside);
+    const tanks = mine.filter((u) => u.kind === 'tank');
+    const foeTanks = us.filter((u) => u.side === 1 && (u.kind === 'tank' || u.kind === 'heavyTank'));
+    const pb = s.pillboxes;
+    const enemyWorks = [...SB.enemyTrenches, ...pb.filter((p) => p.alive).map((p) => p.x)];
+    let took = false;
+    const snap = async (key: string, x: number, name: string): Promise<void> => {
+      await speed(page, 1);
+      await lookAt(page, x);
+      await page.waitForTimeout(250);
+      await shot(page, name);
+      want.delete(key);
+      took = true;
+    };
+    // Wire: watch a tank roll up to the German belt under a paused clock and shoot the moment it goes flat.
+    const roller = tanks.find((u) => u.action === 'move' && u.x > SB.enemyWire - 420 && u.x < SB.enemyWire - 170);
+    if (want.has('wire') && s.tally.wireDestroyed > 0) {
+      log('  the German wire went before a tank reached it');
+      want.delete('wire');
+    }
+    if (want.has('wire') && roller) {
+      await speed(page, 1);
+      await lookAt(page, SB.enemyWire + 30);
+      let pre = false;
+      const crushed = await catchUntil(page, async () => {
+        const me = (await unitsOf(page)).find((u) => u.id === roller.id);
+        if (!pre && me && me.x > SB.enemyWire - 190) {
+          pre = true;
+          await shot(page, 'sb-wire-pre');
+        }
+        return (await st(page)).tally.wireDestroyed > 0;
+      }, 10_000, 50);
+      if (crushed) {
+        await page.clock.runFor(200);
+        await shot(page, 'sb-wire');
+        await page.clock.resume();
+        want.delete('wire');
+      }
+      took = true;
+    }
+    // A man taking his place in a trench (either side), filmed from a few steps out.
+    const occupancy = (u: UnitInfo): number => {
+      const t = s.trenches.find((tr) => tr.owner === u.side && Math.abs(tr.x - u.x) < 150);
+      return t && t.occupants < 6 ? t.x : NaN;
+    };
+    const dropper = us.find((u) => !u.inside && u.trench < 0 && u.action === 'move' && u.kind !== 'tank' && u.kind !== 'heavyTank' && u.kind !== 'sapper' && !Number.isNaN(occupancy(u)));
+    if (!took && want.has('drop-strip') && dropper) {
+      await speed(page, 1);
+      const ok = await launchStrip(browser, page, 'trench-drop', dropper, (_ps, me) => me.trench >= 0, { wWu: 160, hWu: 100, before: 10, after: 8, follow: true });
+      if (ok) want.delete('drop-strip');
+      took = true;
+    }
+    // A grenade in the air over a German trench or pillbox.
+    if (!took && want.has('assault') && mine.some((u) => u.kind === 'assault' && u.action === 'throw')) {
+      await speed(page, 1);
+      let at = 0;
+      const ok = await catchUntil(page, async () => {
+        const g = (await projOf(page)).find((p) => p.side === 0 && p.weapon === 'grenade' && p.t > 0.35 && enemyWorks.some((x) => Math.abs(p.toX - x) < 160));
+        if (g) at = (g.fromX + g.toX) / 2;
+        return g !== undefined;
+      }, 4000);
+      if (ok) {
+        await lookAt(page, at + 40);
+        await page.clock.runFor(20);
+        await shot(page, 'sb-assault');
+        await page.clock.resume();
+        want.delete('assault');
+      }
+      took = true;
+    }
+    // A mortar bomb coming down on a pillbox.
+    const box0 = pb.find((p) => p.alive);
+    if (!took && want.has('mortar-pillbox') && box0 && mine.some((u) => u.kind === 'mortar' && (u.action === 'aim' || u.action === 'fire' || u.action === 'reload'))) {
+      await speed(page, 1);
+      const ok = await catchUntil(page, async () => (await projOf(page)).some((p) => p.side === 0 && p.weapon === 'mortar' && p.t > 0.72 && Math.abs(p.toX - box0.x) < 220), 6000);
+      if (ok) {
+        await lookAt(page, box0.x - 160);
+        await page.clock.runFor(20);
+        await shot(page, 'sb-mortar-pillbox');
+        await page.clock.resume();
+        want.delete('mortar-pillbox');
+      }
+      took = true;
+    }
+    const ruin = pb.find((p) => !p.alive);
+    if (ruin && ruinSeen < 0) ruinSeen = s.time;
+    if (!took && want.has('rubble') && ruin && s.time > ruinSeen + 6) await snap('rubble', ruin.x + 60, 'sb-rubble');
+    for (const t of tanks) {
+      const foe = foeTanks.find((f) => Math.abs(f.x - t.x) < 650);
+      if (!took && want.has('duel') && foe) await snap('duel', (t.x + foe.x) / 2, 'sb-tank-duel');
+    }
+    const at = mine.find((u) => u.kind === 'at' && u.action === 'fire') ?? us.find((u) => u.kind === 'at' && !u.inside && u.action === 'fire');
+    if (!took && want.has('at') && at) await snap('at', at.x + 160 * (at.side === 0 ? 1 : -1), 'sb-at');
+    const medic = mine.find((u) => u.kind === 'medic' && u.action === 'heal');
+    if (!took && want.has('medic') && medic) await snap('medic', medic.x, 'sb-medic');
+    const sniper = mine.find((u) => u.kind === 'sniper' && (u.action === 'aim' || u.action === 'fire'));
+    if (!took && want.has('sniper') && sniper) await snap('sniper', sniper.x + 200, 'sb-sniper');
+    if (!took && want.has('rain') && want.size <= 6) {
+      await speed(page, 1);
+      await th<void>(page, `forceWeather('rain')`);
+      const f = await fieldOf(page);
+      await lookAt(page, (f?.playerFrontX ?? SB.enemyTrenches[0]) - 120);
+      await page.waitForTimeout(1600);
+      await shot(page, 'sb-rain');
+      await th<void>(page, `forceWeather('clear')`);
+      want.delete('rain');
+      took = true;
+    }
+    // Strips: wait under a paused clock for the launch, keeping a few frames from before it.
+    // Near rows only: a tank or a burnt-out husk on a nearer row would hide the man.
+    const clear = (u: UnitInfo): boolean => u.row >= 2 && !tanks.some((t) => Math.abs(t.x - u.x) < 230 && t.row > u.row);
+    if (!took && want.has('throw-strip') && mine.some((u) => u.kind === 'assault' && u.row >= 2 && enemyWorks.some((x) => Math.abs(x - u.x) < 300))) {
+      await speed(page, 1);
+      // Catch the start of a throw (the round leaves the hand config.throwReleaseTime later), then film to the release.
+      const caught: { u: UnitInfo | undefined } = { u: undefined };
+      await catchUntil(page, async () => {
+        caught.u = (await unitsOf(page)).find((u) => u.side === 0 && u.kind === 'assault' && u.action === 'throw' && u.actionTime < 0.1 && clear(u));
+        return caught.u !== undefined;
+      }, 6000, 33);
+      const who = caught.u;
+      if (who) {
+        const ok = await launchStrip(browser, page, 'throw', who, (ps, me) => ps.some((p) => p.side === 0 && p.weapon === 'grenade' && Math.abs(p.fromX - me.x) < 80 && p.t < 0.25), { wWu: 150, hWu: 110, before: 10, after: 8, dx: 40 });
+        if (ok) want.delete('throw-strip');
+      }
+      took = true;
+    }
+    const tube = mine.find((u) => u.kind === 'mortar' && (u.action === 'aim' || u.action === 'reload') && clear(u));
+    if (!took && want.has('mortar-strip') && tube) {
+      await speed(page, 1);
+      const ok = await launchStrip(browser, page, 'mortar', tube, (ps) => ps.some((p) => p.side === 0 && p.weapon === 'mortar' && Math.abs(p.fromX - tube.x) < 40 && p.t < 0.2), { wWu: 130, hWu: 140, before: 4, after: 8, dx: 40 });
+      if (ok) want.delete('mortar-strip');
+      took = true;
+    }
+    const gunner = tanks.find((u) => u.action === 'aim' || u.action === 'reload');
+    if (!took && want.has('tank-strip') && gunner) {
+      await speed(page, 1);
+      const ok = await launchStrip(browser, page, 'tank-fire', gunner, (ps) => ps.some((p) => p.side === 0 && p.weapon === 'tankGun' && Math.abs(p.fromX - gunner.x) < 160 && p.t < 0.3), { wWu: 280, hWu: 130, before: 3, after: 9, dx: 60 });
+      if (ok) want.delete('tank-strip');
+      took = true;
+    }
+    const mover = tanks.find((u) => u.action === 'move');
+    if (!took && want.has('tank-drive') && mover) {
+      await speed(page, 1);
+      await lookAt(page, mover.x + 80);
+      await page.waitForTimeout(100);
+      await strip(browser, page, 'tank-drive', mover, { wWu: 280, hWu: 130, n: 12, step: 66 });
+      want.delete('tank-drive');
+      took = true;
+    }
+    fast = took ? 3 : Math.min(fast + 1, 6);
+    await page.waitForTimeout(took ? 50 : 300);
+  }
+  if (want.size > 0) log(`  not seen: ${[...want].join(', ')}`);
+  await ctx.close();
+}
+
 async function main(): Promise<number> {
   mkdirSync(OUT, { recursive: true });
   const port = await freePort();
@@ -623,6 +990,7 @@ async function main(): Promise<number> {
     ['defeat', defeatRun],
     ['rain', rainRun],
     ['hud', hudRun],
+    ['sandbox', sandboxRun],
     ['page', pageRun],
   ];
   try {

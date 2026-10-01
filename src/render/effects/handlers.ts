@@ -42,6 +42,23 @@ function arcOf(look: string, delivery: string): FlightArc {
   return look === 'bomb' ? 'drop' : delivery === 'lob' ? 'lob' : 'direct';
 }
 
+/** Scratch for launchDir (one at a time, never kept). */
+const LAUNCH = { x: 0, y: 0 };
+
+/**
+ * Which way a launch flash points: a lobbed round (a mortar) blasts out along the tube, up and forward,
+ * not level toward where it will land; anything else points from (dx, dy).
+ */
+function launchDir(fx: EffectContext, e: SimEvent, lob: boolean, dx: number, dy: number): { x: number; y: number } {
+  LAUNCH.x = dx;
+  LAUNCH.y = dy;
+  if (lob && e.source === 'unit') {
+    const v = fx.units.liveView(e.unit, e.unitId);
+    if (v && v.shown) v.muzzleDir(LAUNCH);
+  }
+  return LAUNCH;
+}
+
 /* ------------------------------------------------------------------ */
 /* Blasts                                                              */
 /* ------------------------------------------------------------------ */
@@ -131,7 +148,10 @@ function onShot(fx: EffectContext, e: SimEvent): void {
     }
   } else if (weapon) {
     const size = MUZZLE_SIZE[weapon.id] ?? 1;
-    if (!hidden && weapon.projectileLook !== 'grenade') fx.play('tankMuzzle', from.x, from.y, to.x - from.x, to.y - from.y, gy, size);
+    if (!hidden && weapon.projectileLook !== 'grenade') {
+      const d = launchDir(fx, e, weapon.delivery === 'lob', to.x - from.x, to.y - from.y);
+      fx.play('tankMuzzle', from.x, from.y, d.x, d.y, gy, size);
+    }
     if (!hidden && fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, gy, 2.2 * size);
     if (e.source === 'unit' && (weapon.id === 'tankGun' || weapon.id === 'heavyGun') && fx.lowOk()) {
       fx.play('shellCasing', from.x - dir * 58, from.y + 22, -dir, 0, gy, 1);
@@ -192,7 +212,8 @@ function onProjectile(fx: EffectContext, e: SimEvent): void {
     if (hidden) from.x = edge;
   }
   if (!dupe && !air && !hidden && weapon.projectileLook !== 'grenade') {
-    fx.play('tankMuzzle', from.x, from.y, dir, 0, g, MUZZLE_SIZE[weapon.id] ?? 1);
+    const d = launchDir(fx, e, weapon.delivery === 'lob', dir, 0);
+    fx.play('tankMuzzle', from.x, from.y, d.x, d.y, g, MUZZLE_SIZE[weapon.id] ?? 1);
     if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, g, 2.2);
   }
   const faction = fx.state ? fx.state.sides[e.side === 1 ? 1 : 0].faction : 'british';

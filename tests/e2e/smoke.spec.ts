@@ -59,6 +59,7 @@ test.describe('debug hooks', () => {
         'grantSupplies',
         'lookAt',
         'perf',
+        'projectiles',
         'ready',
         'setTimeScale',
         'startMission',
