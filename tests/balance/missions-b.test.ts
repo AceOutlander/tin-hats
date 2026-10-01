@@ -7,6 +7,7 @@
  * the idle commander must lose every seed.
  */
 import { describe, expect, it } from 'vitest';
+import { APP } from '../../src/data/app';
 import { CONFIG } from '../../src/data/config';
 import { MISSIONS, getMission } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef, SupportKind, UnitKind } from '../../src/data/schema';
@@ -216,8 +217,16 @@ describe('missions 7 to 10: the data follows the campaign specification', () => 
         expect(hints(m).length).toBeGreaterThanOrEqual(3);
         for (const h of hints(m)) {
           expect(h.length).toBeGreaterThan(20);
-          expect(h.length).toBeLessThanOrEqual(150);
+          expect(h.length).toBeLessThan(150);
         }
+        // A hint stays up for APP.hintSeconds, so timed hints are spaced at least that far apart, the first
+        // arrives at once and the player reads something within 20 seconds.
+        const times = m.events.flatMap((e) => (e.type === 'hint' && 'at' in e.when ? [e.when.at] : [])).sort((a, b) => a - b);
+        expect(times[0]).toBeLessThanOrEqual(5);
+        expect(times.some((s) => s <= 20)).toBe(true);
+        for (let i = 1; i < times.length; i++) expect(times[i] - times[i - 1], `hints at ${times[i - 1]} and ${times[i]}`).toBeGreaterThanOrEqual(APP.hintSeconds);
+        // Taking ground is acknowledged.
+        if (m.mode === 'assault') expect(m.events.some((e) => e.type === 'announce' && 'trenchCapturedBy' in e.when && e.when.trenchCapturedBy === 0)).toBe(true);
         for (const e of m.events) {
           if (e.type === 'announce') expect(e.text.length).toBeLessThanOrEqual(80);
           if (e.type === 'wave' && e.announce) expect(e.announce.length).toBeLessThanOrEqual(80);

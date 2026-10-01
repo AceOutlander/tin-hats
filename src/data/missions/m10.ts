@@ -1,10 +1,13 @@
 import type { MissionDef } from '../schema';
 
 /**
- * Mission 10: the Siegfried Line, Reichswald, February 1945. The longest map: four German trench
- * lines with wire in front and pillboxes in pairs, and a King Tiger on guard before the German HQ.
- * The enemy fields every unit and both of its supports. Introduces the Typhoon Air Strike, the
- * help against the King Tiger and tanks (its rockets are mild against armour but ruin infantry in a trench).
+ * Mission 10: the Siegfried Line, Reichswald, February 1945. The longest map: four German belts
+ * (wire, a pillbox, the trench, a second pillbox), nine pillboxes in all, and a King Tiger on guard
+ * before the German HQ. The enemy fields every unit plus Barrage and Smoke, and sends reserves from
+ * its HQ as each line falls. The player gets reinforcements at each capture and a free echelon every
+ * 150 s from minute 10 (the walk from the HQ takes 3 minutes and the long slogs never ended without
+ * them). Introduces the Typhoon Air Strike: harsh on columns and trenches, mild on armour, so the
+ * PIAT Teams are the answer to the King Tiger.
  */
 export const M10: MissionDef = {
   id: 10,
@@ -78,9 +81,9 @@ export const M10: MissionDef = {
     { id: 2, x: 4650, side: 1, hpMul: 1.2 },
     { id: 3, x: 6650, side: 1, hpMul: 1.2 },
     { id: 4, x: 7150, side: 1, hpMul: 1.2 },
-    { id: 5, x: 9050, side: 1, hpMul: 1.3 },
-    { id: 6, x: 9300, side: 1, hpMul: 1.3 },
-    { id: 7, x: 9550, side: 1, hpMul: 1.3 },
+    { id: 5, x: 9000, side: 1, hpMul: 1.3 },
+    { id: 6, x: 9550, side: 1, hpMul: 1.3 },
+    { id: 7, x: 9780, side: 1, hpMul: 1.3 },
     { id: 8, x: 11350, side: 1, hpMul: 1.4 },
     { id: 9, x: 11850, side: 1, hpMul: 1.4 },
   ],
@@ -221,7 +224,7 @@ export const M10: MissionDef = {
       { kind: 'medic', count: 2, after: 80 },
       { kind: 'tank', count: 2, after: 120 },
       { kind: 'rifle', count: 9, after: 150 },
-      { kind: 'at', count: 5, after: 300 },
+      { kind: 'at', count: 8, after: 300 },
       { kind: 'tank', count: 3, after: 400 },
     ],
     firstAttackAfter: 160,

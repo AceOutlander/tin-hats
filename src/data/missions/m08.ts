@@ -1,10 +1,11 @@
 import type { MissionDef } from '../schema';
 
 /**
- * Mission 8: Hill 112, Normandy, July 1944. Open ground and armour on both sides: two German
- * trench lines on the slopes, a little wire, no pillboxes, panzers in the field and anti-tank teams
- * in the trenches. Introduces the Churchill: bullets barely scratch it, its gun smashes trenches
- * and its tracks crush wire, but German anti-tank teams will hunt it, so infantry must go with it.
+ * Mission 8: Hill 112, Normandy, July 1944. Open ground and armour on both sides: three German
+ * trench lines on the slopes, two belts of wire, no pillboxes, a Panzer in the field, a scripted
+ * counter-attack at 330 s, and anti-tank teams the AI trains in answer to each Churchill. Introduces the Churchill: bullets
+ * barely scratch it, its gun smashes trenches and its tracks crush wire, but German anti-tank teams
+ * hunt it, so infantry must go with it. A second British squadron lands when trench 2 falls.
  */
 export const M08: MissionDef = {
   id: 8,
@@ -12,7 +13,7 @@ export const M08: MissionDef = {
   title: 'Hill 112',
   location: 'Hill 112, Normandy',
   date: 'July 1944',
-  mapPos: { lon: -0.51, lat: 49.12 },
+  mapPos: { lon: -0.5, lat: 49.1 },
   briefing: [
     'Hill 112 is not much of a hill: a long bare swell of cornfield between the Odon and the Orne, a hundred and twelve metres at its crest. But whoever holds the top can see everything for miles, and for three weeks both sides have been finding that out the expensive way. The Wessex infantry took it once and were shelled off it again, and the Germans have since had the same experience in the other direction.',
     'This time the tanks have come up with the infantry. The Churchill is slow, rather ugly and quite remarkably well armoured; rifle bullets bounce off it and the Germans have little else at hand except anti-tank teams and their own Panzers. The ground is open and there is nowhere to hide a tank, so expect the Panzers to be waiting for you.',
@@ -77,7 +78,7 @@ export const M08: MissionDef = {
     { type: 'hint', when: { at: 3 }, text: 'Open ground, and armour on both sides. Whoever uses tanks best takes the hill.' },
     {
       type: 'hint',
-      when: { at: 12 },
+      when: { at: 16 },
       text: 'Train a Churchill. Bullets barely scratch it, its gun smashes infantry and trenches, and it flattens wire.',
     },
     {

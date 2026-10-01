@@ -2,10 +2,11 @@ import type { MissionDef } from '../schema';
 
 /**
  * Mission 7: Sword Beach, Normandy, 6 June 1944. The player lands with a weak beachhead HQ and a
- * thin income. A sea-wall strongpoint (wire, two pillboxes and a garrisoned trench) covers the
- * sand, two more lines lie inland, and a panzer counter-attack arrives late. Riflemen cannot hurt
- * concrete: the PIAT Team (rocket, strong against fortifications and tanks) is the answer to both
- * the pillboxes and the panzers. The Germans have no supports here; the mission is the geometry.
+ * thin income. A sea-wall strongpoint (wire, five tough pillboxes and a garrisoned trench) covers
+ * the sand, two more lines lie inland, and a panzer counter-attack arrives late: 80 s after the sea
+ * wall falls, when the second wave lands behind the player. Riflemen cannot hurt concrete: the PIAT
+ * Team (rocket, strong against fortifications and tanks) is the answer to both the pillboxes and the
+ * panzers. The Germans have no supports here; the mission is the geometry.
  */
 export const M07: MissionDef = {
   id: 7,
@@ -17,7 +18,7 @@ export const M07: MissionDef = {
   briefing: [
     'H-Hour is 0725 and the Navy has put you ashore on Sword, a strip of sand between Ouistreham and Lion-sur-Mer. The tide is making, the obstacles are mined, and the beachhead consists of a headquarters in a shell hole and whatever the landing craft could be persuaded to leave behind. Supplies will trickle in until the beach is open. It was never advertised as a comfortable morning.',
     'The Germans have built the sea wall into a strongpoint: wire, a trench, and concrete pillboxes sited to rake the whole beach. Rifle bullets bounce off concrete with a cheerful ping and achieve nothing else. The answer is the PIAT, a spring-powered projector that throws a hollow-charge bomb a short way and with great conviction. It is poor against infantry, remarkable against a pillbox, and the only thing in the section that will frighten a Panzer.',
-    'Clear the sea wall, push inland through the second and third lines, and put the German headquarters out of action. The 21st Panzer Division is known to be somewhere near Caen and will certainly be along later in the day. Keep PIAT teams back for it, and keep riflemen in front of the PIATs.',
+    'Clear the sea wall, push inland through the second and third lines, and put the German headquarters out of action. The 21st Panzer Division is known to be somewhere near Caen and will certainly be along later in the day. Once the sea wall is ours the second wave will land behind you with more PIAT teams. Keep them back for the Panzers, and keep riflemen in front of them.',
   ],
   objective: 'Clear the beach defences, beat the panzers and destroy the German HQ.',
   theatre: 'normandy',
@@ -72,9 +73,9 @@ export const M07: MissionDef = {
   pillboxes: [
     { id: 1, x: 1800, side: 1, hpMul: 1.6 },
     { id: 2, x: 2050, side: 1, hpMul: 1.6 },
-    { id: 3, x: 2300, side: 1, hpMul: 1.6 },
-    { id: 4, x: 2550, side: 1, hpMul: 1.6 },
-    { id: 5, x: 2800, side: 1, hpMul: 1.6 },
+    { id: 3, x: 2550, side: 1, hpMul: 1.6 },
+    { id: 4, x: 2800, side: 1, hpMul: 1.6 },
+    { id: 5, x: 3050, side: 1, hpMul: 1.6 },
     { id: 6, x: 5900, side: 1, hpMul: 1 },
     { id: 7, x: 8450, side: 1, hpMul: 1 },
   ],
@@ -92,7 +93,7 @@ export const M07: MissionDef = {
     },
     {
       type: 'hint',
-      when: { at: 14 },
+      when: { at: 16 },
       text: 'Pillboxes shrug off rifle fire. Train PIAT Teams: their rockets wreck concrete and knock out tanks.',
     },
     {
