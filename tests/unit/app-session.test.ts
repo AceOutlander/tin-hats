@@ -153,6 +153,8 @@ describe('BattleSession', () => {
   });
   describe('while the sim has no supports or direct control (Phase 1)', () => {
     it('ignores support, control and stick actions', () => {
+      // The sim now has both (Phase 2): switch them off to test the Phase 1 path.
+      enable({ supports: false, directControl: false });
       const { session, battle, view, sent } = setup(withSupports());
       const rifle = firstOwnUnit(battle, 'rifle');
       expect(rifle).toBeGreaterThanOrEqual(0);
