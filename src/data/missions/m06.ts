@@ -1,9 +1,11 @@
 import type { MissionDef } from '../schema';
 
 /**
- * Mission 6: Monte Cassino, Italy, May 1944. Three fortified lines in succession, each with
- * wire, a pillbox and a stronger garrison than the last, and German guns that shell any crowd.
- * The grind that needs staying power: introduces the Medic and the Smoke Screen.
+ * Mission 6: Monte Cassino, Italy, May 1944. Three fortified lines in succession, each with a
+ * belt of wire, pillboxes and a bigger garrison than the last (the heaviest defences so far),
+ * and an empty trench (a forward post, owner -1) 500 wu short of each line to stage from.
+ * The grind that needs staying power and a way across the open ground: introduces the Medic and
+ * the Smoke Screen. The Germans have no artillery here; their strength is the three lines.
  */
 export const M06: MissionDef = {
   id: 6,
@@ -52,12 +54,12 @@ export const M06: MissionDef = {
       incomeMul: 0.6,
       sappers: 2,
       forces: [
-        { kind: 'rifle', count: 5, trenchId: 2 },
-        { kind: 'lmg', count: 1, trenchId: 2 },
         { kind: 'rifle', count: 5, trenchId: 3 },
-        { kind: 'lmg', count: 2, trenchId: 3 },
-        { kind: 'rifle', count: 5, trenchId: 4 },
-        { kind: 'lmg', count: 2, trenchId: 4 },
+        { kind: 'lmg', count: 1, trenchId: 3 },
+        { kind: 'rifle', count: 5, trenchId: 5 },
+        { kind: 'lmg', count: 2, trenchId: 5 },
+        { kind: 'rifle', count: 5, trenchId: 7 },
+        { kind: 'lmg', count: 2, trenchId: 7 },
         { kind: 'mortar', count: 1 },
         { kind: 'sniper', count: 1 },
         { kind: 'medic', count: 1 },
@@ -66,19 +68,23 @@ export const M06: MissionDef = {
   ],
   trenches: [
     { id: 1, x: 1500, width: 160, slots: 6, owner: 0 },
-    { id: 2, x: 4050, width: 180, slots: 7, owner: 1 },
-    { id: 3, x: 6100, width: 180, slots: 7, owner: 1 },
-    { id: 4, x: 8150, width: 180, slots: 7, owner: 1 },
+    { id: 2, x: 3550, width: 160, slots: 6, owner: -1 },
+    { id: 3, x: 4050, width: 180, slots: 7, owner: 1 },
+    { id: 4, x: 5600, width: 160, slots: 6, owner: -1 },
+    { id: 5, x: 6100, width: 180, slots: 7, owner: 1 },
+    { id: 6, x: 7650, width: 160, slots: 6, owner: -1 },
+    { id: 7, x: 8150, width: 180, slots: 7, owner: 1 },
   ],
   pillboxes: [
-    { id: 1, x: 3940, side: 1, hpMul: 0.8 },
-    { id: 2, x: 5990, side: 1, hpMul: 0.9 },
+    { id: 1, x: 3940, side: 1, hpMul: 0.85 },
+    { id: 2, x: 5990, side: 1, hpMul: 1 },
     { id: 3, x: 8040, side: 1, hpMul: 1 },
+    { id: 4, x: 8330, side: 1, hpMul: 1 },
   ],
   wire: [
-    { id: 1, x: 3600, width: 120, owner: 1 },
-    { id: 2, x: 5650, width: 120, owner: 1 },
-    { id: 3, x: 7700, width: 140, owner: 1 },
+    { id: 1, x: 3780, width: 100, owner: 1 },
+    { id: 2, x: 5830, width: 100, owner: 1 },
+    { id: 3, x: 7880, width: 100, owner: 1 },
   ],
   timer: null,
   events: [
@@ -94,22 +100,42 @@ export const M06: MissionDef = {
     },
     {
       type: 'hint',
-      when: { at: 70 },
+      when: { at: 55 },
+      text: 'An empty trench lies short of every German line. Take it, Hold there, and let the Medics and mortars work from behind it.',
+    },
+    {
+      type: 'hint',
+      when: { at: 85 },
       text: 'Three lines stand between you and the HQ. Take them one at a time: Hold at each, heal, reinforce, then press on.',
     },
     {
       type: 'hint',
       when: { trenchCapturedBy: 0, trenchId: 2, delay: 1 },
-      text: 'First line taken. Let the Medics work and bring up fresh men before you go on.',
+      text: 'Forward post taken. Hold here, shell the line ahead, then lay Smoke and Advance.',
     },
     {
       type: 'hint',
       when: { trenchCapturedBy: 0, trenchId: 3, delay: 1 },
+      text: 'First line taken. Let the Medics work and bring up fresh men before you go on.',
+    },
+    {
+      type: 'hint',
+      when: { trenchCapturedBy: 0, trenchId: 5, delay: 1 },
       text: 'Second line broken. One more, and then the HQ. Smoke first, then Advance.',
     },
     {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 5, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 3 },
+        { kind: 'assault', count: 2 },
+      ],
+      announce: 'German assault troops are counter-attacking from the last line.',
+    },
+    {
       type: 'announce',
-      when: { trenchCapturedBy: 0, trenchId: 4 },
+      when: { trenchCapturedBy: 0, trenchId: 7 },
       text: 'The last line has fallen. The way to the German headquarters is open.',
     },
     {

@@ -3,8 +3,10 @@ import type { MissionDef } from '../schema';
 /**
  * Mission 5: Primosole Bridge, Sicily, July 1943. A race against the light: destroy the German
  * HQ before nightfall (the sky darkens as the deadline nears). German paratroops hold two lines
- * with machine guns, and their snipers arrive early and work on the gunners and mortar crews.
- * Introduces the Sniper, the only soldier who outranges them.
+ * with machine guns left standing in the open behind small trenches, and their snipers (two of
+ * them posted forward in the fields on guard) work on the gunners and mortar crews. An empty
+ * trench (a forward post, owner -1) lies 500 wu short of the first line: from it a Sniper
+ * (reach 660 wu) covers the German gunners. Introduces the Sniper.
  */
 export const M05: MissionDef = {
   id: 5,
@@ -16,7 +18,7 @@ export const M05: MissionDef = {
   briefing: [
     'The invasion of Sicily is a week old and the road to Catania is blocked by a river. The Simeto is not wide, but its bridge at Primosole is the only crossing fit for lorries. British parachutists took it by night and held it until their ammunition ran out; German paratroops, flown in the same evening, have since dug in along the far bank.',
     'Their snipers are a nuisance of the first order. A rifleman can be replaced; a Bren gunner or a mortar crew under a marksman\'s eye is another matter, and a Medic does not last long either. The battalion has found a few marksmen of its own, and a Sniper outranges everything on that bank. Let him clear the enemy gunners and snipers before the infantry go in.',
-    'There is no time to be thorough. Nightfall is about ten minutes away, and after dark the Germans will be reinforced and the crossing will be rather more expensive. Take their positions quickly and destroy their headquarters before the light goes.',
+    'There is no time to be thorough. Nightfall is ten minutes away, and after dark the Germans will be reinforced and the crossing will be rather more expensive. Take their positions quickly and destroy their headquarters before the light goes.',
   ],
   objective: 'Destroy the German HQ before nightfall.',
   theatre: 'sicily',
@@ -52,23 +54,24 @@ export const M05: MissionDef = {
       incomeMul: 0.55,
       sappers: 2,
       forces: [
-        { kind: 'rifle', count: 4, trenchId: 2 },
-        { kind: 'lmg', count: 3, trenchId: 2 },
-        { kind: 'sniper', count: 1, trenchId: 2 },
-        { kind: 'rifle', count: 3, trenchId: 3 },
-        { kind: 'lmg', count: 1, trenchId: 3 },
+        { kind: 'rifle', count: 4, trenchId: 3 },
+        { kind: 'lmg', count: 3, trenchId: 3 },
+        { kind: 'sniper', count: 1, trenchId: 3 },
+        { kind: 'rifle', count: 3, trenchId: 4 },
+        { kind: 'lmg', count: 1, trenchId: 4 },
         { kind: 'sniper', count: 2, x: 3000, behaviour: 'guard' },
       ],
     },
   ],
   trenches: [
     { id: 1, x: 1500, width: 160, slots: 6, owner: 0 },
-    { id: 2, x: 4400, width: 120, slots: 4, owner: 1 },
-    { id: 3, x: 6800, width: 120, slots: 4, owner: 1 },
+    { id: 2, x: 3850, width: 160, slots: 6, owner: -1 },
+    { id: 3, x: 4400, width: 120, slots: 4, owner: 1 },
+    { id: 4, x: 6800, width: 120, slots: 4, owner: 1 },
   ],
   pillboxes: [{ id: 1, x: 7100, side: 1, hpMul: 0.8 }],
-  wire: [{ id: 1, x: 4050, width: 120, owner: 1 }],
-  timer: { seconds: 660, onExpire: 'lose', label: 'Nightfall' },
+  wire: [{ id: 1, x: 4120, width: 100, owner: 1 }],
+  timer: { seconds: 600, onExpire: 'lose', label: 'Nightfall' },
   events: [
     {
       type: 'hint',
@@ -84,6 +87,11 @@ export const M05: MissionDef = {
       type: 'hint',
       when: { at: 32 },
       text: 'Tap a Sniper to take direct control of him. Walk him forward and fire from beyond the range of their rifles.',
+    },
+    {
+      type: 'hint',
+      when: { at: 55 },
+      text: 'An empty trench lies ahead of the German line. Take it and Hold there: your Snipers can reach the gunners behind their trench.',
     },
     {
       type: 'wave',
@@ -115,8 +123,14 @@ export const M05: MissionDef = {
     {
       type: 'hint',
       when: { trenchCapturedBy: 0, trenchId: 2, delay: 1 },
+      text: 'Forward post taken. Hold here and let the Snipers work on the gunners, then Advance with the barrage.',
+    },
+    {
+      type: 'hint',
+      when: { trenchCapturedBy: 0, trenchId: 3, delay: 1 },
       text: 'First line taken. Do not stop: the light will not wait for a tidy reorganisation.',
     },
+    { type: 'announce', when: { at: 300 }, text: 'Half the light has gone.' },
     {
       type: 'wave',
       when: { at: 400 },
@@ -127,8 +141,7 @@ export const M05: MissionDef = {
       ],
       announce: 'The Germans are throwing in their last reserves.',
     },
-    { type: 'announce', when: { at: 330 }, text: 'Half the light has gone.' },
-    { type: 'announce', when: { at: 540 }, text: 'Two minutes of daylight left.' },
+    { type: 'announce', when: { at: 480 }, text: 'Two minutes of daylight left.' },
     {
       type: 'hint',
       when: { hqHpBelow: 0.5, side: 0 },
@@ -158,5 +171,5 @@ export const M05: MissionDef = {
     ],
     firstAttackAfter: 130,
   },
-  expectedMinutes: [6, 9],
+  expectedMinutes: [5, 8.5],
 };
