@@ -96,9 +96,9 @@ export const M08: MissionDef = {
       when: { at: 330 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2, x: 8200, behaviour: 'assault' },
-        { kind: 'rifle', count: 3, x: 7900, behaviour: 'assault' },
-        { kind: 'at', count: 1, x: 7800, behaviour: 'assault' },
+        { kind: 'tank', count: 2, behaviour: 'assault' },
+        { kind: 'rifle', count: 3, behaviour: 'assault' },
+        { kind: 'at', count: 1, behaviour: 'assault' },
       ],
       announce: 'German armour is counter-attacking.',
     },

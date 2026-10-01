@@ -55,7 +55,7 @@ export const M09: MissionDef = {
       forces: [],
     },
   ],
-  trenches: [{ id: 1, x: 1800, width: 180, slots: 7, owner: 0 }],
+  trenches: [{ id: 1, x: 1800, width: 200, slots: 8, owner: 0 }],
   pillboxes: [],
   wire: [{ id: 1, x: 2150, width: 110, owner: 0 }],
   timer: { seconds: 360, onExpire: 'win', label: 'Until relieved' },

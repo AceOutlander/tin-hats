@@ -121,8 +121,8 @@ export const M07: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 2, delay: 80 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3, x: 7000, behaviour: 'assault' },
-        { kind: 'rifle', count: 3, x: 6700, behaviour: 'assault' },
+        { kind: 'tank', count: 3, behaviour: 'assault' },
+        { kind: 'rifle', count: 3, behaviour: 'assault' },
       ],
       announce: 'Panzers! The counter-attack is coming in.',
     },
