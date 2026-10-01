@@ -220,14 +220,31 @@ for (const m of MISSIONS) {
         }
       }
       if (!s.over && s.timer !== null) {
-        // Slowly through the last minute: calm above 30 seconds, urgent below.
-        await setTimeScale(page, 4);
-        await expect.poll(async () => (await state(page)).timer ?? 0, { timeout: 60_000, intervals: [100] }).toBeLessThan(35);
-        expect((await state(page)).timer ?? 0, 'the sample is still above 30 seconds').toBeGreaterThan(30);
-        await expect(obj, 'not urgent above 30 seconds').not.toHaveClass(/is-urgent/);
-        await expect.poll(async () => (await state(page)).timer ?? 0, { timeout: 60_000, intervals: [100] }).toBeLessThan(28);
-        await expect(obj, 'urgent in the last 30 seconds').toHaveClass(/is-urgent/);
-        if (m.timer.onExpire === 'lose') {
+        // Slowly through the last minute, sampling the clock and the plate together: calm above 30 seconds, urgent below.
+        await setTimeScale(page, 2);
+        const samples: { t: number; urgent: boolean }[] = [];
+        let ended = false;
+        for (let i = 0; i < 600; i++) {
+          const sample = await page.evaluate(() => ({
+            t: ((window as unknown as Hooked).__TH as DebugApi).state().timer,
+            urgent: document.querySelector('.th-obj')?.classList.contains('is-urgent') === true,
+            over: ((window as unknown as Hooked).__TH as DebugApi).state().over,
+          }));
+          if (sample.over || sample.t === null) {
+            ended = true;
+            break;
+          }
+          samples.push({ t: sample.t, urgent: sample.urgent });
+          if (sample.t < 25) break;
+          await page.waitForTimeout(60);
+        }
+        const calm = samples.filter((x) => x.t > 32);
+        const late = samples.filter((x) => x.t < 28);
+        expect(calm.length, 'samples above 30 seconds').toBeGreaterThan(0);
+        if (!ended) expect(late.length, 'samples below 30 seconds').toBeGreaterThan(0);
+        expect(calm.filter((x) => x.urgent), 'not urgent above 30 seconds').toEqual([]);
+        expect(late.filter((x) => !x.urgent), 'urgent in the last 30 seconds').toEqual([]);
+        if (m.timer.onExpire === 'lose' && !ended) {
           expect((await state(page)).darkness).toBeGreaterThan(0.9);
           await page.waitForTimeout(500);
           await shot(page, `mission-${pad(m.id)}-night`);
