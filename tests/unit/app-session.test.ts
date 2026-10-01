@@ -278,6 +278,21 @@ describe('BattleSession', () => {
       expect(view.controlled[view.controlled.length - 1]).toBe(-1);
     });
 
+    it('tells the sim to stop him once when the stick and fire are let go (pause, lost focus)', () => {
+      const { session, battle, sent } = setup();
+      const rifle = firstOwnUnit(battle, 'rifle');
+      session.tapUnit(rifle.id);
+      frame(session);
+      session.dispatch({ type: 'stick', x: -1 });
+      session.dispatch({ type: 'fire', down: true });
+      frame(session);
+      sent.length = 0;
+      session.stopInputs();
+      session.flushControl();
+      session.flushControl();
+      expect(sent).toEqual([{ type: 'controlInput', moveX: 0, fire: false, ability: false }]);
+    });
+
     it('switches to another man when he is tapped, and lets go on the release button', () => {
       const { session, battle, sent } = setup();
       const sapper = firstOwnUnit(battle, 'sapper');
@@ -334,6 +349,28 @@ describe('BattleSession', () => {
       frame(session);
       frame(session);
       expect(commands).toEqual([]);
+    });
+
+    it('throws the secondary weapon when the ability button is pressed, and not before', () => {
+      const m: MissionDef = structuredClone(M01);
+      m.events = [];
+      m.trenches = [{ id: 1, x: 3120, width: 130, slots: 6, owner: 1 }];
+      m.start[0].forces = [{ kind: 'assault', count: 1, x: 3000 }];
+      m.start[1].forces = [{ kind: 'rifle', count: 3, trenchId: 1 }];
+      const { session, battle } = setup(m);
+      const grenadier = firstOwnUnit(battle, 'assault');
+      session.tapUnit(grenadier.id);
+      frame(session);
+      expect(session.hud.state.control?.hasAbility).toBe(true);
+      expect(session.hud.state.control?.abilityName).toBe(APP.abilityNames.assault);
+      for (let i = 0; i < 20; i++) frame(session);
+      expect(session.tally.explosion).toBe(0);
+
+      session.dispatch({ type: 'ability' });
+      for (let i = 0; i < 30 && session.tally.explosion === 0; i++) frame(session);
+      expect(session.tally.explosion).toBeGreaterThan(0);
+      // The grenade is reloading: the HUD shows the button charging.
+      expect(session.hud.state.control?.abilityCharge ?? 1).toBeLessThan(1);
     });
 
     it('counts the shots of the man under control, and only his', () => {
