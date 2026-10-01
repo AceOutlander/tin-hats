@@ -10,6 +10,7 @@
 import type Phaser from 'phaser';
 import {
   FIGURE_PART_COUNT,
+  FIGURE_RIM_PARTS,
   chooseDeathVariant,
   createFigureAnim,
   createFigureInput,
@@ -61,6 +62,11 @@ abstract class UnitViewBase {
   lastX = 0;
   /** Fixed visual x offset of this unit (formation spread). */
   jitter = 0;
+  /** Interpolated simulation x (without the visual offset) as last drawn. */
+  simX = 0;
+  /** Crowd spread offset (wu, eased) and this frame's unspread x, see UnitViews.spreadCrowds. */
+  crowd = 0;
+  crowdTarget = 0;
   /** Seconds since death. */
   deadTime = 0;
   sink = 0;
@@ -72,6 +78,8 @@ abstract class UnitViewBase {
   hit = false;
   /** Height of the body (wu at scale 1) for picking, pips and screen positions. */
   bodyH: number = VIEW.figureHeight;
+  /** Every image of the body, back to front, all in this view's row layer. */
+  readonly images: Img[] = [];
   readonly shadow: Img;
   readonly pipBack: Img;
   readonly pips: Img[] = [];
@@ -84,6 +92,7 @@ abstract class UnitViewBase {
     protected readonly reg: SpriteRegistry,
     scene: Phaser.Scene,
     layers: Layers,
+    protected readonly layer: Phaser.GameObjects.Layer = layers.rows[row],
   ) {
     this.shadowInv = 1 / reg.get(RENDER_KEYS.shadow).scale;
     this.whiteInv = 1 / (WHITE_SIZE * reg.get(RENDER_KEYS.whiteTL).scale);
@@ -98,6 +107,16 @@ abstract class UnitViewBase {
       p.visible = false;
       this.pips.push(p);
     }
+  }
+
+  /** Draw under every other unit of the row (a body on the ground), keeping the parts' own order. */
+  sendBack(): void {
+    for (let i = this.images.length - 1; i >= 0; i--) this.layer.sendToBack(this.images[i]);
+  }
+
+  /** Draw over every other unit of the row (a fresh unit must never hide under a lingering body). */
+  bringFront(): void {
+    for (let i = 0; i < this.images.length; i++) this.layer.bringToTop(this.images[i]);
   }
 
   abstract setShown(on: boolean): void;
@@ -153,20 +172,19 @@ abstract class UnitViewBase {
 }
 
 class FigureView extends UnitViewBase {
-  readonly images: Img[] = [];
   readonly keys: string[] = [];
   readonly inv: number[] = [];
   readonly anim: FigureAnim;
   readonly input: FigureInput;
   readonly parts: FigurePart[];
   readonly death: FigureDeath = { variant: 'crumple', time: 0, dir: -1 };
+  appliedShade = 1;
 
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
-    const layer = layers.rows[row];
     const first = reg.get(RENDER_KEYS.white);
     for (let i = 0; i < FIGURE_PART_COUNT; i++) {
-      const img = addImage(scene, layer, first.frame);
+      const img = addImage(scene, this.layer, first.frame);
       img.visible = false;
       this.images.push(img);
       this.keys.push('');
@@ -193,6 +211,7 @@ class FigureView extends UnitViewBase {
     inp.hit = false;
     inp.death = null;
     this.bodyH = VIEW.figureHeight;
+    this.applyShade(1);
   }
 
   setShown(on: boolean): void {
@@ -208,7 +227,23 @@ class FigureView extends UnitViewBase {
   applyAlpha(a: number): void {
     if (Math.abs(a - this.appliedAlpha) < 0.004) return;
     this.appliedAlpha = a;
-    for (const img of this.images) img.alpha = a;
+    // The light rim fades much faster than the black body, so a half-faded figure is a dark ghost, not an outline drawing.
+    const rim = a * a * a;
+    const imgs = this.images;
+    for (let i = 0; i < imgs.length; i++) imgs[i].alpha = i < FIGURE_RIM_PARTS ? rim : a;
+  }
+
+  /** Colour multiplier, 1 = normal, 0 = a black silhouette (a unit in the dark of its HQ doorway). */
+  applyShade(k: number): void {
+    const q = k >= 0.995 ? 1 : Math.round(k * 32) / 32;
+    if (q === this.appliedShade) return;
+    this.appliedShade = q;
+    const c = Math.round(q * 255);
+    const tint = (c << 16) | (c << 8) | c;
+    for (const img of this.images) {
+      if (q === 1) img.clearTint();
+      else img.setTint(tint);
+    }
   }
 
   /** Update the animation by dt and copy the parts onto the images. */
@@ -254,7 +289,6 @@ class FigureView extends UnitViewBase {
 const TANK_IMAGES = TANK_MAX_WHEELS + 5;
 
 class TankView extends UnitViewBase {
-  readonly images: Img[] = [];
   readonly keys: string[] = [];
   look: TankLook = 'churchill';
   readonly tank: TankState = { look: 'churchill', distance: 0, turretAim: 0, recoil: 0, hullRock: 0 };
@@ -263,10 +297,9 @@ class TankView extends UnitViewBase {
 
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
-    const layer = layers.rows[row];
     const first = reg.get(RENDER_KEYS.white);
     for (let i = 0; i < TANK_IMAGES; i++) {
-      const img = addImage(scene, layer, first.frame);
+      const img = addImage(scene, this.layer, first.frame);
       img.visible = false;
       this.images.push(img);
       this.keys.push('');
@@ -357,6 +390,21 @@ function isVehicle(kind: UnitKind): boolean {
   return kind === 'tank' || kind === 'heavyTank';
 }
 
+/**
+ * How far a unit's depth row and formation offset apply (0..1): 1 out in the field, easing to 0 at its own HQ door,
+ * so units file out of the doorway and spread to their rows, and gather into single file to go back in.
+ */
+function doorSpreadAt(simX: number, u: UnitState, state: BattleState): number {
+  const hq = state.sides[u.side].hq;
+  if (!hq || isVehicle(u.kind)) return 1;
+  const t = Math.min(1, Math.abs(simX - hq.doorX) / U.doorFunnel);
+  return t * t * (3 - 2 * t);
+}
+
+function doorSpread(u: UnitState, state: BattleState): number {
+  return doorSpreadAt(u.prevX, u, state);
+}
+
 /** Every unit view of the battle: creation, per-frame layout, deaths, picking. */
 export class UnitViews {
   /** View of the unit in each pool slot (matched on unitId). */
@@ -370,6 +418,9 @@ export class UnitViews {
   drawn = 0;
   private readonly ring: Img;
   private readonly ringScale: number;
+  /** Scratch for the crowd spread: live figure views per (side, row), sorted by x, and their relaxed positions. */
+  private readonly lanes: FigureView[][] = [];
+  private relaxed = new Float64Array(64);
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -379,6 +430,7 @@ export class UnitViews {
     for (let r = 0; r < VIEW.rows; r++) {
       this.figurePool.push([]);
       this.tankPool.push([]);
+      this.lanes.push([], []);
     }
     this.rng = createRng(1);
     const ring = reg.get(FX_KEYS.ui.selectRing);
@@ -428,7 +480,7 @@ export class UnitViews {
     return null;
   }
 
-  private acquire(u: UnitState): UnitView {
+  private acquire(u: UnitState, state: BattleState): UnitView {
     const row = Math.max(0, Math.min(VIEW.rows - 1, u.row | 0));
     let v: UnitView;
     if (isVehicle(u.kind)) {
@@ -448,10 +500,12 @@ export class UnitViews {
     v.side = u.side;
     v.kind = u.kind;
     v.faction = u.faction;
-    v.jitter = isVehicle(u.kind) ? 0 : (mixSeed(this.seed, u.id) / 4294967296 - 0.5) * 2 * U.xJitter;
-    v.x = u.prevX + v.jitter;
+    v.jitter = isVehicle(u.kind) ? 0 : U.rowStagger[row] + (mixSeed(this.seed, u.id) / 4294967296 - 0.5) * 2 * U.xJitter;
+    v.simX = u.prevX;
+    v.crowd = 0;
+    v.x = u.prevX + v.jitter * doorSpread(u, state);
     v.lastX = v.x;
-    v.y = VIEW.groundY + VIEW.rowDy[row];
+    v.y = VIEW.groundY + VIEW.rowDy[row] * doorSpread(u, state);
     v.s = VIEW.rowScale[row];
     v.facing = u.facing >= 0 ? 1 : -1;
     v.deadTime = 0;
@@ -462,6 +516,7 @@ export class UnitViews {
     v.hit = false;
     v.shown = true;
     v.setShown(false);
+    v.bringFront();
     return v;
   }
 
@@ -490,9 +545,12 @@ export class UnitViews {
     this.bySlot[slot] = null;
     v.state = STATE_DYING;
     v.deadTime = 0;
-    v.x = x + v.jitter;
+    // Fall where the body was drawn (it may stand off its sim x); only snap if it was never drawn near there.
+    if (Math.abs(v.simX - x) > U.xJitter) v.x = x + v.jitter;
     this.dying.push(v);
     v.hidePips();
+    // A body on the ground lies under everyone still standing in its row.
+    v.sendBack();
     if (v instanceof FigureView) {
       const fromFront = dir !== 0 && dir === -v.facing;
       v.death.variant = chooseDeathVariant(cause ?? 'bullet', fromFront, this.rng());
@@ -536,13 +594,13 @@ export class UnitViews {
     const over = state.over;
     for (let i = 0; i < n; i++) {
       const u = units[i];
-      if (!u.alive) continue;
-      let v = this.bySlot[i];
-      if (!v) {
-        v = this.acquire(u);
-        this.bySlot[i] = v;
-      }
-      this.updateLive(v, u, state, alpha, dt, camLeft, camRight, over && state.winner === u.side);
+      if (u.alive && !this.bySlot[i]) this.bySlot[i] = this.acquire(u, state);
+    }
+    this.spreadCrowds(state, dt);
+    for (let i = 0; i < n; i++) {
+      const u = units[i];
+      const v = u.alive ? this.bySlot[i] : null;
+      if (v) this.updateLive(v, u, state, alpha, dt, camLeft, camRight, over && state.winner === u.side);
     }
     for (let i = this.dying.length - 1; i >= 0; i--) {
       this.updateDying(this.dying[i], dt, camLeft, camRight);
@@ -550,18 +608,78 @@ export class UnitViews {
     this.placeRing();
   }
 
+  /**
+   * Crowd spread (view only): figures of one side on one depth row that stand closer than U.crowdGap are eased
+   * apart, up to U.crowdMax each, so a packed firing line reads as men rather than one black mass. Offsets only
+   * change while a unit is walking, so a standing figure never slides on the spot.
+   */
+  private spreadCrowds(state: BattleState, dt: number): void {
+    const lanes = this.lanes;
+    for (const lane of lanes) lane.length = 0;
+    const units = state.units;
+    for (let i = 0; i < this.bySlot.length && i < state.unitCount; i++) {
+      const v = this.bySlot[i];
+      if (!(v instanceof FigureView) || units[i].inside) continue;
+      v.crowdTarget = v.simX + v.jitter;
+      const lane = lanes[v.side * VIEW.rows + v.row];
+      // Insertion keeps the lane sorted by x (nearly sorted already from frame to frame).
+      let k = lane.length;
+      lane.push(v);
+      while (k > 0 && lane[k - 1].crowdTarget > v.crowdTarget) {
+        lane[k] = lane[k - 1];
+        k--;
+      }
+      lane[k] = v;
+    }
+    const gap = U.crowdGap;
+    const max = U.crowdMax;
+    const ease = dt > 0 ? 1 - Math.exp(-dt / U.crowdEase) : 0;
+    for (const lane of lanes) {
+      const m = lane.length;
+      if (m === 0) continue;
+      if (this.relaxed.length < m) this.relaxed = new Float64Array(m * 2);
+      const p = this.relaxed;
+      for (let i = 0; i < m; i++) p[i] = lane[i].crowdTarget;
+      for (let pass = 0; pass < U.crowdPasses; pass++) {
+        for (let i = 1; i < m; i++) {
+          const d = p[i] - p[i - 1];
+          if (d < gap) {
+            const push = (gap - d) * 0.5;
+            p[i - 1] -= push;
+            p[i] += push;
+          }
+        }
+      }
+      for (let i = 0; i < m; i++) {
+        const v = lane[i];
+        const want = Math.max(-max, Math.min(max, p[i] - v.crowdTarget));
+        if (Math.abs(units[v.slot].velX) > U.crowdMinSpeed) v.crowd += (want - v.crowd) * ease;
+      }
+    }
+  }
+
   private updateLive(v: UnitView, u: UnitState, state: BattleState, alpha: number, dt: number, camLeft: number, camRight: number, victory: boolean): void {
-    const x = u.prevX + (u.x - u.prevX) * alpha + v.jitter;
+    const simX = u.prevX + (u.x - u.prevX) * alpha;
+    const spread = doorSpreadAt(simX, u, state);
+    const x = simX + (v.jitter + v.crowd) * spread;
     const moved = x - v.lastX;
     v.lastX = x;
     v.x = x;
+    v.simX = simX;
+    v.y = VIEW.groundY + VIEW.rowDy[v.row] * spread;
     v.facing = u.facing >= 0 ? 1 : -1;
 
     // Door fade: units appear out of and vanish into their own HQ doorway.
     const hq = state.sides[u.side].hq;
     let a = 1;
+    let shade = 1;
     if (u.inside || u.action === 'inside') a = 0;
-    else if (hq) a = Math.min(1, Math.abs(x - hq.doorX) / U.doorFade);
+    else if (hq) {
+      const d = Math.abs(simX - hq.doorX);
+      a = Math.min(1, d / U.doorFade);
+      const t = Math.min(1, d / U.doorShade);
+      shade = t * t * (3 - 2 * t);
+    }
     v.alpha = a;
 
     // Trench sink: occupants, and infantry crossing a trench, dip into it.
@@ -594,6 +712,7 @@ export class UnitViews {
     this.drawn++;
     v.applyAlpha(a);
     if (v instanceof FigureView) {
+      v.applyShade(shade);
       const inp = v.input;
       // When the battle is over the sim stops stepping, so velX and the action are stale: stand still, and the winners cheer.
       inp.action = state.over || u.action === 'inside' ? 'idle' : u.action;

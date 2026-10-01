@@ -13,7 +13,7 @@
  */
 export { chooseDeathVariant, updateFigure } from './animate';
 export { drawFigure2d, drawFigureParts, figureBounds, paintUnitIcon } from './canvas';
-export { FIGURE_PART_COUNT, createFigureLayout, layoutFigure, type FigurePart } from './layout';
+export { FIGURE_PART_COUNT, FIGURE_RIM_PARTS, createFigureLayout, layoutFigure, type FigurePart } from './layout';
 export { FACTION_FIGURE_KEYS, allFigureSprites, figureSpriteMap } from './parts';
 export {
   FigureAnim,

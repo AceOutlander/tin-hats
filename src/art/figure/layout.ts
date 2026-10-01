@@ -97,6 +97,8 @@ const S_NEAR_FA = 36;
 
 /** Number of parts every layout has. */
 export const FIGURE_PART_COUNT = 37;
+/** Parts 0 .. FIGURE_RIM_PARTS - 1 are the light rim behind the body (a renderer fades them faster than the body). */
+export const FIGURE_RIM_PARTS = S_RIM_NEAR_FA + 1;
 
 /** Allocate a part list once per unit (or per pooled view). */
 export function createFigureLayout(): FigurePart[] {

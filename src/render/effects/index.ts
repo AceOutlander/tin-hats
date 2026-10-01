@@ -207,7 +207,7 @@ export class EffectContext {
     if (e.target === 'unit') {
       // Aim at the body as drawn (it may stand a little off its sim x, or sit in a trench).
       const v = this.units.viewAtSlot(e.targetIndex);
-      if (v && v.row === row && Math.abs(v.x - v.jitter - e.x2) < RENDER.unit.xJitter * 2) {
+      if (v && v.row === row && Math.abs(v.simX - e.x2) < RENDER.unit.xJitter * 2) {
         out.x = v.x;
         out.y = v.y + v.sink - v.bodyH * v.s * k;
       }

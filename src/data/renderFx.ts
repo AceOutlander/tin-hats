@@ -29,7 +29,7 @@ export const RENDER_FX_PRESETS = {
   trainPuff: {
     emitters: [
       { sprites: S.glow, layer: 'glow', count: [1, 1], life: [0.25, 0.32], aim: 'up', spread: 0, speed: [0, 0], scale: [0.9, 1.1], alpha: 0.3, fadeOut: 0.1 },
-      { sprites: S.dust, layer: 'effects', count: [5, 7], life: [0.55, 0.95], aim: 'up', spread: 2.4, speed: [25, 80], jitterX: 8, gravity: -10, drag: 2.5, wind: 0.6, scale: [0.2, 0.34], grow: 2.4, growEase: 2, alpha: 0.5, fadeIn: 0.05, fadeOut: 0.35, rotation: 'random', spin: [0.3, 1] },
+      { sprites: S.dust, layer: 'effects', count: [4, 6], life: [0.5, 0.85], aim: 'up', spread: 2.4, speed: [20, 60], jitterX: 8, gravity: -10, drag: 2.5, wind: 0.6, scale: [0.18, 0.3], grow: 2, growEase: 2, alpha: 0.38, fadeIn: 0.05, fadeOut: 0.35, rotation: 'random', spin: [0.3, 1] },
     ],
   },
 

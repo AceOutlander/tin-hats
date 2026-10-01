@@ -83,6 +83,22 @@ describe('debug hooks', () => {
     expect(api.field()?.sappersCarrying).toBe(1);
   });
 
+  it('list the living units for visual QA scripts', () => {
+    const { api, app } = setup();
+    expect(api.units()).toEqual([]);
+    app.beginMission(1, 'normal');
+    const state = app.session?.battle.state;
+    if (!state) throw new Error('no battle');
+    const list = api.units();
+    let alive = 0;
+    for (let i = 0; i < state.unitCount; i++) if (state.units[i].alive) alive++;
+    expect(list.length).toBe(alive);
+    expect(list.length).toBeGreaterThan(0);
+    const first = state.units.slice(0, state.unitCount).find((u) => u.alive);
+    const info = list.find((u) => u.id === first?.id);
+    expect(info).toMatchObject({ kind: first?.kind, side: first?.side, action: first?.action, x: first?.x, row: first?.row, inside: first?.inside });
+  });
+
   it('move the camera and grant supplies', () => {
     const { api, app, view } = setup();
     app.beginMission(1, 'normal');

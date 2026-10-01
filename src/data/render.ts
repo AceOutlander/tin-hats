@@ -43,7 +43,9 @@ export const RENDER = {
     tankShadowH: 16,
     shadowAlpha: 0.38,
     /** Spawned units fade in over this many wu from the HQ door; units entering it fade out over the same distance. */
-    doorFade: 26,
+    doorFade: 14,
+    /** ...and come out of the doorway's shadow (black silhouette to full colour) over this many wu. */
+    doorShade: 34,
     /** Seconds a body lies still after its fall before it starts to fade, and the fade time. */
     corpseLinger: 6,
     corpseFade: 1.5,
@@ -69,7 +71,21 @@ export const RENDER = {
     tankFireRock: 1,
     tankRockDecay: 4,
     /** Units on different rows of one formation column stand at the same x; spread them by up to this much (wu, view only). */
-    xJitter: 7,
+    xJitter: 5,
+    /** Fixed x offset per depth row (wu, view only): a column of four reads as a staggered file, not one thick figure. */
+    rowStagger: [-9, -3, 3, 9] as readonly number[],
+    /** Within this distance of their own HQ door units leave their depth row and formation offset (file in and out). */
+    doorFunnel: 80,
+    /**
+     * Crowd spread (view only): figures of one side on one row closer than crowdGap (wu) are eased apart, by at most
+     * crowdMax each, over crowdEase seconds, and only while walking faster than crowdMinSpeed (wu/s) so nobody slides
+     * on the spot. crowdPasses = relaxation sweeps per frame.
+     */
+    crowdGap: 15,
+    crowdMax: 14,
+    crowdEase: 0.4,
+    crowdMinSpeed: 4,
+    crowdPasses: 3,
     /** Seed salt for each unit's animation seed and death roll. */
     seedSalt: 0x51ed27,
   },
@@ -177,7 +193,7 @@ export const RENDER = {
     /** Smoke-screen clouds: puffs come faster the bigger the cloud (the preset's rate is for refRadius) and by `density`; height of the puffs above the ground (wu). */
     smokeScreen: { refRadius: 170, height: 70, density: 1.6 },
     /** Heights (wu above the ground) of the puff when training finishes and the pop when supplies arrive, both at the HQ door. */
-    door: { puffY: 30, supplyY: 54 },
+    door: { puffY: 10, supplyY: 54 },
     floater: {
       max: 6,
       rise: 46,

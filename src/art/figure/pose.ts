@@ -209,6 +209,9 @@ export class FigureAnim {
   settle = 1;
   stanceSettle = 1;
   breathPhase = 0;
+  /** Seeded per unit: extra weapon tilt (rad) and height (wu) while on the move (FIGURE.gait.carryTiltVar). */
+  carryTilt = 0;
+  carryLift = 0;
   /** Target offset of a carried weapon from the near shoulder (wu), kept while the weapon is set on the ground. */
   relTX = 5;
   relTY = 11;
@@ -343,6 +346,8 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.settle = 1;
   a.stanceSettle = 1;
   a.breathPhase = hash01(a.seed, 14);
+  a.carryTilt = (hash01(a.seed, 15) * 2 - 1) * FIGURE.gait.carryTiltVar;
+  a.carryLift = (hash01(a.seed, 16) * 2 - 1) * FIGURE.gait.carryLiftVar;
   a.relTX = 5;
   a.relTY = 11;
   a.footWorld.fill(0);

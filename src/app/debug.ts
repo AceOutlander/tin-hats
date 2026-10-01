@@ -63,8 +63,24 @@ export interface FieldInfo {
   sappersCarrying: number;
 }
 
+/** One living unit, for visual QA scripts that follow a unit across frames. */
+export interface UnitInfo {
+  id: number;
+  kind: UnitKind;
+  side: 0 | 1;
+  action: string;
+  x: number;
+  row: number;
+  hp: number;
+  maxHp: number;
+  carrying: boolean;
+  inside: boolean;
+}
+
 export interface DebugApi {
   ready: boolean;
+  /** Every living unit (empty outside a battle). */
+  units(): UnitInfo[];
   /** Sound engine state: 'running' once a first gesture has unlocked it, and how many sounds have played. */
   audio(): { state: string; played: number; dropped: number };
   /** Centre the camera on world x. */
@@ -112,6 +128,30 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     },
 
     lookAt: (x) => view.camera.setCenter(x, true),
+
+    units() {
+      const out: UnitInfo[] = [];
+      const session = app.session;
+      if (!session) return out;
+      const s = session.battle.state;
+      for (let i = 0; i < s.unitCount; i++) {
+        const u = s.units[i];
+        if (!u.alive) continue;
+        out.push({
+          id: u.id,
+          kind: u.kind,
+          side: u.side,
+          action: u.action,
+          x: u.x,
+          row: u.row,
+          hp: u.hp,
+          maxHp: u.maxHp,
+          carrying: u.carrying > 0,
+          inside: u.inside,
+        });
+      }
+      return out;
+    },
 
     field() {
       const session = app.session;

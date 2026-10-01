@@ -14,7 +14,7 @@ export const VIEW = {
   horizonY: 352,
   /** Units are spread over a few depth rows purely for looks. Row 0 is farthest from the camera. */
   rows: 4,
-  rowDy: [-21, -7, 7, 21],
+  rowDy: [-24, -8, 8, 24],
   rowScale: [0.92, 0.97, 1.03, 1.08],
   /** Standing stick-figure height, feet to helmet top, in wu at scale 1. */
   figureHeight: 58,

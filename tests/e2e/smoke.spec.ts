@@ -63,6 +63,7 @@ test.describe('debug hooks', () => {
         'startMission',
         'state',
         'unitScreenPos',
+        'units',
         'weatherStats',
       ].sort(),
     );

@@ -1004,6 +1004,12 @@ export const FIGURE = {
     /** The arms and the carried weapon trail the legs by this share of a cycle. */
     armLag: 0.035,
     weaponLag: 0.06,
+    /**
+     * Each soldier carries his weapon on the move a little differently (seeded per unit): up to this many radians of
+     * extra tilt and wu of extra height, so a running squad is not a hedge of identical parallel rifles.
+     */
+    carryTiltVar: 0.16,
+    carryLiftVar: 1.2,
     /** Exertion builds while moving and fades while standing (seconds); it deepens the breathing. */
     exertionRise: 2.5,
     exertionFall: 5,

@@ -269,7 +269,14 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
     setStance(a, K.idle.stance);
     if (a.kind === 'sapper' && inp.carrying) setUpper(a, FIGURE_CRATE.carry);
     else if ((act === 'aim' || act === 'fire' || act === 'reload') && (K.runAndGun || inp.controlled)) setUpper(a, moveFireUpper(K, a.kind));
-    else setUpper(a, K.move);
+    else {
+      setUpper(a, K.move);
+      // Personal carry style (hands stay pinned to the weapon, so the arms follow).
+      if (a.weaponVisible && tg[C_AIM] === 0) {
+        tg[C_WANG] += a.carryTilt;
+        a.relTY += a.carryLift;
+      }
+    }
     return;
   }
 
