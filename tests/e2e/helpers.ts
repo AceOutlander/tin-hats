@@ -4,7 +4,7 @@
  * window.__TH debug hooks, and the common flows (menus, a touch drag, playing
  * a battle to its end at high speed).
  */
-import { expect, test as base, type Page } from '@playwright/test';
+import { expect, test as base, type CDPSession, type Page } from '@playwright/test';
 import { join, resolve } from 'node:path';
 import type { DebugApi, DebugState, FieldInfo } from '../../src/app/debug';
 import { APP } from '../../src/data/app';
@@ -44,6 +44,12 @@ export const audioStats = (page: Page) => page.evaluate(() => ((window as unknow
 export const weatherStats = (page: Page) => page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).weatherStats());
 export const setTimeScale = (page: Page, n: number) => page.evaluate((k) => ((window as unknown as Hooked).__TH as DebugApi).setTimeScale(k), n);
 export const grantSupplies = (page: Page, n: number) => page.evaluate((k) => ((window as unknown as Hooked).__TH as DebugApi).grantSupplies(k), n);
+export const grantPopulation = (page: Page, n: number) => page.evaluate((k) => ((window as unknown as Hooked).__TH as DebugApi).grantPopulation(k), n);
+export const startSandbox = (page: Page, seed?: number, mirror?: boolean) =>
+  page.evaluate(([s, m]) => ((window as unknown as Hooked).__TH as DebugApi).startSandbox(s, m), [seed, mirror] as [number | undefined, boolean | undefined]);
+export const units = (page: Page) => page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).units());
+export const buttonRects = (page: Page) =>
+  page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).buttonRects() as Record<string, { x: number; y: number; w: number; h: number }>);
 export const lookAt = (page: Page, x: number) => page.evaluate((k) => ((window as unknown as Hooked).__TH as DebugApi).lookAt(k), x);
 export const startMission = (page: Page, id: number, seed?: number, difficulty?: Difficulty) =>
   page.evaluate(([k, s, d]) => ((window as unknown as Hooked).__TH as DebugApi).startMission(k, d, s), [id, seed, difficulty] as [
@@ -123,6 +129,64 @@ export async function touchDrag(page: Page, from: { x: number; y: number }, to: 
   } finally {
     await cdp.detach();
   }
+}
+
+/**
+ * Tap the battlefield (not the HUD) at world x, with a real touch. `fy` = how far down the screen (0..1); the default
+ * is up in the sky and the far hills, where no soldier stands, so the tap can never pick up a unit.
+ */
+export async function tapWorld(page: Page, worldX: number, fy = 0.3): Promise<void> {
+  const cam = await camera(page);
+  const size = page.viewportSize();
+  if (!size) throw new Error('the page has no viewport');
+  await page.touchscreen.tap((worldX - cam.left) * cam.cssPerWu, size.height * fy);
+}
+
+/**
+ * Several fingers on the screen at once, driven through the browser's touch input (CDP), so a held joystick and a
+ * FIRE button can be pressed together the way two thumbs would. Finger ids are the caller's.
+ */
+export class Fingers {
+  private readonly down = new Map<number, { x: number; y: number }>();
+
+  private constructor(private readonly cdp: CDPSession) {}
+
+  static async attach(page: Page): Promise<Fingers> {
+    return new Fingers(await page.context().newCDPSession(page));
+  }
+
+  private points(): { x: number; y: number; id: number }[] {
+    return [...this.down].map(([id, p]) => ({ x: p.x, y: p.y, id }));
+  }
+
+  async press(id: number, x: number, y: number): Promise<void> {
+    this.down.set(id, { x, y });
+    await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: this.points() });
+  }
+
+  async move(id: number, x: number, y: number): Promise<void> {
+    this.down.set(id, { x, y });
+    await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: this.points() });
+  }
+
+  /** Lift every finger. */
+  async liftAll(): Promise<void> {
+    if (this.down.size === 0) return;
+    this.down.clear();
+    await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+
+  async detach(): Promise<void> {
+    await this.liftAll();
+    await this.cdp.detach();
+  }
+}
+
+/** Centre of a HUD control (by test id) in viewport CSS px. */
+export async function centreOf(page: Page, testId: string): Promise<{ x: number; y: number }> {
+  const box = await page.getByTestId(testId).boundingBox();
+  if (!box) throw new Error(`${testId} is not on screen`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 /** Title, campaign map, briefing and into the first battle, with real taps. */

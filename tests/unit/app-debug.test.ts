@@ -109,6 +109,78 @@ describe('debug hooks', () => {
     expect(view.camera.centerX).toBe(1234);
   });
 
+  describe('on the proving ground', () => {
+    it('start the sandbox, which is not in the campaign, and its mirrored twin', () => {
+      const { api, app } = setup();
+      expect(api.startSandbox(7)).toBe(true);
+      expect(api.state()).toMatchObject({ inBattle: true, missionId: 901, seed: 7, difficulty: 'normal' });
+      expect(app.missions.map((m) => m.id)).not.toContain(901);
+      api.startSandbox(8, true);
+      expect(api.state()).toMatchObject({ missionId: 902, seed: 8 });
+    });
+
+    it('report trenches, pillboxes, wire, supports and smoke', () => {
+      const { api } = setup();
+      api.startSandbox(7);
+      const s = api.state();
+      expect(s.trenches.map((t) => [t.id, t.owner])).toEqual([
+        [1, 0],
+        [2, 1],
+        [3, 1],
+      ]);
+      expect(s.trenches[0].occupants).toBeGreaterThan(0);
+      expect(s.pillboxes).toHaveLength(2);
+      expect(s.pillboxes.every((p) => p.alive && p.hp === p.maxHp && p.side === 1)).toBe(true);
+      expect(s.wires).toBe(2);
+      expect(s.smokes).toBe(0);
+      expect(s.targeting).toBeNull();
+      expect(s.controlled).toBeNull();
+      for (const kind of ['artillery', 'smoke', 'airStrike'] as const) expect(s.supports[kind]).toEqual({ available: true, cooldown: 0 });
+    });
+
+    it('report the controlled man, the support the player is aiming, and the cooldown after a call', () => {
+      const { api, app } = setup();
+      api.startSandbox(7);
+      const session = app.session;
+      if (!session) throw new Error('no session');
+      const rifle = api.units().find((u) => u.side === 0 && u.kind === 'rifle');
+      if (!rifle) throw new Error('no rifleman');
+      session.tapUnit(rifle.id);
+      session.step();
+      const taken = api.state().controlled;
+      expect(taken).toMatchObject({ id: rifle.id, kind: 'rifle', inTrench: true });
+      session.tapUnit(rifle.id);
+      session.step();
+      expect(api.state().controlled).toBeNull();
+
+      session.dispatch({ type: 'support', kind: 'artillery' });
+      expect(api.state().targeting).toBe('artillery');
+      session.tapGround(3000);
+      session.step();
+      const after = api.state();
+      expect(after.targeting).toBeNull();
+      expect(after.supports.artillery.cooldown).toBeGreaterThan(0);
+      expect(after.tally.supportCalled.artillery).toBe(1);
+    });
+
+    it('grant population on top of supplies, so one of every kind can be trained', () => {
+      const { api } = setup();
+      api.startSandbox(7);
+      const before = api.state();
+      api.grantPopulation(25);
+      expect(api.state().popCap).toBe(before.popCap + 25);
+    });
+
+    it('give the camera scale for converting a world x to a screen x', () => {
+      const { api, view } = setup();
+      const stats = view.getStats();
+      view.getStats = () => ({ ...stats, canvasW: 1688, dpr: 2 });
+      // An 844 CSS px wide canvas showing 1000 wu.
+      expect(api.camera().cssPerWu).toBeCloseTo(0.844, 6);
+      expect(api.camera().left).toBe(view.camera.centerX - view.camera.viewWidthWu / 2);
+    });
+  });
+
   it('keep the time scale within the limits', () => {
     const { api } = setup();
     api.setTimeScale(1e9);

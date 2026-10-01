@@ -10,6 +10,10 @@ export interface FakeCamera extends BattleCamera {
   centerX: number;
   viewWidthWu: number;
   jumps: number[];
+  /** Every x the app asked the view to glide to. */
+  centers: number[];
+  /** Like the real camera rig: true while a finger drags the view. */
+  dragging: boolean;
 }
 
 export interface FakeView extends BattleView {
@@ -30,7 +34,10 @@ export function createFakeView(): FakeView {
     centerX: 500,
     viewWidthWu: 1000,
     jumps: [],
+    centers: [],
+    dragging: false,
     setCenter(x) {
+      camera.centers.push(x);
       camera.centerX = x;
     },
     jumpToFrac(f) {

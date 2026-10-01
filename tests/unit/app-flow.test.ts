@@ -3,6 +3,7 @@ import { App } from '../../src/app/app';
 import { buildCampaignView, describeEffect, describeLevel } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
 import { M01 } from '../../src/data/missions/m01';
+import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { UpgradeDef } from '../../src/data/schema';
 import { createMemoryStorage, defaultSave, loadSave, recordClear, writeSave } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView, quickMission } from './app-helpers';
@@ -41,6 +42,50 @@ describe('app flow', () => {
     expect(app.beginMission(99, 'normal')).toBe(false);
     expect(app.session).toBeNull();
     expect(ui.screens).toEqual([]);
+  });
+
+  describe('a mission outside the campaign (the sandbox grounds)', () => {
+    /** The proving ground with its HQ already as good as down, so the battle is over within seconds. */
+    function quickGround() {
+      const m = structuredClone(SANDBOX);
+      m.events = [];
+      m.start[1].hqHpMul = 0.001;
+      m.start[1].forces = [];
+      m.trenches = [];
+      m.pillboxes = [];
+      m.wire = [];
+      m.start[0].forces = [{ kind: 'rifle', count: 8, x: m.length - 700 }];
+      return m;
+    }
+
+    it('starts without being listed, and a win on it never reaches the save', () => {
+      const { app, view, ui, storage } = makeApp();
+      const ground = quickGround();
+      app.beginUnlisted(ground, 'normal', 5);
+      expect(ui.current()).toBe('battle');
+      expect(app.missions.some((m) => m.id === ground.id)).toBe(false);
+      expect(app.campaign().missions.some((m) => m.id === ground.id)).toBe(false);
+      app.dispatch({ type: 'order', order: 'advance' });
+      for (let i = 0; i < 2000 && !app.lastResult; i++) frames(view, 1, 250);
+      expect(app.lastResult?.won).toBe(true);
+      expect(app.lastResult?.nextMissionId).toBeNull();
+      expect(app.lastResult?.pointsAwarded).toBe(0);
+      expect(app.save.cleared).toEqual({});
+      expect(storage.getItem('tinhats.save')).toBeNull();
+    });
+
+    it('restarts the same ground from the pause menu', () => {
+      const { app, view } = makeApp();
+      const ground = quickGround();
+      app.beginUnlisted(ground, 'normal', 5);
+      frames(view, 3);
+      const first = app.session;
+      expect(first?.mission.id).toBe(ground.id);
+      app.dispatch({ type: 'restart' });
+      expect(app.session).not.toBe(first);
+      expect(app.session?.mission.id).toBe(ground.id);
+      expect(app.session?.battle.state.tick).toBe(0);
+    });
   });
 
   it('maps HUD actions to sim commands', () => {

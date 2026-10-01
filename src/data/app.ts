@@ -30,6 +30,11 @@ export interface AppTunables {
   perfSmoothing: number;
   /** Visual seeds are the battle seed plus this. */
   visualSeedOffset: number;
+  /**
+   * Camera follow of a directly controlled unit: the view stays still while the unit is within deadZone (fraction of
+   * the view width) of the centre, then glides after it, leaving it settle (0..1) of the dead zone off-centre.
+   */
+  follow: { deadZone: number; settle: number };
   /** Name of the secondary-weapon button while a unit is controlled. */
   abilityNames: Partial<Record<UnitKind, string>>;
   abilityNameFallback: string;
@@ -67,7 +72,8 @@ export const APP: AppTunables = {
   explosionLargeRadius: 100,
   perfSmoothing: 0.1,
   visualSeedOffset: 7919,
-  abilityNames: { assault: 'Grenade', tank: 'Machine gun', heavyTank: 'Machine gun' },
+  follow: { deadZone: 0.14, settle: 0.5 },
+  abilityNames: { assault: 'Grenade', tank: 'Hull MG', heavyTank: 'Hull MG' },
   abilityNameFallback: 'Ability',
   reasons: {
     hqDestroyed: { win: 'Enemy HQ destroyed', lose: 'Your HQ was overrun' },

@@ -116,10 +116,23 @@ export class App implements AppApi {
 
   // --- battle lifecycle ----------------------------------------------------
 
-  /** Start a battle and show the battle screen. Returns false if the mission does not exist. */
+  /** Start a campaign battle and show the battle screen. Returns false if the mission does not exist. */
   beginMission(id: number, difficulty: Difficulty, seed: number = this.newSeed()): boolean {
     const mission = this.missions.find((m) => m.id === id);
     if (!mission) return false;
+    this.launch(mission, difficulty, seed);
+    return true;
+  }
+
+  /**
+   * Start a battle on a mission that is not in the campaign (the sandbox grounds, through the debug hooks).
+   * A win or loss there is never written to the save.
+   */
+  beginUnlisted(mission: MissionDef, difficulty: Difficulty, seed: number = this.newSeed()): void {
+    this.launch(mission, difficulty, seed);
+  }
+
+  private launch(mission: MissionDef, difficulty: Difficulty, seed: number): void {
     this.endSession();
     const battle = createBattle({
       mission,
@@ -144,8 +157,7 @@ export class App implements AppApi {
     // A new battle always starts at normal speed; only the debug hooks change it.
     this.loop.timeScale = 1;
     this.audio.resume();
-    this.ui?.show('battle', { missionId: id });
-    return true;
+    this.ui?.show('battle', { missionId: mission.id });
   }
 
   /** Throw the current battle away without recording anything. */
@@ -172,7 +184,8 @@ export class App implements AppApi {
     if (!session) return;
     const mission = session.mission;
     let points = 0;
-    if (session.battle.state.winner === 0) {
+    // Only campaign missions count: a win on the sandbox grounds must leave the save alone.
+    if (session.battle.state.winner === 0 && this.missions.some((m) => m.id === mission.id)) {
       points = recordClear(this.save, mission.id, session.difficulty).pointsAwarded;
       this.persist();
     }
@@ -277,7 +290,7 @@ export class App implements AppApi {
         this.setPaused(false);
         return;
       case 'restart':
-        if (this.session) this.beginMission(this.session.mission.id, this.session.difficulty);
+        if (this.session) this.launch(this.session.mission, this.session.difficulty, this.newSeed());
         return;
       case 'quit':
         this.endSession();

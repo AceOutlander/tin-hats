@@ -3,9 +3,10 @@ import { HudModel } from '../../src/app/hudModel';
 import { APP } from '../../src/data/app';
 import { CONFIG } from '../../src/data/config';
 import { M01 } from '../../src/data/missions/m01';
+import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { MissionDef } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
-import { createBattle, type Battle } from '../../src/sim';
+import { createBattle, type Battle, type UnitState } from '../../src/sim';
 
 function battleOf(mission: MissionDef = M01): Battle {
   return createBattle({ mission, difficulty: 'normal', seed: 5, upgrades: {}, commanders: ['human', 'ai'] });
@@ -175,6 +176,90 @@ describe('HudModel', () => {
     expect(m.unitX).toBe(arrays[0]);
     expect(m.hq[0]).toBe(hq[0]);
     expect(m.hq[1]).toBe(hq[1]);
+  });
+
+  describe('on the proving ground (every unit and call-in)', () => {
+    const ground = (): Battle => battleOf(SANDBOX);
+
+    function ownUnit(battle: Battle, kind: string): UnitState {
+      for (let i = 0; i < battle.state.unitCount; i++) {
+        const u = battle.state.units[i];
+        if (u.alive && u.side === 0 && u.kind === kind) return u;
+      }
+      throw new Error(`no ${kind}`);
+    }
+
+    it('lists all nine trainable units and the three call-ins, and never the King Tiger', () => {
+      const model = new HudModel();
+      model.begin(ground());
+      expect(model.state.train.map((t) => t.kind)).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank']);
+      expect(model.state.train.map((t) => t.name)).toContain('Churchill');
+      expect(model.state.supports.map((s) => s.kind)).toEqual(['artillery', 'smoke', 'airStrike']);
+      expect(model.state.supports.map((s) => s.name)).toEqual(['Artillery Barrage', 'Smoke Screen', 'Typhoon Air Strike']);
+    });
+
+    it('sweeps a support button while it cools down and has it ready again afterwards', () => {
+      const battle = ground();
+      const model = new HudModel();
+      model.begin(battle);
+      model.refresh(battle, 500, 1000);
+      expect(model.state.supports.every((s) => s.charge === 1 && s.secondsLeft === 0)).toBe(true);
+      battle.command(0, { type: 'support', kind: 'smoke', x: 1500 });
+      run(battle, 2);
+      model.refresh(battle, 500, 1000);
+      const smoke = model.state.supports.find((s) => s.kind === 'smoke');
+      expect(smoke?.secondsLeft).toBeGreaterThan(40);
+      expect(smoke?.charge).toBeGreaterThanOrEqual(0);
+      expect(smoke?.charge).toBeLessThan(0.1);
+      expect(model.state.supports.find((s) => s.kind === 'artillery')?.charge).toBe(1);
+      run(battle, CONFIG.tickRate * 40);
+      model.refresh(battle, 500, 1000);
+      const later = model.state.supports.find((s) => s.kind === 'smoke');
+      expect(later?.charge).toBeGreaterThan(0.8);
+      run(battle, CONFIG.tickRate * 10);
+      model.refresh(battle, 500, 1000);
+      expect(model.state.supports.find((s) => s.kind === 'smoke')?.charge).toBe(1);
+    });
+
+    it('describes the controlled unit: card, reload and the secondary weapon button', () => {
+      const battle = ground();
+      const model = new HudModel();
+      model.begin(battle);
+      const rifle = ownUnit(battle, 'rifle');
+      battle.command(0, { type: 'control', unit: rifle.id });
+      run(battle, 2);
+      model.refresh(battle, 500, 1000);
+      const control = model.state.control;
+      expect(control).not.toBeNull();
+      expect(control?.kind).toBe('rifle');
+      expect(control?.name).toBe('Rifleman');
+      expect(control?.hasAbility).toBe(false);
+      expect(control?.hp).toBe(rifle.hp);
+
+      const grenadier = ownUnit(battle, 'assault');
+      battle.command(0, { type: 'control', unit: grenadier.id });
+      run(battle, 2);
+      model.refresh(battle, 500, 1000);
+      expect(model.state.control).toBe(control);
+      expect(model.state.control?.kind).toBe('assault');
+      expect(model.state.control?.hasAbility).toBe(true);
+      expect(model.state.control?.abilityName).toBe(APP.abilityNames.assault);
+      expect(model.state.control?.abilityCharge).toBe(1);
+
+      battle.command(0, { type: 'control', unit: ownUnit(battle, 'tank').id });
+      run(battle, 2);
+      model.refresh(battle, 500, 1000);
+      expect(model.state.control?.abilityName).toBe(APP.abilityNames.tank);
+
+      battle.command(0, { type: 'control', unit: -1 });
+      run(battle, 2);
+      model.refresh(battle, 500, 1000);
+      expect(model.state.control).toBeNull();
+    });
+
+    it('keeps every ability label short enough for its button', () => {
+      for (const name of [...Object.values(APP.abilityNames), APP.abilityNameFallback]) expect(name.length).toBeLessThanOrEqual(8);
+    });
   });
 
   it('survives a destroyed HQ', () => {

@@ -1,8 +1,15 @@
-# APP (app glue, screen flow, debug hooks, e2e)
+# Track app (Phase 2 wiring and browser test)
 
-Status: DONE. All checks green (typecheck, sim typecheck, lint, 28 unit files / 433 tests, build, 8 e2e tests).
+Done
+- Session/HUD model no longer guard on SIM_FEATURES (all true). Event tally in the session (support calls, smoke, explosions, captures, control lost, shots of the controlled man).
+- Camera follows the controlled man with a dead zone (APP.follow), leaves a dragged view alone.
+- Debug hooks: startSandbox(seed, mirror), grantPopulation, state() with controlled, supports, targeting, smokes, trenches, pillboxes, wires, tally; camera().cssPerWu.
+- App: beginUnlisted(mission) for grounds outside the campaign (never saved, restart keeps the mission). Ability label "Hull MG" (the tank's label was cut off).
+- Unit tests: app-session (real sim), app-hud (proving ground), app-debug, app-flow extended.
+- tests/e2e/sandbox.spec.ts (14 tests) written and passing one by one.
 
-Built: src/data/app.ts + meta.ts, src/meta (save, campaign), src/app (loop, hudModel, session, app, campaignView, sfx, debug, page, upgrades), src/main.ts, index.html, tests/e2e/smoke.spec.ts, unit tests app-*.test.ts and meta-*.test.ts. Screenshots in docs/screenshots/e2e-*.png.
-Also fixed (outside my paths, needed for the integrated game): HUD CSS class names that collided with the menu CSS (DECISIONS 62).
+In progress
+- Full suite run, screenshots review, commit.
 
-Next (for others): when missions 2 to 10 exist the e2e loop covers them (win asserted only for mission 1; others must reach a result screen and save progress exactly when won). Check that the renderer's sound pass does not also play the victory/defeat stings. When src/data/upgrades.ts exports UPGRADES the Quartermaster fills in. Phase 2 flips SIM_FEATURES.supports and directControl; the app wiring is in src/app/session.ts and is unit tested with the flags on.
+Next
+- Nothing else planned in this track.

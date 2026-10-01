@@ -4,12 +4,11 @@
  * HUD actions and taps into sim commands.
  *
  * Pause, restart, quit and mute are app-level and not handled here.
- * Direct control and supports are wired against the command API but guarded on
- * SIM_FEATURES, so they stay inert until the sim implements them.
  */
 import { APP } from '../data/app';
 import type { Difficulty, MissionDef, SupportKind } from '../data/schema';
-import { SIM_FEATURES, type Battle, type UnitState } from '../sim';
+import { SUPPORT_KINDS } from '../data/supports';
+import type { Battle, UnitState } from '../sim';
 import type { BattleCamera } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel } from './hudModel';
@@ -32,10 +31,48 @@ export interface SessionOptions {
   onEnded(): void;
 }
 
+/** How often the events the tests care about have happened in this battle (counted from the event stream). */
+export interface EventTally {
+  /** Call-ins the sim accepted from the player, per support. */
+  supportCalled: Record<SupportKind, number>;
+  /** The player's call-ins whose rounds were about to land. */
+  supportIncoming: Record<SupportKind, number>;
+  smokeSpawned: number;
+  explosion: number;
+  trenchCaptured: number;
+  structureDestroyed: number;
+  wireDestroyed: number;
+  /** Times the player's controlled unit was killed. */
+  controlLost: number;
+  /** Shots fired by whichever unit the player was controlling at the time. */
+  controlledShots: number;
+}
+
+function supportCounts(): Record<SupportKind, number> {
+  const out = {} as Record<SupportKind, number>;
+  for (const kind of SUPPORT_KINDS) out[kind] = 0;
+  return out;
+}
+
+export function newTally(): EventTally {
+  return {
+    supportCalled: supportCounts(),
+    supportIncoming: supportCounts(),
+    smokeSpawned: 0,
+    explosion: 0,
+    trenchCaptured: 0,
+    structureDestroyed: 0,
+    wireDestroyed: 0,
+    controlLost: 0,
+    controlledShots: 0,
+  };
+}
+
 export class BattleSession {
   readonly hud = new HudModel();
   /** True once the battleEnded event has been seen. */
   ended = false;
+  readonly tally: EventTally = newTally();
 
   private targeting: SupportKind | null = null;
   private stickX = 0;
@@ -60,6 +97,11 @@ export class BattleSession {
 
   get mission(): MissionDef {
     return this.battle.config.mission;
+  }
+
+  /** The support the player is aiming right now, or null. */
+  get aiming(): SupportKind | null {
+    return this.targeting;
   }
 
   /** One simulation tick, then the view's event pass, then the app's own reactions to the events. */
@@ -93,7 +135,34 @@ export class BattleSession {
           }
           break;
         case 'controlLost':
-          if (e.side === 0) this.clearControlInput();
+          if (e.side === 0) {
+            this.tally.controlLost++;
+            this.clearControlInput();
+          }
+          break;
+        case 'shot':
+          if (e.source === 'unit' && e.side === 0 && e.unitId === this.viewControlled) this.tally.controlledShots++;
+          break;
+        case 'supportCalled':
+          if (e.support !== null && e.side === 0) this.tally.supportCalled[e.support]++;
+          break;
+        case 'supportIncoming':
+          if (e.support !== null && e.side === 0) this.tally.supportIncoming[e.support]++;
+          break;
+        case 'smokeSpawned':
+          this.tally.smokeSpawned++;
+          break;
+        case 'explosion':
+          this.tally.explosion++;
+          break;
+        case 'trenchCaptured':
+          this.tally.trenchCaptured++;
+          break;
+        case 'structureDestroyed':
+          this.tally.structureDestroyed++;
+          break;
+        case 'wireDestroyed':
+          this.tally.wireDestroyed++;
           break;
         case 'battleEnded':
           if (!this.ended) {
@@ -123,20 +192,33 @@ export class BattleSession {
     if (st.hint !== null && time >= this.hintUntil) st.hint = null;
 
     const side = this.battle.state.sides[0];
-    const controlled = SIM_FEATURES.directControl && side.controlled >= 0 ? this.battle.state.units[side.controlled] : null;
+    const controlled = side.controlled >= 0 ? this.battle.state.units[side.controlled] : null;
     const id = controlled && controlled.alive ? controlled.id : -1;
     if (id !== this.viewControlled) {
       this.viewControlled = id;
       this.view.setControlled(id);
     }
-    if (controlled && id >= 0) camera.setCenter(controlled.x);
+    if (controlled && id >= 0) this.followControlled(controlled.x);
     if (this.targeting !== null && (this.ended || !side.supportAvailable[this.targeting])) this.endTargeting();
     return st;
   }
 
+  /**
+   * Keep the controlled unit on screen without gluing the camera to it: the view stays still while the unit is
+   * within the dead zone around the centre, and glides after it once it leaves (a finger dragging the view is left alone).
+   */
+  private followControlled(x: number): void {
+    const camera = this.view.camera;
+    if ('dragging' in camera && camera.dragging === true) return;
+    const dead = camera.viewWidthWu * APP.follow.deadZone;
+    const off = x - camera.centerX;
+    if (off > dead) camera.setCenter(x - dead * APP.follow.settle);
+    else if (off < -dead) camera.setCenter(x + dead * APP.follow.settle);
+  }
+
   /** Called at the start of every frame: forward the stick and buttons of a controlled unit. */
   flushControl(): void {
-    if (!SIM_FEATURES.directControl || this.ended) return;
+    if (this.ended) return;
     if (this.battle.state.sides[0].controlled < 0) return;
     const active = this.stickX !== 0 || this.fireDown || this.abilityQueued;
     if (!active && this.sentX === 0 && !this.sentFire) return;
@@ -194,7 +276,7 @@ export class BattleSession {
 
   /** A tap on one of the player's units: take direct control of it, or let go if it is the one controlled. */
   tapUnit(unitId: number): void {
-    if (!SIM_FEATURES.directControl || this.targeting !== null || this.ended) return;
+    if (this.targeting !== null || this.ended) return;
     const unit = this.findUnit(unitId);
     if (unit === null || unit.side !== 0 || !unit.def.controllable) return;
     if (unit.controlled) {
@@ -214,7 +296,7 @@ export class BattleSession {
   }
 
   private beginTargeting(kind: SupportKind): void {
-    if (!SIM_FEATURES.supports || this.ended) return;
+    if (this.ended) return;
     const side = this.battle.state.sides[0];
     if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0) return;
     this.targeting = kind;
@@ -228,7 +310,6 @@ export class BattleSession {
   }
 
   private release(): void {
-    if (!SIM_FEATURES.directControl) return;
     this.clearControlInput();
     this.battle.command(0, { type: 'control', unit: -1 });
   }

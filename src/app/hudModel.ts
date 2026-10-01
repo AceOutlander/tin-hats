@@ -9,7 +9,7 @@ import { FACTIONS } from '../data/factions';
 import type { UnitKind } from '../data/schema';
 import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
-import { SIM_FEATURES, type Battle } from '../sim';
+import type { Battle } from '../sim';
 import type { ControlState, HudState, MinimapState, SupportButtonState, TrainButtonState } from '../ui/contracts';
 
 interface HqDot {
@@ -110,12 +110,10 @@ export class HudModel {
     }
 
     st.supports = [];
-    if (SIM_FEATURES.supports) {
-      for (const kind of SUPPORT_KINDS) {
-        if (!me.supportAvailable[kind]) continue;
-        const btn: SupportButtonState = { kind, name: faction.supportNames[kind], charge: 1, secondsLeft: 0 };
-        st.supports.push(btn);
-      }
+    for (const kind of SUPPORT_KINDS) {
+      if (!me.supportAvailable[kind]) continue;
+      const btn: SupportButtonState = { kind, name: faction.supportNames[kind], charge: 1, secondsLeft: 0 };
+      st.supports.push(btn);
     }
 
     st.targeting = null;
@@ -202,7 +200,7 @@ export class HudModel {
     const st = this.state;
     const s = battle.state;
     const index = s.sides[0].controlled;
-    if (!SIM_FEATURES.directControl || index < 0 || index >= s.units.length || !s.units[index].alive) {
+    if (index < 0 || index >= s.units.length || !s.units[index].alive) {
       st.control = null;
       return;
     }

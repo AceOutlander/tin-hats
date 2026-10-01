@@ -5,12 +5,15 @@
  */
 import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
-import type { Difficulty, Order, UnitKind } from '../data/schema';
+import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
+import type { Difficulty, Order, SupportKind, UnitKind } from '../data/schema';
+import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts';
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { App } from './app';
+import { newTally, type EventTally } from './session';
 
 export interface ScreenPoint {
   x: number;
@@ -48,6 +51,20 @@ export interface DebugState {
   timer: number | null;
   /** True once the result is known (the result screen follows shortly). */
   resultReady: boolean;
+  /** The player's unit under direct control, or null. `inTrench` = it holds a trench slot. */
+  controlled: { id: number; kind: UnitKind; x: number; hp: number; maxHp: number; action: string; inTrench: boolean } | null;
+  /** Availability and seconds of cooldown left (0 = ready) of each support for the player. */
+  supports: Record<SupportKind, { available: boolean; cooldown: number }>;
+  /** The support the player is aiming (the targeting banner is up), or null. */
+  targeting: SupportKind | null;
+  /** Live smoke clouds. */
+  smokes: number;
+  trenches: { id: number; x: number; owner: number; occupants: number }[];
+  pillboxes: { id: number; x: number; side: number; hp: number; maxHp: number; alive: boolean }[];
+  /** Standing wire belts. */
+  wires: number;
+  /** Counts of sim events seen so far in this battle (support calls are the player's own). */
+  tally: EventTally;
 }
 
 /** Where the two armies are, for tests and screenshots that wait for a moment on the battlefield. */
@@ -87,15 +104,23 @@ export interface DebugApi {
   lookAt(x: number): void;
   field(): FieldInfo | null;
   startMission(id: number, difficulty?: Difficulty, seed?: number): boolean;
+  /**
+   * Start the proving ground (every unit and support for both sides, trenches, pillboxes and wire), which is never
+   * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
+   */
+  startSandbox(seed?: number, mirror?: boolean): boolean;
   state(): DebugState;
   setTimeScale(n: number): void;
   getTimeScale(): number;
   grantSupplies(n: number): void;
+  /** Raise the player's population cap by n (a full army leaves no room to train one of every kind). */
+  grantPopulation(n: number): void;
   forceWeather(w: WeatherMode): void;
   forceThunder(): void;
   weatherStats(): WeatherStats;
   buttonRects(): unknown;
-  camera(): { centerX: number; left: number; viewWidthWu: number; length: number };
+  /** `cssPerWu` converts a world distance to CSS px on screen: screen x = (world x - left) * cssPerWu. */
+  camera(): { centerX: number; left: number; viewWidthWu: number; length: number; cssPerWu: number };
   unitScreenPos(id: number): ScreenPoint | null;
   firstUnitScreenPos(side: 0 | 1, kind: UnitKind): (ScreenPoint & { id: number }) | null;
   perf(): { fps: number; stepMsAvg: number; renderMsAvg: number };
@@ -110,6 +135,12 @@ function zeroCounts(): UnitCounts {
 function copyCounts(from: UnitCounts): UnitCounts {
   const out = zeroCounts();
   for (const kind of UNIT_KINDS) out[kind] = from[kind];
+  return out;
+}
+
+function noSupports(): DebugState['supports'] {
+  const out = {} as DebugState['supports'];
+  for (const kind of SUPPORT_KINDS) out[kind] = { available: false, cooldown: 0 };
   return out;
 }
 
@@ -189,6 +220,11 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       return app.beginMission(id, difficulty ?? app.save.settings.difficulty, seed);
     },
 
+    startSandbox(seed, mirror) {
+      app.beginUnlisted(mirror === true ? SANDBOX_MIRROR : SANDBOX, 'normal', seed);
+      return true;
+    },
+
     state() {
       const session = app.session;
       const base = {
@@ -217,6 +253,14 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           hq: [null, null],
           timer: null,
           resultReady: app.lastResult !== null,
+          controlled: null,
+          supports: noSupports(),
+          targeting: null,
+          smokes: 0,
+          trenches: [],
+          pillboxes: [],
+          wires: 0,
+          tally: newTally(),
         };
       }
       const s = session.battle.state;
@@ -225,6 +269,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         const h = s.sides[side].hq;
         return h ? { hp: h.hp, max: h.maxHp } : null;
       };
+      const supports = noSupports();
+      for (const kind of SUPPORT_KINDS) supports[kind] = { available: me.supportAvailable[kind], cooldown: me.supportCooldown[kind] };
+      const under = me.controlled >= 0 ? s.units[me.controlled] : null;
+      let smokes = 0;
+      for (const smoke of s.smokes) if (smoke.alive) smokes++;
+      let wires = 0;
+      for (const wire of s.wires) if (wire.alive) wires++;
       return {
         ...base,
         inBattle: true,
@@ -245,6 +296,17 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         hq: [hq(0), hq(1)],
         timer: s.timer ? s.timer.secondsLeft : null,
         resultReady: app.lastResult !== null,
+        controlled:
+          under && under.alive
+            ? { id: under.id, kind: under.kind, x: under.x, hp: under.hp, maxHp: under.maxHp, action: under.action, inTrench: under.trenchId >= 0 }
+            : null,
+        supports,
+        targeting: session.aiming,
+        smokes,
+        trenches: s.trenches.map((t) => ({ id: t.id, x: t.x, owner: t.owner, occupants: t.occupants })),
+        pillboxes: s.pillboxes.map((p) => ({ id: p.id, x: p.x, side: p.side, hp: p.hp, maxHp: p.maxHp, alive: p.alive })),
+        wires,
+        tally: structuredClone(session.tally),
       };
     },
 
@@ -258,6 +320,11 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       if (session) session.battle.state.sides[0].supplies += n;
     },
 
+    grantPopulation(n) {
+      const session = app.session;
+      if (session) session.battle.state.sides[0].popCap += n;
+    },
+
     forceWeather(w) {
       app.weatherMode = w;
       if (w !== 'auto') view.forceWeather(w);
@@ -269,7 +336,14 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     camera() {
       const c = view.camera;
-      return { centerX: c.centerX, left: c.centerX - c.viewWidthWu / 2, viewWidthWu: c.viewWidthWu, length: app.session ? app.session.battle.state.length : 0 };
+      const stats = view.getStats();
+      return {
+        centerX: c.centerX,
+        left: c.centerX - c.viewWidthWu / 2,
+        viewWidthWu: c.viewWidthWu,
+        length: app.session ? app.session.battle.state.length : 0,
+        cssPerWu: stats.canvasW / stats.dpr / c.viewWidthWu,
+      };
     },
 
     unitScreenPos(id) {

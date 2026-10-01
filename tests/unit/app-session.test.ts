@@ -1,19 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { BattleSession } from '../../src/app/session';
+import { APP } from '../../src/data/app';
 import { M01 } from '../../src/data/missions/m01';
-import type { MissionDef } from '../../src/data/schema';
-import { SIM_FEATURES, createBattle, type Battle, type Command } from '../../src/sim';
+import type { MissionDef, UnitKind } from '../../src/data/schema';
+import { createBattle, type Battle, type Command, type UnitState } from '../../src/sim';
 import { createFakeAudio, createFakeView } from './app-helpers';
-
-const original = { ...SIM_FEATURES };
-
-afterEach(() => {
-  Object.assign(SIM_FEATURES, original);
-});
-
-function enable(features: Partial<typeof SIM_FEATURES>): void {
-  Object.assign(SIM_FEATURES, features);
-}
 
 function setup(mission: MissionDef = M01) {
   const battle = createBattle({ mission, difficulty: 'normal', seed: 3, upgrades: {}, commanders: ['human', 'ai'] });
@@ -36,12 +27,28 @@ function withSupports(): MissionDef {
   return m;
 }
 
-function firstOwnUnit(battle: Battle, kind: string): number {
+function firstOwnUnit(battle: Battle, kind: UnitKind): UnitState {
   for (let i = 0; i < battle.state.unitCount; i++) {
     const u = battle.state.units[i];
-    if (u.alive && u.side === 0 && u.kind === kind) return u.id;
+    if (u.alive && u.side === 0 && u.kind === kind) return u;
   }
-  return -1;
+  throw new Error(`no ${kind} on side 0`);
+}
+
+/** Mission 1 with one lone British rifleman on the open field and three German machine guns dug in ahead of him. */
+function loneRifleman(): MissionDef {
+  const m: MissionDef = structuredClone(M01);
+  m.events = [];
+  m.start[0].forces = [{ kind: 'rifle', count: 1, x: 3000 }];
+  m.start[1].forces = [{ kind: 'lmg', count: 3, x: 3500, behaviour: 'guard' }];
+  return m;
+}
+
+/** One rendered frame at normal speed: forward the held controls, then run two sim ticks. */
+function frame(session: BattleSession, ticks = 2): void {
+  session.flushControl();
+  for (let i = 0; i < ticks; i++) session.step();
+  session.fill(false, false);
 }
 
 describe('BattleSession', () => {
@@ -151,45 +158,65 @@ describe('BattleSession', () => {
     expect(session.ended).toBe(true);
     expect(audio.played).toEqual([]);
   });
-  describe('while the sim has no supports or direct control (Phase 1)', () => {
-    it('ignores support, control and stick actions', () => {
-      // The sim now has both (Phase 2): switch them off to test the Phase 1 path.
-      enable({ supports: false, directControl: false });
-      const { session, battle, view, sent } = setup(withSupports());
-      const rifle = firstOwnUnit(battle, 'rifle');
-      expect(rifle).toBeGreaterThanOrEqual(0);
+
+  describe('support call-ins', () => {
+    it('ignores a call-in the mission does not offer', () => {
+      // Mission 1 has no supports at all.
+      const { session, view, sent } = setup();
+      expect(session.fill(false, false).supports).toEqual([]);
       session.dispatch({ type: 'support', kind: 'smoke' });
       expect(view.targeting).toEqual([]);
       session.tapGround(1000);
-      session.tapUnit(rifle);
-      session.dispatch({ type: 'stick', x: 1 });
-      session.dispatch({ type: 'fire', down: true });
-      session.dispatch({ type: 'ability' });
-      session.dispatch({ type: 'release' });
-      session.flushControl();
       session.step();
       expect(sent).toEqual([]);
-      expect(session.fill(false, false).control).toBeNull();
       expect(session.fill(false, false).targeting).toBeNull();
     });
-  });
 
-  describe('once the sim supports them (Phase 2 wiring)', () => {
-    it('targets a support, calls it on the next ground tap and leaves targeting', () => {
-      enable({ supports: true });
-      const { session, view, sent } = setup(withSupports());
+    it('targets a support, calls it on the next ground tap, and the sim starts its cooldown', () => {
+      const { session, battle, view, sent } = setup(withSupports());
       expect(session.fill(false, false).supports.map((s) => s.kind)).toEqual(['artillery', 'smoke']);
       session.dispatch({ type: 'support', kind: 'smoke' });
       expect(session.fill(false, false).targeting).toBe('smoke');
+      expect(session.aiming).toBe('smoke');
       expect(view.targeting).toEqual(['smoke']);
       session.tapGround(2222);
       expect(sent).toEqual([{ type: 'support', kind: 'smoke', x: 2222 }]);
       expect(session.fill(false, false).targeting).toBeNull();
       expect(view.targeting).toEqual(['smoke', null]);
+
+      session.step();
+      expect(battle.state.sides[0].supportCooldown.smoke).toBeGreaterThan(0);
+      expect(session.tally.supportCalled.smoke).toBe(1);
+      expect(session.tally.supportCalled.artillery).toBe(0);
+      const hud = session.fill(false, false);
+      expect(hud.supports.find((s) => s.kind === 'smoke')?.charge ?? 1).toBeLessThan(1);
+    });
+
+    it('counts the smoke cloud once the call-in has run its delay, and the incoming warning before it', () => {
+      const { session, battle } = setup(withSupports());
+      session.dispatch({ type: 'support', kind: 'smoke' });
+      session.tapGround(2222);
+      for (let i = 0; i < 30 * 4; i++) session.step();
+      expect(session.tally.supportIncoming.smoke).toBe(1);
+      expect(session.tally.smokeSpawned).toBe(1);
+      expect(battle.state.smokes.some((s) => s.alive)).toBe(true);
+    });
+
+    it('will not aim a support that is cooling down, nor call one twice', () => {
+      const { session, view, sent } = setup(withSupports());
+      session.dispatch({ type: 'support', kind: 'smoke' });
+      session.tapGround(2000);
+      session.step();
+      sent.length = 0;
+      view.targeting.length = 0;
+      session.dispatch({ type: 'support', kind: 'smoke' });
+      expect(session.aiming).toBeNull();
+      expect(view.targeting).toEqual([]);
+      session.tapGround(2100);
+      expect(sent).toEqual([]);
     });
 
     it('cancels targeting without calling anything', () => {
-      enable({ supports: true });
       const { session, sent } = setup(withSupports());
       session.dispatch({ type: 'support', kind: 'artillery' });
       session.dispatch({ type: 'cancelTargeting' });
@@ -197,23 +224,34 @@ describe('BattleSession', () => {
       expect(sent).toEqual([]);
     });
 
-    it('takes control on a tap, sends the stick and buttons, and lets go on a second tap', () => {
-      enable({ directControl: true });
-      const { session, battle, view, sent } = setup();
-      const id = firstOwnUnit(battle, 'rifle');
-      session.tapUnit(id);
-      expect(sent).toEqual([{ type: 'control', unit: id }]);
-
-      // Pretend the sim has accepted it.
-      const unit = battle.state.units.find((u) => u.id === id);
-      if (!unit) throw new Error('unit missing');
-      unit.controlled = true;
-      battle.state.sides[0].controlled = unit.index;
+    it('leaves targeting when the battle ends', () => {
+      const mission = withSupports();
+      mission.start[0].hqHpMul = 0.01;
+      mission.start[1].forces = [{ kind: 'rifle', count: 8, x: 700 }];
+      const { session } = setup(mission);
+      session.dispatch({ type: 'support', kind: 'artillery' });
+      expect(session.aiming).toBe('artillery');
+      for (let i = 0; i < 30 * 600 && !session.ended; i++) session.step();
       session.fill(false, false);
-      expect(view.controlled).toContain(id);
+      expect(session.aiming).toBeNull();
+    });
+  });
+
+  describe('direct control', () => {
+    it('takes control on a tap, drives the unit with the stick and lets go on a second tap', () => {
+      const { session, battle, view, sent } = setup();
+      const rifle = firstOwnUnit(battle, 'rifle');
+      session.tapUnit(rifle.id);
+      expect(sent).toEqual([{ type: 'control', unit: rifle.id }]);
+      frame(session);
+      expect(battle.state.sides[0].controlled).toBe(rifle.index);
+      expect(rifle.controlled).toBe(true);
+      expect(view.controlled).toContain(rifle.id);
       expect(session.hud.state.control?.kind).toBe('rifle');
+      expect(session.hud.state.control?.hasAbility).toBe(false);
 
       sent.length = 0;
+      const startX = rifle.x;
       session.dispatch({ type: 'stick', x: 0.7 });
       session.dispatch({ type: 'fire', down: true });
       session.flushControl();
@@ -225,22 +263,150 @@ describe('BattleSession', () => {
         { type: 'controlInput', moveX: 0.7, fire: true, ability: true },
         { type: 'controlInput', moveX: 0.7, fire: true, ability: false },
       ]);
+      for (let i = 0; i < 60; i++) frame(session);
+      expect(Math.abs(rifle.x - startX)).toBeGreaterThan(20);
 
       sent.length = 0;
-      session.tapUnit(id);
+      session.tapUnit(rifle.id);
       expect(sent).toEqual([
         { type: 'controlInput', moveX: 0, fire: false, ability: false },
         { type: 'control', unit: -1 },
       ]);
+      frame(session);
+      expect(battle.state.sides[0].controlled).toBe(-1);
+      expect(session.hud.state.control).toBeNull();
+      expect(view.controlled[view.controlled.length - 1]).toBe(-1);
+    });
+
+    it('switches to another man when he is tapped, and lets go on the release button', () => {
+      const { session, battle, sent } = setup();
+      const sapper = firstOwnUnit(battle, 'sapper');
+      const rifle = firstOwnUnit(battle, 'rifle');
+      session.tapUnit(sapper.id);
+      expect(sent).toEqual([]);
+      session.tapUnit(rifle.id);
+      frame(session);
+      expect(battle.state.sides[0].controlled).toBe(rifle.index);
+      session.dispatch({ type: 'release' });
+      frame(session);
+      expect(battle.state.sides[0].controlled).toBe(-1);
+      expect(session.hud.state.control).toBeNull();
     });
 
     it('does not take control of a sapper or an enemy', () => {
-      enable({ directControl: true });
       const { session, battle, sent } = setup();
-      session.tapUnit(firstOwnUnit(battle, 'sapper'));
+      session.tapUnit(firstOwnUnit(battle, 'sapper').id);
       const enemy = battle.state.units.find((u) => u.alive && u.side === 1);
       if (enemy) session.tapUnit(enemy.id);
       expect(sent).toEqual([]);
+    });
+
+    it('ignores taps on units while a support is being aimed', () => {
+      const { session, battle, sent } = setup(withSupports());
+      session.dispatch({ type: 'support', kind: 'smoke' });
+      session.tapUnit(firstOwnUnit(battle, 'rifle').id);
+      expect(sent).toEqual([]);
+    });
+
+    it('lets everything go when the controlled man is killed', () => {
+      const { session, battle, view } = setup(loneRifleman());
+      const rifle = firstOwnUnit(battle, 'rifle');
+      session.tapUnit(rifle.id);
+      frame(session);
+      expect(session.hud.state.control).not.toBeNull();
+      session.dispatch({ type: 'stick', x: 1 });
+      session.dispatch({ type: 'fire', down: true });
+      for (let i = 0; i < 30 * 40 && session.tally.controlLost === 0; i++) frame(session, 1);
+      expect(session.tally.controlLost).toBe(1);
+      expect(rifle.alive).toBe(false);
+      expect(session.tally.controlledShots).toBeGreaterThan(0);
+      expect(battle.state.sides[0].controlled).toBe(-1);
+      expect(session.hud.state.control).toBeNull();
+      expect(view.controlled[view.controlled.length - 1]).toBe(-1);
+
+      // The stick the HUD still held is gone: nothing more is sent for a man who no longer exists.
+      const commands: Command[] = [];
+      const command = battle.command.bind(battle);
+      battle.command = (side, cmd) => {
+        commands.push({ ...cmd });
+        command(side, cmd);
+      };
+      frame(session);
+      frame(session);
+      expect(commands).toEqual([]);
+    });
+
+    it('counts the shots of the man under control, and only his', () => {
+      const { session, battle } = setup(loneRifleman());
+      const rifle = firstOwnUnit(battle, 'rifle');
+      for (let i = 0; i < 30 * 10; i++) frame(session, 1);
+      expect(session.tally.controlledShots).toBe(0);
+      session.tapUnit(rifle.id);
+      frame(session);
+      session.dispatch({ type: 'stick', x: 1 });
+      session.dispatch({ type: 'fire', down: true });
+      for (let i = 0; i < 30 * 40 && session.tally.controlLost === 0; i++) frame(session, 1);
+      expect(session.tally.controlledShots).toBeGreaterThan(0);
+    });
+
+    describe('camera', () => {
+      function controlled() {
+        const ctx = setup();
+        const rifle = firstOwnUnit(ctx.battle, 'rifle');
+        ctx.session.tapUnit(rifle.id);
+        frame(ctx.session);
+        return { ...ctx, rifle };
+      }
+
+      it('stays still while the man is inside the dead zone', () => {
+        const { session, view, rifle } = controlled();
+        view.camera.centers.length = 0;
+        view.camera.centerX = rifle.x + 0.5 * APP.follow.deadZone * view.camera.viewWidthWu;
+        session.fill(false, false);
+        expect(view.camera.centers).toEqual([]);
+      });
+
+      it('glides after him once he leaves it, to either side, leaving him inside the zone', () => {
+        const { session, view, rifle } = controlled();
+        const dead = APP.follow.deadZone * view.camera.viewWidthWu;
+        view.camera.centers.length = 0;
+        view.camera.centerX = rifle.x - 3 * dead;
+        session.fill(false, false);
+        expect(view.camera.centers).toEqual([rifle.x - dead * APP.follow.settle]);
+        view.camera.centerX = rifle.x + 3 * dead;
+        session.fill(false, false);
+        expect(view.camera.centers[1]).toBeCloseTo(rifle.x + dead * APP.follow.settle, 6);
+        expect(dead * APP.follow.settle).toBeLessThan(dead);
+      });
+
+      it('leaves a view the player is dragging alone', () => {
+        const { session, view, rifle } = controlled();
+        view.camera.centers.length = 0;
+        view.camera.centerX = rifle.x - 2000;
+        view.camera.dragging = true;
+        session.fill(false, false);
+        expect(view.camera.centers).toEqual([]);
+        view.camera.dragging = false;
+        session.fill(false, false);
+        expect(view.camera.centers).toHaveLength(1);
+      });
+
+      it('does nothing when no one is controlled', () => {
+        const { session, view } = setup();
+        view.camera.centers.length = 0;
+        view.camera.centerX = -5000;
+        session.fill(false, false);
+        expect(view.camera.centers).toEqual([]);
+      });
+    });
+  });
+
+  describe('event tally', () => {
+    it('starts empty and counts only what the player did or suffered', () => {
+      const { session } = setup();
+      expect(session.tally.smokeSpawned).toBe(0);
+      expect(session.tally.controlLost).toBe(0);
+      expect(session.tally.supportCalled).toEqual({ artillery: 0, smoke: 0, airStrike: 0 });
     });
   });
 });
