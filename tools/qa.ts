@@ -8,17 +8,18 @@
  *   <w>-<scene>.png         full-screen scenes (battle start, sappers, HQ door, firefight, fall back, ...)
  *   <w>-strip-<name>.png    film strips: consecutive cropped frames around one unit, enlarged
  * Scenes are shot at --dsf; strips come from a second context at --sdsf so the limbs are sharp.
- * --only picks parts: main (the mission 1 walkthrough), strips, defeat, rain.
+ * --only picks parts: main (the mission 1 walkthrough), strips, defeat, rain, hud, and page (dev/render-preview.html
+ * on the Vite dev server, no build needed: see pageRun for its flags).
  */
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createServer as createNetServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { preview } from 'vite';
+import { createServer, preview } from 'vite';
 import type { DebugState, FieldInfo, UnitInfo } from '../src/app/debug';
 import { CONFIG } from '../src/data/config';
-import { VIEW } from '../src/data/view';
+import { VIEW, VIEW_TOP_WU } from '../src/data/view';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -36,7 +37,7 @@ const OUT = resolve(ROOT, flags.get('out') ?? '.tools/shots/qa');
 const ONLY = new Set((flags.get('only') ?? 'main,strips,defeat,rain').split(','));
 const FRAMES = Number(flags.get('frames') ?? 10);
 const STEP = Number(flags.get('step') ?? 50);
-const CSS_PER_WU = H / VIEW.heightWu;
+const CSS_PER_WU = H / VIEW.viewHeightWu;
 /** Device scale factor of the page being captured. */
 let curDsf = DSF;
 
@@ -137,12 +138,16 @@ async function boxAt(page: Page, worldX: number, row: number, wWu: number, hWu: 
   const width = Math.round(wWu * CSS_PER_WU);
   const height = Math.round(hWu * CSS_PER_WU);
   const x = Math.round(Math.min(Math.max(cx - width / 2, 0), W - width));
-  const y = Math.round(Math.min(Math.max(feetY * CSS_PER_WU - height * 0.78, 0), H - height));
+  const y = Math.round(Math.min(Math.max((feetY - VIEW_TOP_WU) * CSS_PER_WU - height * 0.78, 0), H - height));
   return { x, y, width, height };
 }
 
 /** Write an image grid of frames, each enlarged `scale` times with hard pixels. */
 async function compose(browser: Browser, name: string, frames: Buffer[], frameW: number, scale: number, cols: number, notes: string[]): Promise<void> {
+  await composeAs(browser, `${W}-strip-${name}.png`, frames, frameW, scale, cols, notes);
+}
+
+async function composeAs(browser: Browser, file: string, frames: Buffer[], frameW: number, scale: number, cols: number, notes: string[]): Promise<void> {
   if (frames.length === 0) return;
   const page = await browser.newPage({ viewport: { width: 400, height: 300 }, deviceScaleFactor: 1 });
   const cells = frames
@@ -155,10 +160,9 @@ async function compose(browser: Browser, name: string, frames: Buffer[], frameW:
     `<html><body style="margin:0;background:#222;font:12px monospace;color:#ddd"><div style="display:grid;grid-template-columns:repeat(${cols},max-content);gap:3px;padding:3px">${cells}</div>` +
       `<style>figure{margin:0}img{display:block;image-rendering:pixelated}figcaption{padding:1px 2px}</style></body></html>`,
   );
-  const path = resolve(OUT, `${W}-strip-${name}.png`);
-  await page.screenshot({ path, fullPage: true });
+  await page.screenshot({ path: resolve(OUT, file), fullPage: true });
   await page.close();
-  log(`  ${W}-strip-${name}.png`);
+  log(`  ${file}`);
 }
 
 /**
@@ -536,6 +540,59 @@ async function rainRun(browser: Browser, port: number): Promise<void> {
   await ctx.close();
 }
 
+/**
+ * --only=page: the renderer preview page (Vite dev server, so no build needed) shot under the fake clock.
+ *   --q="army=14&skip=20"   query string for dev/render-preview.html (scene=..., cam=..., zoom=... and so on)
+ *   --page=dev/art-figures.html   another dev page instead (it must set window.__ready)
+ *   --at=0,200,400          times (ms of game time after the page is ready) to shoot; several are composed into a sheet
+ *   --clip=x,y,w,h          crop (CSS px); --cols=4 and --scale=1 lay out the sheet; --name=out names the file
+ */
+async function pageRun(browser: Browser): Promise<void> {
+  const port = await freePort();
+  const srv = await createServer({
+    root: ROOT,
+    logLevel: 'error',
+    clearScreen: false,
+    cacheDir: resolve(ROOT, '.tools', 'vite-cache', 'qa'),
+    server: { port, strictPort: true, host: '127.0.0.1', hmr: false },
+  });
+  await srv.listen();
+  try {
+    curDsf = DSF;
+    const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: DSF });
+    const page = await ctx.newPage();
+    page.on('console', (m) => {
+      if (m.type() === 'error') problems.push(`console error: ${m.text()}`);
+    });
+    page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+    await page.clock.install();
+    await page.goto(`http://127.0.0.1:${port}/${flags.get('page') ?? 'dev/render-preview.html'}?${flags.get('q') ?? ''}`, { timeout: 180_000 });
+    await page.waitForFunction('window.__ready === true', undefined, { timeout: 180_000 });
+    await pauseClock(page);
+    const at = (flags.get('at') ?? '0').split(',').map(Number);
+    const c = flags.get('clip')?.split(',').map(Number);
+    const clip = c && c.length === 4 ? { x: c[0], y: c[1], width: c[2], height: c[3] } : undefined;
+    const name = flags.get('name') ?? 'page';
+    const frames: Buffer[] = [];
+    let now = 0;
+    for (const t of at) {
+      if (t > now) await page.clock.runFor(t - now);
+      now = Math.max(now, t);
+      frames.push(await page.screenshot(clip ? { clip } : {}));
+    }
+    if (frames.length === 1) {
+      writeFileSync(resolve(OUT, `${W}-${name}.png`), frames[0]);
+      log(`  ${W}-${name}.png`);
+    } else {
+      const fw = (clip ? clip.width : W) * DSF;
+      await composeAs(browser, `${W}-${name}.png`, frames, fw, Number(flags.get('scale') ?? 1) / DSF, Number(flags.get('cols') ?? 4), at.map((t) => `${t}ms`));
+    }
+    await ctx.close();
+  } finally {
+    await srv.close();
+  }
+}
+
 /** Close-up of the HUD unit cards while training (progress sweep, queue badges). */
 async function hudRun(browser: Browser, port: number): Promise<void> {
   const { ctx, page } = await openGame(browser, port, 3);
@@ -554,7 +611,9 @@ async function hudRun(browser: Browser, port: number): Promise<void> {
 async function main(): Promise<number> {
   mkdirSync(OUT, { recursive: true });
   const port = await freePort();
-  const srv = await preview({ root: ROOT, logLevel: 'error', preview: { port, strictPort: true, host: '127.0.0.1' } });
+  // The production build is only served for the parts that play the real game.
+  const needDist = [...ONLY].some((p) => p !== 'page');
+  const srv = needDist ? await preview({ root: ROOT, logLevel: 'error', preview: { port, strictPort: true, host: '127.0.0.1' } }) : null;
   const browser = await chromium.launch({
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl'],
   });
@@ -564,6 +623,7 @@ async function main(): Promise<number> {
     ['defeat', defeatRun],
     ['rain', rainRun],
     ['hud', hudRun],
+    ['page', pageRun],
   ];
   try {
     for (const [name, run] of runs) {
@@ -576,7 +636,7 @@ async function main(): Promise<number> {
     }
   } finally {
     await browser.close();
-    await new Promise<void>((ok) => srv.httpServer.close(() => ok()));
+    if (srv) await new Promise<void>((ok) => srv.httpServer.close(() => ok()));
   }
   log(problems.length ? `page problems:\n  ${problems.slice(0, 20).join('\n  ')}` : 'page problems: none');
   return 0;

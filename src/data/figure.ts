@@ -536,14 +536,15 @@ const AT_HOLD = { nearPin: 1, farPx: 4.6, farPy: 0.4 } as const;
 const AT_SHOULDER = upper({ ...AT_HOLD, ox: 4.6, oy: 4.0, angle: 0.4 });
 const AT_AIM = upper({ ...AT_HOLD, farPin: 1, ox: 8.4, oy: 2.3, aim: 1, head: 0.14 });
 
-const CRATE_HOLD = { nearPin: 1, farPin: 1, nearPx: 2.4, nearPy: 3.6, farPx: 1.4, farPy: 3.6 } as const;
-/** Sapper upper-body poses with a crate. */
+/** Both hands under the crate's bottom edge, the near one forward. */
+const CRATE_HOLD = { nearPin: 1, farPin: 1, nearPx: 4.4, nearPy: 5.6, farPx: 1.2, farPy: 5.8 } as const;
+/** Sapper upper-body poses with a crate: hugged high against the chest, so it reads at a glance. */
 export const FIGURE_CRATE = {
-  carry: upper({ ...CRATE_HOLD, ox: 6.2, oy: 6.6, angle: 0.04 }),
-  ground: upper({ ...CRATE_HOLD, ground: true, ox: 12.5, oy: -4.6 }),
+  carry: upper({ ...CRATE_HOLD, ox: 8.6, oy: 4.2, angle: 0.04, head: -0.06 }),
+  ground: upper({ ...CRATE_HOLD, ground: true, ox: 14.5, oy: -6.4 }),
   /** Half size of the crate in wu (it rests on the ground at y = -halfH). */
-  halfW: 6.5,
-  halfH: 4.4,
+  halfW: 9.4,
+  halfH: 6.4,
 } as const;
 
 const FREE = upper({});
@@ -1083,8 +1084,15 @@ export const FIGURE = {
     rocketReach: 0.9,
     rocketLoad: 1.5,
     rocketDone: 2.0,
-    rocketSh: -0.7,
-    rocketEl: 1.7,
+    rocketSh: -1.05,
+    rocketEl: 1.9,
+    /** ...meanwhile the launcher comes off the shoulder, muzzle tipped up (rad) and dropped (wu), so its open rear end
+     * meets the round; the head turns to watch, and the round is shoved home over rocketPush wu. */
+    rocketTilt: 0.42,
+    rocketDrop: 3.2,
+    rocketHead: 0.32,
+    rocketLean: -0.1,
+    rocketPush: 6,
   },
   throw: {
     /** Seconds from the start of the throw action to the moment the grenade leaves the hand. */
@@ -1115,6 +1123,28 @@ export const FIGURE = {
     heaveLift: 2.2,
     heaveSpine: 0.12,
   },
+  /**
+   * Medic standing by: every `period` seconds (seeded phase) he either checks his satchel (near hand down to it,
+   * head bowed) or shades his eyes with the far hand and scans the field for wounded.
+   */
+  medicIdle: {
+    period: 3.6,
+    /** Fractions of the period: reach, hold, return. */
+    reach: 0.16,
+    hold: 0.52,
+    back: 0.68,
+    /** Share of the cycles spent on the satchel (the rest scan the field). */
+    satchelShare: 0.45,
+    satchelSh: 0.2,
+    satchelEl: 1.75,
+    satchelHead: 0.42,
+    satchelLean: 0.22,
+    rummage: 0.2,
+    shadeSh: 2.45,
+    shadeEl: 2.35,
+    shadeHead: -0.12,
+    scan: 0.22,
+  },
   heal: {
     rate: 6.5,
     nearSh: 0.95,
@@ -1140,6 +1170,22 @@ export const FIGURE = {
     armSh: 2.75,
     armEl: 0.3,
     armWave: 0.3,
+  },
+  /**
+   * Secondary motion on springs driven by the hip's vertical acceleration (wu/s^2, clamped to maxAccel): the pack
+   * bounces along the back (wu) and the helmet wobbles on the head (rad). Freq in rad/s, damping 0..1, gain = response
+   * per wu/s^2, max = the most either may move.
+   */
+  secondary: {
+    maxAccel: 2500,
+    packFreq: 15,
+    packDamping: 0.22,
+    packGain: 0.6,
+    packMax: 2.6,
+    helmFreq: 19,
+    helmDamping: 0.2,
+    helmGain: 0.04,
+    helmMax: 0.14,
   },
   satchel: {
     /** The satchel trails by this many radians per wu/s and bounces with each step. */

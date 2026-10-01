@@ -30,10 +30,15 @@ export class CameraRig implements BattleCamera {
     this.targetX = this.clamp(this.targetX);
   }
 
+  /**
+   * Keep the view on the map. It may run RENDER.camera.edgeMargin past either end, so the whole HQ and its flag
+   * stay clear of the screen edge (and of a phone's notch or rounded corner).
+   */
   clamp(x: number): number {
     const half = this.viewWidthWu / 2;
-    if (this.length <= this.viewWidthWu) return this.length / 2;
-    return Math.min(this.length - half, Math.max(half, x));
+    const m = RENDER.camera.edgeMargin;
+    if (this.length + 2 * m <= this.viewWidthWu) return this.length / 2;
+    return Math.min(this.length + m - half, Math.max(half - m, x));
   }
 
   setCenter(x: number, immediate = false): void {

@@ -21,6 +21,11 @@ export const RENDER = {
     maxFling: 6000,
     /** Wheel: wu panned per wheel delta pixel. */
     wheelWuPerPx: 1.4,
+    /**
+     * The view may pan this far (wu) past either end of the map, so each HQ, flag and gun slit sits clear of the
+     * screen edge, a notch or a rounded corner.
+     */
+    edgeMargin: 64,
   },
 
   /** Input. */
@@ -66,14 +71,38 @@ export const RENDER = {
     trenchSinkTime: 0.25,
     /** Units off screen by more than this many wu are not laid out. */
     cullMargin: 160,
-    /** Tank barrel recoil: seconds to return, hull rock on firing (fraction of rockMax) and its spring decay (1/s). */
+    /** Tank barrel recoil: seconds for the gun to run out again. */
     tankRecoilTime: 0.45,
-    tankFireRock: 1,
-    tankRockDecay: 4,
+    /**
+     * Tank suspension (view only). bobAmp: hull bounce over the ground (wu) at bobFullSpeed (wu/s) and above, with
+     * bobFreq bumps per wu travelled; rollRock: pitch wobble while rolling (fraction of the look's rockMax). The pitch
+     * spring rings at rockFreq (rad/s) with rockDamping (0..1); fireKick is the pitch speed the gun's recoil gives it,
+     * accelRock the pitch per wu/s^2 of acceleration (squat pulling away, nose dip stopping); speedEase smooths the
+     * sim speed (s).
+     */
+    tank: {
+      bobAmp: 0.9,
+      bobFullSpeed: 30,
+      bobFreq: 0.16,
+      rollRock: 0.12,
+      rockFreq: 11,
+      rockDamping: 0.32,
+      fireKick: 9,
+      accelRock: 0.012,
+      speedEase: 0.18,
+      /** Driving over a trench: the hump at each lip (wu high, wu wide) that lifts and pitches the tank. */
+      lipBump: 7,
+      lipWidth: 34,
+    },
+    /** Seconds a figure and a tank take to turn round, and the narrowest they get mid-turn (fraction of their width). */
+    turnTime: 0.16,
+    turnMinK: 0.14,
+    tankTurnTime: 0.7,
+    tankTurnMinK: 0.32,
     /** Units on different rows of one formation column stand at the same x; spread them by up to this much (wu, view only). */
-    xJitter: 5,
+    xJitter: 8,
     /** Fixed x offset per depth row (wu, view only): a column of four reads as a staggered file, not one thick figure. */
-    rowStagger: [-9, -3, 3, 9] as readonly number[],
+    rowStagger: [-13, -4, 4, 13] as readonly number[],
     /** Within this distance of their own HQ door units leave their depth row and formation offset (file in and out). */
     doorFunnel: 80,
     /**
@@ -81,13 +110,19 @@ export const RENDER = {
      * crowdMax each, over crowdEase seconds, and only while walking faster than crowdMinSpeed (wu/s) so nobody slides
      * on the spot. crowdPasses = relaxation sweeps per frame.
      */
-    crowdGap: 15,
-    crowdMax: 14,
+    crowdGap: 21,
+    crowdMax: 22,
     crowdEase: 0.4,
     crowdMinSpeed: 4,
     crowdPasses: 3,
     /** Seed salt for each unit's animation seed and death roll. */
     seedSalt: 0x51ed27,
+    /**
+     * Chance by depth row (0 = farthest) that a soldier with a kneeling stance (riflemen) kneels to fire rather than
+     * stands: near ranks kneel and far ranks stand behind them, so a firing line reads in two tiers. And its salt.
+     */
+    kneelByRow: [0.1, 0.3, 0.75, 0.92] as readonly number[],
+    kneelSalt: 0x6b1e3d,
   },
 
   /** Structures. */

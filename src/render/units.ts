@@ -44,6 +44,29 @@ const STATE_DYING = 2;
 
 const U = RENDER.unit;
 
+/**
+ * Put one part on its image: figure-space position (px, py), rotation and scale (sx, sy), drawn at (x0, y0) with
+ * scale s and horizontal facing k (-1..1). While a unit turns, |k| < 1 squashes it the way a body turning on the spot
+ * looks: each sprite keeps its length along its own axis (so joints stay joined) and its thickness, and only its
+ * horizontal extent shrinks.
+ */
+function placePart(img: Img, x0: number, y0: number, s: number, k: number, px: number, py: number, rot: number, sx: number, sy: number): void {
+  const g = k < 0 ? -1 : 1;
+  const m = Math.abs(k);
+  img.x = x0 + k * s * px;
+  img.y = y0 + s * py;
+  if (m > 0.999) {
+    img.rotation = g * rot;
+    img.scaleX = g * sx;
+  } else {
+    const c = Math.cos(rot) * m;
+    const sn = Math.sin(rot);
+    img.rotation = g * Math.atan2(sn, c);
+    img.scaleX = g * sx * Math.hypot(c, sn);
+  }
+  img.scaleY = sy;
+}
+
 /** Fields shared by figure and tank views. */
 abstract class UnitViewBase {
   state = STATE_FREE;
@@ -58,6 +81,10 @@ abstract class UnitViewBase {
   y = 0;
   s = 1;
   facing = 1;
+  /** Turn progress, 0 = facing +x .. 1 = facing -x, moved toward `facing` over the turn time. */
+  turnP = 0;
+  /** Drawn horizontal facing: +1 or -1 at rest, sweeping through 0 while the unit turns round. */
+  turnK = 1;
   /** Drawn x last frame, for the distance travelled. */
   lastX = 0;
   /** Fixed visual x offset of this unit (formation spread). */
@@ -117,6 +144,23 @@ abstract class UnitViewBase {
   /** Draw over every other unit of the row (a fresh unit must never hide under a lingering body). */
   bringFront(): void {
     for (let i = 0; i < this.images.length; i++) this.layer.bringToTop(this.images[i]);
+  }
+
+  /** Ease the drawn facing toward `facing`: a quick turn on the spot instead of a one-frame mirror flip. */
+  stepTurn(dt: number, time: number): void {
+    const target = this.facing > 0 ? 0 : 1;
+    const p = this.turnP;
+    if (p !== target) {
+      const step = dt > 0 && time > 0 ? dt / time : 1;
+      this.turnP = target > p ? Math.min(target, p + step) : Math.max(target, p - step);
+    }
+    const e = this.turnP * this.turnP * (3 - 2 * this.turnP);
+    this.turnK = Math.cos(Math.PI * e);
+  }
+
+  snapTurn(): void {
+    this.turnP = this.facing > 0 ? 0 : 1;
+    this.turnK = this.facing;
   }
 
   abstract setShown(on: boolean): void;
@@ -253,7 +297,8 @@ class FigureView extends UnitViewBase {
     const x = this.x;
     const y = this.y + this.sink;
     const s = this.s;
-    const f = this.facing;
+    // Never squash to nothing mid-turn: the figure is at its narrowest for a frame or two, then mirrors.
+    const k = this.turnK < 0 ? Math.min(this.turnK, -U.turnMinK) : Math.max(this.turnK, U.turnMinK);
     const parts = this.parts;
     for (let i = 0; i < FIGURE_PART_COUNT; i++) {
       const p = parts[i];
@@ -268,19 +313,15 @@ class FigureView extends UnitViewBase {
         this.keys[i] = p.key;
         this.inv[i] = 1 / fr.scale;
       }
-      const k = s * this.inv[i];
+      const q = s * this.inv[i];
       img.visible = true;
-      img.x = x + f * s * p.x;
-      img.y = y + s * p.y;
-      img.rotation = f * p.rotation;
-      img.scaleX = f * p.scaleX * k;
-      img.scaleY = p.scaleY * k;
+      placePart(img, x, y, s, k, p.x, p.y, p.rotation, p.scaleX * q, p.scaleY * q);
     }
     this.placeShadow(U.figureShadowW, U.figureShadowH);
   }
 
   muzzle(out: { x: number; y: number }): void {
-    out.x = this.x + this.facing * this.s * this.anim.muzzleX;
+    out.x = this.x + this.turnK * this.s * this.anim.muzzleX;
     out.y = this.y + this.sink + this.s * this.anim.muzzleY;
   }
 }
@@ -294,6 +335,58 @@ class TankView extends UnitViewBase {
   readonly tank: TankState = { look: 'churchill', distance: 0, turretAim: 0, recoil: 0, hullRock: 0 };
   readonly pose: TankPose = createTankPose();
   inv = 1;
+  /** Sprung hull: vertical offset (wu, + = down) and pitch spring (fraction of rockMax) with its velocity. */
+  bob = 0;
+  rock = 0;
+  rockV = 0;
+  /** Smoothed ground speed (wu/s, + = forward) for the squat and dip on starting and stopping. */
+  speed = 0;
+  /** Height (wu) the whole tank is lifted by the lips of a trench it is driving over, and the extra hull pitch. */
+  lift = 0;
+  liftPitch = 0;
+  /** True while the images sit in the layer above the trench parapets (see setOver). */
+  over = false;
+
+  /** Move the images above the trench parapets and wire strands (crossing a trench) or back into the row layer. */
+  setOver(on: boolean, overLayer: Phaser.GameObjects.Layer): void {
+    if (on === this.over) return;
+    this.over = on;
+    const to = on ? overLayer : this.layer;
+    for (let i = 0; i < this.images.length; i++) to.add(this.images[i]);
+  }
+
+  /**
+   * The ground under the tracks while it drives over trenches: a hump at each lip (the tank bridges the trench
+   * itself), giving the whole tank a lift and the hull a pitch as it noses over.
+   */
+  groundOver(trenches: BattleState['trenches'], wires: BattleState['wires']): boolean {
+    const T = U.tank;
+    const L = TANK_LAYOUT[this.look];
+    const half = L.length * 0.42 * this.s;
+    const front = this.x + this.facing * half;
+    const rear = this.x - this.facing * half;
+    let hf = 0;
+    let hr = 0;
+    let over = false;
+    for (let t = 0; t < trenches.length; t++) {
+      const tr = trenches[t];
+      const w = tr.width / 2;
+      if (this.x + L.length * 0.6 * this.s < tr.x - w || this.x - L.length * 0.6 * this.s > tr.x + w) continue;
+      over = true;
+      for (let e = -1; e <= 1; e += 2) {
+        const lip = tr.x + e * w;
+        hf = Math.max(hf, T.lipBump * Math.max(0, 1 - Math.abs(front - lip) / T.lipWidth));
+        hr = Math.max(hr, T.lipBump * Math.max(0, 1 - Math.abs(rear - lip) / T.lipWidth));
+      }
+    }
+    this.lift = Math.max(hf, hr) * 0.75;
+    this.liftPitch = Math.atan2(hf - hr, 2 * half) / L.rockMax;
+    for (let i = 0; i < wires.length && !over; i++) {
+      const wr = wires[i];
+      over = Math.abs(wr.x - this.x) < (wr.width + L.length * this.s) / 2;
+    }
+    return over;
+  }
 
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
@@ -314,6 +407,10 @@ class TankView extends UnitViewBase {
     this.tank.turretAim = 0;
     this.tank.recoil = 0;
     this.tank.hullRock = 0;
+    this.bob = 0;
+    this.rock = 0;
+    this.rockV = 0;
+    this.speed = 0;
     this.bodyH = TANK_LAYOUT[look].height;
     this.inv = 1 / this.reg.get(TANK_KEYS[look].hull).scale;
   }
@@ -334,20 +431,42 @@ class TankView extends UnitViewBase {
     for (const img of this.images) img.alpha = a;
   }
 
-  private put(i: number, key: string, px: number, py: number, rot: number): void {
+  /** Place part i; `sprung` parts (hull, turret, gun) ride the suspension bob, the running gear stays on the ground. */
+  private put(i: number, key: string, px: number, py: number, rot: number, sprung: boolean): void {
     const img = this.images[i];
     if (key !== this.keys[i]) {
       img.setFrame(this.reg.get(key).frame);
       this.keys[i] = key;
     }
     const s = this.s;
-    const f = this.facing;
+    const k = this.turnK < 0 ? Math.min(this.turnK, -U.tankTurnMinK) : Math.max(this.turnK, U.tankTurnMinK);
     img.visible = true;
-    img.x = this.x + f * s * px;
-    img.y = this.y + s * py;
-    img.rotation = f * rot;
-    img.scaleX = f * s * this.inv;
-    img.scaleY = s * this.inv;
+    placePart(img, this.x, this.y + ((sprung ? this.bob : 0) - this.lift) * s, s, k, px, py, rot, s * this.inv, s * this.inv);
+  }
+
+  /**
+   * Suspension (view only): the hull bobs over the ground's bumps while it rolls, squats on pulling away and dips
+   * its nose on stopping, and rocks back on a damped spring when the gun fires.
+   */
+  stepSuspension(velX: number, dt: number): void {
+    const T = U.tank;
+    const tk = this.tank;
+    if (dt <= 0) return;
+    const fwd = velX * this.facing;
+    const prev = this.speed;
+    this.speed += (fwd - prev) * (1 - Math.exp(-dt / T.speedEase));
+    const accel = (this.speed - prev) / dt;
+    const roll = Math.min(1, Math.abs(this.speed) / T.bobFullSpeed);
+    const d = tk.distance;
+    this.bob = roll * T.bobAmp * (Math.sin(d * T.bobFreq) * 0.6 + Math.sin(d * T.bobFreq * 2.7 + 1.3) * 0.4);
+    // Damped spring on the hull pitch: forced by acceleration (nose up pulling away) and kicked by the gun.
+    const w = T.rockFreq;
+    const force = T.accelRock * accel - w * w * this.rock - 2 * T.rockDamping * w * this.rockV;
+    this.rockV += force * dt;
+    if (this.fired) this.rockV += T.fireKick;
+    this.rock += this.rockV * dt;
+    this.rock = Math.max(-1, Math.min(1, this.rock));
+    tk.hullRock = this.rock + roll * T.rollRock * Math.sin(d * T.bobFreq * 1.7 + 0.4) + this.liftPitch;
   }
 
   draw(dead: boolean): void {
@@ -356,31 +475,31 @@ class TankView extends UnitViewBase {
     const img = this.images;
     if (dead) {
       for (let i = 0; i < TANK_IMAGES - 1; i++) img[i].visible = false;
-      this.put(TANK_IMAGES - 1, keys.husk, 0, 0, 0);
+      this.put(TANK_IMAGES - 1, keys.husk, 0, 0, 0, false);
       this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
       return;
     }
     img[TANK_IMAGES - 1].visible = false;
     const pose = layoutTank(this.tank, this.pose);
     let i = 0;
-    this.put(i++, keys.track[pose.trackFrame], pose.track.x, pose.track.y, pose.track.rot);
+    this.put(i++, keys.track[pose.trackFrame], pose.track.x, pose.track.y, pose.track.rot, false);
     for (let w = 0; w < TANK_MAX_WHEELS; w++, i++) {
       if (w < pose.wheelCount) {
         const xf = pose.wheels[w];
-        this.put(i, keys.wheels[w], xf.x, xf.y, xf.rot);
+        this.put(i, keys.wheels[w], xf.x, xf.y, xf.rot, false);
       } else {
         img[i].visible = false;
       }
     }
-    this.put(i++, keys.hull, pose.hull.x, pose.hull.y, pose.hull.rot);
-    this.put(i++, keys.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot);
-    this.put(i, keys.turret, pose.turret.x, pose.turret.y, pose.turret.rot);
+    this.put(i++, keys.hull, pose.hull.x, pose.hull.y, pose.hull.rot, true);
+    this.put(i++, keys.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
+    this.put(i, keys.turret, pose.turret.x, pose.turret.y, pose.turret.rot, true);
     this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
   }
 
   muzzle(out: { x: number; y: number }): void {
-    out.x = this.x + this.facing * this.s * this.pose.muzzle.x;
-    out.y = this.y + this.s * this.pose.muzzle.y;
+    out.x = this.x + this.turnK * this.s * this.pose.muzzle.x;
+    out.y = this.y + this.s * (this.pose.muzzle.y + this.bob - this.lift);
   }
 }
 
@@ -492,6 +611,8 @@ export class UnitViews {
       const pool = this.figurePool[row];
       const fv = pool.pop() ?? new FigureView(row, this.reg, this.scene, this.layers);
       fv.reset(u.kind, u.faction, mixSeed(this.seed ^ U.seedSalt, u.id));
+      // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.
+      fv.anim.altAim = mixSeed(this.seed ^ U.kneelSalt, u.id) / 4294967296 < U.kneelByRow[row];
       v = fv;
     }
     v.state = STATE_LIVE;
@@ -508,6 +629,7 @@ export class UnitViews {
     v.y = VIEW.groundY + VIEW.rowDy[row] * doorSpread(u, state);
     v.s = VIEW.rowScale[row];
     v.facing = u.facing >= 0 ? 1 : -1;
+    v.snapTurn();
     v.deadTime = 0;
     v.sink = 0;
     v.alpha = 1;
@@ -534,7 +656,10 @@ export class UnitViews {
     v.state = STATE_FREE;
     v.unitId = -1;
     v.slot = -1;
-    if (v instanceof TankView) this.tankPool[v.row].push(v);
+    if (v instanceof TankView) {
+      v.setOver(false, this.layers.byName.vehicleOver);
+      this.tankPool[v.row].push(v);
+    }
     else this.figurePool[v.row].push(v);
   }
 
@@ -550,6 +675,7 @@ export class UnitViews {
     this.dying.push(v);
     v.hidePips();
     // A body on the ground lies under everyone still standing in its row.
+    if (v instanceof TankView) v.setOver(false, this.layers.byName.vehicleOver);
     v.sendBack();
     if (v instanceof FigureView) {
       const fromFront = dir !== 0 && dir === -v.facing;
@@ -668,6 +794,8 @@ export class UnitViews {
     v.simX = simX;
     v.y = VIEW.groundY + VIEW.rowDy[v.row] * spread;
     v.facing = u.facing >= 0 ? 1 : -1;
+    const tank = v instanceof TankView;
+    v.stepTurn(dt, tank ? U.tankTurnTime : U.turnTime);
 
     // Door fade: units appear out of and vanish into their own HQ doorway.
     const hq = state.sides[u.side].hq;
@@ -729,10 +857,11 @@ export class UnitViews {
       v.draw(dt);
     } else {
       const tk = v.tank;
+      v.setOver(v.groundOver(state.trenches, state.wires), this.layers.byName.vehicleOver);
       tk.distance += (moved * v.facing) / v.s;
       if (v.fired) tk.recoil = 1;
       else tk.recoil = Math.max(0, tk.recoil - dt / U.tankRecoilTime);
-      tk.hullRock = U.tankFireRock * tk.recoil * tk.recoil;
+      v.stepSuspension(state.over ? 0 : u.velX, dt);
       v.draw(false);
     }
     v.fired = false;
@@ -774,6 +903,24 @@ export class UnitViews {
     } else {
       v.draw(true);
     }
+  }
+
+  /**
+   * When a tank drawn in front of depth row `row` covers the point (x, y) (a muzzle behind it), the x of the tank's
+   * edge on the `dir` side, where a shot from behind it comes into view; NaN when nothing covers the point.
+   * The shooter's own view (pool slot `self`) never counts.
+   */
+  coverEdge(x: number, y: number, row: number, dir: number, self: number): number {
+    const list = this.bySlot;
+    for (let i = 0; i < list.length; i++) {
+      const v = list[i];
+      if (!(v instanceof TankView) || !v.shown || i === self || (v.row <= row && !v.over)) continue;
+      const L = TANK_LAYOUT[v.look];
+      const half = L.length * 0.47 * v.s * Math.abs(v.turnK);
+      if (Math.abs(x - v.x) > half || y > v.y || y < v.y - (L.height + v.lift) * v.s) continue;
+      return v.x + (dir < 0 ? -half : half);
+    }
+    return NaN;
   }
 
   private placeRing(): void {

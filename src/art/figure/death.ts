@@ -300,12 +300,15 @@ function dropWeapon(a: FigureAnim, time: number, p: Float64Array): void {
 const LIFT_JOINTS = [J_HIP, J_CHEST, J_NECK, J_HEAD, J_NKNEE, J_FKNEE, J_NELBOW, J_FELBOW, J_NHAND, J_FHAND, J_NANKLE, J_FANKLE];
 const LIFT_CLEAR = [G.hip, G.chest, G.neck, G.head, G.knee, G.knee, G.elbow, G.elbow, G.hand, G.hand, G.ankle, G.ankle];
 
-/** Keep the body on top of the ground: lift the whole body by the deepest joint (continuous, keeps bone lengths). */
-function groundClamp(a: FigureAnim): void {
+/**
+ * Keep the body on top of the ground: lift the whole body by the deepest joint (continuous, keeps bone lengths).
+ * As it comes to rest (`rest` 0 -> 1) a body that would hang above the ground is lowered onto it as well.
+ */
+function groundClamp(a: FigureAnim, rest: number): void {
   const p = a.pose;
   const j = a.joints;
   poseToJoints(p, j, a.geom);
-  let lift = 0;
+  let lift = -1e9;
   for (let i = 0; i < LIFT_JOINTS.length; i++) {
     const pen = j[LIFT_JOINTS[i] * 2 + 1] + LIFT_CLEAR[i];
     if (pen > lift) lift = pen;
@@ -314,7 +317,8 @@ function groundClamp(a: FigureAnim): void {
   const toeF = j[J_FANKLE * 2 + 1] + footBottom(p[P_FFP]);
   if (toeN > lift) lift = toeN;
   if (toeF > lift) lift = toeF;
-  if (lift > 0) {
+  if (lift < 0) lift *= rest;
+  if (lift !== 0) {
     p[P_HIPY] -= lift;
     poseToJoints(p, j, a.geom);
   }
@@ -336,7 +340,7 @@ export function updateDeath(a: FigureAnim, d: FigureDeath): void {
     p[i + 1] += a.restFix[l] * settle;
   }
   dropWeapon(a, time, p);
-  groundClamp(a);
+  groundClamp(a, smooth01((t - (a.deathEnd - D.restBlend)) / D.restBlend));
   a.deathStill = t >= a.deathEnd && time >= a.deathFade;
   a.item = 'none';
 }

@@ -4,8 +4,14 @@
  */
 
 export const VIEW = {
-  /** World units (wu) visible vertically, whatever the aspect ratio. The camera zoom is canvasHeight / heightWu. */
+  /** Height of the scene in wu: the backdrop, sky and ground art span y = 0 .. heightWu. */
   heightWu: 540,
+  /**
+   * World units visible vertically, whatever the aspect ratio. The camera zoom is canvasHeight / viewHeightWu and
+   * the view is anchored at the bottom of the scene (y = heightWu), so a value below heightWu crops only upper sky
+   * and makes the battlefield bigger. Wider phones see more of the front.
+   */
+  viewHeightWu: 450,
   /** Nominal width of one screen in wu, used to size missions. */
   screenWu: 1000,
   /** y of the centre of the walkable band (feet line of the middle rows). */
@@ -14,7 +20,7 @@ export const VIEW = {
   horizonY: 352,
   /** Units are spread over a few depth rows purely for looks. Row 0 is farthest from the camera. */
   rows: 4,
-  rowDy: [-24, -8, 8, 24],
+  rowDy: [-27, -9, 9, 27],
   rowScale: [0.92, 0.97, 1.03, 1.08],
   /** Standing stick-figure height, feet to helmet top, in wu at scale 1. */
   figureHeight: 58,
@@ -24,6 +30,9 @@ export const VIEW = {
   textureScale: 2,
   maxDevicePixelRatio: 2,
 } as const;
+
+/** World y of the top edge of the battle view (everything above it is cropped sky). */
+export const VIEW_TOP_WU: number = VIEW.heightWu - VIEW.viewHeightWu;
 
 /** Draw order, back to front. Everything in the battlefield scene uses these depths. */
 export const DEPTH = {
@@ -42,6 +51,8 @@ export const DEPTH = {
   unitRow0: 20,
   trenchFront: 30,
   wireFront: 31,
+  /** A tank driving over a trench or wire rides above the front parapet and strands. */
+  vehicleOver: 32,
   markers: 34,
   projectiles: 40,
   effects: 41,

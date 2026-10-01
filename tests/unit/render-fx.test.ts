@@ -93,7 +93,7 @@ function fakeFx(playerSide = 0): { fx: EffectContext; rec: Recorder } {
     },
     flights: { has: () => false, cancelProvisional: () => undefined, spawn: () => undefined },
     tracers: { spawn: () => undefined },
-    units: { viewAtSlot: () => null, liveView: () => null, findById: () => null },
+    units: { viewAtSlot: () => null, liveView: () => null, findById: () => null, coverEdge: () => NaN },
     ambient: {
       delayed: { add: (id: string) => rec.delayed.push(id) },
       burners: { add: () => undefined },

@@ -6,8 +6,9 @@
  * Device pixels: the game is sized to the parent's CSS size x devicePixelRatio
  * (capped at VIEW.maxDevicePixelRatio) with Scale mode NONE and zoom 1/dpr, so
  * the canvas is styled at CSS size and drawn at full resolution. The camera
- * zoom is canvasHeight / VIEW.heightWu: the same 540 wu show vertically on any
- * aspect ratio; wider screens see more of the front.
+ * zoom is canvasHeight / VIEW.viewHeightWu: the same slice of the scene (anchored
+ * at its bottom, so only upper sky is cropped) shows vertically on any aspect
+ * ratio; wider screens see more of the front.
  */
 import Phaser from 'phaser';
 import { getTheatreColours } from '../art/backdrops';
@@ -19,7 +20,7 @@ import { vehicleSpecs } from '../art/vehicles';
 import { FX_KEYS } from '../data/fx';
 import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
-import { VIEW } from '../data/view';
+import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
 import { SpriteRegistry } from './atlas';
 import { BackdropView } from './backdrop';
@@ -157,7 +158,7 @@ export class BattleViewImpl implements BattleView {
 
   /** CSS px per wu at the current size. */
   private cssPerWu(): number {
-    return this.cssH / VIEW.heightWu;
+    return this.cssH / VIEW.viewHeightWu;
   }
 
   onCreate(scene: Phaser.Scene): void {
@@ -243,7 +244,7 @@ export class BattleViewImpl implements BattleView {
     canvas.style.height = `${this.cssH}px`;
     canvas.style.display = 'block';
     if (this.scene) this.scene.cameras.main.setSize(pw, ph);
-    this.camera.setViewWidth(((pw / ph) * VIEW.heightWu) / this.debugZoom);
+    this.camera.setViewWidth(((pw / ph) * VIEW.viewHeightWu) / this.debugZoom);
   }
 
   attach(battle: Battle, opts: AttachOptions): void {
@@ -351,11 +352,11 @@ export class BattleViewImpl implements BattleView {
     const sy = shake ? shake.y : 0;
     let zoomMul = this.debugZoom;
     if (sx !== 0 || sy !== 0) {
-      zoomMul *= Math.max(viewW / Math.max(1, viewW - 2 * Math.abs(sx)), VIEW.heightWu / Math.max(1, VIEW.heightWu - 2 * Math.abs(sy)));
+      zoomMul *= Math.max(viewW / Math.max(1, viewW - 2 * Math.abs(sx)), VIEW.viewHeightWu / Math.max(1, VIEW.viewHeightWu - 2 * Math.abs(sy)));
     }
-    const zoom = (cam.height / VIEW.heightWu) * zoomMul;
+    const zoom = (cam.height / VIEW.viewHeightWu) * zoomMul;
     if (cam.zoom !== zoom) cam.setZoom(zoom);
-    cam.centerOn(rig.centerX + sx, (this.debugZoom === 1 ? VIEW.heightWu / 2 : this.debugCenterY) + sy);
+    cam.centerOn(rig.centerX + sx, (this.debugZoom === 1 ? VIEW_TOP_WU + VIEW.viewHeightWu / 2 : this.debugCenterY) + sy);
     this.backdrop.update(left, viewW);
     const battle = this.battle;
     if (battle && this.units && this.structures && this.effects) {
@@ -427,7 +428,7 @@ export class BattleViewImpl implements BattleView {
   private tap(cssX: number, cssY: number): void {
     const k = this.cssPerWu();
     const wx = this.camera.left + cssX / k;
-    const wy = cssY / k;
+    const wy = VIEW_TOP_WU + cssY / k;
     this.hoverX = wx;
     if (this.targeting === null && this.units && this.battle) {
       const id = this.units.pick(this.playerSide, wx, wy, RENDER.input.pickRadius, k);
@@ -479,7 +480,7 @@ export class BattleViewImpl implements BattleView {
     if (!v || !v.shown) return null;
     const k = this.cssPerWu();
     this.screenPos.x = (v.x - this.camera.left) * k;
-    this.screenPos.y = (v.y + v.sink - v.bodyH * v.s * 0.5) * k;
+    this.screenPos.y = (v.y + v.sink - v.bodyH * v.s * 0.5 - VIEW_TOP_WU) * k;
     return this.screenPos;
   }
 

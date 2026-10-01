@@ -392,10 +392,32 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
       } else {
         setStance(a, K.idle.stance);
         setUpper(a, K.idle.upper);
+        if (a.kind === 'medic') medicIdle(a);
       }
     }
   }
   if (a.kind === 'mortar') tg[C_PLATE] = tg[C_GND];
+}
+
+/** A medic standing by checks his satchel or shades his eyes to scan for wounded, in turn (seeded). */
+function medicIdle(a: FigureAnim): void {
+  const M = F.medicIdle;
+  const tg = a.tg;
+  const cyc = a.time / M.period + hash01(a.seed, 21);
+  const u = frac(cyc);
+  const w = env(u, 0, M.reach, M.hold, M.back);
+  if (w <= 0) return;
+  const t = a.time;
+  if (hash01(a.seed + 7, Math.floor(cyc)) < M.satchelShare) {
+    tg[C_NSH] = lerp(tg[C_NSH], M.satchelSh + M.rummage * Math.sin(t * 13), w);
+    tg[C_NEL] = lerp(tg[C_NEL], M.satchelEl + M.rummage * Math.cos(t * 11), w);
+    tg[C_HEADX] += M.satchelHead * w;
+    tg[C_SPINE] += M.satchelLean * w;
+  } else {
+    tg[C_FSH] = lerp(tg[C_FSH], M.shadeSh, w);
+    tg[C_FEL] = lerp(tg[C_FEL], M.shadeEl, w);
+    tg[C_HEADX] += (M.shadeHead + M.scan * Math.sin(TAU * (u - M.reach) / (M.hold - M.reach))) * w;
+  }
 }
 
 function reloadOverlay(a: FigureAnim, K: FigureKindDef, t0: number): void {
@@ -449,6 +471,12 @@ function reloadOverlay(a: FigureAnim, K: FigureKindDef, t0: number): void {
     }
     case 'rocket': {
       if (t < R.rocketDelay || t >= R.rocketDone) break;
+      // The launcher comes off the aim, muzzle up and rear down to meet the round; he turns his head to load it.
+      const off = env(t, R.rocketDelay, R.rocketReach, R.rocketLoad, R.rocketDone);
+      tg[C_WANG] += R.rocketTilt * off;
+      a.relTY += R.rocketDrop * off;
+      tg[C_HEADX] += R.rocketHead * off;
+      tg[C_SPINE] += R.rocketLean * off;
       if (t < R.rocketReach + 0.1) {
         tg[C_FPIN] = 0;
         tg[C_FSH] = R.rocketSh;
@@ -461,9 +489,12 @@ function reloadOverlay(a: FigureAnim, K: FigureKindDef, t0: number): void {
         a.item = 'rocket';
         a.itemFar = true;
         tg[C_FPIN] = 1;
-        tg[C_FPX] = K.reloadX;
+        // Offered up behind the tube, then shoved home.
+        const push = smooth01((t - R.rocketReach - 0.1) / (R.rocketLoad - R.rocketReach - 0.1));
+        tg[C_FPX] = K.reloadX - R.rocketPush * (1 - push);
         tg[C_FPY] = K.reloadY;
         tau[C_FPIN] = F.spring.arm * 1.6;
+        tau[C_FPX] = F.spring.hand;
       }
       break;
     }
@@ -824,7 +855,32 @@ function compose(a: FigureAnim, inp: FigureInput, K: FigureKindDef, dt: number):
   const satchelTarget = F.satchel.trail * inp.speed + F.satchel.bounce * w * Math.cos(TAU * 2 * a.phase);
   springSatchel(a, satchelTarget, dt);
   p[P_SATCHEL] = HALF_PI + a.satchel;
+  stepSecondary(a, hipY, dt);
   a.fresh = false;
+}
+
+/**
+ * Pack and helmet ride the body on springs: the hip's vertical acceleration (each footfall, a landing, a crouch)
+ * makes the pack bounce along the back and the helmet wobble on the head a moment behind the body.
+ */
+function stepSecondary(a: FigureAnim, hipY: number, dt: number): void {
+  const S = F.secondary;
+  if (a.fresh || dt <= 0) {
+    a.secY = hipY;
+    a.secV = 0;
+    return;
+  }
+  const v = (hipY - a.secY) / dt;
+  const acc = clamp((v - a.secV) / dt, -S.maxAccel, S.maxAccel);
+  a.secY = hipY;
+  a.secV = v;
+  const wp = S.packFreq;
+  // The body accelerating up (acc < 0, y is down) leaves the pack and the helmet behind: they sag, then spring back.
+  a.packV += (-wp * wp * a.pack - 2 * S.packDamping * wp * a.packV - S.packGain * acc) * dt;
+  a.pack = clamp(a.pack + a.packV * dt, -S.packMax, S.packMax);
+  const wh = S.helmFreq;
+  a.helmV += (-wh * wh * a.helm - 2 * S.helmDamping * wh * a.helmV - S.helmGain * acc) * dt;
+  a.helm = clamp(a.helm + a.helmV * dt, -S.helmMax, S.helmMax);
 }
 
 /** The angle equal to v (mod 2 PI) that is nearest to ref. */

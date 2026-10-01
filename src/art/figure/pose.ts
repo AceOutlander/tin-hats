@@ -271,6 +271,14 @@ export class FigureAnim {
   satchelV = 0;
   /** Seconds since the last shot (for the mortar shell drop and the run-and-gun hold). */
   sinceFire = 1e9;
+  /** Secondary motion driven by the hip's vertical acceleration: last hip height and speed, pack bounce (wu along the
+   * back, + = down) and helmet wobble (rad), each with its velocity. */
+  secY = 0;
+  secV = 0;
+  pack = 0;
+  packV = 0;
+  helm = 0;
+  helmV = 0;
 
   // Visible extras.
   item: HandItem = 'none';
@@ -370,6 +378,7 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.flinch = a.flinchV = 0;
   a.satchel = a.satchelV = 0;
   a.sinceFire = 1e9;
+  a.secY = a.secV = a.pack = a.packV = a.helm = a.helmV = 0;
   a.item = 'none';
   a.itemFar = false;
   a.weaponVisible = a.model !== 'none' && a.model !== 'crate';

@@ -116,17 +116,23 @@ function onShot(fx: EffectContext, e: SimEvent): void {
   const gy = fx.groundY(e.row);
   const gy2 = fx.groundY(e.row2);
   const hitscan = !weapon || weapon.delivery === 'hitscan';
+  // A shooter hidden behind a tank on a nearer row: no flash on top of the tank, and the round appears at its edge.
+  const edge = e.source === 'unit' ? fx.units.coverEdge(from.x, from.y, e.row, dir, e.unit) : NaN;
+  const hidden = !Number.isNaN(edge);
+  if (hidden) from.x = edge;
 
   if (hitscan) {
-    fx.play('muzzleFlash', from.x, from.y, to.x - from.x, to.y - from.y, gy, 1);
-    if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 8, from.y, 1, 0, gy, 1);
-    if (e.source === 'unit' && fx.rng() < (R.casing[weapon?.id ?? ''] ?? R.casingDefault) && fx.lowOk()) {
+    if (!hidden) {
+      fx.play('muzzleFlash', from.x, from.y, to.x - from.x, to.y - from.y, gy, 1);
+      if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 8, from.y, 1, 0, gy, 1);
+    }
+    if (!hidden && e.source === 'unit' && fx.rng() < (R.casing[weapon?.id ?? ''] ?? R.casingDefault) && fx.lowOk()) {
       fx.play('casing', from.x - dir * 3, from.y + 4, dir, 0, gy, VIEW.rowScale[Math.max(0, e.row)]);
     }
   } else if (weapon) {
     const size = MUZZLE_SIZE[weapon.id] ?? 1;
-    if (weapon.projectileLook !== 'grenade') fx.play('tankMuzzle', from.x, from.y, to.x - from.x, to.y - from.y, gy, size);
-    if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, gy, 2.2 * size);
+    if (!hidden && weapon.projectileLook !== 'grenade') fx.play('tankMuzzle', from.x, from.y, to.x - from.x, to.y - from.y, gy, size);
+    if (!hidden && fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, gy, 2.2 * size);
     if (e.source === 'unit' && (weapon.id === 'tankGun' || weapon.id === 'heavyGun') && fx.lowOk()) {
       fx.play('shellCasing', from.x - dir * 58, from.y + 22, -dir, 0, gy, 1);
     }
@@ -177,11 +183,15 @@ function onProjectile(fx: EffectContext, e: SimEvent): void {
   const dir = e.x2 >= e.x ? 1 : -1;
   from.x = e.x;
   from.y = air ? g - R.flight.airAltitude : g - SH.muzzleY * VIEW.rowScale[e.row >= 0 ? e.row : 1];
+  let hidden = false;
   if (!air && e.source === 'unit') {
     const v = fx.units.liveView(e.unit, e.unitId);
     if (v && v.shown) v.muzzle(from);
+    const edge = fx.units.coverEdge(from.x, from.y, e.row, dir, e.unit);
+    hidden = !Number.isNaN(edge);
+    if (hidden) from.x = edge;
   }
-  if (!dupe && !air && weapon.projectileLook !== 'grenade') {
+  if (!dupe && !air && !hidden && weapon.projectileLook !== 'grenade') {
     fx.play('tankMuzzle', from.x, from.y, dir, 0, g, MUZZLE_SIZE[weapon.id] ?? 1);
     if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, g, 2.2);
   }

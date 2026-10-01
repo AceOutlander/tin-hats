@@ -142,7 +142,9 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_RIM_NEAR_TH], R.thigh, j, J_HIP, p[P_NTH]);
   putJ(out[S_RIM_NEAR_SH], R.shin, j, J_NKNEE, p[P_NSH]);
   putJ(out[S_RIM_NEAR_BOOT], R.boot, j, J_NANKLE, p[P_NFP]);
-  putJ(out[S_RIM_HELMET], keys.helmetRim, j, J_HEAD, p[P_NECK] + HALF_PI);
+  // The helmet wobbles on the head a moment behind the body (secondary motion).
+  const helmRot = p[P_NECK] + HALF_PI + a.helm;
+  putJ(out[S_RIM_HELMET], keys.helmetRim, j, J_HEAD, helmRot);
   putJ(out[S_RIM_NEAR_UA], R.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_RIM_NEAR_FA], R.forearm, j, J_NELBOW, p[P_NFA]);
 
@@ -155,7 +157,9 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_FAR_BOOT], B.bootFar, j, J_FANKLE, p[P_FFP]);
 
   // Body and kit.
-  putJ(out[S_PACK], keys.pack, j, J_CHEST, p[P_CHEST] + HALF_PI, K.pack);
+  // The pack bounces along the back (secondary motion).
+  const ch = p[P_CHEST];
+  put(out[S_PACK], keys.pack, j[J_CHEST * 2] - Math.cos(ch) * a.pack, j[J_CHEST * 2 + 1] - Math.sin(ch) * a.pack, ch + HALF_PI, K.pack);
   putJ(out[S_TORSO_LO], B.torsoLower, j, J_HIP, p[P_SPINE]);
   putJ(out[S_TORSO_UP], B.torsoUpper, j, J_CHEST, p[P_CHEST]);
   putJ(out[S_POUCHES], keys.pouches, j, J_HIP, p[P_SPINE] + HALF_PI, K.pouches);
@@ -169,7 +173,7 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const sy = j[J_HIP * 2 + 1] + Math.sin(sp) * 1.6 + Math.cos(sp) * 1.2;
   put(out[S_SATCHEL], keys.satchel, sx, sy, p[P_SATCHEL], K.satchel);
   putJ(out[S_HEAD], B.head, j, J_NECK, p[P_NECK]);
-  putJ(out[S_HELMET], keys.helmet, j, J_HEAD, p[P_NECK] + HALF_PI);
+  putJ(out[S_HELMET], keys.helmet, j, J_HEAD, helmRot);
 
   // Weapon (or crate), its bipod and baseplate, hand items.
   const wa = p[P_WA];
