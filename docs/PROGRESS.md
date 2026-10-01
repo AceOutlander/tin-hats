@@ -12,14 +12,14 @@ If you lose track, read this file and carry on from "In progress" and "Next".
   - effects and weather (`src/art/fx`, `src/fx`): particle presets and sprites, weather controller, lightning, rain, screen shake.
   - HUD (`src/ui/hud`) and menus (`src/ui/screens`, `src/ui/shell`): all screens and the battle HUD, checked at five phone sizes.
   - audio (`src/audio`): WebAudio synthesiser with 29 sounds.
+  - renderer core (`src/render`, `src/data/render.ts`, `dev/render-preview.html`): Phaser 4 battlefield with one atlas page for every sprite, parallax backdrop, pooled figure and tank views, HQs with waving flags, dumps, trenches, pillboxes, wire, tracers and muzzle flashes through an effect dispatch table, drag/fling/tap/wheel camera input. Screenshots in `docs/screenshots/render-*.png`.
   - integration: `tests/unit/art-keys.test.ts`, `tests/unit/seams.test.ts`, `src/art/icons.ts` (`paintUnitPortrait`), weapon sound ids fixed. All seven `dev/*.html` pages load with no console problems. Per-track notes are in `docs/progress/`.
 
 ## In progress
-- Nothing is mid-flight. The next engineers start on the renderer and the app glue.
+- Nothing is mid-flight. The next engineers start on renderer part 2 (effects, weather, audio) and the app glue.
 
 ## Next
-- Phaser battlefield renderer core (`src/render`): rasterise all `SpriteSpec`s and backdrop layers into textures, unit views driven by `src/art/figure`, structures, tanks, camera drag, minimap feed, interpolation.
-- Effects and weather view on top of `src/fx` and `src/art/fx`.
+- Renderer part 2: full effects (explosions, projectiles, decals, fires, exhaust and track dust), weather and audio hookup, extending `EFFECT_HANDLERS` in `src/render/effects/handlers.ts`.
 - App glue (`src/app`): fixed-step game loop, `HudState` builder from `battle.state`, `AppApi`, screen flow, `src/meta` save data, audio hookup (`unlock()` on first pointer event, `setListener`, `suspend`/`resume`), `?debug=1` hooks, browser smoke tests.
 - Phase 2: trenches, pillboxes, wire, damage matrix, full roster, direct control, supports, matchup tests.
 - Phase 3: ten missions, briefings, campaign map data, Quartermaster, difficulties, saving.
@@ -35,4 +35,5 @@ If you lose track, read this file and carry on from "In progress" and "Next".
 - Structures: trenches narrower than 104 wu are drawn at 104 wu.
 - HUD: at 568x320 only five or six training buttons are visible and the rest scroll. Labels were not checked with a very wide font.
 - Menus: on the 568x320 campaign view the map pans; mission pins sit over some map labels.
+- Renderer: muzzle flashes of units hidden behind a tank show on top of it (glow layer is above the unit rows); a tank crossing a trench is drawn behind the front parapet; fling inertia is strong on fast synthetic drags (`RENDER.camera.inertiaDecay`). Under `x.cmd` a URL with `&` works with `x.cmd --% npx tsx tools/shot.ts "dev/render-preview.html?a=1&b=2" ...`.
 - Audio: nothing was listened to, only measured. Low sounds such as `uiDeny` may be quiet on phone speakers.

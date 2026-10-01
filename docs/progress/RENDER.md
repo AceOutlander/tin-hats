@@ -1,0 +1,4 @@
+# RENDER (part 1: battlefield renderer core)
+
+Done: src/render (contracts, atlas shelf packer with edge extrusion, backdrop, layers, camera rig, DOM pan/tap input, pooled figure and tank views per row, structures: HQ with sheared flag strips, dump, trench, pillbox, wire; effects dispatch table with tracers and particle drawer; view.ts), src/data/render.ts, dev/render-preview.{html,ts}. Screenshots docs/screenshots/render-*.png. Picking, drag, inertia, targeting, resize, re-attach (theatre change frees textures) and planted-feet checks passed. render() about 0.8 to 1.1 ms JS with 84 to 87 unit views (SwiftShader). typecheck, lint, build, test:unit clean. DECISIONS 47 to 55.
+Next: commit "Phaser battlefield renderer core". Part 2 (effects, weather, audio) extends src/render/effects/handlers.ts.

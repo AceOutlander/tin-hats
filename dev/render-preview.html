@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Tin Hats: battlefield renderer</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+        overscroll-behavior: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #game {
+        position: fixed;
+        inset: 0;
+      }
+      #stats {
+        position: fixed;
+        left: 6px;
+        top: 6px;
+        font: 11px/1.3 monospace;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 3px 6px;
+        pointer-events: none;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Mission 1 through the real sim (bot vs AI) with the real renderer.
+      ?timeScale=1     sim speed multiplier (fast-forward turns effects off above 4)
+      &follow=1        keep the camera on the front line (0 = free camera; drag or wheel to pan)
+      &weather=auto|rain|clear
+      &seed=1          battle seed           &vseed=7  visual seed
+      &skip=0          seconds of battle to simulate before the first frame
+      &cam=0.5         start the camera at this fraction of the map (overrides follow at start)
+      &stats=1         show the stats overlay
+      &zoom=3          magnify the ground band (inspection only)
+      &army=40         add N mixed units per side (every kind, tanks too) in front of each HQ (performance test)
+      &fort=1          add Phase 2 trenches, a pillbox and wire to the map
+      &theatre=desert&time=dusk   override the mission's theatre and time of day
+      Debug: window.__TH = { battle, view, stats(), skip(seconds), setCenter(x) }; window.__ready once a frame has drawn.
+    -->
+    <div id="game"></div>
+    <div id="stats" hidden></div>
+    <script type="module" src="./render-preview.ts"></script>
+  </body>
+</html>

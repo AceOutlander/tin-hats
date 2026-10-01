@@ -64,3 +64,14 @@ Integration gate
 44. **`WeaponDef.sound` now names a real audio one-shot** (`rifleShot`, `mgShot`, `smgShot`, `sniperShot`, `bunkerMg`, `mortarLaunch`, `rocketLaunch`, `tankGun`, `shellWhistle`) or `'none'`. The first draft used ids like `'rifle'` that the audio engine does not have. The thrown grenade is silent at launch (`'none'`); explosions are sounded from the `explosion` event.
 45. **`src/art/icons.ts` adds `paintUnitPortrait(canvas, kind, faction)`** for every unit kind. The figure module's own `paintUnitIcon` only draws stick figures, returns `false` for tanks and takes a faction, not the `(canvas, kind, side)` the HUD and menus call.
 46. **Two new seam tests guard the tracks against drifting apart:** `tests/unit/art-keys.test.ts` (unique sprite keys, positive sizes, anchors in 0..1) and `tests/unit/seams.test.ts` (kinds and actions, weapon sounds and effect sprites, every key table has its sprites, the HUD factory fits the UI shell).
+
+Renderer core (RENDER part 1)
+47. **Device pixels: Scale mode NONE with game size = CSS size x dpr (dpr capped at `VIEW.maxDevicePixelRatio`) and Scale zoom 1/dpr.** Phaser 4 has no `resolution` setting; this draws at full resolution while the canvas is styled at CSS size. Camera zoom = canvas height / 540.
+48. **Battlefield input uses DOM pointer events on the canvas, not Phaser input** (Phaser input is disabled). Taps, drags, flings and the wheel stay in CSS px and never see the DOM HUD above the canvas.
+49. **One Phaser Layer per DEPTH slot plus one per unit row, and unit views are pooled per row.** Objects never change depth, so neither the scene nor a layer ever re-sorts; each view's images stay contiguous in its row layer. Additive glow effects get their own layer just above `DEPTH.effects`.
+50. **The HQ sprite is placed so its art doorway sits on the sim's `doorX`** (the art bunker is wider than `config.hqWidth`); HQ tracers start at the art gun slit, not the sim's `gunX`.
+51. **Waving flags are sheared strips: each strip Image sits in a Container and the shear is split into rotation x scale x rotation (2x2 SVD)**, because Phaser Images cannot skew. Strips are tinted by `flagStripTint`.
+52. **Units get a small fixed visual x offset (`RENDER.unit.xJitter`, 7 wu) from their id,** so the four rows of one formation column do not stand in a single vertical stack. View only; tracers aim at the body as drawn.
+53. **The figure rig is fed figure-space distances (moved / row scale)** so planted feet stay put at every row scale (checked: a planted ankle drifts under 0.3 wu while the body moves 10 wu).
+54. **Spawn and Fall Back use a door fade**: a unit's alpha ramps over `RENDER.unit.doorFade` (26 wu) from its own HQ door, so units emerge from and vanish into the doorway.
+55. **Renderer tunables live in the new `src/data/render.ts` (`RENDER`).** Shot events do not name the firing pillbox, so the renderer takes that side's pillbox nearest to the shot's x.
