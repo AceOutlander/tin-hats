@@ -1,11 +1,14 @@
 /**
  * Save data: one versioned JSON document in a key-value store that is injected
- * (localStorage in the browser, a Map in tests). Loading validates every field
- * and never throws: missing or damaged data gives a fresh save.
+ * (localStorage in the browser, a Map in tests). Loading migrates older versions,
+ * validates every field, clamps values that cannot be true (levels above the
+ * maximum, more points spent than earned, progress with a gap) and never throws:
+ * missing or damaged data gives a fresh save.
  */
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { META } from '../data/meta';
-import type { Difficulty, UpgradeLevels } from '../data/schema';
+import type { Difficulty, UpgradeDef, UpgradeLevels } from '../data/schema';
+import { maxLevel, pointsEarned } from './campaign';
 
 /** The part of Storage the game uses. */
 export interface StorageLike {
@@ -27,6 +30,8 @@ export interface SaveData {
   cleared: Record<string, Difficulty[]>;
   /** Upgrade id to level. Absent = level 0. */
   upgrades: UpgradeLevels;
+  /** The mission last started from the campaign, or 0 when none (the map opens on it). */
+  lastMission: number;
   settings: SaveSettings;
 }
 
@@ -37,14 +42,24 @@ export interface LoadResult {
   status: LoadStatus;
 }
 
+/** What the game knows about itself, so a save can be checked against it. Both parts are optional. */
+export interface SaveRules {
+  /** Missions that exist, in campaign order. Progress on any other mission, or beyond the first mission not cleared, is dropped. */
+  missionIds?: readonly number[];
+  /** The Quartermaster table. Unknown upgrades are dropped, levels are capped, and no more points may be spent than were earned. */
+  upgradeDefs?: readonly UpgradeDef[];
+}
+
 const MISSION_KEY = /^[1-9][0-9]{0,3}$/;
 const UPGRADE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
+const MAX_MISSION_ID = 9999;
 
 export function defaultSave(): SaveData {
   return {
     version: META.saveVersion,
     cleared: {},
     upgrades: {},
+    lastMission: 0,
     settings: { muted: META.defaultMuted, difficulty: META.defaultDifficulty, hints: META.defaultHints },
   };
 }
@@ -58,38 +73,98 @@ function isDifficulty(value: unknown): value is Difficulty {
 }
 
 /**
+ * One step per old version: `MIGRATIONS[n]` turns a version n document into a version n + 1 one, in place.
+ * A step only adds or reshapes; `sanitizeSave` still checks every value afterwards.
+ */
+const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void>> = {
+  // 1 -> 2: the save remembers the mission last played.
+  1: (doc) => {
+    doc.lastMission = 0;
+  },
+};
+
+/** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
+export function migrateSave(raw: unknown): Record<string, unknown> | null {
+  if (!isRecord(raw)) return null;
+  let version = raw.version;
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > META.saveVersion) return null;
+  const doc: Record<string, unknown> = { ...raw };
+  while (version < META.saveVersion) {
+    const step = MIGRATIONS[version];
+    if (!step) return null;
+    step(doc);
+    version += 1;
+    doc.version = version;
+  }
+  return doc;
+}
+
+function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly number[] | undefined): void {
+  if (!isRecord(raw)) return;
+  const kept: Record<string, Difficulty[]> = {};
+  for (const key of Object.keys(raw)) {
+    if (!MISSION_KEY.test(key)) continue;
+    const list = raw[key];
+    if (!Array.isArray(list)) continue;
+    const difficulties: Difficulty[] = [];
+    for (const d of list) if (isDifficulty(d) && !difficulties.includes(d)) difficulties.push(d);
+    if (difficulties.length > 0) kept[key] = difficulties;
+  }
+  if (missionIds === undefined) {
+    out.cleared = kept;
+    return;
+  }
+  // A mission can only have been cleared if the one before it was: progress stops at the first gap.
+  for (const id of missionIds) {
+    const list = kept[String(id)];
+    if (!list) break;
+    out.cleared[String(id)] = list;
+  }
+}
+
+function sanitizeUpgrades(raw: unknown, out: SaveData, defs: readonly UpgradeDef[] | undefined): void {
+  if (!isRecord(raw)) return;
+  for (const key of Object.keys(raw)) {
+    if (!UPGRADE_KEY.test(key)) continue;
+    const level = raw[key];
+    if (typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
+    const def = defs?.find((d) => d.id === key);
+    if (defs !== undefined && def === undefined) continue;
+    out.upgrades[key] = Math.min(level, def ? maxLevel(def) : META.maxUpgradeLevel);
+  }
+  if (defs === undefined) return;
+  // Never more spent than earned: keep levels in the table's order while the points last, cut the rest.
+  let budget = pointsEarned(out);
+  for (const def of defs) {
+    const level = out.upgrades[def.id];
+    if (level === undefined) continue;
+    const affordable = def.costPerLevel > 0 ? Math.floor(budget / def.costPerLevel) : level;
+    const kept = Math.min(level, affordable);
+    if (kept <= 0) delete out.upgrades[def.id];
+    else out.upgrades[def.id] = kept;
+    budget -= Math.max(0, kept) * def.costPerLevel;
+  }
+}
+
+/**
  * Check an unknown value and build a clean SaveData from it, or return null when it is not a save
  * this version understands. Unusable parts of an otherwise good save are dropped, not fatal.
  */
-export function sanitizeSave(raw: unknown): SaveData | null {
-  if (!isRecord(raw)) return null;
-  const version = raw.version;
-  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > META.saveVersion) return null;
+export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | null {
+  const doc = migrateSave(raw);
+  if (!doc) return null;
 
   const out = defaultSave();
+  sanitizeCleared(doc.cleared, out, rules.missionIds);
+  sanitizeUpgrades(doc.upgrades, out, rules.upgradeDefs);
 
-  if (isRecord(raw.cleared)) {
-    for (const key of Object.keys(raw.cleared)) {
-      if (!MISSION_KEY.test(key)) continue;
-      const list = raw.cleared[key];
-      if (!Array.isArray(list)) continue;
-      const kept: Difficulty[] = [];
-      for (const d of list) if (isDifficulty(d) && !kept.includes(d)) kept.push(d);
-      if (kept.length > 0) out.cleared[key] = kept;
-    }
+  const last = doc.lastMission;
+  if (typeof last === 'number' && Number.isInteger(last) && last >= 1 && last <= MAX_MISSION_ID) {
+    if (rules.missionIds === undefined || rules.missionIds.includes(last)) out.lastMission = last;
   }
 
-  if (isRecord(raw.upgrades)) {
-    for (const key of Object.keys(raw.upgrades)) {
-      if (!UPGRADE_KEY.test(key)) continue;
-      const level = raw.upgrades[key];
-      if (typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
-      out.upgrades[key] = Math.min(level, META.maxUpgradeLevel);
-    }
-  }
-
-  if (isRecord(raw.settings)) {
-    const s = raw.settings;
+  if (isRecord(doc.settings)) {
+    const s = doc.settings;
     if (typeof s.muted === 'boolean') out.settings.muted = s.muted;
     if (typeof s.hints === 'boolean') out.settings.hints = s.hints;
     if (isDifficulty(s.difficulty)) out.settings.difficulty = s.difficulty;
@@ -98,7 +173,7 @@ export function sanitizeSave(raw: unknown): SaveData | null {
 }
 
 /** Read the save. A missing or damaged entry, or a storage that throws, gives defaults. */
-export function loadSave(storage: StorageLike | null): LoadResult {
+export function loadSave(storage: StorageLike | null, rules: SaveRules = {}): LoadResult {
   let text: string | null;
   try {
     text = storage ? storage.getItem(META.saveKey) : null;
@@ -112,7 +187,7 @@ export function loadSave(storage: StorageLike | null): LoadResult {
   } catch {
     return { data: defaultSave(), status: 'corrupt' };
   }
-  const data = sanitizeSave(parsed);
+  const data = sanitizeSave(parsed, rules);
   return data ? { data, status: 'ok' } : { data: defaultSave(), status: 'corrupt' };
 }
 

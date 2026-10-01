@@ -121,12 +121,14 @@ export class BattleSession {
       switch (e.type) {
         case 'announce':
         case 'wave':
-          if (e.text !== null) {
-            const st = this.hud.state;
-            st.banner = e.text;
-            st.bannerSeq++;
-            this.bannerUntil = battle.state.time + APP.bannerSeconds;
+          if (e.text !== null) this.showBanner(e.text);
+          // A plain wave in a survival mission still gets a short notice, but never over an announcement.
+          else if (e.type === 'wave' && e.side === 1 && battle.state.mode === 'survival' && !this.bannerUp()) {
+            this.showBanner(APP.notices.wave);
           }
+          break;
+        case 'airdrop':
+          if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
           break;
         case 'hint':
           if (e.text !== null && this.opts.hints()) {
@@ -176,6 +178,18 @@ export class BattleSession {
           break;
       }
     }
+  }
+
+  /** True while a banner is still on screen (the HUD clears an old one only on its next frame). */
+  private bannerUp(): boolean {
+    return this.hud.state.banner !== null && this.battle.state.time < this.bannerUntil;
+  }
+
+  private showBanner(text: string): void {
+    const st = this.hud.state;
+    st.banner = text;
+    st.bannerSeq++;
+    this.bannerUntil = this.battle.state.time + APP.bannerSeconds;
   }
 
   /** Once per rendered frame: refresh the HUD state and keep the view's markers in step with the sim. */

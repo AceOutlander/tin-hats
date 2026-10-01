@@ -6,12 +6,14 @@
 import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
-import type { Difficulty, Order, SupportKind, UnitKind } from '../data/schema';
+import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
+import type { SaveData } from '../meta';
 import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts';
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
+import type { ResultView } from '../ui/contracts';
 import type { App } from './app';
 import { newTally, type EventTally } from './session';
 
@@ -49,6 +51,8 @@ export interface DebugState {
   timeScale: number;
   /** Seconds left on the mission timer, or null. */
   timer: number | null;
+  /** The upgrade levels this battle was built with (empty outside a battle). */
+  upgrades: UpgradeLevels;
   /** True once the result is known (the result screen follows shortly). */
   resultReady: boolean;
   /** The player's unit under direct control, or null. `inTrench` = it holds a trench slot. */
@@ -109,8 +113,35 @@ export interface ProjectileInfo {
   t: number;
 }
 
+/** One campaign mission as the tests need to know it. */
+export interface DebugMission {
+  id: number;
+  key: string;
+  title: string;
+  mode: MissionMode;
+  length: number;
+  timer: { seconds: number; onExpire: 'win' | 'lose'; label: string } | null;
+  newUnit: UnitKind | null;
+  newSupport: SupportKind | null;
+  /** What the player may train and call in. */
+  units: UnitKind[];
+  supports: SupportKind[];
+  /** True when the enemy side has an HQ (false in a survival mission). */
+  enemyHq: boolean;
+}
+
 export interface DebugApi {
   ready: boolean;
+  /** The campaign in order. */
+  missions(): DebugMission[];
+  /** Open every mission on the campaign map. Records no clear and awards nothing. */
+  unlockAll(): void;
+  /** Replace the upgrade levels (unknown upgrades dropped, levels capped; the points are not checked). Saved. */
+  setUpgrades(levels: UpgradeLevels): void;
+  /** A copy of the save as it is in memory. */
+  save(): SaveData;
+  /** The result of the last finished battle, or null. */
+  result(): ResultView | null;
   /** Every living unit (empty outside a battle). */
   units(): UnitInfo[];
   /** Rounds in flight. */
@@ -169,6 +200,27 @@ export function debugEnabled(search: string): boolean {
 export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: GameAudio): DebugApi {
   const api: DebugApi = {
     ready: false,
+
+    missions() {
+      return app.missions.map((m) => ({
+        id: m.id,
+        key: m.key,
+        title: m.title,
+        mode: m.mode,
+        length: m.length,
+        timer: m.timer ? { ...m.timer } : null,
+        newUnit: m.newUnit,
+        newSupport: m.newSupport,
+        units: [...m.units[0]],
+        supports: [...m.supports[0]],
+        enemyHq: m.start[1].hasHq,
+      }));
+    },
+
+    unlockAll: () => app.unlockAll(),
+    setUpgrades: (levels) => app.setUpgrades(levels),
+    save: () => structuredClone(app.save),
+    result: () => (app.lastResult ? { ...app.lastResult } : null),
 
     audio() {
       const stats = audio.getStats();
@@ -282,6 +334,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           units: [zeroCounts(), zeroCounts()],
           hq: [null, null],
           timer: null,
+          upgrades: {},
           resultReady: app.lastResult !== null,
           controlled: null,
           supports: noSupports(),
@@ -325,6 +378,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         units: [copyCounts(s.sides[0].alive), copyCounts(s.sides[1].alive)],
         hq: [hq(0), hq(1)],
         timer: s.timer ? s.timer.secondsLeft : null,
+        upgrades: { ...session.battle.config.upgrades },
         resultReady: app.lastResult !== null,
         controlled:
           under && under.alive

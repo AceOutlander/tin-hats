@@ -40,8 +40,13 @@ export interface AppTunables {
   /** Name of the secondary-weapon button while a unit is controlled. */
   abilityNames: Partial<Record<UnitKind, string>>;
   abilityNameFallback: string;
-  /** Result screen reason text. */
+  /**
+   * Result screen reason text. `{label}` in a line stands for the mission timer's label ("Nightfall"), so a deadline
+   * mission can say what ran out.
+   */
   reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw', { win: string; lose: string }>;
+  /** Short banners for scripted events that carry no text of their own. `{n}` = the supplies delivered. */
+  notices: { airdrop: string; wave: string };
   /** One line per support for the briefing's "new support" card. */
   supportBlurbs: Record<SupportKind, string>;
   /** Quartermaster level text: "+X% label" per stat. */
@@ -80,9 +85,10 @@ export const APP: AppTunables = {
   reasons: {
     hqDestroyed: { win: 'Enemy HQ destroyed', lose: 'Your HQ was overrun' },
     timerSurvived: { win: 'You held the line until relief arrived', lose: 'Your HQ was overrun' },
-    timerExpired: { win: 'Time ran out for the enemy', lose: 'Time ran out before the objective was taken' },
+    timerExpired: { win: 'Time ran out for the enemy', lose: '{label} came before the enemy HQ was destroyed' },
     draw: { win: 'Both headquarters fell together', lose: 'Both headquarters fell together' },
   },
+  notices: { airdrop: 'Airdrop: +{n} supplies', wave: 'Enemy wave incoming' },
   supportBlurbs: {
     artillery: 'Calls a barrage of shells down on a spot you choose. Hurts everything caught in the open.',
     smoke: 'Lays a screen that blocks direct fire for a few seconds. Cover an advance with it.',

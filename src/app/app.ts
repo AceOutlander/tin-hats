@@ -11,13 +11,15 @@ import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MISSIONS } from '../data/missions';
-import type { Difficulty, MissionDef, UpgradeDef } from '../data/schema';
+import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { UI_SOUND } from '../data/sounds';
+import { UPGRADES } from '../data/upgrades';
 import {
   buyUpgrade,
   clearSave,
   defaultSave,
   loadSave,
+  maxLevel,
   nextMissionId,
   recordClear,
   refundAll,
@@ -39,7 +41,7 @@ export interface AppDeps {
   storage: StorageLike | null;
   /** Campaign order. Default: every mission in src/data/missions. */
   missions?: readonly MissionDef[];
-  /** Quartermaster upgrades. Default: none (src/data/upgrades.ts does not exist yet). */
+  /** Quartermaster upgrades. Default: every upgrade in src/data/upgrades.ts. */
   upgradeDefs?: readonly UpgradeDef[];
   /** Clock for the frame-time averages. */
   now?: () => number;
@@ -60,6 +62,8 @@ export class App implements AppApi {
 
   private ui: UiApi | null = null;
   private darkness = 0;
+  /** Set by the debug hook: every mission is open on the map. Never saved. */
+  private unlockedAll = false;
   private pendingResult: ResultView | null = null;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
@@ -71,9 +75,9 @@ export class App implements AppApi {
     this.audio = deps.audio;
     this.storage = deps.storage;
     this.missions = deps.missions ?? MISSIONS;
-    this.upgradeDefs = deps.upgradeDefs ?? [];
+    this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
     this.random = deps.random ?? Math.random;
-    this.save = loadSave(deps.storage).data;
+    this.save = loadSave(deps.storage, { missionIds: this.missions.map((m) => m.id), upgradeDefs: this.upgradeDefs }).data;
     this.audio.setMuted(this.save.settings.muted);
 
     this.loop = new GameLoop(
@@ -134,6 +138,11 @@ export class App implements AppApi {
 
   private launch(mission: MissionDef, difficulty: Difficulty, seed: number): void {
     this.endSession();
+    // The map opens on the mission last played (the sandbox grounds are not part of the campaign).
+    if (this.missions.some((m) => m.id === mission.id) && this.save.lastMission !== mission.id) {
+      this.save.lastMission = mission.id;
+      this.persist();
+    }
     const battle = createBattle({
       mission,
       difficulty,
@@ -205,7 +214,7 @@ export class App implements AppApi {
     if (!this.session) return;
     const timer = this.session.battle.state.timer;
     // A deadline mission slides from its own light into night as the time runs out.
-    const darkness = timer && timer.onExpire === 'lose' && timer.total > 0 ? Math.min(1, Math.max(0, 1 - timer.secondsLeft / timer.total)) : 0;
+    const darkness = timer && timer.onExpire === 'lose' ? Math.min(1, Math.max(0, timer.progress)) : 0;
     if (darkness !== this.darkness) {
       this.darkness = darkness;
       this.view.setDarkness(darkness);
@@ -245,11 +254,41 @@ export class App implements AppApi {
   // --- AppApi --------------------------------------------------------------
 
   campaign(): CampaignView {
-    return buildCampaignView(this.save, this.missions, this.upgradeDefs);
+    return buildCampaignView(this.save, this.missions, this.upgradeDefs, this.unlockedAll);
   }
 
+  /** Start a campaign mission on a difficulty. The difficulty is remembered as the one the briefing starts on. */
   startMission(id: number, difficulty: Difficulty): void {
-    this.beginMission(id, DIFFICULTY_LIST.includes(difficulty) ? difficulty : this.save.settings.difficulty);
+    const chosen = DIFFICULTY_LIST.includes(difficulty) ? difficulty : this.save.settings.difficulty;
+    if (!this.missions.some((m) => m.id === id)) return;
+    if (this.save.settings.difficulty !== chosen) {
+      this.save.settings.difficulty = chosen;
+      this.persist();
+    }
+    this.beginMission(id, chosen);
+  }
+
+  // --- debug hooks (src/app/debug.ts) -----------------------------------------
+
+  /** Open every mission on the map. Records nothing: clears, points and the save stay as they are. */
+  unlockAll(): void {
+    this.unlockedAll = true;
+    this.ui?.refresh();
+  }
+
+  /**
+   * Replace the upgrade levels: unknown upgrades are dropped and levels are capped at each upgrade's maximum, but the
+   * points are not checked (a test can try a full set on a fresh save). The next load clamps what the points cannot pay for.
+   */
+  setUpgrades(levels: UpgradeLevels): void {
+    const next: UpgradeLevels = {};
+    for (const def of this.upgradeDefs) {
+      const level = Math.floor(levels[def.id] ?? 0);
+      if (level >= 1) next[def.id] = Math.min(level, maxLevel(def));
+    }
+    this.save.upgrades = next;
+    this.persist();
+    this.ui?.refresh();
   }
 
   buyUpgrade(id: string): void {

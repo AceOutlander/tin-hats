@@ -4,7 +4,7 @@ import type { Difficulty } from './schema';
 export interface MetaTunables {
   /** Storage key of the save. */
   saveKey: string;
-  /** Written into every save; a save from a newer version is not understood and is replaced. */
+  /** Written into every save; a save from a newer version is not understood and is replaced, an older one is migrated step by step (src/meta/save.ts). */
   saveVersion: number;
   /** Upgrade points for the first clear of a mission (on any difficulty). */
   firstClearPoints: number;
@@ -18,7 +18,7 @@ export interface MetaTunables {
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 1,
+  saveVersion: 2,
   firstClearPoints: 2,
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',

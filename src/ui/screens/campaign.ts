@@ -283,7 +283,11 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     const view = ctx.view();
     const sameSet = missions.length === view.missions.length && missions.every((m, i) => m.id === view.missions[i].id);
     missions = view.missions;
-    if (!missions.some((m) => m.id === ctx.session.missionId)) ctx.session.missionId = defaultMissionId(missions);
+    if (!missions.some((m) => m.id === ctx.session.missionId)) {
+      // The map opens on the mission last played, if it is still open, else on the next one to do.
+      const last = missions.find((m) => m.id === view.lastMission);
+      ctx.session.missionId = last && last.unlocked ? last.id : defaultMissionId(missions);
+    }
     if (!sameSet) buildPins();
     updatePins();
     renderCard();

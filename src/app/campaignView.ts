@@ -19,7 +19,7 @@ import {
   upgradeLevel,
   type SaveData,
 } from '../meta';
-import type { Battle } from '../sim';
+import type { Battle, EndReason } from '../sim';
 import type { CampaignView, MissionCard, ResultView, UpgradeView } from '../ui/contracts';
 
 /** "+10% health" for one effect; an empty string for an effect that changes nothing. */
@@ -39,7 +39,7 @@ export function describeLevel(effects: readonly UpgradeEffect[]): string {
   return parts.length > 0 ? parts.join(', ') : APP.effectNone;
 }
 
-function missionCard(save: SaveData, ids: readonly number[], m: MissionDef): MissionCard {
+function missionCard(save: SaveData, ids: readonly number[], m: MissionDef, unlockAll: boolean): MissionCard {
   const faction = FACTIONS[m.start[0].faction];
   const cleared = {} as Record<Difficulty, boolean>;
   for (const d of DIFFICULTY_LIST) cleared[d] = isCleared(save, m.id, d);
@@ -52,7 +52,7 @@ function missionCard(save: SaveData, ids: readonly number[], m: MissionDef): Mis
     mapPos: m.mapPos,
     briefing: m.briefing,
     objective: m.objective,
-    unlocked: isUnlocked(save, ids, m.id),
+    unlocked: unlockAll || isUnlocked(save, ids, m.id),
     cleared,
     newUnit: m.newUnit ? { kind: m.newUnit, name: faction.unitNames[m.newUnit], blurb: faction.unitBlurbs[m.newUnit] } : null,
     newSupport: m.newSupport
@@ -77,11 +77,15 @@ function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDe
   };
 }
 
-/** Everything the campaign map, briefing, Quartermaster and settings screens show. */
-export function buildCampaignView(save: SaveData, missions: readonly MissionDef[], defs: readonly UpgradeDef[]): CampaignView {
+/**
+ * Everything the campaign map, briefing, Quartermaster and settings screens show. `unlockAll` (the debug hook) opens
+ * every mission without recording any clear.
+ */
+export function buildCampaignView(save: SaveData, missions: readonly MissionDef[], defs: readonly UpgradeDef[], unlockAll = false): CampaignView {
   const ids = missions.map((m) => m.id);
   return {
-    missions: missions.map((m) => missionCard(save, ids, m)),
+    missions: missions.map((m) => missionCard(save, ids, m, unlockAll)),
+    lastMission: ids.includes(save.lastMission) ? save.lastMission : 0,
     pointsEarned: pointsEarned(save),
     pointsSpent: pointsSpent(save, defs),
     pointsAvailable: pointsAvailable(save, defs),
@@ -91,18 +95,23 @@ export function buildCampaignView(save: SaveData, missions: readonly MissionDef[
   };
 }
 
+/** Why a battle ended, in words, for the result screen. `label` = the mission timer's label ("Nightfall"), if it has one. */
+export function describeEnd(endReason: EndReason, won: boolean, label: string | null): string {
+  const reason = endReason === 'none' ? APP.reasons.draw : APP.reasons[endReason];
+  return (won ? reason.win : reason.lose).replace('{label}', label ?? 'Time');
+}
+
 /** The result screen's figures for a battle that has ended. */
 export function buildResult(battle: Battle, difficulty: Difficulty, pointsAwarded: number, nextMissionId: number | null): ResultView {
   const s = battle.state;
   const mission = battle.config.mission;
   const won = s.winner === 0;
-  const reason = s.endReason === 'none' ? APP.reasons.draw : APP.reasons[s.endReason];
   const stats = s.sides[0].stats;
   return {
     won,
     missionId: mission.id,
     title: mission.title,
-    reason: won ? reason.win : reason.lose,
+    reason: describeEnd(s.endReason, won, mission.timer ? mission.timer.label : null),
     difficulty,
     timeSec: s.time,
     unitsTrained: stats.trained,

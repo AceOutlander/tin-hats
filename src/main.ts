@@ -7,7 +7,6 @@ import { createAudio } from './audio';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { browserStorage, createIconPainter, installPageGuards } from './app/page';
-import { loadUpgradeDefs } from './app/upgrades';
 import { createBattleView } from './render';
 import { createUi } from './ui';
 
@@ -23,7 +22,7 @@ async function boot(): Promise<void> {
   const audio = createAudio();
   // The HUD is loaded here, before the UI exists, so it is never missing at the first frame of a battle.
   const [view, { createHud }] = await Promise.all([createBattleView(gameEl), import('./ui/hud')]);
-  const app = new App({ view, audio, storage: browserStorage(), upgradeDefs: loadUpgradeDefs() });
+  const app = new App({ view, audio, storage: browserStorage() });
   const ui = createUi(uiEl, app, {
     paintUnitIcon: createIconPainter(app),
     createHud,

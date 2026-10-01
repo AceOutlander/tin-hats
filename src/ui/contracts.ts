@@ -153,6 +153,8 @@ export interface SettingsView {
 
 export interface CampaignView {
   missions: MissionCard[];
+  /** The mission last started (0 or absent when none): the map opens on it when it is unlocked. */
+  lastMission?: number;
   pointsEarned: number;
   pointsSpent: number;
   pointsAvailable: number;

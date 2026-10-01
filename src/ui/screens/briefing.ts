@@ -152,6 +152,8 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         ctx.app.uiSound('click');
         difficulty = d.id;
         ctx.session.difficulty = d.id;
+        // Remembered in the settings, so the next briefing (and the next visit) starts on it.
+        ctx.app.setSetting('difficulty', d.id);
         paintDifficulty();
       },
     });

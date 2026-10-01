@@ -22,11 +22,13 @@ export {
   createMemoryStorage,
   defaultSave,
   loadSave,
+  migrateSave,
   sanitizeSave,
   writeSave,
   type LoadResult,
   type LoadStatus,
   type SaveData,
+  type SaveRules,
   type SaveSettings,
   type StorageLike,
 } from './save';

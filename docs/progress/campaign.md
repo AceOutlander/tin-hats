@@ -1,0 +1,4 @@
+# Track campaign (Phase 3: campaign flow, Quartermaster, difficulties, saving in the real game)
+Done (milestone 1, committed): save v2 with migration (v1 -> v2 adds lastMission), SaveRules (mission ids, upgrade table) that drop progress with gaps, unknown upgrades, levels over the maximum and points spent over points earned; fuzz tests on garbage. App: real UPGRADES by default, darkness from timer.progress, airdrop and plain-wave notices, `{label}` in the deadline defeat text, difficulty remembered when a mission starts or on the briefing buttons, map opens on the last mission played. Debug hooks unlockAll, setUpgrades, save, missions, result, state().upgrades. Unit tests: meta-save (32), app-campaign (27).
+In progress: browser specs tests/e2e/campaign.spec.ts and missions.spec.ts, smoke.spec key list.
+Next: look at the 10-pin map, briefing, Quartermaster with 20 upgrades and each mission in screenshots; fix UI problems found; DECISIONS 141+; final report.
