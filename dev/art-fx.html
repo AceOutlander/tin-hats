@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin Hats: effects preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #2b2d2e;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Effects preview (dev server only).
+        art-fx.html                    every particle preset looping on a ground line
+        art-fx.html?t=0.4              the same, frozen at 0.4 s into each loop
+        art-fx.html?only=shellExplosion            a film strip of one preset
+        art-fx.html?only=shellExplosion&frames=10&step=0.08
+        art-fx.html?view=sprites       every effect texture with its key
+        art-fx.html?view=rain          rain scene; &thunder=1 forces a lightning strike at 1 s
+        art-fx.html?view=rain&thunder=1&t=1.03     frozen 30 ms after the strike
+      Extra: seed=N, speed=0.25 (slow motion), tex=N (texture scale), z=N / filter=text / bg=dark|light (sprite sheet).
+      ';' works in place of '&' (needed when the URL goes through x.cmd):
+        x.cmd npx tsx tools/shot.ts "dev/art-fx.html?view=rain;thunder=1;t=1.03" out.png --ready
+    -->
+    <canvas id="c"></canvas>
+    <script type="module" src="./art-fx.ts"></script>
+  </body>
+</html>

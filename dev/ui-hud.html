@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Tin Hats: HUD preview</title>
+    <style>
+      /* Stand-in battlefield: sky above the horizon (352 of 540 wu), ground below. */
+      #game {
+        background: linear-gradient(180deg, #8fa6b4 0%, #b9c3b8 58%, #c9c6a8 65%, #9a8d62 65.3%, #84774f 100%);
+      }
+      #game.bright {
+        background: linear-gradient(180deg, #cfe6f5 0%, #f4f1dc 62%, #f7f0cf 65%, #e3d39a 65.3%, #d6c488 100%);
+      }
+      #game.dark {
+        background: linear-gradient(180deg, #1c2430 0%, #2b3038 62%, #33342f 65%, #2a2a1e 65.3%, #1f1f16 100%);
+      }
+      /* ?guides=1: the band where units walk (feet 383..425 wu) and head height above it. */
+      #game.guides::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          transparent 60.1%,
+          rgba(255, 255, 255, 0.18) 60.1%,
+          rgba(255, 255, 255, 0.18) 70.9%,
+          rgba(200, 40, 40, 0.3) 70.9%,
+          rgba(200, 40, 40, 0.3) 78.7%,
+          transparent 78.7%
+        );
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="ui"></div>
+    <script type="module" src="./ui-hud.ts"></script>
+  </body>
+</html>

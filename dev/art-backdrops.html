@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Tin Hats: backdrops</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #15160f;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      ?theatre=france|desert|sicily|italy|normandy|holland|germany  &time=dawn|day|overcast|dusk|night
+      &camX=0        world x of the left edge of the view (layers slide by their parallax factors)
+      &seed=1        backdrop seed
+      &sheet=1       all seven theatres as thumbnails (plus two time-of-day variants); &sheet=times shows one theatre at all five times
+      &hud=1         shade the parts of the view the HUD covers
+      &seams=1       mark every tile seam
+      &rain=1        preview the rain grade        &tint=0  hide the night tint overlay
+      &figures=0     hide the placeholder stick figures
+      &only=slot     draw a single layer           &zoom=2&ox=0&oy=200  magnify (ox, oy = view-space top-left corner)
+    -->
+    <canvas id="view"></canvas>
+    <script type="module" src="./art-backdrops.ts"></script>
+  </body>
+</html>

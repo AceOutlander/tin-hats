@@ -1,0 +1,1187 @@
+/*
+ * Tin Hats battle HUD. Palette, fonts and safe areas come from ../theme.css.
+ *
+ * Layout (landscape):
+ *   top bar      supplies | population | HQ bars over the minimap strip | mute | pause
+ *   top centre   objective or timer tab, then targeting banner, announcement, hint
+ *   left edge    support call-ins, stacked above the bottom bar (left thumb)
+ *   bottom bar   [joystick + unit card when controlling] training bar ... three order buttons (right thumb)
+ *   right edge   RELEASE, ABILITY, FIRE above the orders while controlling a unit
+ *
+ * Sizes scale with viewport height, so one layout serves 568x320 phones up to tablets.
+ * Every control is at least 48 CSS px in both directions.
+ */
+
+.th-hud,
+.th-hud * {
+  box-sizing: border-box;
+}
+
+.th-hud {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: var(--th-font-display);
+  font-stretch: condensed;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: var(--th-paper);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.9),
+    0 0 3px rgba(0, 0, 0, 0.7);
+
+  --top-h: 48px;
+  --sl: max(var(--th-safe-left), 6px);
+  --sr: max(var(--th-safe-right), 6px);
+  --sb: max(var(--th-safe-bottom), 3px);
+
+  /* Training and order buttons share one height so the bottom bar is a single row. */
+  --tbtn-h: clamp(58px, 16vh, 78px);
+  --tbtn-w: clamp(58px, 16.5vh, 84px);
+  --obtn-w: clamp(64px, 18.5vh, 100px);
+  --bar-h: calc(var(--tbtn-h) + 8px);
+  --sbtn: clamp(50px, 14vh, 70px);
+  --fire: clamp(66px, 19vh, 104px);
+  --abil: clamp(56px, 16vh, 86px);
+  --rel: clamp(50px, 14vh, 72px);
+
+  --fs-xs: clamp(9px, 2.55vh, 12.5px);
+  --fs-s: clamp(10.5px, 2.9vh, 14px);
+  --fs-m: clamp(12px, 3.4vh, 17px);
+  --fs-l: clamp(15px, 4.4vh, 22px);
+  --fs-xl: clamp(18px, 5vh, 26px);
+
+  /* Canvas-weave texture and the dark backing plate every HUD group sits on. */
+  --tex:
+    repeating-linear-gradient(135deg, rgba(233, 223, 195, 0.045) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 4px);
+  --plate-bg: var(--tex), linear-gradient(180deg, rgba(44, 46, 32, 0.93), rgba(20, 21, 15, 0.91));
+  --plate-edge: rgba(200, 162, 74, 0.5);
+  --olive-hi: #616c2c;
+  --alarm: #f2664a;
+}
+
+.th-hud[hidden] {
+  display: none;
+}
+
+@media (min-height: 600px) {
+  .th-hud {
+    --top-h: 60px;
+  }
+}
+
+.th-ico {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+}
+
+.th-ico svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7));
+}
+
+/* ---------- Buttons ---------- */
+
+/* :where keeps this reset at element specificity, so the class rules below can set size and colour. */
+:where(.th-hud) button {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-shadow: inherit;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.th-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--th-touch);
+  min-height: var(--th-touch);
+  background:
+    var(--tex),
+    linear-gradient(180deg, var(--olive-hi) 0%, var(--th-olive) 42%, var(--th-olive-dark) 100%);
+  border: 1px solid var(--th-khaki);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(233, 223, 195, 0.24),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 2px 4px var(--th-shadow);
+}
+
+.th-btn.is-down,
+.th-ibtn.is-down .th-ibtn-face {
+  filter: brightness(1.35);
+  transform: translateY(1px);
+}
+
+.th-btn.is-deny {
+  animation: th-deny 0.28s linear;
+}
+
+/* ---------- Top bar ---------- */
+
+.th-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--top-h) + var(--th-safe-top));
+  padding: var(--th-safe-top) var(--sr) 0 var(--sl);
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  background: var(--plate-bg);
+  border-bottom: 1px solid var(--plate-edge);
+  box-shadow: 0 2px 8px var(--th-shadow);
+  pointer-events: auto;
+}
+
+.th-res {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 0 2px;
+  border-right: 1px solid rgba(140, 123, 74, 0.35);
+}
+
+.th-res > .th-ico {
+  font-size: calc(var(--top-h) * 0.46);
+  color: var(--th-brass);
+}
+
+.th-res-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.th-supplies-num {
+  min-width: 2.4em;
+  font-size: var(--fs-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.th-supplies-inc {
+  font-size: var(--fs-s);
+  color: var(--th-good);
+  font-variant-numeric: tabular-nums;
+}
+
+.th-pop-line {
+  display: flex;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-pop-num {
+  font-size: var(--fs-xl);
+}
+
+.th-pop-cap {
+  font-size: var(--fs-s);
+  color: var(--th-paper-dim);
+}
+
+.th-pop-label {
+  font-size: var(--fs-xs);
+  color: var(--th-paper-dim);
+  letter-spacing: 0.12em;
+}
+
+.th-pop.is-full .th-pop-num {
+  color: var(--th-warn);
+}
+
+/* HQ bars above the minimap strip. The whole block is the minimap touch target. */
+.th-map {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 3px 5px;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.th-hqrow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.th-hq {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: clamp(10px, 2.7vh, 13px);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.th-hq-enemy {
+  flex-direction: row-reverse;
+}
+
+.th-hq.is-hidden {
+  visibility: hidden;
+}
+
+.th-bar {
+  flex: 1 1 auto;
+  display: flex;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid var(--th-khaki-dark);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.th-bar-fill {
+  display: block;
+  width: calc(var(--p, 1) * 100%);
+  height: 100%;
+  background: linear-gradient(180deg, #a3c466, var(--th-good));
+}
+
+.th-hq-enemy .th-bar {
+  justify-content: flex-end;
+}
+
+.th-bar[data-lvl='1'] .th-bar-fill {
+  background: linear-gradient(180deg, #f0c468, var(--th-warn));
+}
+
+.th-bar[data-lvl='0'] .th-bar-fill {
+  background: linear-gradient(180deg, var(--alarm), var(--th-bad));
+}
+
+.th-minimap {
+  display: block;
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--th-khaki-dark);
+  border-radius: 2px;
+  background: var(--th-ink);
+}
+
+.th-ibtn {
+  flex: 0 0 auto;
+  width: var(--top-h);
+  min-width: var(--th-touch);
+  height: var(--top-h);
+  padding: 5px 3px;
+  display: flex;
+}
+
+.th-ibtn-face {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--top-h) * 0.48);
+  background:
+    var(--tex),
+    linear-gradient(180deg, var(--olive-hi) 0%, var(--th-olive) 42%, var(--th-olive-dark) 100%);
+  border: 1px solid var(--th-khaki);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(233, 223, 195, 0.24),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.th-ico-off,
+.th-hud.is-muted .th-ico-on {
+  display: none;
+}
+
+.th-hud.is-muted .th-ico-off {
+  display: inline-flex;
+}
+
+.th-hud.is-muted [data-testid='mute'] .th-ibtn-face {
+  color: var(--th-paper-dim);
+  background: var(--tex), linear-gradient(180deg, var(--th-ink-soft), var(--th-ink));
+}
+
+/* ---------- Top centre: objective, banners, hint ---------- */
+
+.th-center {
+  position: absolute;
+  top: calc(var(--top-h) + var(--th-safe-top));
+  left: 50%;
+  width: min(66%, 600px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.th-obj {
+  /* Never wider than 46vw, so it clears the unit card that hangs at the left while controlling. */
+  max-width: min(100%, 46vw);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 14px 4px;
+  font-size: var(--fs-s);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 6px var(--th-shadow);
+}
+
+.th-obj-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-obj-time {
+  display: none;
+  font-size: var(--fs-l);
+  color: var(--th-brass);
+  font-variant-numeric: tabular-nums;
+}
+
+.th-obj.has-timer .th-obj-time {
+  display: block;
+}
+
+.th-obj.is-urgent {
+  border-color: var(--th-bad);
+}
+
+.th-obj.is-urgent .th-obj-time {
+  color: var(--alarm);
+  animation: th-pulse 0.8s ease-in-out infinite;
+}
+
+.th-target {
+  display: none;
+  align-items: stretch;
+  max-width: 100%;
+  background: var(--plate-bg);
+  border: 1px solid var(--th-brass);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px var(--th-shadow);
+  overflow: hidden;
+}
+
+.th-hud.is-targeting .th-target {
+  display: flex;
+}
+
+.th-target-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 12px;
+}
+
+.th-target-name {
+  font-size: var(--fs-xs);
+  color: var(--th-brass);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-target-tip {
+  font-size: var(--fs-m);
+  white-space: nowrap;
+  animation: th-blink 1.1s ease-in-out infinite;
+}
+
+.th-cancel {
+  flex: 0 0 auto;
+  min-width: var(--th-touch);
+  min-height: var(--th-touch);
+  padding: 0 12px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-s);
+  background: var(--tex), linear-gradient(180deg, #b23a2b, var(--th-red) 50%, #5e170f);
+  border-left: 1px solid var(--th-brass);
+}
+
+.th-cancel .th-ico {
+  font-size: 1.5em;
+}
+
+.th-cancel.is-down {
+  filter: brightness(1.35);
+}
+
+.th-banner {
+  max-width: 100%;
+  padding: 5px 18px;
+  font-size: var(--fs-l);
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--th-paper);
+  background: linear-gradient(
+    90deg,
+    rgba(20, 21, 15, 0),
+    rgba(20, 21, 15, 0.9) 12%,
+    rgba(20, 21, 15, 0.9) 88%,
+    rgba(20, 21, 15, 0)
+  );
+  border: solid transparent;
+  border-width: 1px 0;
+  border-image: linear-gradient(90deg, transparent, var(--th-brass) 14%, var(--th-brass) 86%, transparent) 1;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.th-banner.show-a {
+  animation: th-banner-a 4.6s ease-out both;
+}
+
+.th-banner.show-b {
+  animation: th-banner-b 4.6s ease-out both;
+}
+
+.th-hud.is-targeting .th-banner {
+  display: none;
+}
+
+.th-hint {
+  display: none;
+  max-width: 100%;
+  padding: 6px 11px 7px;
+  font-family: var(--th-font-type);
+  font-stretch: normal;
+  font-size: clamp(11px, 3.1vh, 15px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+  text-shadow: none;
+  color: var(--th-ink);
+  background: linear-gradient(180deg, var(--th-paper), var(--th-paper-dim));
+  border: 1px solid var(--th-khaki-dark);
+  border-left: 4px solid var(--th-red);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px var(--th-shadow);
+}
+
+.th-hint.is-on {
+  display: block;
+  animation: th-pop 0.25s ease-out;
+}
+
+/* ---------- Supports (left edge) ---------- */
+
+.th-supports {
+  position: absolute;
+  left: var(--sl);
+  bottom: calc(var(--sb) + var(--bar-h) + 6px);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+
+.th-sbtn {
+  width: var(--sbtn);
+  height: var(--sbtn);
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.th-sbtn > .th-ico {
+  position: relative;
+  font-size: calc(var(--sbtn) * 0.46);
+}
+
+.th-sbtn-name {
+  position: relative;
+  max-width: 100%;
+  padding: 0 2px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Cooldown clock-wipe: the dark wedge shrinks as --p goes from 0 to 1. It sits under the icon and label. */
+.th-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(transparent calc(var(--p, 1) * 360deg), rgba(10, 10, 6, 0.74) 0);
+  pointer-events: none;
+}
+
+/* While recharging, the seconds left take the icon's place. */
+.th-sbtn-sec {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 70%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--sbtn) * 0.4);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.th-sbtn:not(.is-ready) > .th-ico {
+  visibility: hidden;
+}
+
+.th-sbtn:not(.is-ready) .th-sbtn-name {
+  color: var(--th-paper-dim);
+}
+
+.th-sbtn.is-ready {
+  border-color: var(--th-brass);
+  box-shadow:
+    inset 0 1px 0 rgba(233, 223, 195, 0.24),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--th-brass),
+    0 0 9px rgba(200, 162, 74, 0.6);
+}
+
+.th-sbtn.is-ready .th-sweep,
+.th-sbtn.is-ready .th-sbtn-sec {
+  display: none;
+}
+.th-sbtn.is-active,
+.th-obtn.is-active {
+  color: var(--th-ink);
+  text-shadow: 0 1px 0 rgba(255, 240, 190, 0.5);
+  background:
+    var(--tex),
+    linear-gradient(180deg, #f0d483 0%, var(--th-brass) 48%, #8f7025 100%);
+  border-color: var(--th-paper);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--th-ink),
+    0 0 12px rgba(240, 212, 131, 0.75);
+}
+
+.th-sbtn.is-active .th-ico svg,
+.th-obtn.is-active .th-ico svg {
+  filter: none;
+}
+
+/* ---------- Bottom bar ---------- */
+
+.th-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 var(--sr) var(--sb) var(--sl);
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.th-plate {
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px var(--th-shadow);
+  pointer-events: auto;
+}
+
+.th-trainwrap {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+  height: var(--bar-h);
+}
+
+.th-train {
+  height: 100%;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  border-radius: 7px;
+  /* The page locks touch-action to none; the training bar alone may pan sideways. */
+  touch-action: pan-x !important;
+}
+
+.th-train::-webkit-scrollbar {
+  display: none;
+}
+
+.th-more {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  color: var(--th-brass);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.th-more-l {
+  left: 1px;
+  justify-content: flex-start;
+  border-radius: 7px 0 0 7px;
+  background: linear-gradient(90deg, rgba(10, 10, 6, 0.95), rgba(10, 10, 6, 0));
+}
+
+.th-more-r {
+  right: 1px;
+  justify-content: flex-end;
+  border-radius: 0 7px 7px 0;
+  background: linear-gradient(270deg, rgba(10, 10, 6, 0.95), rgba(10, 10, 6, 0));
+}
+
+.th-trainwrap.more-l .th-more-l,
+.th-trainwrap.more-r .th-more-r {
+  opacity: 1;
+}
+
+/* Buttons give up a few pixels (never below 54) before the bar starts to scroll. */
+.th-tbtn {
+  flex: 0 1 auto;
+  width: var(--tbtn-w);
+  min-width: 54px;
+  height: var(--tbtn-h);
+  padding: 2px 2px 3px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 2px;
+  border-radius: 5px;
+  overflow: hidden;
+  touch-action: pan-x !important;
+}
+
+/* The icon sits in a pale recognition-card window so black figures read clearly. */
+.th-tbtn-win {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--th-paper) 0%, var(--th-paper-dim) 62%, var(--th-khaki) 100%);
+  box-shadow: inset 0 0 0 1px rgba(20, 21, 15, 0.55);
+  overflow: hidden;
+}
+
+.th-tbtn-ico {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.th-tbtn-sweep {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background: conic-gradient(rgba(20, 21, 15, 0) calc(var(--p, 0) * 360deg), rgba(20, 21, 15, 0.62) 0);
+}
+
+.th-tbtn.is-training .th-tbtn-sweep {
+  display: block;
+}
+
+.th-badge {
+  position: absolute;
+  top: 1px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  height: 1.4em;
+  padding: 0 0.25em;
+  font-size: var(--fs-s);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+  border-radius: 0.7em;
+  border: 1px solid var(--th-ink);
+}
+
+.th-tbtn-q {
+  left: 1px;
+  color: var(--th-paper);
+  background: var(--th-red);
+}
+
+.th-tbtn-n {
+  right: 1px;
+  color: var(--th-paper);
+  background: rgba(20, 21, 15, 0.86);
+}
+
+.th-tbtn.is-queued .th-tbtn-q,
+.th-tbtn.has-fielded .th-tbtn-n {
+  display: flex;
+}
+
+.th-tbtn-name {
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.th-tbtn-price {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1px;
+  font-size: var(--fs-s);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-tbtn-cost,
+.th-tbtn-pop {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.th-tbtn-cost {
+  color: var(--th-brass);
+}
+
+.th-tbtn-price .th-ico {
+  font-size: 0.85em;
+}
+
+.th-tbtn.is-short {
+  border-color: var(--th-khaki-dark);
+  background: var(--tex), linear-gradient(180deg, var(--th-ink-soft), var(--th-ink));
+}
+
+.th-tbtn.is-short .th-tbtn-win {
+  filter: grayscale(0.7) brightness(0.48);
+}
+
+.th-tbtn.is-short .th-tbtn-name,
+.th-tbtn.is-short .th-tbtn-pop {
+  color: var(--th-khaki);
+}
+
+.th-tbtn.is-short .th-tbtn-cost {
+  color: var(--alarm);
+}
+
+.th-orders {
+  flex: 0 0 auto;
+  margin-left: auto;
+  height: var(--bar-h);
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-color: var(--th-brass);
+}
+
+.th-obtn {
+  width: var(--obtn-w);
+  height: var(--tbtn-h);
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-s);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.th-obtn .th-ico {
+  font-size: calc(var(--tbtn-h) * 0.5);
+}
+
+/* ---------- Direct control ---------- */
+
+.th-stick,
+.th-card,
+.th-firerow {
+  display: none;
+}
+
+.th-hud.is-control .th-stick {
+  display: block;
+}
+
+.th-hud.is-control .th-card,
+.th-hud.is-control .th-firerow {
+  display: flex;
+}
+
+.th-stick {
+  position: relative;
+  flex: 0 0 auto;
+  width: calc(var(--bar-h) * 1.9);
+  height: var(--bar-h);
+  border-radius: 999px;
+  border-color: var(--th-brass);
+  touch-action: none;
+  cursor: pointer;
+}
+
+.th-stick-arrow {
+  position: absolute;
+  top: 50%;
+  font-size: calc(var(--bar-h) * 0.3);
+  margin-top: calc(var(--bar-h) * -0.15);
+  color: var(--th-khaki);
+  pointer-events: none;
+}
+
+.th-stick-arrow-l {
+  left: 8px;
+}
+
+.th-stick-arrow-r {
+  right: 8px;
+}
+
+.th-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--bar-h) - 10px);
+  height: calc(var(--bar-h) - 10px);
+  margin: calc((var(--bar-h) - 10px) / -2) 0 0 calc((var(--bar-h) - 10px) / -2);
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #f0d483 0%, var(--th-brass) 42%, #7a5f22 100%);
+  border: 2px solid var(--th-ink);
+  box-shadow:
+    inset 0 -3px 0 rgba(0, 0, 0, 0.28),
+    0 2px 5px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* The controlled unit's card hangs under the top bar at the left, like a status tab, clear of the fighting. */
+.th-card {
+  position: absolute;
+  left: var(--sl);
+  top: calc(var(--top-h) + var(--th-safe-top));
+  width: clamp(146px, 25vw, 240px);
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px 5px 6px;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+}
+
+.th-card-ico {
+  flex: 0 0 auto;
+  width: clamp(22px, 6.6vh, 34px);
+  height: clamp(24px, 7.4vh, 38px);
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--th-paper) 0%, var(--th-paper-dim) 62%, var(--th-khaki) 100%);
+  box-shadow: inset 0 0 0 1px rgba(20, 21, 15, 0.55);
+}
+
+.th-card-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.th-card-name {
+  font-size: var(--fs-s);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-card .th-bar {
+  flex: 0 0 auto;
+  height: 9px;
+}
+
+.th-firerow {
+  position: absolute;
+  right: var(--sr);
+  bottom: calc(var(--sb) + var(--bar-h) + 8px);
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.th-fbtn {
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.th-fbtn > .th-ico {
+  position: relative;
+}
+
+.th-fbtn-label {
+  position: relative;
+  max-width: 88%;
+  overflow: hidden;
+}
+
+.th-fire {
+  width: var(--fire);
+  height: var(--fire);
+  font-size: var(--fs-m);
+  letter-spacing: 0.1em;
+  background:
+    var(--tex),
+    radial-gradient(circle at 36% 28%, #d9604a 0%, var(--th-red) 52%, #55130c 100%);
+  border: 3px solid var(--th-brass);
+}
+
+.th-fire .th-ico {
+  font-size: calc(var(--fire) * 0.4);
+}
+
+.th-ability {
+  width: var(--abil);
+  height: var(--abil);
+  font-size: var(--fs-xs);
+  border: 2px solid var(--th-brass);
+}
+
+.th-ability .th-ico {
+  font-size: calc(var(--abil) * 0.38);
+}
+
+.th-ability.is-hidden {
+  display: none;
+}
+
+.th-release {
+  width: var(--rel);
+  height: var(--rel);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+  background: var(--tex), linear-gradient(180deg, #3a3c2c, var(--th-ink-soft) 50%, var(--th-ink));
+  border: 2px solid var(--th-khaki);
+}
+
+.th-release .th-ico {
+  font-size: calc(var(--rel) * 0.34);
+}
+
+/* ---------- Pause overlay ---------- */
+
+.th-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--th-safe-top) + 8px) calc(var(--sr) + 8px) calc(var(--sb) + 8px) calc(var(--sl) + 8px);
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px),
+    rgba(12, 13, 8, 0.74);
+  pointer-events: auto;
+}
+
+.th-hud.is-paused .th-pause {
+  display: flex;
+}
+
+.th-pause-panel {
+  width: min(380px, 100%);
+  max-height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  background: var(--tex), linear-gradient(180deg, #33351f, var(--th-ink-soft) 30%, var(--th-ink));
+  border: 2px solid var(--th-brass);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px var(--th-ink),
+    0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
+.th-pause-title {
+  align-self: center;
+  font-size: clamp(22px, 7vh, 34px);
+  letter-spacing: 0.22em;
+  color: var(--th-brass);
+}
+
+.th-pbtn {
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 10px;
+  font-size: var(--fs-m);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.th-pbtn .th-ico {
+  font-size: 1.5em;
+}
+
+.th-pbtn-wide {
+  grid-column: 1 / -1;
+  min-height: 54px;
+  font-size: var(--fs-l);
+  color: var(--th-ink);
+  text-shadow: 0 1px 0 rgba(255, 240, 190, 0.5);
+  background: var(--tex), linear-gradient(180deg, #f0d483 0%, var(--th-brass) 48%, #8f7025 100%);
+  border-color: var(--th-paper);
+}
+
+.th-pbtn-wide .th-ico svg {
+  filter: none;
+}
+
+.th-pbtn-quiet {
+  background: var(--tex), linear-gradient(180deg, #3a3c2c, var(--th-ink-soft) 50%, var(--th-ink));
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes th-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.14);
+    opacity: 0.7;
+  }
+}
+
+@keyframes th-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes th-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes th-deny {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+/* Two identical animations: swapping between them restarts the banner without forcing a reflow. */
+@keyframes th-banner-a {
+  0% {
+    visibility: visible;
+    opacity: 0;
+    transform: translateY(-10px) scaleX(0.86);
+  }
+  7% {
+    opacity: 1;
+    transform: none;
+  }
+  86% {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes th-banner-b {
+  0% {
+    visibility: visible;
+    opacity: 0;
+    transform: translateY(-10px) scaleX(0.86);
+  }
+  7% {
+    opacity: 1;
+    transform: none;
+  }
+  86% {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .th-obj.is-urgent .th-obj-time,
+  .th-target-tip {
+    animation: none;
+  }
+}

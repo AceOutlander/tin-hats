@@ -1,0 +1,211 @@
+/**
+ * Briefing screen: typewritten orders on a paper sheet, the objective, a NEW
+ * card for anything the mission introduces, the difficulty selector, Begin and Back.
+ */
+import type { Difficulty } from '../../data/schema';
+import type { MissionCard } from '../contracts';
+import { add, button, el, stencil } from '../shell/dom';
+import { glyph, supportIcon, unitIcon } from '../shell/icons';
+import type { ScreenCtx, ScreenFactory } from '../shell/types';
+
+/** Typing speed: at least this many characters per second, faster for long orders so nobody waits. */
+const TYPE_MIN_CPS = 110;
+const TYPE_MAX_SECONDS = 2.4;
+
+function newCard(kindLabel: string, icon: Element, name: string, blurb: string): HTMLElement {
+  const card = el('div', 'th-new');
+  const iconBox = el('div', 'th-new-icon');
+  iconBox.append(icon);
+  const text = el('div', 'th-new-text');
+  const top = el('div', 'th-new-top');
+  add(top, el('span', 'th-new-flag', 'New'), el('span', 'th-new-kind', kindLabel));
+  add(text, top, el('div', 'th-new-name', name), el('p', 'th-new-blurb', blurb));
+  add(card, iconBox, text);
+  return card;
+}
+
+function findMission(ctx: ScreenCtx): MissionCard | undefined {
+  const missions = ctx.view().missions;
+  return missions.find((m) => m.id === ctx.session.missionId) ?? missions[0];
+}
+
+export const briefingScreen: ScreenFactory = (ctx) => {
+  const root = el('section', 'th-screen th-briefing');
+  root.dataset.screen = 'briefing';
+  const mission = findMission(ctx);
+
+  // --- The orders sheet --------------------------------------------------
+  const sheet = el('div', 'th-paper th-sheet th-scroll');
+  sheet.dataset.scroll = '';
+  const sheetHead = el('div', 'th-sheet-head');
+  add(
+    sheetHead,
+    el('span', 'th-type th-sheet-no', mission ? `Operation order No. ${mission.id}` : 'Operation order'),
+    el('span', 'th-stamp th-stamp-secret', 'Most secret'),
+  );
+  const title = stencil('h1', mission ? mission.title : 'No orders', 'th-sheet-title');
+  const meta = el('p', 'th-type th-sheet-meta', mission ? `${mission.location} — ${mission.date}` : '');
+  const orders = el('div', 'th-type th-orders');
+  const objective = el('div', 'th-objective');
+  add(objective, el('span', 'th-objective-label', 'Objective'), el('span', 'th-type th-objective-text', mission ? mission.objective : ''));
+  add(sheet, sheetHead, title, meta, orders, objective);
+
+  // Typewriter: every paragraph is laid out in full (so nothing reflows) and revealed a character at a time.
+  const typed: Text[] = [];
+  const untyped: Text[] = [];
+  const lengths: number[] = [];
+  const paragraphs: HTMLElement[] = [];
+  let total = 0;
+  for (const text of mission ? mission.briefing : []) {
+    const p = el('p', 'th-order');
+    const shown = el('span', 'th-typed');
+    const hidden = el('span', 'th-untyped');
+    const a = document.createTextNode('');
+    const b = document.createTextNode(text);
+    shown.append(a);
+    hidden.append(b);
+    add(p, shown, hidden);
+    orders.append(p);
+    typed.push(a);
+    untyped.push(b);
+    lengths.push(text.length);
+    paragraphs.push(p);
+    total += text.length;
+  }
+  const texts = mission ? mission.briefing : [];
+  let shownChars = -1;
+  let raf = 0;
+  let startTime = 0;
+  const cps = Math.max(TYPE_MIN_CPS, total / TYPE_MAX_SECONDS);
+
+  function reveal(count: number): void {
+    if (count === shownChars) return;
+    shownChars = count;
+    let left = count;
+    let active = -1;
+    for (let i = 0; i < texts.length; i++) {
+      const n = Math.max(0, Math.min(lengths[i], left));
+      left -= n;
+      const visible = texts[i].slice(0, n);
+      if (typed[i].data !== visible) {
+        typed[i].data = visible;
+        untyped[i].data = texts[i].slice(n);
+      }
+      if (active === -1 && n < lengths[i]) active = i;
+    }
+    for (let i = 0; i < paragraphs.length; i++) paragraphs[i].classList.toggle('is-typing', i === active);
+    const done = count >= total;
+    sheet.classList.toggle('is-typed', done);
+  }
+
+  function tick(now: number): void {
+    if (startTime === 0) startTime = now;
+    const count = Math.min(total, Math.floor(((now - startTime) / 1000) * cps));
+    reveal(count);
+    raf = count < total ? requestAnimationFrame(tick) : 0;
+  }
+
+  function finishTyping(): void {
+    if (raf !== 0) cancelAnimationFrame(raf);
+    raf = 0;
+    reveal(total);
+  }
+
+  sheet.addEventListener('click', finishTyping);
+
+  // --- Side column -------------------------------------------------------
+  const side = el('aside', 'th-brief-side');
+  const news = el('div', 'th-new-list th-scroll');
+  news.dataset.scroll = '';
+  if (mission && mission.newUnit) {
+    news.append(newCard('Unit', unitIcon(mission.newUnit.kind, 44, ctx.opts.paintUnitIcon), mission.newUnit.name, mission.newUnit.blurb));
+  }
+  if (mission && mission.newSupport) {
+    news.append(newCard('Support', supportIcon(mission.newSupport.kind), mission.newSupport.name, mission.newSupport.blurb));
+  }
+  if (!news.firstChild) news.classList.add('is-empty');
+
+  const diffBox = el('div', 'th-diff');
+  diffBox.append(el('div', 'th-label', 'Difficulty'));
+  const seg = el('div', 'th-seg');
+  seg.setAttribute('role', 'group');
+  seg.setAttribute('aria-label', 'Difficulty');
+  const view = ctx.view();
+  let difficulty: Difficulty = ctx.session.difficulty ?? view.settings.difficulty;
+  const diffButtons = new Map<Difficulty, HTMLButtonElement>();
+  const paintDifficulty = (): void => {
+    for (const [id, node] of diffButtons) {
+      const on = id === difficulty;
+      node.classList.toggle('is-on', on);
+      node.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  };
+  for (const d of view.difficulties) {
+    const cleared = mission ? mission.cleared[d.id] : false;
+    const content: Node[] = [el('span', 'th-btn-label', d.name)];
+    if (cleared) content.push(glyph('tick', 'th-icon th-seg-tick'));
+    const node = button({
+      testid: `difficulty-${d.id}`,
+      className: 'th-seg-btn',
+      aria: cleared ? `${d.name} (cleared)` : d.name,
+      content,
+      onTap: () => {
+        ctx.app.uiSound('click');
+        difficulty = d.id;
+        ctx.session.difficulty = d.id;
+        paintDifficulty();
+      },
+    });
+    diffButtons.set(d.id, node);
+    seg.append(node);
+  }
+  paintDifficulty();
+  diffBox.append(seg);
+
+  const actions = el('div', 'th-brief-actions');
+  const back = button({
+    testid: 'back',
+    label: 'Back',
+    onTap: () => {
+      ctx.app.uiSound('click');
+      ctx.go('campaign');
+    },
+  });
+  const begin = button({
+    testid: 'begin',
+    label: 'Begin',
+    className: 'th-btn-primary th-brief-begin',
+    onTap: () => {
+      if (!mission || !mission.unlocked) {
+        ctx.app.uiSound('deny');
+        return;
+      }
+      ctx.app.uiSound('confirm');
+      ctx.app.startMission(mission.id, difficulty);
+    },
+  });
+  begin.dataset.primary = '';
+  begin.disabled = !mission || !mission.unlocked;
+  add(actions, back, begin);
+  add(side, news, diffBox, actions);
+  add(root, sheet, side);
+
+  return {
+    el: root,
+    mounted() {
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (still || total === 0) reveal(total);
+      else {
+        reveal(0);
+        raf = requestAnimationFrame(tick);
+      }
+    },
+    back() {
+      ctx.go('campaign');
+    },
+    destroy() {
+      if (raf !== 0) cancelAnimationFrame(raf);
+      raf = 0;
+    },
+  };
+};

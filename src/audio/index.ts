@@ -1,0 +1,23 @@
+/**
+ * Public surface of the audio track. See engine.ts for how it works.
+ *
+ *   const audio = createAudio({ muted: savedMute });
+ *   window.addEventListener('pointerdown', () => audio.unlock());
+ *   audio.setListener(cameraCentreX, visibleWidthWu);   // whenever the camera moves
+ *   audio.playAt('rifleShot', shooterX);
+ *   audio.play(ORDER_WHISTLE[order]);
+ *   audio.startLoop('rain');
+ */
+export { createAudio } from './engine';
+export type { AudioOptions, AudioStats, GameAudio, PlayAtOptions, PlayOptions } from './engine';
+export {
+  LOOP_NAMES,
+  ONE_SHOT_NAMES,
+  ORDER_WHISTLE,
+  SOUND_NAMES,
+  UI_SOUND,
+  isSoundName,
+  type LoopName,
+  type OneShotName,
+  type SoundName,
+} from '../data/sounds';

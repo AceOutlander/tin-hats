@@ -200,6 +200,139 @@ export interface DifficultyDef {
   aiThinkInterval: number;
 }
 
+/** Global rules and tunables (src/data/config.ts). Distances in wu, times in seconds. */
+export interface GameConfig {
+  /** Simulation ticks per second. DT = 1 / tickRate. */
+  tickRate: number;
+  /** Population cap per side (living units plus queued units). */
+  popCap: number;
+  /** Most units of one kind that may wait in a training queue. */
+  maxQueue: number;
+
+  /** Base HQ health before mission and upgrade multipliers. */
+  hqHp: number;
+  /** Passive supplies per second from a living HQ. */
+  hqIncomePerSec: number;
+  /** Distance of the HQ centre from its own map edge. */
+  hqInset: number;
+  /** Footprint of the HQ bunker along x (centred on the HQ x). For art, picking and splash. */
+  hqWidth: number;
+  /** Distance from the HQ centre forward to its door: units spawn and retreat here, enemies aim and are blocked here. */
+  hqDoorOffset: number;
+  /** Distance from the HQ centre forward to the machine-gun muzzle. */
+  hqGunOffset: number;
+  /** Weapon id of the HQ machine gun. */
+  hqGunWeapon: string;
+  /** Seconds between units walking out of the HQ door after Fall Back ends. */
+  doorInterval: number;
+
+  /** Distance from the HQ door forward to the supply dump. */
+  dumpDistance: number;
+  /** Sappers spread over this width at the dump so they do not stack. */
+  dumpSpread: number;
+  /** Seconds a sapper spends loading at the dump. */
+  sapperLoadTime: number;
+  /** Supplies a sapper carries per trip. */
+  sapperCarry: number;
+
+  /** Distance from the HQ centre forward to the hold line when the side owns no trench. */
+  holdLineOffset: number;
+  /** A unit under Hold that is further than this in front of the hold line walks back without fighting. */
+  holdLineTolerance: number;
+  /** No ground unit may come closer than this to the nearest enemy blocker ahead of it. */
+  contactGap: number;
+  /** Distance between formation columns; also the general "do not stack" spacing. */
+  spacing: number;
+  /** Number of formation columns behind the hold line. */
+  formationColumns: number;
+  /** Depth rows used for visual spread (must equal VIEW.rows). */
+  rows: number;
+  /** Order in which the rows of one formation column are filled. */
+  formationRowOrder: number[];
+  /** Units stop between range * engageFrac and that minus this much, so a firing line is not a single stack. */
+  engageSpread: number;
+  /** Units keep at least this far from both map edges. */
+  mapMargin: number;
+  /** Speed multiplier while running to the HQ under Fall Back. */
+  fallBackSpeedMul: number;
+
+  /** Seconds a unit stays in the `fire` action after its last shot. */
+  firePoseTime: number;
+  /** Seconds between checks for a more preferred target (weapons with a `prefer` list). */
+  retargetInterval: number;
+
+  /** Direct control buffs. */
+  controlDamageMul: number;
+  controlReloadMul: number;
+  /** Guard units stay within this distance of their post. */
+  guardLeash: number;
+
+  /** Speed multiplier for enemy infantry inside wire. */
+  wireSlow: number;
+  wireHp: number;
+  /** Base pillbox health before the mission multiplier. */
+  pillboxHp: number;
+  /** Weapon id of the pillbox machine gun. */
+  pillboxGunWeapon: string;
+  /** Spacing between the slots of a trench. */
+  trenchSlotSpacing: number;
+  /** A shooter this close to its target ignores smoke. */
+  smokePointBlank: number;
+
+  /** Pool sizes. Units and projectiles are hard caps; the event, command and damage buffers grow if exceeded. */
+  maxUnits: number;
+  maxProjectiles: number;
+  maxSmokes: number;
+  maxEvents: number;
+  maxCommands: number;
+}
+
+/**
+ * Tunables of the AI commander (src/data/ai.ts). Strength = summed supply cost of living armed units.
+ * "Group" strength counts only the units gathered within groupRadius of the hold line (while holding)
+ * or of the leading unit (while advancing), so stragglers and reinforcements still on the road do not count.
+ */
+export interface AiDef {
+  /** Advance when group strength >= visible enemy strength * attackRatio (divided by difficulty aggression). */
+  attackRatio: number;
+  /** While advancing, drop back to Hold when group strength < enemy strength * holdRatio. */
+  holdRatio: number;
+  /** Fall Back when the enemy is at the hold line and group strength < enemy strength * retreatRatio. */
+  retreatRatio: number;
+  /** Leave Fall Back when total own strength >= enemy strength * returnRatio, or the enemy has left. */
+  returnRatio: number;
+  /** Minimum seconds between order changes. */
+  minOrderInterval: number;
+  /** Never advance with less group strength than this. */
+  minAttackStrength: number;
+  /** While advancing, regroup (Hold) when group strength falls below minAttackStrength * regroupFrac. */
+  regroupFrac: number;
+  /** Radius of the "group" around the hold line or the leading unit. */
+  groupRadius: number;
+  /** Advance regardless of the ratio when population reaches popCap * popCapAttackFrac. */
+  popCapAttackFrac: number;
+  /** After this many seconds of Hold (divided by aggression) the AI attacks at the lower impatientRatio. */
+  impatienceAfter: number;
+  impatientRatio: number;
+  /** An armed enemy within this distance of the hold line counts as "at the hold line". */
+  threatDistance: number;
+  /** The AI keeps at most this many units of one kind queued. */
+  maxQueueDepth: number;
+  /** With the build plan satisfied and at least this many supplies banked, train extra units in plan proportions. */
+  surplusSupplies: number;
+  /** Seconds between decisions of the test bot (the AI uses the difficulty's interval). */
+  botThinkInterval: number;
+  /** Reactions: anti-tank teams added per visible enemy tank. */
+  atPerTank: number;
+  /** Reactions: mortars and assault troops added when the enemy is dug in ahead. */
+  mortarsVsDugIn: number;
+  assaultVsDugIn: number;
+  /** Reactions: one machine gun added per this many enemy infantry in the open (0 = never). */
+  infantryPerLmg: number;
+  /** Reactions never add more than this many units of one kind. */
+  maxReaction: number;
+}
+
 export interface TrenchDef {
   id: number;
   x: number;
@@ -250,6 +383,12 @@ export interface SideStart {
   forces: ForceDef[];
 }
 
+/**
+ * When a scripted mission event fires. Times are battle seconds.
+ * at = once at that time; every = repeatedly from `from` until `until` (or the end);
+ * trenchCapturedBy = once, `delay` seconds after that side takes the trench;
+ * hqHpBelow = once, when that side's HQ health drops below this fraction (0..1) of its maximum.
+ */
 export type MissionTrigger =
   | { at: number }
   | { every: number; from: number; until?: number }

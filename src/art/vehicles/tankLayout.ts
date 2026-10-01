@@ -1,0 +1,189 @@
+/**
+ * Tank rig layout. Pure maths, no canvas: turns a tank's animation state into
+ * part transforms the renderer applies to the sprites from ./tanks.
+ *
+ * Tank space: origin on the ground under the hull centre, +x forward (the
+ * tank is drawn facing right), -y up. For a tank facing left the renderer
+ * negates every x and every rotation.
+ *
+ * Draw order, back to front: track, wheels (in array order), hull, barrel, turret.
+ */
+import { TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, type ArtPoint, type TankLook } from '../../data/artLayout';
+import { makeBelt } from './belt';
+
+export interface TankState {
+  look: TankLook;
+  /** Distance travelled along the ground in wu (signed: forward is positive). */
+  distance: number;
+  /** Gun elevation in radians, positive = up. Clamped to the look's limits. */
+  turretAim: number;
+  /** 0 = barrel run out, 1 = fully recoiled. */
+  recoil: number;
+  /** -1..1, hull pitch on its suspension as a fraction of the look's rockMax; positive lifts the nose. */
+  hullRock: number;
+}
+
+/** Where to put a sprite's origin, and its rotation in radians (clockwise on screen). */
+export interface PartXf {
+  x: number;
+  y: number;
+  rot: number;
+}
+
+export interface TankPose {
+  /** Static on the ground; `trackFrame` picks which tread phase sprite to show. */
+  track: PartXf;
+  trackFrame: number;
+  /** One entry per wheel of the look, in draw order; only the first `wheelCount` are valid. */
+  wheels: PartXf[];
+  wheelCount: number;
+  hull: PartXf;
+  barrel: PartXf;
+  turret: PartXf;
+  /** Muzzle tip (flash, shell spawn), exhaust outlet (smoke puffs) and hull machine gun. */
+  muzzle: ArtPoint;
+  exhaust: ArtPoint;
+  hullMg: ArtPoint;
+}
+
+export interface TankKeys {
+  hull: string;
+  turret: string;
+  barrel: string;
+  /** One key per tread phase: index with TankPose.trackFrame. */
+  track: string[];
+  /** One key per wheel, parallel to TankPose.wheels. */
+  wheels: string[];
+  husk: string;
+}
+
+function buildKeys(look: TankLook): TankKeys {
+  const L = TANK_LAYOUT[look];
+  const track: string[] = [];
+  for (let i = 0; i < L.trackFrames; i++) track.push(`veh/${look}/track/${i}`);
+  return {
+    hull: `veh/${look}/hull`,
+    turret: `veh/${look}/turret`,
+    barrel: `veh/${look}/barrel`,
+    track,
+    wheels: L.wheels.map((w) => `veh/${look}/wheel/${w.kind}`),
+    husk: `veh/${look}/husk`,
+  };
+}
+
+function buildPitch(look: TankLook): number {
+  const L = TANK_LAYOUT[look];
+  const length = makeBelt(L.belt, L.trackThickness / 2).length;
+  return length / Math.max(1, Math.round(length / L.trackPitch));
+}
+
+/** Sprite keys of every part of each tank look. */
+export const TANK_KEYS: Record<TankLook, TankKeys> = {
+  churchill: buildKeys('churchill'),
+  panzer4: buildKeys('panzer4'),
+  kingTiger: buildKeys('kingTiger'),
+};
+
+/** Real distance between tread lugs: the nominal pitch adjusted so a whole number fits round the loop. */
+export const TANK_TRACK_PITCH: Record<TankLook, number> = {
+  churchill: buildPitch('churchill'),
+  panzer4: buildPitch('panzer4'),
+  kingTiger: buildPitch('kingTiger'),
+};
+
+const TAU = Math.PI * 2;
+
+/** Allocate a pose once per tank view; layoutTank() only ever writes into it. */
+export function createTankPose(): TankPose {
+  const wheels: PartXf[] = [];
+  for (let i = 0; i < TANK_MAX_WHEELS; i++) wheels.push({ x: 0, y: 0, rot: 0 });
+  return {
+    track: { x: 0, y: 0, rot: 0 },
+    trackFrame: 0,
+    wheels,
+    wheelCount: 0,
+    hull: { x: 0, y: 0, rot: 0 },
+    barrel: { x: 0, y: 0, rot: 0 },
+    turret: { x: 0, y: 0, rot: 0 },
+    muzzle: { x: 0, y: 0 },
+    exhaust: { x: 0, y: 0 },
+    hullMg: { x: 0, y: 0 },
+  };
+}
+
+/**
+ * Fill `out` for the given state. Allocates nothing.
+ *
+ * Wheels and track stay on the ground and turn with the distance travelled
+ * (rolling without slipping: angle = distance / radius). The hull pitches
+ * about its rock pivot and carries the turret, gun, exhaust and hull MG with it.
+ */
+export function layoutTank(state: TankState, out: TankPose): TankPose {
+  const L = TANK_LAYOUT[state.look];
+  const distance = state.distance;
+
+  // Running gear.
+  const wheels = L.wheels;
+  const count = wheels.length;
+  for (let i = 0; i < count; i++) {
+    const def = wheels[i];
+    const xf = out.wheels[i];
+    xf.x = def.x;
+    xf.y = def.y;
+    xf.rot = (distance / def.r) % TAU;
+  }
+  out.wheelCount = count;
+  out.track.x = 0;
+  out.track.y = 0;
+  out.track.rot = 0;
+  let phase = distance / TANK_TRACK_PITCH[state.look];
+  phase -= Math.floor(phase);
+  out.trackFrame = Math.min(L.trackFrames - 1, Math.floor(phase * L.trackFrames));
+
+  // Hull pitch: canvas rotation is clockwise, so nose-up is negative.
+  const rock = Math.max(-1, Math.min(1, state.hullRock)) * L.rockMax;
+  const rot = -rock;
+  const cos = Math.cos(rot);
+  const sin = Math.sin(rot);
+  const px = L.rockPivot.x;
+  const py = L.rockPivot.y;
+  out.hull.x = px;
+  out.hull.y = py;
+  out.hull.rot = rot;
+
+  let vx = L.turretRing.x - px;
+  let vy = L.turretRing.y - py;
+  out.turret.x = px + vx * cos - vy * sin;
+  out.turret.y = py + vx * sin + vy * cos;
+  out.turret.rot = rot;
+
+  vx = L.exhaust.x - px;
+  vy = L.exhaust.y - py;
+  out.exhaust.x = px + vx * cos - vy * sin;
+  out.exhaust.y = py + vx * sin + vy * cos;
+
+  vx = L.hullMg.x - px;
+  vy = L.hullMg.y - py;
+  out.hullMg.x = px + vx * cos - vy * sin;
+  out.hullMg.y = py + vx * sin + vy * cos;
+
+  // Gun: elevates about the trunnion and slides back along its own axis on recoil.
+  const elev = Math.max(L.elevMin, Math.min(L.elevMax, state.turretAim));
+  const gunRot = rot - elev;
+  const gcos = Math.cos(gunRot);
+  const gsin = Math.sin(gunRot);
+  const slide = Math.max(0, Math.min(1, state.recoil)) * L.recoilDist;
+  vx = L.trunnion.x - px;
+  vy = L.trunnion.y - py;
+  const tx = px + vx * cos - vy * sin;
+  const ty = py + vx * sin + vy * cos;
+  out.barrel.x = tx - gcos * slide;
+  out.barrel.y = ty - gsin * slide;
+  out.barrel.rot = gunRot;
+  out.muzzle.x = out.barrel.x + gcos * L.barrelLength;
+  out.muzzle.y = out.barrel.y + gsin * L.barrelLength;
+  return out;
+}
+
+/** Every tank look, for iterating. */
+export { TANK_LOOKS };

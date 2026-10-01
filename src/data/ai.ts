@@ -1,0 +1,25 @@
+import type { AiDef } from './schema';
+
+/** Tunables of the AI commander. The same values drive the enemy, mirrored test battles and the test bot. */
+export const AI: AiDef = {
+  attackRatio: 1.25,
+  holdRatio: 0.6,
+  retreatRatio: 0.45,
+  returnRatio: 0.8,
+  minOrderInterval: 6,
+  minAttackStrength: 225,
+  regroupFrac: 0.4,
+  groupRadius: 600,
+  popCapAttackFrac: 0.9,
+  impatienceAfter: 75,
+  impatientRatio: 0.85,
+  threatDistance: 450,
+  maxQueueDepth: 2,
+  surplusSupplies: 150,
+  botThinkInterval: 1,
+  atPerTank: 1,
+  mortarsVsDugIn: 2,
+  assaultVsDugIn: 3,
+  infantryPerLmg: 8,
+  maxReaction: 4,
+};
