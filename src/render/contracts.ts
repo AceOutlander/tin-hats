@@ -31,6 +31,28 @@ export interface AttachOptions {
 /** What a tap on the battlefield is for while a support is being aimed. */
 export type TargetingKind = SupportKind;
 
+/**
+ * The part of the audio engine (src/audio GameAudio) the view uses. A GameAudio fits it as it is:
+ * `view.setAudio(audio)`. The view works with no sink set.
+ */
+export interface AudioSink {
+  play(name: string, opts?: { pan?: number; volume?: number; pitch?: number }): void;
+  playAt(name: string, worldX: number, opts?: { volume?: number; pitch?: number }): void;
+  startLoop(name: string, volume?: number): void;
+  stopLoop(name: string): void;
+  setListener(centerX: number, viewWidth: number): void;
+}
+
+/** What the weather did so far, for the debug hooks and the tests. */
+export interface WeatherStats {
+  /** True while rain is falling in this battle. */
+  raining: boolean;
+  /** Thunder checks made since the weather was decided (one per full 2 s of battle time while raining). */
+  checksMade: number;
+  /** Lightning strikes since then, natural and forced. */
+  strikes: number;
+}
+
 export interface BattleCamera {
   /** World x at the centre of the view. */
   readonly centerX: number;
@@ -90,8 +112,17 @@ export interface BattleView {
   setControlled(unitId: number): void;
   /** Show the support targeting reticle (taps then always report the ground), or null to leave targeting. */
   setTargeting(kind: TargetingKind | null): void;
-  /** False while fast-forwarding: skip tracers, flashes and particles. */
+  /** False while fast-forwarding: skip tracers, flashes, particles, rain streaks and sounds. */
   setEffectsEnabled(enabled: boolean): void;
+  /** Sound for the battle's events (shots, blasts, deliveries, orders, rain, thunder, tank engines); null for silence. */
+  setAudio(audio: AudioSink | null): void;
+  /** Night tint: 0 = the mission's own time of day, 1 = full night (mission 5 slides from dusk to night). */
+  setDarkness(darkness: number): void;
+  /** Debug: make it rain or clear up now (restarts the thunder checks). */
+  forceWeather(mode: 'rain' | 'clear'): void;
+  /** Debug: a lightning strike now (flash, then thunder after its delay), rain or not. */
+  forceThunder(): void;
+  weatherStats(): WeatherStats;
   /**
    * Where a unit is drawn (body centre), in CSS px from the parent element's top-left corner; null if it is not
    * on screen. Returns a shared object: read it before the next call.

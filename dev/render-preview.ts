@@ -1,12 +1,18 @@
 /**
  * Renderer preview: mission 1 through the real simulation (bot vs AI) drawn by
  * the real battlefield view, with the app-style fixed-step loop.
+ *
+ * Extra query parameters for looking at the effects: weather=rain|clear|auto,
+ * dark=0..1 (night tint), commanders=idle (nobody gives orders), audio=1 (a mock
+ * audio sink that records its calls in window.__TH.audioLog), and window.__TH.emit(type, fields)
+ * to feed the view a sim event the phase 1 sim does not produce yet (explosion, projectile,
+ * supportIncoming, airdrop, structureDestroyed ...).
  */
 import { CONFIG } from '../src/data/config';
 import { MISSIONS } from '../src/data/missions';
 import type { MissionDef, TheatreId, TimeOfDay, UnitKind } from '../src/data/schema';
-import { BattleViewImpl, createBattleView, type BattleView, type WeatherMode } from '../src/render';
-import { createBattle, type Battle } from '../src/sim';
+import { BattleViewImpl, createBattleView, type AudioSink, type BattleView, type WeatherMode } from '../src/render';
+import { createBattle, type Battle, type SimEvent, type SimEventType } from '../src/sim';
 
 declare global {
   interface Window {
@@ -21,8 +27,23 @@ declare global {
       setTimeScale: (k: number) => void;
       setFollow: (on: boolean) => void;
       frontX: () => number;
+      /** Feed a synthetic sim event to the view (for looking at effects the phase-1 sim does not emit yet). */
+      emit: (type: SimEventType, fields: Partial<SimEvent>) => void;
+      /** Sound calls received by the mock audio sink (?audio=1): "play:name", "at:name", "loop:name", "stop:name". */
+      audioLog: string[];
     };
   }
+}
+
+/** Records what the view asks of the audio engine. */
+function mockAudio(log: string[]): AudioSink {
+  return {
+    play: (name) => log.push(`play:${name}`),
+    playAt: (name) => log.push(`at:${name}`),
+    startLoop: (name) => log.push(`loop:${name}`),
+    stopLoop: (name) => log.push(`stop:${name}`),
+    setListener: () => undefined,
+  };
 }
 
 const params = new URLSearchParams(location.search);
@@ -70,7 +91,8 @@ function testMission(theatreOver?: TheatreId, timeOver?: TimeOfDay): MissionDef 
 }
 
 function newBattle(theatre?: TheatreId, time?: TimeOfDay): Battle {
-  return createBattle({ mission: testMission(theatre, time), difficulty: 'normal', seed, upgrades: {}, commanders: ['bot', 'ai'] });
+  const idle = params.get('commanders') === 'idle';
+  return createBattle({ mission: testMission(theatre, time), difficulty: 'normal', seed, upgrades: {}, commanders: idle ? ['idle', 'idle'] : ['bot', 'ai'] });
 }
 
 let battle = newBattle();
@@ -99,7 +121,10 @@ async function main(): Promise<void> {
   const el = document.getElementById('game');
   if (!el) throw new Error('no #game element');
   const view = await createBattleView(el);
+  const audioLog: string[] = [];
+  if (params.get('audio') === '1') view.setAudio(mockAudio(audioLog));
   view.attach(battle, { playerSide: 0, weather, visualSeed });
+  if (params.has('dark')) view.setDarkness(num('dark', 0));
   if (params.has('zoom') && view instanceof BattleViewImpl) view.setDebugZoom(num('zoom', 1));
   view.onTapUnit = (id) => {
     view.setControlled(id);
@@ -180,6 +205,13 @@ async function main(): Promise<void> {
       follow = on;
     },
     frontX: () => frontX(view.camera.viewWidthWu),
+    emit: (type, fields) => {
+      const q = battle.events as unknown as { emit(t: SimEventType): SimEvent; clear(): void };
+      Object.assign(q.emit(type), fields);
+      view.afterStep();
+      q.clear();
+    },
+    audioLog,
   };
 }
 

@@ -5,7 +5,7 @@
  *   view.attach(battle, { playerSide: 0, visualSeed: seed });
  */
 export { createBattleView, BattleViewImpl, type RenderInternals } from './view';
-export type { AttachOptions, BattleCamera, BattleView, RenderStats, TargetingKind, WeatherMode } from './contracts';
+export type { AttachOptions, AudioSink, BattleCamera, BattleView, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
 export { EFFECT_HANDLERS, EffectContext, type EffectHandler } from './effects';
 export { createLayers, type LayerName, type Layers } from './layers';
 export { SpriteRegistry, packSprites, type SpriteFrame } from './atlas';

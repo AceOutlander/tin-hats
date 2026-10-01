@@ -13,8 +13,15 @@ export interface Layers {
   readonly byName: Record<LayerName, Phaser.GameObjects.Layer>;
   /** Unit row r draws at DEPTH.unitRow0 + r (0 = farthest). */
   readonly rows: Phaser.GameObjects.Layer[];
-  /** Additive (glow) effects, just above DEPTH.effects, so blend changes do not break up the effects batch. */
+  /**
+   * Additive (glow) effects: muzzle flashes, sparks and blast flares. They sit above the night tint, so they
+   * stay bright against it, and in their own layer so blend changes do not break up the effects batch.
+   */
   readonly glow: Phaser.GameObjects.Layer;
+  /** Things that must not be dimmed by the night tint: fireballs and tracers (just under the glow layer). */
+  readonly lit: Phaser.GameObjects.Layer;
+  /** Between the backdrop and the ground: the rain's sky grade and the lightning bolt. */
+  readonly grade: Phaser.GameObjects.Layer;
 }
 
 export function createLayers(scene: Phaser.Scene): Layers {
@@ -32,8 +39,12 @@ export function createLayers(scene: Phaser.Scene): Layers {
     rows.push(layer);
   }
   const glow = scene.add.layer();
-  glow.setDepth(DEPTH.effects + 0.5);
-  return { byName, rows, glow };
+  glow.setDepth(DEPTH.nightTint + 0.5);
+  const lit = scene.add.layer();
+  lit.setDepth(DEPTH.nightTint + 0.25);
+  const grade = scene.add.layer();
+  grade.setDepth((DEPTH.nearBackdrop + DEPTH.ground) / 2);
+  return { byName, rows, glow, lit, grade };
 }
 
 /** Make an Image that is not on any display list yet, then add it to `layer`. */

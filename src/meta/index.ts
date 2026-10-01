@@ -1,0 +1,32 @@
+/** Save data and campaign progress. Pure: no DOM, storage is injected. */
+export {
+  buyUpgrade,
+  canBuy,
+  canRefund,
+  clearedOn,
+  isCleared,
+  isUnlocked,
+  maxLevel,
+  nextMissionId,
+  pointsAvailable,
+  pointsEarned,
+  pointsSpent,
+  recordClear,
+  refundAll,
+  refundUpgrade,
+  upgradeLevel,
+  type ClearResult,
+} from './campaign';
+export {
+  clearSave,
+  createMemoryStorage,
+  defaultSave,
+  loadSave,
+  sanitizeSave,
+  writeSave,
+  type LoadResult,
+  type LoadStatus,
+  type SaveData,
+  type SaveSettings,
+  type StorageLike,
+} from './save';

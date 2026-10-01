@@ -595,9 +595,10 @@ export class UnitViews {
     v.applyAlpha(a);
     if (v instanceof FigureView) {
       const inp = v.input;
-      inp.action = u.action === 'inside' ? 'idle' : u.action;
+      // When the battle is over the sim stops stepping, so velX and the action are stale: stand still, and the winners cheer.
+      inp.action = state.over || u.action === 'inside' ? 'idle' : u.action;
       // The pose lives in figure space, drawn at row scale s: feed it figure-space distances so planted feet stay put.
-      inp.speed = (u.velX * v.facing) / v.s;
+      inp.speed = state.over ? 0 : (u.velX * v.facing) / v.s;
       inp.moved = (moved * v.facing) / v.s;
       inp.inTrench = v.sink > VIEW.trenchDepth * 0.5;
       inp.carrying = u.carrying > 0;

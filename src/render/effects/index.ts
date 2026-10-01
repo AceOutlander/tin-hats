@@ -1,28 +1,40 @@
 /**
- * Battlefield effects: a particle system (src/fx) drawn with pooled images,
- * pooled tracers, and the event dispatch table in ./handlers.
+ * Battlefield effects. EffectsSystem owns the particle system (src/fx) drawn
+ * with pooled images, tracers, ground decals, projectile flights, aircraft and
+ * parachutes, markers and floating text, screen shake, the ambient effects that
+ * follow the battle's state (footsteps, fires, smoke clouds) and the sound
+ * director. Events reach it through EFFECT_HANDLERS (./handlers).
  *
- * The full effects pass (explosions, projectiles, decals, weather, audio)
- * extends EFFECT_HANDLERS and may add its own pools here; everything it needs
- * is on the EffectContext.
+ * Everything is pooled and capped; low-priority effects thin out under load.
+ * With `enabled` false (fast-forward) events are ignored and nothing is drawn.
  */
 import type Phaser from 'phaser';
-import { FX_LAYERS } from '../../data/fx';
+import { FX, FX_LAYERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
 import { VIEW } from '../../data/view';
-import { createParticles, createRng, type ParticleSystem, type Rng01 } from '../../fx';
+import { createRng, createShake, mixSeed, ParticleSystem, type Rng01, type ScreenShake, shakeStrength } from '../../fx';
 import type { BattleState, SimEvent } from '../../sim';
 import type { SpriteRegistry } from '../atlas';
 import type { Layers } from '../layers';
 import type { StructureViews } from '../structures';
 import type { UnitViews } from '../units';
-import { EFFECT_HANDLERS } from './handlers';
+import { Ambient } from './ambient';
+import { DecalPool } from './decals';
+import { FlightPool } from './flights';
+import { EFFECT_HANDLERS, explodeAt } from './handlers';
+import { Floaters, OrderMarkers, TargetMarkers } from './markers';
 import { ParticleDrawer } from './particles';
+import { PRESET_DEFS, type PresetId } from './presets';
+import { SkyPool } from './sky';
+import { SoundDirector } from './sound';
 import { TracerPool } from './tracers';
 
 export { EFFECT_HANDLERS, type EffectHandler } from './handlers';
 export { ParticleDrawer } from './particles';
 export { TracerPool } from './tracers';
+
+const R = RENDER.fx;
+const SEED_SALT = 0x3f1a9d;
 
 export interface Point {
   x: number;
@@ -49,18 +61,41 @@ export function pillboxAt(state: BattleState, side: number, x: number): number {
 
 /** Everything an effect handler may use. */
 export class EffectContext {
-  readonly particles: ParticleSystem;
+  readonly particles: ParticleSystem<PresetId>;
   readonly tracers: TracerPool;
-  readonly rng: Rng01;
+  readonly shake: ScreenShake;
+  readonly decals: DecalPool;
+  readonly flights: FlightPool;
+  readonly sky: SkyPool;
+  readonly orderMarkers: OrderMarkers;
+  readonly targetMarkers: TargetMarkers;
+  readonly floaters: Floaters;
+  readonly sound = new SoundDirector();
+  readonly ambient: Ambient;
+  /** The view's own random numbers (reseeded per battle). */
+  readonly rng: Rng01 = () => this.source();
   /** Scratch points for handlers (never keep references to them). */
   readonly p0: Point = { x: 0, y: 0 };
   readonly p1: Point = { x: 0, y: 0 };
   readonly p2: Point = { x: 0, y: 0 };
   /** The battle being shown (null when detached). */
   state: BattleState | null = null;
+  /** The side the local player commands. */
+  playerSide = 0;
   /** World x of the view edges this frame. */
   camLeft = 0;
   camRight = 0;
+  /** Effect time (battle seconds) and the id of the sim step being handled (for deduplicating events of one step). */
+  time = 0;
+  stepId = 0;
+  /** How dark the scene is, 0..1 (flash glows appear as it gets dark). */
+  night = 0;
+  /** Smoothed real frame time (s), for thinning low-priority effects under load. */
+  frameTime = 0;
+  /** Time (effect seconds) each HQ was ruined, or -1. */
+  readonly ruinedAt: [number, number] = [-1, -1];
+
+  private source: Rng01;
 
   constructor(
     readonly scene: Phaser.Scene,
@@ -69,9 +104,22 @@ export class EffectContext {
     readonly units: UnitViews,
     readonly structures: StructureViews,
   ) {
-    this.rng = createRng(1);
-    this.particles = createParticles(this.rng);
-    this.tracers = new TracerPool(scene, layers.byName.projectiles, reg);
+    this.source = createRng(1);
+    this.particles = new ParticleSystem<PresetId>(this.rng, FX.capacity, PRESET_DEFS);
+    this.tracers = new TracerPool(scene, layers.lit, reg);
+    this.shake = createShake();
+    this.decals = new DecalPool(scene, layers.byName.groundDecals, reg);
+    this.flights = new FlightPool(scene, layers.byName.projectiles, reg);
+    this.sky = new SkyPool(scene, layers, reg);
+    this.orderMarkers = new OrderMarkers(scene, layers, reg);
+    this.targetMarkers = new TargetMarkers(scene, layers, reg);
+    this.floaters = new Floaters(scene, layers, reg);
+    this.ambient = new Ambient(this);
+  }
+
+  /** Restart the random source for a new battle. */
+  seed(visualSeed: number): void {
+    this.source = createRng(mixSeed(visualSeed, SEED_SALT));
   }
 
   /** Ground line (feet) of a depth row; row -1 = the middle of the band. */
@@ -83,6 +131,29 @@ export class EffectContext {
   onScreen(a: number, b: number): boolean {
     const m = RENDER.unit.cullMargin;
     return Math.max(a, b) > this.camLeft - m && Math.min(a, b) < this.camRight + m;
+  }
+
+  /** False when the particle pool is crowded or the frame rate is poor: dust, casings and exhaust then stop (partly or fully). */
+  lowOk(): boolean {
+    if (this.particles.count >= R.softParticleCap) return false;
+    const f = this.frameTime;
+    if (f <= R.slowFrame) return true;
+    if (f >= R.stopFrame) return false;
+    return this.rng() < 1 - (f - R.slowFrame) / (R.stopFrame - R.slowFrame);
+  }
+
+  /**
+   * Play a particle preset at (x, y): spawns it, adds the screen shake the preset asks for
+   * (weaker the further the blast is off screen) and lays its ground decal.
+   * @param dirX,dirY direction for presets that aim along it
+   * @param ground ground line for particles that land
+   * @param size scales particles, speeds, shake and decal
+   */
+  play(id: PresetId, x: number, y: number, dirX = 1, dirY = 0, ground: number = VIEW.groundY, size = 1): void {
+    this.particles.spawn(id, x, y, dirX, dirY, ground, size);
+    const def = PRESET_DEFS[id];
+    if (def.shake) this.shake.add(def.shake, shakeStrength(x, this.camLeft, this.camRight - this.camLeft) * Math.min(1.4, Math.max(0.7, size)));
+    if (def.decal) this.decals.add(def.decal, x, ground, (def.decalScale ?? 1) * size);
   }
 
   /** Muzzle of a shot event's shooter (the drawn pose when it can), into out. */
@@ -149,13 +220,27 @@ export class EffectsSystem {
   private readonly drawer: ParticleDrawer;
   enabled = true;
 
+  /** Smoke puffs behind a flight and the blast of a provisional one, as callbacks made once. */
+  private readonly trailCb = (id: PresetId, x: number, y: number, dx: number, dy: number): void => {
+    this.ctx.play(id, x, y, dx, dy, y);
+  };
+  private readonly landCb = (x: number, y: number, weaponId: string): void => {
+    explodeAt(this.ctx, x, y, weaponId);
+  };
+
   constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, units: UnitViews, structures: StructureViews) {
     this.ctx = new EffectContext(scene, layers, reg, units, structures);
     const targets: Phaser.GameObjects.Layer[] = [];
     for (const l of FX_LAYERS) {
       targets.push(l.name === 'ground' ? layers.byName.shadows : l.name === 'smokeScreen' ? layers.byName.smokeScreen : l.additive ? layers.glow : layers.byName.effects);
     }
+    targets.push(layers.lit);
     this.drawer = new ParticleDrawer(scene, targets, reg);
+  }
+
+  /** Start handling a new sim step's events (call once before the events of each battle.step()). */
+  beginStep(): void {
+    this.ctx.stepId++;
   }
 
   /** Run the dispatch table for one event (only while enabled). */
@@ -165,15 +250,47 @@ export class EffectsSystem {
     if (h) h(this.ctx, e);
   }
 
-  update(dt: number): void {
-    this.ctx.particles.update(dt);
-    this.ctx.tracers.update(dt);
-    this.drawer.draw(this.ctx.particles);
+  /**
+   * Advance everything by dt battle seconds (0 while paused). realDt is the real frame time, which
+   * decides how much low-priority detail is affordable.
+   */
+  update(dt: number, realDt: number): void {
+    const ctx = this.ctx;
+    ctx.frameTime += (realDt - ctx.frameTime) * R.frameSmoothing;
+    ctx.shake.update(dt);
+    if (!this.enabled) {
+      ctx.sound.tanks(0, dt);
+      return;
+    }
+    ctx.time += dt;
+    if (ctx.state && dt > 0) ctx.ambient.update(ctx, ctx.state, dt);
+    if (dt > 0) {
+      ctx.particles.update(dt);
+      ctx.tracers.update(dt);
+      ctx.flights.update(dt, this.trailCb, this.landCb);
+      ctx.sky.update(dt, ctx);
+      ctx.decals.update(dt);
+      ctx.orderMarkers.update(dt);
+      ctx.targetMarkers.update(dt, VIEW.groundY);
+      ctx.floaters.update(dt);
+    }
+    ctx.sound.tanks(ctx.ambient.tanksNear, dt);
+    this.drawer.draw(ctx.particles);
   }
 
   clear(): void {
-    this.ctx.particles.clear();
-    this.ctx.tracers.clear();
+    const ctx = this.ctx;
+    ctx.particles.clear();
+    ctx.tracers.clear();
+    ctx.decals.clear();
+    ctx.flights.clear();
+    ctx.sky.clear();
+    ctx.orderMarkers.clear();
+    ctx.targetMarkers.clear();
+    ctx.floaters.clear();
+    ctx.ambient.clear();
+    ctx.ruinedAt[0] = -1;
+    ctx.ruinedAt[1] = -1;
     this.drawer.hideAll();
   }
 

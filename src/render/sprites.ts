@@ -17,8 +17,45 @@ export const SHADOW_W = 64;
 export const SHADOW_H = 16;
 export const WHITE_SIZE = 8;
 
+/** Glyphs of the floating "+N" text: the digits and the plus sign, drawn once with Canvas text. */
+export const GLYPH_CHARS = '0123456789+';
+export const GLYPH_W = 16;
+export const GLYPH_H = 24;
+/** Horizontal step between glyphs when a number is laid out (wu). */
+export const GLYPH_ADVANCE = 11.5;
+
+export function glyphKey(ch: string): string {
+  return `rd/glyph/${ch}`;
+}
+
+function glyphSpecs(): SpriteSpec[] {
+  const out: SpriteSpec[] = [];
+  for (const ch of GLYPH_CHARS) {
+    out.push({
+      key: glyphKey(ch),
+      w: GLYPH_W,
+      h: GLYPH_H,
+      ax: 0.5,
+      ay: 0.5,
+      draw(ctx) {
+        ctx.font = 'bold 21px "Trebuchet MS", "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(32, 20, 6, 0.85)';
+        ctx.strokeText(ch, GLYPH_W / 2, GLYPH_H / 2 + 1);
+        ctx.fillStyle = '#ffd860';
+        ctx.fillText(ch, GLYPH_W / 2, GLYPH_H / 2 + 1);
+      },
+    });
+  }
+  return out;
+}
+
 export function renderSprites(): SpriteSpec[] {
   return [
+    ...glyphSpecs(),
     {
       key: RENDER_KEYS.shadow,
       w: SHADOW_W,

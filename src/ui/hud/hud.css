@@ -109,7 +109,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.th-btn {
+.th-hbtn {
   position: relative;
   display: flex;
   align-items: center;
@@ -127,13 +127,13 @@
     0 2px 4px var(--th-shadow);
 }
 
-.th-btn.is-down,
+.th-hbtn.is-down,
 .th-ibtn.is-down .th-ibtn-face {
   filter: brightness(1.35);
   transform: translateY(1px);
 }
 
-.th-btn.is-deny {
+.th-hbtn.is-deny {
   animation: th-deny 0.28s linear;
 }
 
@@ -214,7 +214,7 @@
 }
 
 /* HQ bars above the minimap strip. The whole block is the minimap touch target. */
-.th-map {
+.th-hmap {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -253,7 +253,7 @@
   visibility: hidden;
 }
 
-.th-bar {
+.th-hbar {
   flex: 1 1 auto;
   display: flex;
   height: 8px;
@@ -270,15 +270,15 @@
   background: linear-gradient(180deg, #a3c466, var(--th-good));
 }
 
-.th-hq-enemy .th-bar {
+.th-hq-enemy .th-hbar {
   justify-content: flex-end;
 }
 
-.th-bar[data-lvl='1'] .th-bar-fill {
+.th-hbar[data-lvl='1'] .th-bar-fill {
   background: linear-gradient(180deg, #f0c468, var(--th-warn));
 }
 
-.th-bar[data-lvl='0'] .th-bar-fill {
+.th-hbar[data-lvl='0'] .th-bar-fill {
   background: linear-gradient(180deg, var(--alarm), var(--th-bad));
 }
 
@@ -619,7 +619,7 @@
   gap: 6px;
 }
 
-.th-plate {
+.th-hplate {
   background: var(--plate-bg);
   border: 1px solid var(--plate-edge);
   border-radius: 8px;
@@ -818,7 +818,7 @@
   color: var(--alarm);
 }
 
-.th-orders {
+.th-horders {
   flex: 0 0 auto;
   margin-left: auto;
   height: var(--bar-h);
@@ -845,7 +845,7 @@
 /* ---------- Direct control ---------- */
 
 .th-stick,
-.th-card,
+.th-ctrl-card,
 .th-firerow {
   display: none;
 }
@@ -854,7 +854,7 @@
   display: block;
 }
 
-.th-hud.is-control .th-card,
+.th-hud.is-control .th-ctrl-card,
 .th-hud.is-control .th-firerow {
   display: flex;
 }
@@ -904,7 +904,7 @@
 }
 
 /* The controlled unit's card hangs under the top bar at the left, like a status tab, clear of the fighting. */
-.th-card {
+.th-ctrl-card {
   position: absolute;
   left: var(--sl);
   top: calc(var(--top-h) + var(--th-safe-top));
@@ -940,7 +940,7 @@
   text-overflow: ellipsis;
 }
 
-.th-card .th-bar {
+.th-ctrl-card .th-hbar {
   flex: 0 0 auto;
   height: 9px;
 }

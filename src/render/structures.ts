@@ -109,6 +109,8 @@ class HqView {
   dir = 1;
   faction: FactionId = 'british';
   state: DamageState | '' = '';
+  /** Show the ruin although the HQ still has health (the battle ended another way). */
+  forcedRuin = false;
 
   constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId) {
     this.faction = faction;
@@ -288,6 +290,24 @@ export class StructureViews {
     return true;
   }
 
+  /** World position of fire point `index` on an HQ's roof and walls (smoke and flames), written to out; false if there is none. */
+  hqFire(side: number, index: number, out: GunPoint): boolean {
+    const hv = this.hqs[side];
+    if (!hv) return false;
+    const pts = HQ_LAYOUT[hv.faction].fires;
+    if (index < 0 || index >= pts.length) return false;
+    out.x = hv.artX + hv.dir * pts[index].x;
+    out.y = VIEW.groundY + pts[index].y;
+    out.dir = hv.dir;
+    return true;
+  }
+
+  /** Show the ruin of an HQ that still has health (the battle ended another way). */
+  forceRuin(side: number): void {
+    const hv = this.hqs[side];
+    if (hv) hv.forcedRuin = true;
+  }
+
   /** World position of a pillbox's gun slit, written to out. */
   pillboxGun(side: Side, x: number, out: GunPoint): void {
     const d = dirOf(side);
@@ -305,7 +325,7 @@ export class StructureViews {
       const hq = state.sides[side].hq;
       if (!hv || !hq) continue;
       const frac = hq.maxHp > 0 ? hq.hp / hq.maxHp : 0;
-      const st: DamageState = !hq.alive ? 'ruin' : frac > S.hqDamaged ? 'intact' : 'damaged';
+      const st: DamageState = !hq.alive || hv.forcedRuin ? 'ruin' : frac > S.hqDamaged ? 'intact' : 'damaged';
       if (st !== hv.state) {
         hv.state = st;
         setKey(hv.img, reg, hqKey(hv.faction, st), hv.dir);

@@ -178,7 +178,7 @@ class TrainView {
 
   constructor(parent: HTMLElement, kind: UnitKind) {
     this.kind = kind;
-    const b = button('th-btn th-tbtn', `train-${kind}`, kind, parent);
+    const b = button('th-hbtn th-tbtn', `train-${kind}`, kind, parent);
     this.node = b;
     const win = el('span', 'th-tbtn-win', b);
     this.canvas = el('canvas', 'th-tbtn-ico', win);
@@ -233,7 +233,7 @@ class SupportView {
 
   constructor(parent: HTMLElement, kind: SupportKind) {
     this.kind = kind;
-    const b = button('th-btn th-sbtn', `support-${kind}`, kind, parent);
+    const b = button('th-hbtn th-sbtn', `support-${kind}`, kind, parent);
     this.node = b;
     this.sweep = new FracCell(el('span', 'th-sweep', b));
     icon(SUPPORT_ICON[kind], b);
@@ -373,17 +373,17 @@ class HudView implements Hud {
     el('span', 'th-pop-label', popCol, 'Men');
     this.popFull = new FlagCell(pop, 'is-full');
 
-    const map = el('div', 'th-map', top);
+    const map = el('div', 'th-hmap', top);
     map.dataset.testid = 'minimap';
     map.dataset.interactive = '';
     this.mapBlock = map;
     const hqRow = el('div', 'th-hqrow', map);
     const own = el('div', 'th-hq th-hq-own', hqRow);
     el('span', '', own, 'HQ');
-    this.ownHq = new BarCell(el('span', 'th-bar', own));
+    this.ownHq = new BarCell(el('span', 'th-hbar', own));
     const enemy = el('div', 'th-hq th-hq-enemy', hqRow);
     el('span', '', enemy, 'Enemy');
-    this.enemyHq = new BarCell(el('span', 'th-bar', enemy));
+    this.enemyHq = new BarCell(el('span', 'th-hbar', enemy));
     this.enemyHidden = new FlagCell(enemy, 'is-hidden');
     this.mapCanvas = el('canvas', 'th-minimap', map);
     this.minimap = new MinimapView(this.mapCanvas);
@@ -426,11 +426,11 @@ class HudView implements Hud {
 
     // ----- Right edge: direct-control buttons -----
     const fireRow = el('div', 'th-firerow', root);
-    const release = button('th-btn th-fbtn th-release', 'release', 'Release unit', fireRow);
+    const release = button('th-hbtn th-fbtn th-release', 'release', 'Release unit', fireRow);
     icon('close', release);
     el('span', 'th-fbtn-label', release, 'Release');
     onTap(release, () => this.doRelease());
-    const ability = button('th-btn th-fbtn th-ability', 'ability', 'Ability', fireRow);
+    const ability = button('th-hbtn th-fbtn th-ability', 'ability', 'Ability', fireRow);
     this.abilitySweep = new FracCell(el('span', 'th-sweep', ability));
     icon('ability', ability);
     this.abilityName = new TextCell(el('span', 'th-fbtn-label', ability));
@@ -438,7 +438,7 @@ class HudView implements Hud {
     this.abilityButton = ability;
     ability.addEventListener('animationend', () => ability.classList.remove('is-deny'));
     onPress(ability, () => this.doAbility());
-    const fire = button('th-btn th-fbtn th-fire', 'fire', 'Fire', fireRow);
+    const fire = button('th-hbtn th-fbtn th-fire', 'fire', 'Fire', fireRow);
     this.fireSweep = new FracCell(el('span', 'th-sweep', fire));
     icon('fire', fire);
     el('span', 'th-fbtn-label', fire, 'Fire');
@@ -456,7 +456,7 @@ class HudView implements Hud {
 
     // ----- Bottom bar -----
     const bottom = el('div', 'th-bottom', root);
-    const stick = el('div', 'th-plate th-stick', bottom);
+    const stick = el('div', 'th-hplate th-stick', bottom);
     stick.dataset.testid = 'stick';
     stick.dataset.interactive = '';
     icon('chevLeft', stick, 'th-stick-arrow th-stick-arrow-l');
@@ -465,14 +465,14 @@ class HudView implements Hud {
     this.stick = stick;
     this.bindStick();
 
-    const card = el('div', 'th-plate th-card', root);
+    const card = el('div', 'th-hplate th-ctrl-card', root);
     this.cardCanvas = el('canvas', 'th-card-ico', card);
     const cardCol = el('div', 'th-card-col', card);
     this.cardName = new TextCell(el('span', 'th-card-name', cardCol));
-    this.cardHp = new BarCell(el('span', 'th-bar', cardCol));
+    this.cardHp = new BarCell(el('span', 'th-hbar', cardCol));
     this.controlFlag = new FlagCell(root, 'is-control');
 
-    const trainWrap = el('div', 'th-plate th-trainwrap', bottom);
+    const trainWrap = el('div', 'th-hplate th-trainwrap', bottom);
     this.trainWrap = trainWrap;
     const trainBar = el('div', 'th-train', trainWrap);
     trainBar.dataset.interactive = '';
@@ -489,10 +489,10 @@ class HudView implements Hud {
       { passive: false },
     );
 
-    const orders = el('div', 'th-plate th-orders', bottom);
+    const orders = el('div', 'th-hplate th-horders', bottom);
     for (let i = 0; i < ORDERS.length; i++) {
       const order = ORDERS[i];
-      const b = button('th-btn th-obtn', `order-${order}`, ORDER_LABEL[order], orders);
+      const b = button('th-hbtn th-obtn', `order-${order}`, ORDER_LABEL[order], orders);
       icon(order, b);
       el('span', '', b, ORDER_LABEL[order]);
       onPress(b, () => this.doOrder(order));
@@ -503,21 +503,21 @@ class HudView implements Hud {
     const overlay = el('div', 'th-pause', root);
     const panel = el('div', 'th-pause-panel', overlay);
     el('div', 'th-pause-title', panel, 'Paused');
-    const pauseMute = button('th-btn th-pbtn th-pbtn-quiet', 'pause-mute', 'Sound', panel);
+    const pauseMute = button('th-hbtn th-pbtn th-pbtn-quiet', 'pause-mute', 'Sound', panel);
     icon('soundOn', pauseMute, 'th-ico-on');
     icon('soundOff', pauseMute, 'th-ico-off');
     el('span', 'th-ico-on', pauseMute, 'Sound on');
     el('span', 'th-ico-off', pauseMute, 'Sound off');
     onTap(pauseMute, () => this.doMute());
-    const resume = button('th-btn th-pbtn th-pbtn-wide', 'resume', 'Resume', panel);
+    const resume = button('th-hbtn th-pbtn th-pbtn-wide', 'resume', 'Resume', panel);
     icon('play', resume);
     el('span', '', resume, 'Resume');
     onTap(resume, () => this.doOverlay('resume'));
-    const restart = button('th-btn th-pbtn', 'restart', 'Restart', panel);
+    const restart = button('th-hbtn th-pbtn', 'restart', 'Restart', panel);
     icon('restart', restart);
     el('span', '', restart, 'Restart');
     onTap(restart, () => this.doOverlay('restart'));
-    const quit = button('th-btn th-pbtn', 'quit', 'Quit to map', panel);
+    const quit = button('th-hbtn th-pbtn', 'quit', 'Quit to map', panel);
     icon('quit', quit);
     el('span', '', quit, 'Quit to map');
     onTap(quit, () => this.doOverlay('quit'));

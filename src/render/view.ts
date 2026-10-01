@@ -18,12 +18,13 @@ import { structureSpecs } from '../art/structures';
 import { vehicleSpecs } from '../art/vehicles';
 import { FX_KEYS } from '../data/fx';
 import { RENDER } from '../data/render';
+import { SUPPORTS } from '../data/supports';
 import { VIEW } from '../data/view';
 import type { Battle, BattleState } from '../sim';
 import { SpriteRegistry } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
-import type { AttachOptions, BattleView, RenderStats, TargetingKind, WeatherMode } from './contracts';
+import type { AttachOptions, AudioSink, BattleView, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
 import { EffectsSystem, pillboxAt } from './effects';
 import { PanInput } from './input';
 import { addImage, createLayers, type Layers } from './layers';
@@ -31,6 +32,7 @@ import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { renderSprites } from './sprites';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
+import { WeatherView } from './weather';
 
 const ATLAS_GROUP = 'th/atlas';
 const BATTLE_GROUP = 'th/battle';
@@ -78,8 +80,11 @@ export class BattleViewImpl implements BattleView {
   private structures: StructureViews | null = null;
   private effects: EffectsSystem | null = null;
   private input: PanInput | null = null;
+  private weatherView: WeatherView | null = null;
   private nightTint: Phaser.GameObjects.Image | null = null;
+  /** The night tint's alpha for the mission's own time of day, and how far setDarkness() has pushed it toward full night. */
   private nightAlpha = 0;
+  private darkness = 0;
   private reticle: Phaser.GameObjects.Image | null = null;
   private reticleLine: Phaser.GameObjects.Image | null = null;
   private battle: Battle | null = null;
@@ -164,6 +169,16 @@ export class BattleViewImpl implements BattleView {
     this.registry = reg;
     const layers = createLayers(scene);
     this.layers = layers;
+    // Phaser picks a texture in the fragment shader by comparing an interpolated float with the unit number
+    // (`outTexDatum == 7.0`). That comparison can fail on some pixels of rotated quads, which then draw nothing,
+    // for every unit but number 0. A batch numbers its textures in the order they first appear, and the backdrop
+    // textures come first in a frame (and the foreground strip may start a batch), so an invisible speck from the
+    // atlas is drawn before them to make the atlas unit 0.
+    for (const layer of [layers.byName.sky, layers.byName.foreground]) {
+      const speck = addImage(scene, layer, reg.get(RENDER_KEYS.white).frame);
+      speck.setScale(0.01);
+      speck.alpha = 0.001;
+    }
     this.backdrop = new BackdropView(scene, layers);
     this.units = new UnitViews(scene, layers, reg);
     this.structures = new StructureViews(scene, layers, reg);
@@ -175,6 +190,7 @@ export class BattleViewImpl implements BattleView {
     this.reticleLine.visible = false;
     this.reticle = addImage(scene, layers.byName.markers, reg.get(FX_KEYS.ui.reticle).frame);
     this.reticle.visible = false;
+    this.weatherView = new WeatherView(scene, layers, reg, this.effects.ctx);
 
     this.input = new PanInput(
       this.game.canvas,
@@ -249,6 +265,11 @@ export class BattleViewImpl implements BattleView {
     this.units.reset(opts.visualSeed);
     this.effects.clear();
     this.effects.ctx.state = state;
+    this.effects.ctx.playerSide = opts.playerSide;
+    this.effects.ctx.seed(opts.visualSeed);
+    this.effects.ctx.time = 0;
+    this.darkness = 0;
+    this.weatherView?.attach(opts.visualSeed, this.weather, mission.theatre);
     this.camera.setLength(state.length);
     const hq = state.sides[opts.playerSide].hq;
     const dir = opts.playerSide === 0 ? 1 : -1;
@@ -261,7 +282,12 @@ export class BattleViewImpl implements BattleView {
     this.units?.reset(this.visualSeed);
     this.structures?.clear();
     this.effects?.clear();
-    if (this.effects) this.effects.ctx.state = null;
+    this.weatherView?.clear();
+    if (this.effects) {
+      this.effects.ctx.state = null;
+      this.effects.ctx.sound.stopLoops();
+      this.effects.ctx.sound.reset();
+    }
     this.registry?.removeGroup(BATTLE_GROUP);
     if (this.nightTint) this.nightTint.visible = false;
     this.setControlled(-1);
@@ -281,6 +307,7 @@ export class BattleViewImpl implements BattleView {
     const t0 = performance.now();
     const ev = battle.events;
     const state = battle.state;
+    effects.beginStep();
     for (let i = 0; i < ev.count; i++) {
       const e = ev.items[i];
       switch (e.type) {
@@ -294,6 +321,10 @@ export class BattleViewImpl implements BattleView {
           break;
         case 'unitDied':
           units.onDied(e.unit, e.unitId, e.cause, e.dir, e.x);
+          break;
+        case 'battleEnded':
+          // The losing headquarters ends as a ruin even when the battle was lost on a timer.
+          if (e.side >= 0 && state.sides[e.side === 0 ? 1 : 0].hq) structures.forceRuin(e.side === 0 ? 1 : 0);
           break;
         default:
           break;
@@ -312,36 +343,59 @@ export class BattleViewImpl implements BattleView {
     const rig = this.camera;
     rig.update(this.realDt);
     const cam = scene.cameras.main;
-    const zoom = (cam.height / VIEW.heightWu) * this.debugZoom;
-    if (cam.zoom !== zoom) cam.setZoom(zoom);
-    cam.centerOn(rig.centerX, this.debugZoom === 1 ? VIEW.heightWu / 2 : this.debugCenterY);
     const left = rig.left;
     const viewW = rig.viewWidthWu;
+    // Screen shake moves the camera; a little extra zoom keeps the view inside the picture while it does.
+    const shake = this.effects ? this.effects.ctx.shake : null;
+    const sx = shake ? shake.x : 0;
+    const sy = shake ? shake.y : 0;
+    let zoomMul = this.debugZoom;
+    if (sx !== 0 || sy !== 0) {
+      zoomMul *= Math.max(viewW / Math.max(1, viewW - 2 * Math.abs(sx)), VIEW.heightWu / Math.max(1, VIEW.heightWu - 2 * Math.abs(sy)));
+    }
+    const zoom = (cam.height / VIEW.heightWu) * zoomMul;
+    if (cam.zoom !== zoom) cam.setZoom(zoom);
+    cam.centerOn(rig.centerX + sx, (this.debugZoom === 1 ? VIEW.heightWu / 2 : this.debugCenterY) + sy);
     this.backdrop.update(left, viewW);
     const battle = this.battle;
     if (battle && this.units && this.structures && this.effects) {
       const state: BattleState = battle.state;
-      this.effects.ctx.camLeft = left;
-      this.effects.ctx.camRight = left + viewW;
+      const ctx = this.effects.ctx;
+      ctx.camLeft = left;
+      ctx.camRight = left + viewW;
+      ctx.night = this.nightLevel();
+      ctx.sound.setView(rig.centerX, viewW);
       this.structures.update(state, dt);
       this.units.update(state, a, dt, left, left + viewW);
-      this.effects.update(dt);
+      this.weatherView?.update(dt, left, viewW, this.effects.enabled);
+      this.effects.update(dt, this.realDt);
     }
     this.placeOverlays(left, viewW);
     this.renderMs += (performance.now() - t0 - this.renderMs) * RENDER.statsSmoothing;
   }
 
+  /** The night tint's opacity now: the mission's own, pushed toward full night by setDarkness(). */
+  private nightAlphaNow(): number {
+    return this.nightAlpha + (Math.max(this.nightAlpha, RENDER.night.maxAlpha) - this.nightAlpha) * this.darkness;
+  }
+
+  /** How dark the scene is, 0 (none) to 1 (full night), for the effects. */
+  private nightLevel(): number {
+    return Math.min(1, this.nightAlphaNow() / RENDER.night.maxAlpha);
+  }
+
   private placeOverlays(left: number, viewW: number): void {
     const night = this.nightTint;
     if (night) {
-      const on = this.battle !== null && this.nightAlpha > 0.001;
+      const alpha = this.nightAlphaNow();
+      const on = this.battle !== null && alpha > 0.001;
       night.visible = on;
       if (on) {
         night.x = left - 4;
         night.y = -4;
         night.scaleX = (viewW + 8) / WHITE_SIZE / VIEW.textureScale;
         night.scaleY = (VIEW.heightWu + 8) / WHITE_SIZE / VIEW.textureScale;
-        night.alpha = this.nightAlpha;
+        night.alpha = alpha;
       }
     }
     const ret = this.reticle;
@@ -350,12 +404,17 @@ export class BattleViewImpl implements BattleView {
       const on = this.targeting !== null && this.battle !== null;
       ret.visible = on;
       line.visible = on;
-      if (on) {
+      if (on && this.targeting !== null) {
         const x = Math.max(left, Math.min(left + viewW, this.hoverX));
         const fr = this.registry.get(FX_KEYS.ui.reticle);
+        // The circle shows the call-in's reach: its spread, or a smoke cloud's radius, as the half-width.
+        const def = SUPPORTS[this.targeting];
+        const half = this.targeting === 'smoke' ? def.smokeRadius : def.spread;
+        const k = half > 0 ? (half * 2) / fr.w : RENDER.marker.reticleScale;
         ret.x = x;
         ret.y = VIEW.groundY;
-        ret.setScale(RENDER.marker.reticleScale / fr.scale);
+        ret.scaleX = (k * RENDER.marker.reticleScale) / fr.scale;
+        ret.scaleY = (Math.min(k, RENDER.marker.reticleMaxTall) * RENDER.marker.reticleScale) / fr.scale;
         line.x = x;
         line.y = VIEW.groundY / 2;
         line.scaleX = 1.2 / WHITE_SIZE / VIEW.textureScale;
@@ -395,6 +454,26 @@ export class BattleViewImpl implements BattleView {
     if (!enabled) this.effects.clear();
   }
 
+  setAudio(audio: AudioSink | null): void {
+    this.effects?.ctx.sound.setSink(audio);
+  }
+
+  setDarkness(darkness: number): void {
+    this.darkness = Math.max(0, Math.min(1, Number.isFinite(darkness) ? darkness : 0));
+  }
+
+  forceWeather(mode: 'rain' | 'clear'): void {
+    this.weatherView?.force(mode);
+  }
+
+  forceThunder(): void {
+    this.weatherView?.forceThunder();
+  }
+
+  weatherStats(): WeatherStats {
+    return this.weatherView ? this.weatherView.stats() : { raining: false, checksMade: 0, strikes: 0 };
+  }
+
   unitScreenPos(unitId: number): { x: number; y: number } | null {
     const v = this.units?.findById(unitId);
     if (!v || !v.shown) return null;
@@ -421,6 +500,8 @@ export class BattleViewImpl implements BattleView {
       for (const l of Object.values(this.layers.byName)) count(l.getChildren());
       for (const l of this.layers.rows) count(l.getChildren());
       count(this.layers.glow.getChildren());
+      count(this.layers.lit.getChildren());
+      count(this.layers.grade.getChildren());
     }
     return {
       fps: this.game.loop.actualFps,
@@ -443,6 +524,7 @@ export class BattleViewImpl implements BattleView {
 
   destroy(): void {
     this.detach();
+    this.effects?.ctx.sound.setSink(null);
     this.input?.destroy();
     this.input = null;
     window.removeEventListener('resize', this.onWindowResize);
