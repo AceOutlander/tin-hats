@@ -76,6 +76,9 @@ interface Result {
   cpu: number;
   report: PerfReport;
   fps: number;
+  /** Main-thread CPU and script milliseconds per frame over the window (CPU time: other programs on the machine do not count). */
+  cpuMsPerFrame: number;
+  scriptMsPerFrame: number;
   stepMsPerTick: number;
   units: { avg: number; min: number; max: number };
   live: { images: number; visible: number; particlesPeak: number; particlesAvg: number; tracersPeak: number; unitViews: number; unitViewsDrawn: number };
@@ -89,6 +92,13 @@ async function heapMB(cdp: CDPSession, collect: boolean): Promise<number> {
   if (collect) await cdp.send('HeapProfiler.collectGarbage');
   const usage = await cdp.send('Runtime.getHeapUsage');
   return usage.usedSize / (1024 * 1024);
+}
+
+/** Main-thread CPU and script seconds so far (CDP Performance domain). ThreadTime is CPU time, so other programs taking the core do not count. */
+async function threadMetrics(cdp: CDPSession): Promise<{ thread: number; script: number }> {
+  const { metrics } = await cdp.send('Performance.getMetrics');
+  const get = (name: string): number => metrics.find((m) => m.name === name)?.value ?? 0;
+  return { thread: get('ThreadTime'), script: get('ScriptDuration') };
 }
 
 function fmt(n: number, digits = 2): string {
@@ -199,6 +209,7 @@ async function main(): Promise<number> {
     const cdp = await context.newCDPSession(page);
     await cdp.send('HeapProfiler.enable');
     await cdp.send('Profiler.enable');
+    await cdp.send('Performance.enable');
 
     // Long tasks (anything over 50 ms on the main thread) and heap polling inside the page.
     await page.evaluate(() => {
@@ -315,6 +326,7 @@ async function main(): Promise<number> {
     await page.evaluate(() => (window as unknown as Hooked).__THPERF.reset());
     const heapStart = await heapMB(cdp, true);
     const counters = await heapCounters();
+    const cpuStart = await threadMetrics(cdp);
     let allocated = 0;
     let drops = 0;
     let longTasks = 0;
@@ -367,6 +379,7 @@ async function main(): Promise<number> {
         break;
       }
     }
+    const cpuEnd = await threadMetrics(cdp);
     const now = await heapCounters();
     allocated += now.allocated - counters.allocated;
     drops += now.drops - counters.drops;
@@ -379,6 +392,7 @@ async function main(): Promise<number> {
     if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     const report = await page.evaluate(() => (window as unknown as Hooked).__THPERF.report());
     const quality1 = await page.evaluate(() => (window as unknown as Hooked).__THPERF.quality());
+    const finalStats = await page.evaluate(() => (window as unknown as Hooked).__THPERF.stats());
     const stepMsPerTick = await page.evaluate(() => (window as unknown as Hooked).__TH.perf().stepMsAvg);
     const layers = await page.evaluate(() => (window as unknown as Hooked).__THPERF.layers());
     const heapEnd = await heapMB(cdp, true);
@@ -392,6 +406,8 @@ async function main(): Promise<number> {
       cpu,
       report,
       fps: elapsed > 0 ? report.frames / elapsed : 0,
+      cpuMsPerFrame: ((cpuEnd.thread - cpuStart.thread) * 1000) / Math.max(1, report.frames),
+      scriptMsPerFrame: ((cpuEnd.script - cpuStart.script) * 1000) / Math.max(1, report.frames),
       stepMsPerTick,
       units: { avg: sum((s) => s.unitsMine + s.unitsTheirs) / n, min: Math.min(...unitTotals), max: Math.max(...unitTotals) },
       live: {
@@ -425,6 +441,7 @@ async function main(): Promise<number> {
     console.log(row('SIM + RENDER + HUD (budget)', report.js));
     console.log(row('Phaser draw (informational)', report.draw));
     console.log(row('frame interval', report.interval));
+    console.log(`  main thread CPU per frame      ${result.cpuMsPerFrame.toFixed(2)} ms (of which script ${result.scriptMsPerFrame.toFixed(2)} ms) (CPU time, so other programs on the machine do not inflate it)`);
     console.log(
       `live objects: ${result.units.avg.toFixed(0)} units (${result.units.min} to ${result.units.max}), ${result.live.unitViews} unit views (${result.live.unitViewsDrawn} drawn), ` +
         `${result.live.images} images (${result.live.visible} visible), particles avg ${result.live.particlesAvg} peak ${result.live.particlesPeak}, tracers peak ${result.live.tracersPeak}`,
@@ -435,7 +452,7 @@ async function main(): Promise<number> {
     );
     const busy = layers.filter((l) => l.total >= 25).sort((p, q) => q.total - p.total);
     console.log(`game objects by layer (total/visible): ${busy.map((l) => `${l.name} ${l.total}/${l.visible}`).join(', ')}`);
-    console.log(`quality: level ${result.quality.final} (${result.quality.drops} drops, ${result.quality.raises} raises)`);
+    console.log(`quality: level ${result.quality.final} (${result.quality.drops} drops, ${result.quality.raises} raises), canvas ${finalStats.canvasW}x${finalStats.canvasH} px (pixel ratio ${finalStats.dpr})`);
     if (problems.length > 0) console.log(`PAGE PROBLEMS:\n  ${problems.join('\n  ')}`);
     const pass = report.js.avg < budget;
     console.log(`${pass ? 'PASS' : 'FAIL'}: average JS ${report.js.avg.toFixed(2)} ms per frame against a budget of ${budget} ms`);

@@ -114,6 +114,8 @@ abstract class UnitViewBase {
   readonly shadow: Img;
   readonly pipBack: Img;
   readonly pips: Img[] = [];
+  /** The tint each pip has now, so a frame only touches the pips whose colour changed. */
+  private readonly pipTint: number[] = [];
   pipsShown = false;
   private readonly shadowInv: number;
   private readonly whiteInv: number;
@@ -137,6 +139,7 @@ abstract class UnitViewBase {
       const p = addImage(scene, layers.byName.markers, reg.get(RENDER_KEYS.whiteTL).frame);
       p.visible = false;
       this.pips.push(p);
+      this.pipTint.push(-1);
     }
   }
 
@@ -204,7 +207,11 @@ abstract class UnitViewBase {
       p.y = topY;
       p.scaleX = pw * k;
       p.scaleY = U.pipH * s * k;
-      p.setTint(i < filled ? U.pipFill[this.side] : U.pipEmpty);
+      const tint = i < filled ? U.pipFill[this.side] : U.pipEmpty;
+      if (this.pipTint[i] !== tint) {
+        p.setTint(tint);
+        this.pipTint[i] = tint;
+      }
       p.alpha = this.alpha;
     }
     this.pipsShown = true;

@@ -91,6 +91,7 @@ describe('quality governor', () => {
       expect(b.softCap).toBeLessThan(b.hardCap);
       expect(b.tracerEvery).toBeGreaterThanOrEqual(a.tracerEvery);
       expect(b.weatherShare).toBeLessThan(a.weatherShare);
+      expect(b.renderScale).toBeLessThanOrEqual(a.renderScale);
     }
   });
 });

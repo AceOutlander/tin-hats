@@ -104,6 +104,7 @@ export class BattleViewImpl implements BattleView {
   /** Per-frame cost samples (read through perfReport) and the frame-time governor that lowers the effect level. */
   private readonly perf = new FramePerf();
   readonly quality = new QualityGovernor();
+  private renderScale = 1;
   private resizeObserver: ResizeObserver | null = null;
   private ready: ((v: BattleView) => void) | null;
   private debugZoom = 1;
@@ -146,7 +147,7 @@ export class BattleViewImpl implements BattleView {
   private measure(): void {
     this.cssW = Math.max(1, this.parent.clientWidth || window.innerWidth);
     this.cssH = Math.max(1, this.parent.clientHeight || window.innerHeight);
-    this.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, VIEW.maxDevicePixelRatio));
+    this.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, VIEW.maxDevicePixelRatio) * this.quality.current.renderScale);
   }
 
   get internals(): RenderInternals | null {
@@ -231,6 +232,11 @@ export class BattleViewImpl implements BattleView {
     if (this.effects) {
       if (this.effects.enabled) this.quality.update(probe.lastInterval);
       this.effects.ctx.quality = this.quality.current;
+    }
+    // A level with another canvas resolution takes effect now (the same re-measure a window resize does).
+    if (this.quality.current.renderScale !== this.renderScale) {
+      this.renderScale = this.quality.current.renderScale;
+      this.resize();
     }
     if (this.frameHandler) this.frameHandler(deltaMs);
     else this.render(1, this.realDt);

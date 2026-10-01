@@ -23,6 +23,11 @@ export interface QualityLevel {
   tracerEvery: number;
   /** Share of the rain streaks and splashes drawn (1 = all). */
   weatherShare: number;
+  /**
+   * Canvas resolution as a share of the device pixel ratio the view would use (never below 1 device pixel per CSS pixel).
+   * The biggest lever on a phone that is limited by fill rate.
+   */
+  renderScale: number;
 }
 
 export interface QualityTunables {
@@ -54,9 +59,9 @@ export const RENDER_PERF = {
     flapWindow: 60,
     maxBackoff: 8,
     levels: [
-      { name: 'high', density: 1, lowShare: 1, softCap: 650, hardCap: 1000, tracerEvery: 1, weatherShare: 1 },
-      { name: 'medium', density: 0.6, lowShare: 0.5, softCap: 420, hardCap: 700, tracerEvery: 2, weatherShare: 0.6 },
-      { name: 'low', density: 0.35, lowShare: 0.15, softCap: 260, hardCap: 440, tracerEvery: 3, weatherShare: 0.3 },
+      { name: 'high', density: 1, lowShare: 1, softCap: 650, hardCap: 1000, tracerEvery: 1, weatherShare: 1, renderScale: 1 },
+      { name: 'medium', density: 0.6, lowShare: 0.5, softCap: 420, hardCap: 700, tracerEvery: 2, weatherShare: 0.6, renderScale: 1 },
+      { name: 'low', density: 0.35, lowShare: 0.15, softCap: 260, hardCap: 440, tracerEvery: 3, weatherShare: 0.3, renderScale: 0.75 },
     ],
   } as QualityTunables,
   /** Between softCap and hardCap a burst shrinks to this share of its size at the hard cap. */
