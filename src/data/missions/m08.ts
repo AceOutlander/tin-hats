@@ -105,6 +105,16 @@ export const M08: MissionDef = {
     },
     {
       type: 'wave',
+      when: { at: 420 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, behaviour: 'assault' },
+        { kind: 'rifle', count: 2, behaviour: 'assault' },
+      ],
+      announce: 'Another Panzer is coming up behind them.',
+    },
+    {
+      type: 'wave',
       when: { trenchCapturedBy: 0, trenchId: 2, delay: 10 },
       side: 0,
       forces: [
