@@ -1,41 +1,74 @@
 /**
- * Front lines, hold lines and structures. Phase 1 simulates the HQ and its
- * machine gun; trenches, pillbox guns and wire are present as state and are
- * filled in by Phase 2 at the marked places.
+ * Front lines, hold lines and structure guns. The HQ machine gun and the
+ * pillbox machine guns run through the same structure-weapon code.
  */
 import { CONFIG } from '../data/config';
 import { senseMount, updateMount } from './combat';
-import { TARGET_NONE } from './types';
+import { TARGET_NONE, type EntityKind, type MountState } from './types';
 import type { World } from './world';
 
 /**
  * The line a side's army holds under Hold: the forward-most trench it owns,
  * or holdLineOffset in front of its HQ, or its map edge if it has neither.
+ * Also sets the side's hold trench, the base its formation forms up behind
+ * (behind the trench's rear edge when the line is a trench) and the line's forward edge.
  */
-function holdLineOf(w: World, side: number): number {
+function holdLineOf(w: World, side: number): void {
   const s = w.state;
   const dir = side === 0 ? 1 : -1;
-  let line = 0;
-  let found = false;
+  let best = -1;
   for (let i = 0; i < s.trenches.length; i++) {
     const t = s.trenches[i];
     if (t.owner !== side) continue;
-    if (!found || (t.x - line) * dir > 0) {
-      line = t.x;
-      found = true;
-    }
+    if (best < 0 || (t.x - s.trenches[best].x) * dir > 0) best = i;
   }
-  if (found) return line;
-  const hq = s.sides[side].hq;
-  if (hq) return hq.x + dir * CONFIG.holdLineOffset;
-  return side === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
+  w.holdTrench[side] = best;
+  let line: number;
+  if (best >= 0) {
+    line = s.trenches[best].x;
+    const half = w.trenchHalf[best];
+    w.formBase[side] = line - dir * (half + CONFIG.trenchFormGap);
+    w.lineFront[side] = line + dir * half;
+  } else {
+    const hq = s.sides[side].hq;
+    if (hq) line = hq.x + dir * CONFIG.holdLineOffset;
+    else line = side === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
+    w.formBase[side] = line;
+    w.lineFront[side] = line;
+  }
+  s.sides[side].holdLineX = line;
+}
+
+/** For every unit on the field, how many of its side (itself included) stand within clusterRadius. */
+function countClusters(w: World): void {
+  const s = w.state;
+  const units = s.units;
+  const radius = CONFIG.clusterRadius;
+  const cluster = w.cluster;
+  for (let i = 0; i < s.unitCount; i++) {
+    const u = units[i];
+    if (!u.alive || u.inside) {
+      cluster[i] = 0;
+      continue;
+    }
+    let n = 0;
+    for (let j = 0; j < s.unitCount; j++) {
+      const v = units[j];
+      if (!v.alive || v.inside || v.side !== u.side) continue;
+      const d = v.x > u.x ? v.x - u.x : u.x - v.x;
+      if (d <= radius) n++;
+    }
+    cluster[i] = n > 255 ? 255 : n;
+  }
 }
 
 /**
- * Snapshot, before anyone moves this tick: each side's most forward blocker,
- * its most forward armed army unit, the front clamp for the other side, and
- * the hold lines. Movement and targeting read these snapshots so that the
- * order units are processed in can never favour a side.
+ * Snapshot, before anyone moves this tick: each side's most forward blocker
+ * (units on the field, the far edge of a trench its troops occupy, live
+ * pillboxes, the HQ door), its most forward armed line unit, the front clamp
+ * for the other side, the hold lines and the cluster counts. Movement and
+ * targeting read these snapshots so that the order units are processed in can
+ * never favour a side.
  */
 export function computeFronts(w: World): void {
   const s = w.state;
@@ -57,11 +90,21 @@ export function computeFronts(w: World): void {
     } else if (p.x < f1) f1 = p.x;
   }
 
+  // An occupied trench is held to its far edge: the other side cannot enter it.
+  for (let i = 0; i < s.trenches.length; i++) {
+    const t = s.trenches[i];
+    if (t.occupants <= 0) continue;
+    const half = w.trenchHalf[i];
+    if (t.owner === 0) {
+      if (t.x + half > f0) f0 = t.x + half;
+    } else if (t.owner === 1 && t.x - half < f1) f1 = t.x - half;
+  }
+
   const units = s.units;
   for (let i = 0; i < s.unitCount; i++) {
     const u = units[i];
     if (!u.alive || u.inside) continue;
-    const lead = u.def.armed && u.behaviour === 'army';
+    const lead = u.def.armed && u.behaviour === 'army' && !u.def.followsLine;
     if (u.side === 0) {
       if (u.x > f0) f0 = u.x;
       if (lead && u.x > a0) a0 = u.x;
@@ -71,16 +114,25 @@ export function computeFronts(w: World): void {
     }
   }
 
-  const line0 = holdLineOf(w, 0);
-  const line1 = holdLineOf(w, 1);
-  s.sides[0].holdLineX = line0;
-  s.sides[1].holdLineX = line1;
+  holdLineOf(w, 0);
+  holdLineOf(w, 1);
+  const line0 = s.sides[0].holdLineX;
+  const line1 = s.sides[1].holdLineX;
   w.front[0] = f0;
   w.front[1] = f1;
   w.armedFront[0] = a0 === -Infinity ? line0 : a0;
   w.armedFront[1] = a1 === Infinity ? line1 : a1;
   w.limit[0] = f1 - CONFIG.contactGap;
   w.limit[1] = f0 + CONFIG.contactGap;
+  countClusters(w);
+}
+
+/**
+ * The structure-weapon cycle shared by HQ and pillbox guns: fire whenever an enemy is in range,
+ * whatever the order. The caller sets gun.x (and for firing gun.damageMul and gun.rateMul) first.
+ */
+function fireGun(w: World, gun: MountState, side: number, source: EntityKind): void {
+  updateMount(w, gun, gun.targetType !== TARGET_NONE, side, -1, null, source);
 }
 
 /** Target upkeep for structure guns (before movement, like the units). */
@@ -88,15 +140,19 @@ export function senseStructures(w: World, retarget: boolean): void {
   const s = w.state;
   for (let side = 0; side < 2; side++) {
     const hq = s.sides[side].hq;
-    if (hq && hq.alive) {
-      hq.gun.x = hq.gunX;
-      senseMount(w, hq.gun, side, retarget);
-    }
+    if (!hq || !hq.alive) continue;
+    hq.gun.x = hq.gunX;
+    senseMount(w, hq.gun, side, retarget);
   }
-  // Phase 2: pillbox guns acquire targets here. NOT YET IMPLEMENTED.
+  for (let i = 0; i < s.pillboxes.length; i++) {
+    const p = s.pillboxes[i];
+    if (!p.alive) continue;
+    p.gun.x = p.x;
+    senseMount(w, p.gun, p.side, retarget);
+  }
 }
 
-/** Fire structure guns. The HQ gun fires whenever an enemy is in range, whatever the order. */
+/** Fire structure guns. HQ guns carry the side's HQ-gun upgrades; pillbox guns fire at base strength. */
 export function fireStructures(w: World): void {
   const s = w.state;
   for (let side = 0; side < 2; side++) {
@@ -107,7 +163,15 @@ export function fireStructures(w: World): void {
     gun.x = hq.gunX;
     gun.damageMul = mods.hqGunDamage;
     gun.rateMul = mods.hqGunRate;
-    updateMount(w, gun, gun.targetType !== TARGET_NONE, side, -1, null, 'hq');
+    fireGun(w, gun, side, 'hq');
   }
-  // Phase 2: pillbox guns fire here (updateMount with source 'pillbox'). NOT YET IMPLEMENTED.
+  for (let i = 0; i < s.pillboxes.length; i++) {
+    const p = s.pillboxes[i];
+    if (!p.alive) continue;
+    const gun = p.gun;
+    gun.x = p.x;
+    gun.damageMul = 1;
+    gun.rateMul = 1;
+    fireGun(w, gun, p.side, 'pillbox');
+  }
 }

@@ -266,8 +266,29 @@ export interface World {
   /** Ticks between preferred-target checks. */
   retargetTicks: number;
   /**
-   * Living smoke clouds. Whoever spawns or expires a cloud (Phase 2) keeps this in step; targeting
+   * Living smoke clouds. spawnSmoke and updateSmokes (effects.ts) keep this in step; targeting
    * skips the smoke test entirely while it is 0.
    */
   smokeCount: number;
+
+  /** Per side: index into state.trenches of its hold-line trench, -1 if it owns none. */
+  holdTrench: Int32Array;
+  /** Per side: x the hold formation forms up behind (the hold line, or the rear edge of the hold trench less a gap). */
+  formBase: Float64Array;
+  /** Per side: forward edge of the hold line (the hold trench's front edge, or the hold line itself). */
+  lineFront: Float64Array;
+  /** Per trench: index of its first slot in the slot arrays. */
+  trenchSlot0: Int32Array;
+  /** Per trench: slots held or reserved. */
+  trenchTaken: Int32Array;
+  /** Per trench: half its width. */
+  trenchHalf: Float64Array;
+  /** Per slot: world x. */
+  slotX: Float64Array;
+  /** Per slot: pool index of the unit holding or walking to it, -1 if free. */
+  slotUnit: Int32Array;
+  /** Scratch, per trench and side: infantry standing inside it this tick ([trench * 2 + side]). */
+  trenchInside: Int32Array;
+  /** Per unit pool index: units of its side (itself included) within config.clusterRadius, 0 if not on the field. */
+  cluster: Uint8Array;
 }

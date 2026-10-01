@@ -39,6 +39,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 20,
+    followsLine: false,
   },
   rifle: {
     kind: 'rifle',
@@ -60,6 +61,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 20,
+    followsLine: false,
   },
   lmg: {
     kind: 'lmg',
@@ -81,6 +83,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 24,
+    followsLine: false,
   },
   assault: {
     kind: 'assault',
@@ -102,6 +105,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 20,
+    followsLine: false,
   },
   mortar: {
     kind: 'mortar',
@@ -123,6 +127,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 28,
+    followsLine: true,
   },
   sniper: {
     kind: 'sniper',
@@ -144,6 +149,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 20,
+    followsLine: false,
   },
   medic: {
     kind: 'medic',
@@ -165,6 +171,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 12,
     healRange: 130,
     width: 20,
+    followsLine: true,
   },
   at: {
     kind: 'at',
@@ -186,6 +193,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 24,
+    followsLine: false,
   },
   tank: {
     kind: 'tank',
@@ -207,6 +215,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 110,
+    followsLine: false,
   },
   heavyTank: {
     kind: 'heavyTank',
@@ -228,5 +237,6 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     healRate: 0,
     healRange: 0,
     width: 130,
+    followsLine: false,
   },
 };

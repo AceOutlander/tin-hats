@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/data/config';
+import type { UpgradeDef } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import { WEAPONS } from '../../src/data/weapons';
 import {
@@ -179,15 +180,23 @@ describe('Advance', () => {
   });
 
   it('keeps going when nothing can be engaged, but never closer than the contact gap to a blocker', () => {
-    // A sniper cannot hurt a pillbox, so it just walks up to it. (Pillbox guns are not simulated yet;
-    // when they are, this test needs a sniper that can survive the walk.)
+    // A sniper cannot hurt a pillbox, so it just walks up to it. The pillbox's machine gun fires on it
+    // all the way, so this sniper is given a hundred times its health to survive the walk.
+    const toughen: UpgradeDef = {
+      id: 'tough',
+      name: '',
+      description: '',
+      unit: 'sniper',
+      levels: [[{ stat: 'unitHealth', unit: 'sniper', mul: 100 }]],
+      costPerLevel: 1,
+    };
     const mission = testMission(
       field({
         a: { forces: [{ kind: 'sniper', count: 1 }] },
         pillboxes: [{ id: 1, x: 2000, side: 1, hpMul: 1 }],
       }),
     );
-    const b = makeBattle({ mission });
+    const b = makeBattle({ mission, upgrades: { tough: 1 }, upgradeDefs: [toughen] });
     b.command(0, { type: 'order', order: 'advance' });
     let farthest = 0;
     run(b, 40, () => {

@@ -7,8 +7,8 @@ const EVERYTHING: TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortificat
  * Every weapon in the game, keyed by id. Units, the HQ, pillboxes and support
  * call-ins all refer to these ids. First-pass numbers; the balance phase tunes them.
  *
- * Direct and lobbed weapons carry accuracy numbers too: until projectiles are
- * simulated (Phase 2) the sim resolves them as an instant hit roll.
+ * Hitscan weapons roll accuracyNear..accuracyFar to hit. Direct and lobbed weapons fire a
+ * projectile that lands at the aim point plus scatter and splashes; their accuracy numbers are unused.
  */
 export const WEAPONS: Record<string, WeaponDef> = {
   rifle: {
@@ -33,6 +33,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'rifle',
     projectileLook: 'none',
     sound: 'rifleShot',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   lmg: {
     id: 'lmg',
@@ -56,6 +60,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'mg',
     projectileLook: 'none',
     sound: 'mgShot',
+    setupTime: 1,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   smg: {
     id: 'smg',
@@ -79,6 +87,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'smg',
     projectileLook: 'none',
     sound: 'smgShot',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   grenade: {
     id: 'grenade',
@@ -96,12 +108,17 @@ export const WEAPONS: Record<string, WeaponDef> = {
     projectileSpeed: 220,
     splashRadius: 55,
     scatter: 18,
-    targets: ['infantryTrench', 'fortification', 'hq'],
+    // Units in the open only when they bunch up (dugIn 'only').
+    targets: ['infantryOpen', 'infantryTrench', 'fortification', 'hq'],
     prefer: [],
     moveAndFire: false,
     tracer: 'none',
     projectileLook: 'grenade',
     sound: 'none',
+    setupTime: 0,
+    dugIn: 'only',
+    preferStructures: false,
+    thrown: true,
   },
   mortar: {
     id: 'mortar',
@@ -125,6 +142,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'none',
     projectileLook: 'mortar',
     sound: 'mortarLaunch',
+    setupTime: 1.2,
+    dugIn: 'prefer',
+    preferStructures: false,
+    thrown: false,
   },
   sniperRifle: {
     id: 'sniperRifle',
@@ -148,6 +169,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'sniper',
     projectileLook: 'none',
     sound: 'sniperShot',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   rocket: {
     id: 'rocket',
@@ -171,6 +196,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'none',
     projectileLook: 'rocket',
     sound: 'rocketLaunch',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: true,
+    thrown: false,
   },
   tankGun: {
     id: 'tankGun',
@@ -194,6 +223,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'none',
     projectileLook: 'shell',
     sound: 'tankGun',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   heavyGun: {
     id: 'heavyGun',
@@ -217,6 +250,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'none',
     projectileLook: 'shell',
     sound: 'tankGun',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   coaxMg: {
     id: 'coaxMg',
@@ -240,6 +277,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'mg',
     projectileLook: 'none',
     sound: 'mgShot',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   hqGun: {
     id: 'hqGun',
@@ -263,6 +304,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'mg',
     projectileLook: 'none',
     sound: 'bunkerMg',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   pillboxGun: {
     id: 'pillboxGun',
@@ -286,6 +331,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'mg',
     projectileLook: 'none',
     sound: 'bunkerMg',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   artilleryShell: {
     id: 'artilleryShell',
@@ -309,6 +358,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'none',
     projectileLook: 'shell',
     sound: 'shellWhistle',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
   airRocket: {
     id: 'airRocket',
@@ -332,5 +385,9 @@ export const WEAPONS: Record<string, WeaponDef> = {
     tracer: 'none',
     projectileLook: 'bomb',
     sound: 'rocketLaunch',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: false,
+    thrown: false,
   },
 };

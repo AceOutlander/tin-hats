@@ -95,6 +95,22 @@ export interface WeaponDef {
   projectileLook: 'none' | 'grenade' | 'mortar' | 'rocket' | 'shell' | 'bomb';
   /** Sound played when the weapon fires: a one-shot name from src/data/sounds.ts, or 'none' for silence. */
   sound: string;
+  /*
+   * The fields below are required (not optional) so that every weapon object has the same shape:
+   * the sim reads weapons in its hot loop and mixed shapes would make those reads allocate.
+   */
+  /** Crew weapons: seconds the unit spends setting up (action 'deploy') after it stops moving, before it can aim. 0 = none. */
+  setupTime: number;
+  /**
+   * Area weapons. 'prefer': units in trenches, units in a cluster (config.clusterMin within
+   * config.clusterRadius) and fortifications rank ahead of everything not in `prefer`.
+   * 'only': engage nothing else (units in the open only when clustered). 'none': no such preference.
+   */
+  dugIn: 'none' | 'prefer' | 'only';
+  /** Fortifications and the HQ rank ahead of units not in `prefer` (anti-tank rockets). */
+  preferStructures: boolean;
+  /** Thrown by hand: the unit plays 'throw' and the round leaves after config.throwReleaseTime. */
+  thrown: boolean;
 }
 
 export interface UnitDef {
@@ -129,6 +145,11 @@ export interface UnitDef {
   healRange: number;
   /** Footprint along x used for spacing and splash (wu). */
   width: number;
+  /**
+   * Support troops (mortar, medic): under Advance they stay formationDepth behind the leading
+   * line unit instead of leading, and they never count as the line themselves.
+   */
+  followsLine: boolean;
 }
 
 export type DamageMatrix = Record<DamageType, Record<TargetClass, number>>;
@@ -256,6 +277,8 @@ export interface GameConfig {
   mapMargin: number;
   /** Speed multiplier while running to the HQ under Fall Back. */
   fallBackSpeedMul: number;
+  /** A standing unit sets off again only when its goal is further than this (no shuffling behind a creeping line). */
+  moveDeadband: number;
 
   /** Seconds a unit stays in the `fire` action after its last shot. */
   firePoseTime: number;
@@ -279,6 +302,21 @@ export interface GameConfig {
   trenchSlotSpacing: number;
   /** A shooter this close to its target ignores smoke. */
   smokePointBlank: number;
+  /** Gap between the rear edge of a hold-line trench and the first rank of the formation behind it. */
+  trenchFormGap: number;
+  /** Footprint of a pillbox along x (centred on its x), for splash. */
+  pillboxWidth: number;
+
+  /** Scatter of direct and lobbed rounds is weapon.scatter x (distance / range), but never below this fraction of it. */
+  scatterMinFrac: number;
+  /** Area weapons treat a unit as part of a cluster when at least this many of its side (itself included) stand within clusterRadius. */
+  clusterMin: number;
+  clusterRadius: number;
+  /** Thrown weapons: seconds from the start of the 'throw' action to the release, and the whole action. */
+  throwReleaseTime: number;
+  throwPoseTime: number;
+  /** A guard that was hit by something it cannot reach chases toward the enemy (inside its leash) for this long. */
+  guardAlertTime: number;
 
   /** Pool sizes. Units and projectiles are hard caps; the event, command and damage buffers grow if exceeded. */
   maxUnits: number;

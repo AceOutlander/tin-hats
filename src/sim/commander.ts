@@ -161,7 +161,9 @@ function think(w: World, si: number, ai: AiState): void {
       }
     }
   } else if (order === 'advance') {
-    if (group < foe * AI.holdRatio || group < AI.minAttackStrength * AI.regroupFrac) next = 'hold';
+    // At the population cap waiting cannot make the army any bigger, so only a broken attack stops.
+    const capped = side.pop >= side.popCap * AI.popCapAttackFrac;
+    if ((!capped && group < foe * AI.holdRatio) || group < AI.minAttackStrength * AI.regroupFrac) next = 'hold';
   } else if (!foeNear || own >= foe * AI.returnRatio) {
     next = 'hold';
   }

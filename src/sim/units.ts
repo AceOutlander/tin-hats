@@ -5,6 +5,7 @@ import { CONFIG } from '../data/config';
 import type { Side } from '../data/schema';
 import { WEAPONS } from '../data/weapons';
 import { DAMAGE_TYPES, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
+import { releaseSlot } from './trenches';
 import { TARGET_NONE, type Behaviour, type MountState, type UnitState } from './types';
 import type { World } from './world';
 
@@ -31,6 +32,7 @@ export function createMount(): MountState {
     burstLeft: 0,
     burstTimer: 0,
     sinceShot: LONG_AGO,
+    windup: 0,
     x: 0,
     damageMul: 1,
     rateMul: 1,
@@ -52,6 +54,7 @@ export function resetMount(m: MountState, weaponId: string | null, x: number): v
   m.burstLeft = 0;
   m.burstTimer = 0;
   m.sinceShot = LONG_AGO;
+  m.windup = 0;
 }
 
 /** A blank pool slot. */
@@ -93,6 +96,12 @@ export function createUnit(index: number): UnitState {
     slotDepth: 0,
     jitter: 0,
     postX: 0,
+    trench: -1,
+    slot: -1,
+    setup: 0,
+    hitTime: -LONG_AGO,
+    healIndex: -1,
+    healId: -1,
   };
 }
 
@@ -205,6 +214,12 @@ export function spawnUnit(
   const serial = ++w.spawnCount[side];
   u.jitter = (serial * JITTER_STEP) % 1;
   u.postX = px;
+  u.trench = -1;
+  u.slot = -1;
+  u.setup = 0;
+  u.hitTime = -LONG_AGO;
+  u.healIndex = -1;
+  u.healId = -1;
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = def.formationDepth;
@@ -239,6 +254,7 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
   if (killerSide >= 0) s.sides[killerSide].stats.kills++;
   if (u.inside && side.hq) side.hq.garrison--;
   freeCell(w, u);
+  releaseSlot(w, u);
 
   if (u.controlled) {
     u.controlled = false;
@@ -275,5 +291,7 @@ export function enterHq(w: World, u: UnitState): void {
   u.mount.burstLeft = 0;
   u.mount2.targetType = TARGET_NONE;
   u.mount2.burstLeft = 0;
+  u.mount2.windup = 0;
+  releaseSlot(w, u);
   hq.garrison++;
 }

@@ -4,7 +4,8 @@
  */
 import { CONFIG } from '../data/config';
 import type { ForceDef, MissionEventDef, Side } from '../data/schema';
-import { KIND_INDEX, KIND_SAPPER } from './tables';
+import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
+import { claimSlot, enterSlot } from './trenches';
 import type { EndReason } from './types';
 import { spawnUnit } from './units';
 import type { World } from './world';
@@ -12,7 +13,7 @@ import type { World } from './world';
 /**
  * Spawn one group of units. Where they appear:
  * - `x` given: there, one spacing apart going back;
- * - `trenchId` given: at that trench (Phase 2 will seat them in its slots);
+ * - `trenchId` given: seated in that trench's free slots (taking it for the side), the rest just behind it;
  * - otherwise at the HQ door, or at the map edge for a side with no HQ.
  * At mission start, army units with no position stand ready in the hold formation instead.
  * Returns the number of units spawned.
@@ -29,32 +30,51 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let baseX = side.hq ? side.hq.doorX : edge;
   let step = (dir * CONFIG.spacing) / 2;
   let inFormation = atStart && behaviour === 'army' && side.hq !== null;
+  let trench = -1;
   if (force.x !== undefined) {
     baseX = force.x;
     step = -dir * CONFIG.spacing;
     inFormation = false;
   } else if (force.trenchId !== undefined) {
-    // Phase 2: seat the units in the trench's slots. NOT YET IMPLEMENTED: they stand at the trench.
+    // Seated in the trench's slots; whoever does not fit (or cannot use a trench) stands just behind it.
     for (let i = 0; i < s.trenches.length; i++) {
-      if (s.trenches[i].id === force.trenchId) baseX = s.trenches[i].x;
+      if (s.trenches[i].id === force.trenchId) trench = i;
     }
+    if (trench >= 0) baseX = s.trenches[trench].x - dir * (w.trenchHalf[trench] + CONFIG.trenchFormGap);
     step = -dir * CONFIG.spacing;
     inFormation = false;
   }
 
+  // A garrison placed at the start simply holds its trench; taking one later is a capture.
+  if (trench >= 0 && atStart) s.trenches[trench].owner = si;
+
   let spawned = 0;
+  let behind = 0;
   for (let j = 0; j < count; j++) {
-    const u = spawnUnit(w, si, kindIndex, baseX + j * step, behaviour, false, false);
+    const seat = trench >= 0 && KIND_DEFS[kindIndex].usesTrench;
+    const startX = trench < 0 ? baseX + j * step : seat ? s.trenches[trench].x : baseX + behind * step;
+    const u = spawnUnit(w, si, kindIndex, startX, behaviour, false, false);
     if (!u) break;
     spawned++;
-    if (inFormation) {
-      let x = side.holdLineX - dir * u.slotDepth;
+    let x: number;
+    if (seat && claimSlot(w, u, trench)) {
+      x = w.slotX[u.slot];
+      enterSlot(w, u);
+    } else if (trench >= 0) {
+      x = baseX + behind++ * step;
+    } else if (inFormation) {
+      x = w.formBase[si] - dir * u.slotDepth;
       if (side.hq && (x - side.hq.doorX) * dir < 0) x = side.hq.doorX;
-      u.x = x;
-      u.prevX = x;
-      u.goalX = x;
-      u.aimX = x;
+    } else {
+      continue;
     }
+    const margin = CONFIG.mapMargin;
+    if (x < margin) x = margin;
+    else if (x > s.length - margin) x = s.length - margin;
+    u.x = x;
+    u.prevX = x;
+    u.goalX = x;
+    u.aimX = x;
   }
   return spawned;
 }
@@ -137,7 +157,6 @@ export function updateMission(w: World): void {
         fireEvent(w, ev);
       }
     } else if ('trenchCapturedBy' in when) {
-      // Trenches cannot change hands until Phase 2, so this never fires yet; the trigger itself is complete.
       if (w.eventFired[i] !== 0) continue;
       for (let t = 0; t < s.trenches.length; t++) {
         const trench = s.trenches[t];

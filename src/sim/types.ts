@@ -138,6 +138,8 @@ export interface MountState {
   burstTimer: number;
   /** Seconds since this mount last fired (large if it never has). */
   sinceShot: number;
+  /** Thrown weapons: seconds until the round leaves the hand (the unit is in 'throw'); 0 otherwise. */
+  windup: number;
   /**
    * internal: the owner's world x, damage multiplier and reload-speed multiplier for this tick.
    * The owner writes them before sensing and firing so the hot path passes no doubles around
@@ -181,7 +183,12 @@ export interface UnitState {
   hp: number;
   maxHp: number;
 
-  /** What the unit is doing; drives the animation. `inside` = garrisoned in the HQ: do not draw, cannot be hit. */
+  /**
+   * What the unit is doing; drives the animation. `inside` = garrisoned in the HQ: do not draw, cannot be hit.
+   * `deploy` = a crew weapon (lmg, mortar) setting up after the unit stopped; `throw` = a grenade throw
+   * (it leaves the hand config.throwReleaseTime into the action, which lasts config.throwPoseTime);
+   * `heal` = a medic treating the unit at `aimX`.
+   */
   action: UnitAction;
   /** Seconds the unit has been in `action` (0 on the tick it changes). */
   actionTime: number;
@@ -189,18 +196,18 @@ export interface UnitState {
   inside: boolean;
   /** Supplies a sapper is carrying (draw the crate when > 0); 0 otherwise. */
   carrying: number;
-  /** Id of the trench the unit occupies, or -1. Always -1 until trenches are simulated (Phase 2). */
+  /** Id of the trench the unit occupies (it has dropped into a slot and has cover), or -1. */
   trenchId: number;
   /** True while the player directly controls this unit. Always false until Phase 2. */
   controlled: boolean;
 
-  /** World x of what the unit is aiming at; equal to x when it has no target. */
+  /** World x of what the unit is aiming at (or, for a medic, the man it is healing); equal to x when it has neither. */
   aimX: number;
   /** Primary weapon readiness 0..1 (1 = ready to fire, rises from 0 during the reload). 1 for unarmed units. */
   weaponCharge: number;
   /** Primary weapon (rifle, tank gun...). `mount.weapon` is null for unarmed units. */
   mount: MountState;
-  /** Secondary weapon (grenade, coaxial MG). Present but not fired until Phase 2. */
+  /** Secondary weapon (grenade, coaxial MG), sensed and fired independently of the primary. */
   mount2: MountState;
 
   /** internal: index of `kind` in the sim's kind tables. */
@@ -225,6 +232,17 @@ export interface UnitState {
   jitter: number;
   /** internal: the post a guard unit returns to. */
   postX: number;
+  /** internal: index into state.trenches of the trench slot it holds or is walking to, -1 for none. */
+  trench: number;
+  /** internal: global trench slot index it holds or is walking to, -1 for none. */
+  slot: number;
+  /** internal: seconds of crew-weapon set-up left (weapon.setupTime after it last moved). */
+  setup: number;
+  /** internal: battle time it last took damage. */
+  hitTime: number;
+  /** internal: medics: pool index and id of the unit being healed, -1 for none. */
+  healIndex: number;
+  healId: number;
 }
 
 /** A side's headquarters bunker. */
@@ -299,7 +317,11 @@ export interface SideState {
   stats: SideStats;
 }
 
-/** A trench line. Listed from the mission; occupation and capture are simulated from Phase 2. */
+/**
+ * A trench line. Its slots sit config.trenchSlotSpacing apart (narrower if the trench is) around x.
+ * Infantry that drop into a slot count as `infantryTrench`. Infantry of the side that does not own it
+ * capture it by walking in while no living enemy occupies it (trenchCaptured); ownership persists when empty.
+ */
 export interface TrenchState {
   id: number;
   /** Centre and width. */
@@ -314,7 +336,7 @@ export interface TrenchState {
   capturedAt: number;
 }
 
-/** A pillbox. Listed from the mission; its gun and health are simulated from Phase 2. */
+/** A pillbox: target class `fortification`, a machine gun, and a blocker while alive. Destroyed = rubble with no effect. */
 export interface PillboxState {
   id: number;
   x: number;
@@ -326,7 +348,10 @@ export interface PillboxState {
   gun: MountState;
 }
 
-/** A belt of barbed wire. Listed from the mission; slowing and destruction are simulated from Phase 2. */
+/**
+ * A belt of barbed wire: slows the other side's infantry inside it to config.wireSlow of their speed,
+ * loses health only to explosive splash (from either side), and is crushed by enemy tanks driving over it.
+ */
 export interface WireState {
   id: number;
   x: number;
@@ -342,7 +367,11 @@ export interface DumpState {
   x: number;
 }
 
-/** A shell, rocket, grenade or bomb in flight. Pool slots; none are alive until Phase 2. */
+/**
+ * A shell, rocket, grenade or bomb in flight (pool slots). It flies from fromX to toX in
+ * flightTime and explodes there: an `explosion` event and splash damage that falls off linearly
+ * to weapon.splashRadius from the edge of each target's footprint.
+ */
 export interface ProjectileState {
   alive: boolean;
   /** Unique id, increases with spawn order. */
@@ -359,9 +388,13 @@ export interface ProjectileState {
   flightTime: number;
   /** Depth row it was fired from. */
   row: number;
+  /** internal: weapon table index, damage multiplier of the firer, and the depth row it lands on (-1 = ground). */
+  weaponIndex: number;
+  damageMul: number;
+  targetRow: number;
 }
 
-/** A smoke cloud that blocks direct fire. Pool slots; none are alive until Phase 2. */
+/** A smoke cloud (pool slots): blocks direct fire along any line that crosses it, see smokeBlocks. */
 export interface SmokeState {
   alive: boolean;
   x: number;
@@ -401,9 +434,9 @@ export interface BattleState {
   units: UnitState[];
   /** One past the highest pool index in use. */
   unitCount: number;
-  /** Projectile pool (check `alive`). Empty until Phase 2. */
+  /** Projectile pool (check `alive`). */
   projectiles: ProjectileState[];
-  /** Smoke pool (check `alive`). Empty until Phase 2. */
+  /** Smoke pool (check `alive`). */
   smokes: SmokeState[];
   trenches: TrenchState[];
   pillboxes: PillboxState[];
@@ -458,9 +491,14 @@ export type SimEventType =
  *                   x2, row2 = target position (row2 -1 for a structure target);
  *                   target = 'unit' | 'hq' | 'pillbox', targetIndex = unit pool index, HQ side, or pillbox index;
  *                   hit = whether it hit; dir = sign of x2 - x.
- * projectile        (Phase 2) A shell left a barrel. side, weapon, x, row = launch; x2 = landing point;
- *                   value = flight time in seconds; targetIndex = projectile pool index.
- * explosion         (Phase 2) x = centre, value = radius, weapon, cause = damage type.
+ *                   Direct and lobbed weapons also emit `shot` (hit false; x2 = the aim point) and, in the
+ *                   same step, a `projectile` event with the real landing point.
+ * projectile        A shell, rocket, grenade or bomb left the launcher. side, weapon, x, row = launch;
+ *                   x2 = landing point, row2 = depth row it lands on (-1 = ground); value = flight time in seconds;
+ *                   targetIndex = projectile pool index; source = 'unit' | 'hq' | 'pillbox' | 'none' (a call-in),
+ *                   with unit, unitId, kind = the firer when source is 'unit'; dir = sign of x2 - x.
+ * explosion         A projectile landed. side = firer's side, x = centre, row = depth row (-1 = ground),
+ *                   value = splash radius, weapon, cause = damage type.
  * unitSpawned       A unit appeared. side, unit, unitId, kind, x, row;
  *                   value = 1 if it was trained, 0 if a mission event or the mission start placed it;
  *                   hit = true if it appeared inside the HQ (trained under Fall Back) and is not on the field yet.
@@ -471,15 +509,15 @@ export type SimEventType =
  * structureHit      target = 'hq' | 'pillbox', targetIndex = HQ side or pillbox index, side = owner,
  *                   x = impact point, value = damage, cause, dir.
  * structureDestroyed  target, targetIndex, side = owner, x.
- * trenchCaptured    (Phase 2) side = new owner, targetIndex = trench id, x.
- * wireDestroyed     (Phase 2) targetIndex = wire id, x.
+ * trenchCaptured    side = new owner, targetIndex = trench id, x = trench centre, value = previous owner (-1 none).
+ * wireDestroyed     targetIndex = wire id, side = its owner, x = its centre, cause = 'explosive' (splash) or null (crushed).
  * supplyDelivered   A sapper reached the HQ door. side, unit, unitId, kind, x, row, value = supplies credited.
  * trainStarted      A unit was queued. side, kind, value = that kind's queue length afterwards.
  * trainDone         A unit finished training. side, kind, unit, unitId (a unitSpawned event follows).
  * orderChanged      side, order.
  * supportCalled     (Phase 2) side, support, x.
  * supportIncoming   (Phase 2) side, support, x, value = seconds until the first round.
- * smokeSpawned      (Phase 2) x, value = radius.
+ * smokeSpawned      side = who made it (-1 none), x, value = radius, x2 = lifetime in seconds.
  * wave              A scripted wave arrived. side, value = units spawned, text = announcement or null.
  * airdrop           Scripted supplies. side, value = supplies credited, x = where the crate lands (HQ door).
  * announce          text = banner text.

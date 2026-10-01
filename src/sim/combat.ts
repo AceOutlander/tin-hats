@@ -1,24 +1,28 @@
 /**
  * Generic, data-driven weapon handling shared by units, the HQ gun and
  * pillbox guns: target search and validation, the aim / fire / reload cycle,
- * hit rolls, and the deferred damage queue.
+ * hit rolls, projectile launches, and the deferred damage queue.
  */
 import { CONFIG } from '../data/config';
-import { killUnit } from './units';
+import { LAUNCH, launch } from './projectiles';
 import {
   CLASS_FORT,
   CLASS_HQ,
-  CLASS_OPEN,
-  CLASS_TRENCH,
-  CLASS_VEHICLE,
   DAMAGE_TYPES,
+  DUG_IN_NONE,
+  DUG_IN_ONLY,
+  DUG_IN_RANK,
   NO_PREFERENCE,
   WEAPON_DTYPE,
-  WEAPON_HAS_PREFER,
+  WEAPON_DUG_IN,
   WEAPON_LIST,
   WEAPON_MASK,
+  WEAPON_MIN_RANK,
   WEAPON_PREFER,
+  WEAPON_PROJECTILE,
+  WEAPON_STRUCT_RANK,
   damageFactor,
+  unitClass,
 } from './tables';
 import {
   TARGET_HQ,
@@ -29,18 +33,17 @@ import {
   type MountState,
   type UnitState,
 } from './types';
+import { killUnit } from './units';
 import type { World } from './world';
 
 /** Weight of the preference rank against distance when scoring targets: rank always wins. */
 const RANK_WEIGHT = 1e7;
-/** Structures are engaged only when no unit is in range. */
-const STRUCTURE_RANK = NO_PREFERENCE + 1;
 
 /*
  * Allocation note. V8 boxes a floating-point value into a heap object whenever it is passed to a
  * function that is not inlined, returned from one, or kept in a module-level variable. Hot paths
  * here therefore hand numbers over in object fields (m.x, m.damageMul, m.rateMul, u.goalX,
- * u.moveSpeed) or in typed arrays, never as double arguments or return values.
+ * u.moveSpeed) or in typed arrays (FOUND_X, LAUNCH), never as double arguments or return values.
  */
 
 /** Result of the last search(): written here instead of returned so the tick never allocates. */
@@ -51,16 +54,9 @@ let foundRank = 0;
 /** World x of the last search() result (a typed array, so the double is not boxed). */
 const FOUND_X = new Float64Array(1);
 
-/** Damage-matrix column of a unit right now. */
-export function unitClass(u: UnitState): number {
-  if (u.def.class === 'vehicle') return CLASS_VEHICLE;
-  return u.trenchId >= 0 ? CLASS_TRENCH : CLASS_OPEN;
-}
-
 /**
- * True if a smoke cloud blocks direct fire between two points. Lobbed weapons
- * never call this. No smoke exists until supports are simulated (Phase 2), but
- * the rule itself is complete.
+ * True if a smoke cloud blocks direct fire between two points: the line crosses a cloud or ends
+ * in one, and the shooter is not within config.smokePointBlank. Lobbed weapons never call this.
  */
 export function smokeBlocks(w: World, fromX: number, toX: number): boolean {
   const smokes = w.state.smokes;
@@ -77,9 +73,21 @@ export function smokeBlocks(w: World, fromX: number, toX: number): boolean {
 }
 
 /**
- * Find the best target for a mount (at m.x): the most preferred kind, then the
- * nearest. Units come before structures. The result is left in the found*
- * variables; returns false if nothing is in range.
+ * Preference rank of an enemy unit for weapon `wi` (lower is chosen first), or -1 if the weapon
+ * may not engage it at all (area weapons with dugIn 'only' and a lone man in the open).
+ */
+function unitRank(w: World, wi: number, t: UnitState): number {
+  const rank = WEAPON_PREFER[wi][t.kindIndex];
+  if (rank !== NO_PREFERENCE) return rank;
+  const dugIn = WEAPON_DUG_IN[wi];
+  if (dugIn === DUG_IN_NONE) return rank;
+  if (t.trenchId >= 0 || w.cluster[t.index] >= CONFIG.clusterMin) return DUG_IN_RANK;
+  return dugIn === DUG_IN_ONLY ? -1 : rank;
+}
+
+/**
+ * Find the best target for a mount (at m.x): the lowest rank, then the nearest. The result is
+ * left in the found* variables; returns false if nothing is in range.
  */
 function search(w: World, m: MountState, side: number): boolean {
   const s = w.state;
@@ -87,7 +95,6 @@ function search(w: World, m: MountState, side: number): boolean {
   const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   const mask = WEAPON_MASK[wi];
-  const prefer = WEAPON_PREFER[wi];
   const range = weapon.range;
   const minRange = weapon.minRange;
   const direct = weapon.delivery !== 'lob';
@@ -106,7 +113,8 @@ function search(w: World, m: MountState, side: number): boolean {
     const d = t.x > x ? t.x - x : x - t.x;
     if (d > range || d < minRange) continue;
     if ((mask & (1 << unitClass(t))) === 0) continue;
-    const rank = prefer[t.kindIndex];
+    const rank = unitRank(w, wi, t);
+    if (rank < 0) continue;
     const score = rank * RANK_WEIGHT + d;
     if (score >= best) continue;
     if (direct && w.smokeCount > 0 && smokeBlocks(w, x, t.x)) continue;
@@ -118,6 +126,7 @@ function search(w: World, m: MountState, side: number): boolean {
     foundRank = rank;
   }
 
+  const structRank = WEAPON_STRUCT_RANK[wi];
   if ((mask & (1 << CLASS_FORT)) !== 0) {
     const pillboxes = s.pillboxes;
     for (let i = 0; i < pillboxes.length; i++) {
@@ -125,7 +134,7 @@ function search(w: World, m: MountState, side: number): boolean {
       if (!p.alive || p.side !== enemy) continue;
       const d = p.x > x ? p.x - x : x - p.x;
       if (d > range || d < minRange) continue;
-      const score = STRUCTURE_RANK * RANK_WEIGHT + d;
+      const score = structRank * RANK_WEIGHT + d;
       if (score >= best) continue;
       if (direct && w.smokeCount > 0 && smokeBlocks(w, x, p.x)) continue;
       best = score;
@@ -133,7 +142,7 @@ function search(w: World, m: MountState, side: number): boolean {
       foundIndex = i;
       foundId = -1;
       FOUND_X[0] = p.x;
-      foundRank = STRUCTURE_RANK;
+      foundRank = structRank;
     }
   }
 
@@ -142,13 +151,13 @@ function search(w: World, m: MountState, side: number): boolean {
     if (hq && hq.alive) {
       const d = hq.doorX > x ? hq.doorX - x : x - hq.doorX;
       if (d <= range && d >= minRange) {
-        const score = STRUCTURE_RANK * RANK_WEIGHT + d;
+        const score = structRank * RANK_WEIGHT + d;
         if (score < best && !(direct && w.smokeCount > 0 && smokeBlocks(w, x, hq.doorX))) {
           foundType = TARGET_HQ;
           foundIndex = enemy;
           foundId = -1;
           FOUND_X[0] = hq.doorX;
-          foundRank = STRUCTURE_RANK;
+          foundRank = structRank;
         }
       }
     }
@@ -191,6 +200,7 @@ function targetValid(w: World, m: MountState): boolean {
       const t = s.units[m.targetIndex];
       if (!t.alive || t.id !== m.targetId || t.inside) return false;
       if ((WEAPON_MASK[wi] & (1 << unitClass(t))) === 0) return false;
+      if (unitRank(w, wi, t) < 0) return false;
       tx = t.x;
       break;
     }
@@ -218,14 +228,15 @@ function targetValid(w: World, m: MountState): boolean {
 
 /** Preference rank of the mount's current (valid) target. */
 function currentRank(w: World, m: MountState): number {
-  if (m.targetType !== TARGET_UNIT) return STRUCTURE_RANK;
-  return WEAPON_PREFER[m.weaponIndex][w.state.units[m.targetIndex].kindIndex];
+  if (m.targetType !== TARGET_UNIT) return WEAPON_STRUCT_RANK[m.weaponIndex];
+  return unitRank(w, m.weaponIndex, w.state.units[m.targetIndex]);
 }
 
 /**
  * Keep a mount's target up to date. Retargets only when the target died or
- * left range, when a unit comes into range while it is shooting at a
- * structure, or (checked every `retarget` call) when a more preferred kind appears.
+ * left range, or (checked every `retarget` call) when a target of a better
+ * rank appears: a preferred kind, a dug-in or clustered enemy for area weapons,
+ * or any unit while it is shooting at a structure it does not prefer.
  * The caller sets `m.x` (the muzzle position) first. Returns true if the mount has a target afterwards.
  */
 export function senseMount(w: World, m: MountState, side: number, retarget: boolean): boolean {
@@ -234,8 +245,7 @@ export function senseMount(w: World, m: MountState, side: number, retarget: bool
     if (targetValid(w, m)) {
       if (retarget) {
         const rank = currentRank(w, m);
-        const couldImprove = rank === STRUCTURE_RANK || (rank > 0 && WEAPON_HAS_PREFER[m.weaponIndex]);
-        if (couldImprove && search(w, m, side) && foundRank < rank) takeFound(m);
+        if (rank > WEAPON_MIN_RANK[m.weaponIndex] && search(w, m, side) && foundRank < rank) takeFound(m);
       }
       return true;
     }
@@ -248,7 +258,11 @@ export function senseMount(w: World, m: MountState, side: number, retarget: bool
   return false;
 }
 
-/** Fire one round from a mount at its current target. */
+/**
+ * Fire one round from a mount at its current target: a hit roll for hitscan weapons, a projectile
+ * for direct and lobbed ones. A thrown round leaves after its windup, by which time the target may
+ * be gone: it then lands where the target was last seen (m.aimX).
+ */
 function fireShot(
   w: World,
   m: MountState,
@@ -270,27 +284,50 @@ function fireShot(
   let target: EntityKind = 'hq';
   if (m.targetType === TARGET_UNIT) {
     const t = s.units[m.targetIndex];
-    tx = t.x;
-    trow = t.row;
-    cls = unitClass(t);
-    targetId = t.id;
-    target = 'unit';
+    if (t.alive && t.id === m.targetId) {
+      tx = t.x;
+      trow = t.row;
+      cls = unitClass(t);
+      targetId = t.id;
+      target = 'unit';
+    } else {
+      target = 'ground';
+    }
   } else if (m.targetType === TARGET_PILLBOX) {
     cls = CLASS_FORT;
     target = 'pillbox';
+  } else if (m.targetType === TARGET_NONE) {
+    target = 'ground';
   }
   const dir = tx >= x ? 1 : -1;
   const dist = (tx - x) * dir;
 
-  // Phase 2: 'direct' and 'lob' weapons will spawn a projectile here (flight time, scatter, splash).
-  // NOT YET IMPLEMENTED: until then every delivery resolves as an instant single-target hit roll.
-  let t = weapon.range > 0 ? dist / weapon.range : 0;
-  if (t > 1) t = 1;
-  const chance = weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t;
-  const hit = w.rng.next() < chance;
-  if (hit) {
-    const amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
-    w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir);
+  let hit = false;
+  if (WEAPON_PROJECTILE[wi] === 1) {
+    // Scatter grows with distance, from scatterMinFrac of the weapon's scatter up to all of it at full range.
+    let land = tx;
+    if (weapon.scatter > 0) {
+      let frac = weapon.range > 0 ? dist / weapon.range : 1;
+      if (frac > 1) frac = 1;
+      if (frac < CONFIG.scatterMinFrac) frac = CONFIG.scatterMinFrac;
+      land += w.rng.gauss() * weapon.scatter * frac;
+      if (land < 0) land = 0;
+      else if (land > s.length) land = s.length;
+    }
+    LAUNCH[0] = x;
+    LAUNCH[1] = land;
+    LAUNCH[2] = m.damageMul;
+    LAUNCH[3] = 0;
+    launch(w, side, wi, row, trow, shooter, source);
+  } else if (target !== 'ground') {
+    let t = weapon.range > 0 ? dist / weapon.range : 0;
+    if (t > 1) t = 1;
+    const chance = weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t;
+    hit = w.rng.next() < chance;
+    if (hit) {
+      const amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
+      w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir);
+    }
   }
 
   m.sinceShot = 0;
@@ -308,7 +345,7 @@ function fireShot(
   e.x2 = tx;
   e.row2 = trow;
   e.target = target;
-  e.targetIndex = m.targetIndex;
+  e.targetIndex = target === 'ground' ? -1 : m.targetIndex;
   e.hit = hit;
   e.dir = dir;
 }
@@ -316,7 +353,8 @@ function fireShot(
 /**
  * Advance a mount by one tick. The reload always runs; the aim only settles
  * while `active` (the shooter is standing on a target) and resets otherwise.
- * It fires when both are done, then plays out its burst.
+ * It fires when both are done, then plays out its burst. A thrown weapon first
+ * winds up for config.throwReleaseTime and lets go even if the thrower is interrupted.
  * The caller sets `m.x` (muzzle position), `m.damageMul` and `m.rateMul` first.
  */
 export function updateMount(
@@ -335,6 +373,15 @@ export function updateMount(
   if (m.cooldown > 0) {
     m.cooldown -= dt * m.rateMul;
     if (m.cooldown < 0) m.cooldown = 0;
+  }
+  if (m.windup > 0) {
+    m.windup -= dt;
+    if (m.windup <= 1e-9) {
+      m.windup = 0;
+      fireShot(w, m, side, row, shooter, source);
+      m.cooldown = weapon.cooldown;
+    }
+    return;
   }
   if (!active || m.targetType === TARGET_NONE) {
     m.aim = weapon.aimTime;
@@ -360,6 +407,10 @@ export function updateMount(
     m.aim = 0;
   }
   if (m.cooldown > 0) return;
+  if (weapon.thrown && CONFIG.throwReleaseTime > 0) {
+    m.windup = CONFIG.throwReleaseTime;
+    return;
+  }
   fireShot(w, m, side, row, shooter, source);
   m.burstLeft = weapon.burst - 1;
   if (m.burstLeft > 0) m.burstTimer = weapon.burstInterval;
@@ -383,6 +434,7 @@ export function applyDamage(w: World): void {
         const u = s.units[q.targetIndex[i]];
         if (!u.alive || u.id !== q.targetId[i] || u.inside) break;
         u.hp -= amount;
+        u.hitTime = s.time;
         s.sides[by].stats.damageDealt += amount;
         if (u.hp <= 0) {
           killUnit(w, u, dtype, dir, by);
@@ -425,7 +477,6 @@ export function applyDamage(w: World): void {
         break;
       }
       case TARGET_PILLBOX: {
-        // Pillboxes take damage already; their own gun is NOT YET IMPLEMENTED (Phase 2).
         const p = s.pillboxes[q.targetIndex[i]];
         if (!p.alive) break;
         p.hp -= amount;
@@ -439,8 +490,11 @@ export function applyDamage(w: World): void {
         e.cause = DAMAGE_TYPES[dtype];
         e.dir = dir;
         if (p.hp <= 0) {
+          // Rubble: it stops firing and blocking, and stays in the list for the view.
           p.hp = 0;
           p.alive = false;
+          p.gun.targetType = TARGET_NONE;
+          p.gun.burstLeft = 0;
           const d = w.events.emit('structureDestroyed');
           d.side = p.side;
           d.target = 'pillbox';

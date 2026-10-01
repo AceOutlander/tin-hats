@@ -14,8 +14,10 @@ import { EventQueue } from './events';
 import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
 import { Rng } from './rng';
+import { updateProjectiles, updateSmokes } from './projectiles';
 import { computeFronts, fireStructures, senseStructures } from './structures';
 import { KIND_COUNT, KIND_LIST } from './tables';
+import { layoutTrenches, slotCount, updateTrenches } from './trenches';
 import type {
   Battle,
   BattleConfig,
@@ -137,6 +139,9 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
       age: 0,
       flightTime: 0,
       row: 0,
+      weaponIndex: -1,
+      damageMul: 1,
+      targetRow: -1,
     });
   }
   const smokes: SmokeState[] = [];
@@ -223,6 +228,16 @@ class BattleImpl implements Battle, World {
   nextProjectileId = 1;
   smokeCount = 0;
   readonly retargetTicks: number;
+  readonly holdTrench = new Int32Array(2);
+  readonly formBase = new Float64Array(2);
+  readonly lineFront = new Float64Array(2);
+  readonly trenchSlot0: Int32Array;
+  readonly trenchTaken: Int32Array;
+  readonly trenchHalf: Float64Array;
+  readonly slotX: Float64Array;
+  readonly slotUnit: Int32Array;
+  readonly trenchInside: Int32Array;
+  readonly cluster = new Uint8Array(CONFIG.maxUnits);
 
   constructor(config: BattleConfig) {
     const mission = config.mission;
@@ -248,6 +263,15 @@ class BattleImpl implements Battle, World {
     const cellCount = CONFIG.formationColumns * CONFIG.rows;
     this.cells = [new Uint8Array(cellCount), new Uint8Array(cellCount)];
     this.state = createState(config, this.mods);
+    const trenchCount = mission.trenches.length;
+    const slots = slotCount(mission.trenches);
+    this.trenchSlot0 = new Int32Array(trenchCount);
+    this.trenchTaken = new Int32Array(trenchCount);
+    this.trenchHalf = new Float64Array(trenchCount);
+    this.trenchInside = new Int32Array(trenchCount * 2);
+    this.slotX = new Float64Array(slots);
+    this.slotUnit = new Int32Array(slots);
+    layoutTrenches(this);
 
     this.eventFired = new Uint8Array(mission.events.length);
     this.eventNext = new Float64Array(mission.events.length);
@@ -279,11 +303,13 @@ class BattleImpl implements Battle, World {
     computeFronts(this);
     senseUnits(this);
     senseStructures(this, s.tick % this.retargetTicks === 0);
-    moveUnits(this);
-    // Phase 2: trench occupation and capture, wire slowing and crushing. NOT YET IMPLEMENTED.
+    moveUnits(this); // wire slows and is crushed here
+    updateTrenches(this); // drop into slots, captures
+    updateProjectiles(this); // rounds already in flight land on the new positions
     fireUnits(this);
     fireStructures(this);
-    // Phase 2: projectiles in flight, explosions, smoke lifetimes, support call-ins. NOT YET IMPLEMENTED.
+    updateSmokes(this);
+    // Phase 2 part 2: support call-ins. NOT YET IMPLEMENTED.
 
     applyDamage(this);
     checkEnd(this);

@@ -33,6 +33,7 @@ export const CONFIG: GameConfig = {
   engageSpread: 40,
   mapMargin: 20,
   fallBackSpeedMul: 1.25,
+  moveDeadband: 14,
 
   firePoseTime: 0.18,
   retargetInterval: 0.5,
@@ -47,9 +48,18 @@ export const CONFIG: GameConfig = {
   pillboxGunWeapon: 'pillboxGun',
   trenchSlotSpacing: 24,
   smokePointBlank: 60,
+  trenchFormGap: 26,
+  pillboxWidth: 70,
+
+  scatterMinFrac: 0.3,
+  clusterMin: 3,
+  clusterRadius: 50,
+  throwReleaseTime: 0.35,
+  throwPoseTime: 0.8,
+  guardAlertTime: 6,
 
   maxUnits: 160,
-  maxProjectiles: 64,
+  maxProjectiles: 128,
   maxSmokes: 8,
   maxEvents: 256,
   maxCommands: 64,
