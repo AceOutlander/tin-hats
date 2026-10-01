@@ -4,7 +4,7 @@
  *   x.cmd npx tsx tools/sim-cli.ts --mission 1 --p0 bot --p1 ai --seeds 20 --difficulty normal
  *
  * Options
- *   --mission N      mission id (default 1)
+ *   --mission N      mission id (default 1), or 'sandbox' / 'sandbox-mirror' for the test grounds
  *   --p0, --p1 K     commander of side 0 / side 1: human | ai | bot | idle (default bot / ai)
  *   --seeds N        number of battles (default 20)
  *   --seed N         first seed (default 1); battles use seed, seed+1, ...
@@ -18,11 +18,12 @@
 import { CONFIG } from '../src/data/config';
 import { DIFFICULTIES } from '../src/data/difficulty';
 import { getMission } from '../src/data/missions';
+import { SANDBOX, SANDBOX_MIRROR } from '../src/data/missions/sandbox';
 import type { Difficulty, MissionDef } from '../src/data/schema';
 import { createBattle, summarize, type BattleResult, type CommanderKind } from '../src/sim';
 
 interface Options {
-  mission: number;
+  mission: string;
   p0: CommanderKind;
   p1: CommanderKind;
   seeds: number;
@@ -42,7 +43,7 @@ function fail(message: string): never {
 
 function parseArgs(argv: string[]): Options {
   const opts: Options = {
-    mission: 1,
+    mission: '1',
     p0: 'bot',
     p1: 'ai',
     seeds: 20,
@@ -66,7 +67,7 @@ function parseArgs(argv: string[]): Options {
     if (value === undefined) fail(`Missing value for ${arg}`);
     switch (arg) {
       case '--mission':
-        opts.mission = Number(value);
+        opts.mission = value;
         break;
       case '--p0':
       case '--p1': {
@@ -109,7 +110,8 @@ function fmt(n: number, digits = 1): string {
 
 function main(): void {
   const opts = parseArgs(process.argv.slice(2));
-  const found = getMission(opts.mission);
+  const found =
+    opts.mission === 'sandbox' ? SANDBOX : opts.mission === 'sandbox-mirror' ? SANDBOX_MIRROR : getMission(Number(opts.mission));
   if (!found) fail(`Mission ${opts.mission} does not exist`);
   const mission = opts.mirror ? mirrored(found) : found;
   const maxTicks = Math.ceil(opts.max * CONFIG.tickRate);

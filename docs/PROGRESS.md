@@ -24,6 +24,7 @@ If you lose track, read this file and carry on from "In progress" and "Next".
 - Final verification passes, then `docs/MORNING_REPORT.md`.
 
 ## Known issues
+- Phase 2 sim part 1 (trenches, pillboxes, wire, projectiles, smoke, full roster) is in and tested; the contact-gap test now uses a toughened sniper and smoke keeps `World.smokeCount` in step (`spawnSmoke`). Still to do in part 2: supports and direct control (`launch()` and `spawnSmoke()` in `src/sim/projectiles.ts` are ready for them). Projectiles hit nothing on the way, so a fast-moving target can be missed; about 10% of mirrored sandbox AI battles are undecided after 20 minutes.
 - Nothing has been tried on a real phone: touch feel, real GPU rendering (Phaser texture-unit hazard, DECISIONS 66, seen only on SwiftShader), real audio output and frame rate are all unchecked. Everything was seen in headless Chromium with software WebGL. Audio was measured, never listened to.
 - Only mission 1 exists. The browser tests loop over `MISSIONS`, so new missions are picked up (a win is asserted only for mission 1).
 - The Quartermaster says "Nothing in the stores yet" until `src/data/upgrades.ts` exists, although a first win already awards 2 upgrade points.

@@ -1,5 +1,5 @@
 # SIM track progress (Phase 2, part 1: fortifications, projectiles, full roster)
-Done: trenches (src/sim/trenches.ts: slots, drop-in, capture, hold trench, overflow), pillbox guns + rubble (structures.ts shares the structure-gun code with the HQ), wire slow/splash/crush, projectiles + splash + smoke (src/sim/projectiles.ts), roster (lmg/mortar set-up 'deploy', assault grenades 'throw', mortar dug-in preference + followsLine, sniper priorities, medic heal, AT preferStructures, tank coax, guard leash), sandbox missions (src/data/missions/sandbox.ts), contact-gap test fixed (toughened sniper). SIM_FEATURES trenches/pillboxes/wire/projectiles = true. Existing sim tests green (89).
-In progress: new tests (sim-trenches, sim-structures, sim-projectiles, sim-roster, sim-matrix, sim-sandbox).
-Next: sim-cli --mission sandbox, full unit suite, lint, DECISIONS lines, report.
-Scratch probes live in .tools/*.ts (not committed).
+Done (committed): trenches (src/sim/trenches.ts), pillbox guns sharing the HQ structure-gun code + rubble, wire slow/splash/crush, projectiles + linear splash + smoke (src/sim/projectiles.ts), full roster (lmg/mortar deploy, assault grenades with 'throw', mortar dug-in preference, sniper priorities, medic heal, AT preferStructures, tank coax, guard leash), sandbox grounds (src/data/missions/sandbox.ts), sim-cli --mission sandbox|sandbox-mirror, contact-gap test fixed. SIM_FEATURES trenches/pillboxes/wire/projectiles = true.
+Tests: sim-trenches, sim-structures, sim-projectiles, sim-roster, sim-matrix (15 cells), sim-sandbox (20-seed invariants, determinism, mirror fairness, 80-unit perf + allocation). Whole unit suite 36 files / 518 tests green; tsc sim and eslint clean. DECISIONS 86-97.
+Step time, 80 units on the sandbox: 21.5 us/step marching, 16.4 us in contact (about 69 units).
+In progress: nothing. Next (part 2): supports and direct control.
