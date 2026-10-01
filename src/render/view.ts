@@ -22,7 +22,7 @@ import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
-import { SpriteRegistry } from './atlas';
+import { SpriteRegistry, type SpriteFrame } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
 import type { AttachOptions, AudioSink, BattleView, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
@@ -90,6 +90,7 @@ export class BattleViewImpl implements BattleView {
   private darkness = 0;
   private reticle: Phaser.GameObjects.Image | null = null;
   private reticleLine: Phaser.GameObjects.Image | null = null;
+  private reticleFrame: SpriteFrame | null = null;
   private battle: Battle | null = null;
   private frameHandler: ((dtMs: number) => void) | null = null;
   private targeting: TargetingKind | null = null;
@@ -138,7 +139,9 @@ export class BattleViewImpl implements BattleView {
       input: { keyboard: false, mouse: false, touch: false, gamepad: false },
       disableContextMenu: true,
       scale: { mode: Phaser.Scale.NONE, zoom: 1 / this.dpr, autoRound: false },
-      render: { antialias: true, roundPixels: false, powerPreference: 'high-performance' },
+      // Every sprite is a soft-edged texture, so multisampling the canvas adds little; on a dense phone screen it is pure
+      // memory bandwidth. Only a low-density screen (a desktop window) keeps it.
+      render: { antialias: true, antialiasGL: this.dpr < 1.5, roundPixels: false, powerPreference: 'high-performance' },
       scene: [new BattleScene(this)],
     });
   }
@@ -196,7 +199,8 @@ export class BattleViewImpl implements BattleView {
     this.nightTint.visible = false;
     this.reticleLine = addImage(scene, layers.byName.markers, reg.get(RENDER_KEYS.white).frame);
     this.reticleLine.visible = false;
-    this.reticle = addImage(scene, layers.byName.markers, reg.get(FX_KEYS.ui.reticle).frame);
+    this.reticleFrame = reg.get(FX_KEYS.ui.reticle);
+    this.reticle = addImage(scene, layers.byName.markers, this.reticleFrame.frame);
     this.reticle.visible = false;
     this.weatherView = new WeatherView(scene, layers, reg, this.effects.ctx);
 
@@ -443,13 +447,13 @@ export class BattleViewImpl implements BattleView {
     }
     const ret = this.reticle;
     const line = this.reticleLine;
-    if (ret && line && this.registry) {
+    const fr = this.reticleFrame;
+    if (ret && line && fr) {
       const on = this.targeting !== null && this.battle !== null;
       ret.visible = on;
       line.visible = on;
       if (on && this.targeting !== null) {
         const x = Math.max(left, Math.min(left + viewW, this.hoverX));
-        const fr = this.registry.get(FX_KEYS.ui.reticle);
         // The circle shows the call-in's reach: its spread, or a smoke cloud's radius, as the half-width.
         const def = SUPPORTS[this.targeting];
         const half = this.targeting === 'smoke' ? def.smokeRadius : def.spread;
