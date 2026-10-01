@@ -86,48 +86,72 @@ const far: LayerPainter = (ctx, sc, rng, box) => {
   ctx.closePath();
   ctx.fill();
 
-  // The massif, flat-topped where the abbey stands.
+  // Foothills tie the massif into the plain.
+  const hills = sineProfile(rng, w, [2, 3, 5, 9], 0.8);
+  const foot: Profile = (x) => S.massifY + 6 + hills(x) * 12;
+
+  // The massif: a steep, asymmetric rock pyramid with a small shelf at the summit for the abbey.
   const px = w * 0.38;
-  const dist = (x: number): number => Math.abs(((x - px + w * 1.5) % w) - w / 2);
-  const crag = noiseProfile(rng, w, 11, 4, 0.5, true);
-  const lift = (d: number): number => Math.pow(Math.max(0, 1 - d / 540), 1.3);
-  const shelf = S.monasteryWidth * 0.62;
+  const shelf = S.monasteryWidth * 0.5;
+  const crag = noiseProfile(rng, w, 28, 3, 0.5, true);
+  const signed = (x: number): number => ((x - px + w * 1.5) % w) - w / 2;
   const massif: Profile = (x) => {
-    const d = dist(x);
-    const rough = smoothstep((d - shelf) / 50);
-    return S.massifY - S.massifAmp * lift(Math.max(d, shelf)) - crag(x) * 40 * rough;
+    const dx = signed(x);
+    const d = Math.abs(dx);
+    const half = S.massifHalf * (dx < 0 ? 0.85 : 1.1);
+    const t = Math.max(0, 1 - Math.max(d, shelf) / half);
+    const rough = smoothstep((d - shelf) / 30) * (crag(x) - 0.5) * 38 * Math.min(1, t * 3);
+    return Math.min(foot(x), S.massifY - S.massifAmp * Math.pow(t, 0.85) - rough);
   };
   const peakY = massif(px);
-  fillBelow(ctx, w, massif, bottom, vGrad(ctx, peakY, bottom, sc.tone(P.farAlt, haze - 0.04), sc.tone(P.farAlt, haze + 0.2)), 2);
+  // Bare rock above, scree and scrub toward the foot.
+  const rockTop = sc.tone(P.farAlt, haze - 0.06);
+  const rockMid = sc.tone(P.far, haze - 0.02);
+  const scrub = sc.tone(P.foliage, haze + 0.1);
+  const body = ctx.createLinearGradient(0, peakY, 0, bottom);
+  body.addColorStop(0, rockTop);
+  body.addColorStop(0.45, rockMid);
+  body.addColorStop(0.8, scrub);
+  body.addColorStop(1, sc.tone(P.foliage, haze + 0.2));
+  fillBelow(ctx, w, massif, bottom, body, 2);
 
   ctx.save();
   pathBelow(ctx, w, massif, bottom, 2);
   ctx.clip();
-  // Light and shadow either side of the summit.
-  const side = ctx.createLinearGradient(px - 420, 0, px + 420, 0);
-  const litC = sc.tone(P.pale, haze, 0.12);
-  const darkC = sc.tone(P.far, haze - 0.2, 0.3);
-  side.addColorStop(0, sc.light < 0 ? litC : darkC);
-  side.addColorStop(0.5, sc.tone(P.far, haze, 0));
-  side.addColorStop(1, sc.light < 0 ? darkC : litC);
-  ctx.fillStyle = side;
-  ctx.fillRect(px - 520, peakY - 10, 1040, bottom - peakY + 10);
-  // Gullies running down from the ridge.
-  ctx.lineCap = 'round';
-  for (let i = 0; i < 80; i++) {
-    const gx = range(rng, 6, w - 6);
+  // The whole flank away from the light sits in shadow, its edge a ragged ridge line.
+  const away = -sc.light;
+  ctx.fillStyle = sc.tone(P.far, haze - 0.3, 0.42);
+  ctx.beginPath();
+  ctx.moveTo(px, peakY - 6);
+  for (let i = 1; i <= 8; i++) ctx.lineTo(px + away * i * 3 + range(rng, -9, 9), peakY + ((bottom - peakY) * i) / 8);
+  ctx.lineTo(px + away * 700, bottom);
+  ctx.lineTo(px + away * 700, peakY - 6);
+  ctx.closePath();
+  ctx.fill();
+  // Spurs and gullies: wedges running down from the crest, pale on the lit face and dark on the other.
+  for (let i = 0; i < 150; i++) {
+    const gx = px + range(rng, -S.massifHalf, S.massifHalf);
+    const dx = gx - px;
+    if (Math.abs(dx) < shelf) continue;
     const top = massif(gx);
-    const away = gx < px ? -1 : 1;
-    const len = range(rng, 24, 80);
-    ctx.strokeStyle = sc.tone(P.far, haze - 0.14, range(rng, 0.14, 0.3));
-    ctx.lineWidth = range(rng, 1, 2.6);
-    ctx.beginPath();
-    ctx.moveTo(gx, top + range(rng, 3, 14));
-    ctx.quadraticCurveTo(gx + away * len * 0.2, top + len * 0.6, gx + away * len * range(rng, 0.25, 0.6), top + len);
-    ctx.stroke();
+    const out = dx < 0 ? -1 : 1;
+    const len = range(rng, 28, 100);
+    const wid = range(rng, 3, 11);
+    const tint = dx * sc.light > 0 ? sc.tone(P.pale, haze - 0.04, range(rng, 0.1, 0.24)) : sc.tone(P.far, haze - 0.32, range(rng, 0.2, 0.4));
+    fillPoly(ctx, [gx, top + 2, gx + out * len * 0.35 - wid / 2, top + len, gx + out * len * 0.35 + wid / 2, top + len], tint);
   }
   ctx.restore();
 
+  // The abbey stands on a battered stone terrace built out over the crags.
+  const l = px - S.monasteryWidth / 2;
+  const r = px + S.monasteryWidth / 2;
+  const wallLit = sc.tone(P.stone, haze - 0.12);
+  const wallDark = sc.tone(P.stoneShade, haze - 0.12);
+  fillPoly(ctx, [l - 2, peakY, r + 2, peakY, r + 15, peakY + 28, l - 15, peakY + 28], wallLit);
+  fillPoly(ctx, sc.light < 0 ? [px + 8, peakY, r + 2, peakY, r + 15, peakY + 28, px + 12, peakY + 28] : [l - 2, peakY, px - 8, peakY, px - 12, peakY + 28, l - 15, peakY + 28], wallDark);
+  ctx.strokeStyle = sc.tone(P.stoneShade, haze - 0.1, 0.5);
+  ctx.lineWidth = 0.8;
+  for (const f of [0.35, 0.7]) line(ctx, lerp(l - 2, l - 15, f), peakY + 28 * f, lerp(r + 2, r + 15, f), peakY + 28 * f);
   monastery(ctx, sc, px, peakY + 1, S.monasteryWidth, haze - 0.16);
 };
 

@@ -98,7 +98,7 @@ export const M01: MissionDef = {
       { kind: 'rifle', count: 14, after: 80 },
       { kind: 'rifle', count: 20, after: 150 },
     ],
-    firstAttackAfter: 85,
+    firstAttackAfter: 105,
   },
   expectedMinutes: [3, 5],
 };

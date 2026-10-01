@@ -93,6 +93,7 @@ export interface WeaponDef {
   /** View hints. */
   tracer: 'rifle' | 'mg' | 'smg' | 'sniper' | 'none';
   projectileLook: 'none' | 'grenade' | 'mortar' | 'rocket' | 'shell' | 'bomb';
+  /** Sound played when the weapon fires: a one-shot name from src/data/sounds.ts, or 'none' for silence. */
   sound: string;
 }
 

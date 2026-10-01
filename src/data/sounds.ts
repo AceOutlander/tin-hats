@@ -490,7 +490,7 @@ export const SOUNDS = {
   uiDeny: sound(
     [
       tone('square', 277.18, 1, 0.004, 0.07, 0.04, { decayShape: 'lin', filter: lp(1500) }),
-      tone('sawtooth', 207.65, 1.4, 0.004, 0.12, 0.06, { at: 0.12, decayShape: 'lin', filter: lp(1300) }),
+      tone('square', 207.65, 1.4, 0.004, 0.12, 0.06, { at: 0.12, decayShape: 'lin', filter: lp(1000) }),
     ],
     0.2,
     { minInterval: 0.15, maxVoices: 1, priority: 1, pitchJitter: 0 },

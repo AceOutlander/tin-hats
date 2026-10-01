@@ -9,17 +9,22 @@
 import { CONFIG } from '../data/config';
 import type { UnitAction } from '../data/schema';
 import { senseMount, updateMount } from './combat';
-import { KIND_SAPPER, WEAPON_LIST } from './tables';
-import { TARGET_NONE, type UnitState } from './types';
+import { DT, KIND_SAPPER, WEAPON_LIST } from './tables';
+import { TARGET_NONE, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq } from './units';
 import type { World } from './world';
 
-/** Where a unit stands in the hold formation: its cell depth behind the line, but never behind the HQ door. */
-function slotX(w: World, u: UnitState, lineX: number, dir: number): number {
-  let x = lineX - dir * u.slotDepth;
-  const hq = w.state.sides[u.side].hq;
+/*
+ * Numbers travel between the passes in unit fields (goalX, moveSpeed, mount.x...) and not as
+ * arguments or return values, so the tick allocates nothing (see the allocation note in combat.ts).
+ */
+
+/** Aim a unit at its place in the hold formation: its cell depth behind the line, but never behind the HQ door. */
+function goToSlot(u: UnitState, side: SideState, dir: number): void {
+  let x = side.holdLineX - dir * u.slotDepth;
+  const hq = side.hq;
   if (hq && (x - hq.doorX) * dir < 0) x = hq.doorX;
-  return x;
+  u.goalX = x;
 }
 
 /** Pass 1: targets, and for each army unit whether it stands to fight (`engaged`) and where it is heading (`goalX`). */
@@ -41,7 +46,8 @@ export function senseUnits(w: World): void {
       const prevType = m.targetType;
       const prevIndex = m.targetIndex;
       const prevId = m.targetId;
-      hasTarget = senseMount(w, m, u.side, u.x, (s.tick + i) % retargetTicks === 0);
+      m.x = u.x;
+      hasTarget = senseMount(w, m, u.side, (s.tick + i) % retargetTicks === 0);
       // A new target means deciding afresh whether to close in or stand.
       if (!hasTarget || m.targetType !== prevType || m.targetIndex !== prevIndex || m.targetId !== prevId) {
         u.engaged = false;
@@ -51,7 +57,8 @@ export function senseUnits(w: World): void {
 
     if (order === 'fallBack') {
       u.engaged = false;
-      u.goalX = side.hq && side.hq.alive ? side.hq.doorX : slotX(w, u, side.holdLineX, dir);
+      if (side.hq && side.hq.alive) u.goalX = side.hq.doorX;
+      else goToSlot(u, side, dir);
       continue;
     }
 
@@ -68,7 +75,7 @@ export function senseUnits(w: World): void {
       if ((u.x - lineX) * dir > CONFIG.holdLineTolerance) {
         // Out in front of the line: walk back without fighting.
         u.engaged = false;
-        u.goalX = slotX(w, u, lineX, dir);
+        goToSlot(u, side, dir);
       } else if (hasTarget) {
         u.engaged = true;
         u.goalX = u.x;
@@ -80,7 +87,7 @@ export function senseUnits(w: World): void {
           // The enemy is within reach of the line: rear ranks close up until they can fire.
           u.goalX = forward;
         } else {
-          u.goalX = slotX(w, u, lineX, dir);
+          goToSlot(u, side, dir);
         }
       }
       continue;
@@ -108,13 +115,14 @@ export function senseUnits(w: World): void {
 }
 
 /**
- * Walk a unit toward goalX at `speed`. Forward movement stops at the front
+ * Walk a unit toward u.goalX at u.moveSpeed. Forward movement stops at the front
  * clamp (never past the nearest enemy blocker minus contactGap); the unit is
  * never pushed back. Returns true when it stands on the goal.
  */
-function walk(w: World, u: UnitState, goalX: number, speed: number, dir: number): boolean {
+function walk(w: World, u: UnitState, dir: number): boolean {
   const s = w.state;
-  const step = speed * w.dt;
+  const goalX = u.goalX;
+  const step = u.moveSpeed * w.dt;
   const dx = goalX - u.x;
   let nx = dx > step ? u.x + step : dx < -step ? u.x - step : goalX;
   if ((nx - u.x) * dir > 0) {
@@ -159,9 +167,11 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
     u.velX = 0;
     return;
   }
-  const speed = u.def.speed * w.mods[u.side].sapperSpeed;
+  u.moveSpeed = u.def.speed * w.mods[u.side].sapperSpeed;
   if (side.order === 'fallBack') {
-    if (walk(w, u, hq.doorX, speed * CONFIG.fallBackSpeedMul, dir)) {
+    u.goalX = hq.doorX;
+    u.moveSpeed *= CONFIG.fallBackSpeedMul;
+    if (walk(w, u, dir)) {
       deliver(w, u);
       enterHq(w, u);
     }
@@ -169,7 +179,9 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
   }
   switch (u.task) {
     case TASK_TO_DUMP:
-      if (walk(w, u, dump.x + (u.jitter - 0.5) * CONFIG.dumpSpread, speed, dir)) {
+      // Sappers spread over the width of the dump, mirrored for side 1 so both sides walk the same distances.
+      u.goalX = dump.x + dir * (u.jitter - 0.5) * CONFIG.dumpSpread;
+      if (walk(w, u, dir)) {
         u.task = TASK_LOADING;
         u.taskTime = CONFIG.sapperLoadTime;
       }
@@ -184,7 +196,8 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
       }
       break;
     case TASK_TO_HQ:
-      if (walk(w, u, hq.doorX, speed, dir)) {
+      u.goalX = hq.doorX;
+      if (walk(w, u, dir)) {
         deliver(w, u);
         u.task = TASK_TO_DUMP;
       }
@@ -237,15 +250,15 @@ export function moveUnits(w: World): void {
 
     // Phase 2: wire slows enemy infantry inside it (config.wireSlow) and tanks crush it. NOT YET IMPLEMENTED.
     const retreating = u.behaviour === 'army' && side.order === 'fallBack';
-    const speed = retreating ? u.def.speed * CONFIG.fallBackSpeedMul : u.def.speed;
-    const arrived = walk(w, u, u.goalX, speed, dir);
+    u.moveSpeed = retreating ? u.def.speed * CONFIG.fallBackSpeedMul : u.def.speed;
+    const arrived = walk(w, u, dir);
     if (arrived && retreating && side.hq && side.hq.alive) enterHq(w, u);
   }
 }
 
-function setAction(u: UnitState, action: UnitAction, dt: number): void {
+function setAction(u: UnitState, action: UnitAction): void {
   if (u.action === action) {
-    u.actionTime += dt;
+    u.actionTime += DT;
   } else {
     u.action = action;
     u.actionTime = 0;
@@ -256,12 +269,11 @@ function setAction(u: UnitState, action: UnitAction, dt: number): void {
 export function fireUnits(w: World): void {
   const s = w.state;
   const units = s.units;
-  const dt = w.dt;
   for (let i = 0; i < s.unitCount; i++) {
     const u = units[i];
     if (!u.alive) continue;
     if (u.inside) {
-      setAction(u, 'inside', dt);
+      setAction(u, 'inside');
       u.aimX = u.x;
       continue;
     }
@@ -269,7 +281,7 @@ export function fireUnits(w: World): void {
     const moving = u.velX !== 0;
 
     if (u.kindIndex === KIND_SAPPER) {
-      setAction(u, moving ? 'move' : u.task === TASK_LOADING ? 'load' : 'idle', dt);
+      setAction(u, moving ? 'move' : u.task === TASK_LOADING ? 'load' : 'idle');
       u.aimX = u.x;
       continue;
     }
@@ -277,7 +289,7 @@ export function fireUnits(w: World): void {
     const m = u.mount;
     if (m.weaponIndex < 0) {
       // Phase 2: medics heal the most wounded friendly infantry in range here ('heal'). NOT YET IMPLEMENTED.
-      setAction(u, moving ? 'move' : 'idle', dt);
+      setAction(u, moving ? 'move' : 'idle');
       if (!moving) u.facing = dir;
       u.aimX = u.x;
       continue;
@@ -287,29 +299,24 @@ export function fireUnits(w: World): void {
     const hasTarget = m.targetType !== TARGET_NONE;
     const fleeing = u.behaviour === 'army' && s.sides[u.side].order === 'fallBack';
     const active = hasTarget && (u.engaged || (weapon.moveAndFire && !fleeing));
-    const mods = w.mods[u.side];
-    updateMount(
-      w,
-      m,
-      active,
-      u.side,
-      u.x,
-      u.row,
-      u,
-      'unit',
-      u.controlled ? mods.unitDamage[u.kindIndex] * CONFIG.controlDamageMul : mods.unitDamage[u.kindIndex],
-      u.controlled ? CONFIG.controlReloadMul : 1,
-    );
+    m.x = u.x;
+    m.damageMul = w.mods[u.side].unitDamage[u.kindIndex];
+    m.rateMul = 1;
+    if (u.controlled) {
+      m.damageMul *= CONFIG.controlDamageMul;
+      m.rateMul = CONFIG.controlReloadMul;
+    }
+    updateMount(w, m, active, u.side, u.row, u, 'unit');
     // Phase 2: the secondary weapon (u.mount2: grenades, coaxial MG) is sensed and fired here. NOT YET IMPLEMENTED.
 
     u.aimX = hasTarget ? m.aimX : u.x;
     u.weaponCharge = weapon.cooldown > 0 ? 1 - m.cooldown / weapon.cooldown : 1;
     if (!moving) u.facing = active && m.aimX !== u.x ? (m.aimX > u.x ? 1 : -1) : dir;
 
-    if (m.burstLeft > 0 || m.sinceShot < CONFIG.firePoseTime) setAction(u, 'fire', dt);
-    else if (moving) setAction(u, 'move', dt);
-    else if (active && m.cooldown > 0) setAction(u, 'reload', dt);
-    else if (active) setAction(u, 'aim', dt);
-    else setAction(u, 'idle', dt);
+    if (m.burstLeft > 0 || m.sinceShot < CONFIG.firePoseTime) setAction(u, 'fire');
+    else if (moving) setAction(u, 'move');
+    else if (active && m.cooldown > 0) setAction(u, 'reload');
+    else if (active) setAction(u, 'aim');
+    else setAction(u, 'idle');
   }
 }

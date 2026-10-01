@@ -221,14 +221,13 @@ export function crack(ctx: Ctx, x: number, y: number, angle: number, len: number
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(x, y);
-  let a = angle;
   let px = x;
   let py = y;
   let bx = x;
   let by = y;
   let ba = angle;
   for (let i = 0; i < n; i++) {
-    a = angle + (rand() - 0.5) * 1.5;
+    const a = angle + (rand() - 0.5) * 1.5;
     px += Math.cos(a) * step;
     py += Math.sin(a) * step;
     ctx.lineTo(px, py);

@@ -252,6 +252,8 @@ export interface World {
   cells: [Uint8Array, Uint8Array];
   /** Per side: seconds until the next garrisoned unit may leave the HQ. */
   doorTimer: Float64Array;
+  /** Seconds left on the unit in training, indexed [side * KIND_COUNT + kindIndex]. */
+  trainLeft: Float64Array;
   ai: [AiState | null, AiState | null];
   /** Per mission event: 1 once a one-shot event has fired. */
   eventFired: Uint8Array;
@@ -263,4 +265,9 @@ export interface World {
   nextProjectileId: number;
   /** Ticks between preferred-target checks. */
   retargetTicks: number;
+  /**
+   * Living smoke clouds. Whoever spawns or expires a cloud (Phase 2) keeps this in step; targeting
+   * skips the smoke test entirely while it is 0.
+   */
+  smokeCount: number;
 }

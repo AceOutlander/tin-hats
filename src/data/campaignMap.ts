@@ -52,6 +52,14 @@ export const CAMPAIGN_MAP_VIEW = {
   dragThresholdPx: 7,
   /** Canvas backing-store scale is capped here. */
   maxPixelRatio: 2,
+  /** On bigger screens the map is shrunk (down to this width) until every pin fits at once. */
+  fitMinWidthPx: 430,
+  /** Width step while searching for a size that fits every pin. */
+  fitStepPx: 10,
+  /** Space kept clear left, right and below the pins when fitting them all. */
+  fitMarginPx: 30,
+  /** Space kept clear above the pins (the Back button and title sit there). */
+  fitTopMarginPx: 52,
 } as const;
 
 const DEG = Math.PI / 180;

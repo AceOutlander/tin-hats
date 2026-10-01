@@ -8,7 +8,7 @@ export interface TileSpan {
   firstX: number;
   /** Distance between tile left edges. */
   step: number;
-  /** Horizontal scale to give each tile so they exactly fill the gap (close to 1). */
+  /** Horizontal scale to give each tile so they exactly fill the gap: 0.75..1.25 from two tiles up, 0.5..1.5 for a single tile. */
   scaleX: number;
   /** x of the left and right cap's left edge, relative to the centre of the span. */
   capLeftX: number;

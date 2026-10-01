@@ -3,7 +3,7 @@
  * how big to draw the map, and how to push clustered mission pins apart so
  * every pin keeps a full-size touch target.
  */
-import { CAMPAIGN_MAP_VIEW, MAP_ASPECT } from '../../data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, MAP_ASPECT, mapX, mapY } from '../../data/campaignMap';
 
 export interface MapSize {
   w: number;
@@ -14,6 +14,69 @@ export interface MapSize {
 export function mapSizeFor(viewW: number, viewH: number): MapSize {
   const w = Math.max(viewW, viewH * MAP_ASPECT, CAMPAIGN_MAP_VIEW.minWidthPx);
   return { w: Math.round(w), h: Math.round(w / MAP_ASPECT) };
+}
+
+export interface PinBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+export interface PinLayout {
+  size: MapSize;
+  /** De-clustered pin centres in map pixels. */
+  xs: number[];
+  ys: number[];
+  /** True when every pin fits inside the view at this size, so no panning is needed to see them all. */
+  fits: boolean;
+  box: PinBox;
+}
+
+function placePins(lons: readonly number[], lats: readonly number[], size: MapSize): PinLayout {
+  const xs = lons.map((lon) => mapX(lon) * size.w);
+  const ys = lats.map((lat) => mapY(lat) * size.h);
+  relaxPins(xs, ys, CAMPAIGN_MAP_VIEW.pinSeparationPx, size.w, size.h);
+  const box: PinBox = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+  for (let i = 0; i < xs.length; i++) {
+    box.minX = Math.min(box.minX, xs[i]);
+    box.maxX = Math.max(box.maxX, xs[i]);
+    box.minY = Math.min(box.minY, ys[i]);
+    box.maxY = Math.max(box.maxY, ys[i]);
+  }
+  return { size, xs, ys, fits: false, box };
+}
+
+/**
+ * Pick the map size and pin positions for a view. Small phones get the full-size
+ * map (they pan). Bigger screens get the largest map, no smaller than the fit
+ * floor, on which every pin is on screen at once.
+ */
+export function layoutPins(lons: readonly number[], lats: readonly number[], viewW: number, viewH: number): PinLayout {
+  const base = mapSizeFor(viewW, viewH);
+  const full = placePins(lons, lats, base);
+  const m = CAMPAIGN_MAP_VIEW.fitMarginPx;
+  const top = CAMPAIGN_MAP_VIEW.fitTopMarginPx;
+  const fitsView = (b: PinBox): boolean => b.maxX - b.minX + 2 * m <= viewW && b.maxY - b.minY + top + m <= viewH;
+  if (lons.length === 0) return full;
+  for (let w = base.w; w >= CAMPAIGN_MAP_VIEW.fitMinWidthPx; w -= CAMPAIGN_MAP_VIEW.fitStepPx) {
+    const candidate = w === base.w ? full : placePins(lons, lats, { w, h: Math.round(w / MAP_ASPECT) });
+    if (fitsView(candidate.box)) {
+      candidate.fits = true;
+      return candidate;
+    }
+  }
+  return full;
+}
+
+/** Pan offset that puts the middle of the pins' box in the middle of the area left below the top margin. */
+export function boxPan(box: PinBox, viewW: number, viewH: number): { x: number; y: number } {
+  const top = CAMPAIGN_MAP_VIEW.fitTopMarginPx;
+  const m = CAMPAIGN_MAP_VIEW.fitMarginPx;
+  return {
+    x: viewW / 2 - (box.minX + box.maxX) / 2,
+    y: top + (viewH - top - m) / 2 - (box.minY + box.maxY) / 2,
+  };
 }
 
 /**

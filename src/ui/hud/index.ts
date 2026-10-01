@@ -88,6 +88,8 @@ function button(cls: string, testId: string, label: string, parent: HTMLElement)
   b.tabIndex = -1;
   b.dataset.testid = testId;
   b.setAttribute('aria-label', label);
+  // A mouse press must not leave the button focused, or a later Space (fire) would "click" it too.
+  b.addEventListener('mousedown', (e) => e.preventDefault());
   return b;
 }
 

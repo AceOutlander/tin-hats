@@ -32,7 +32,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'rifle',
     projectileLook: 'none',
-    sound: 'rifle',
+    sound: 'rifleShot',
   },
   lmg: {
     id: 'lmg',
@@ -55,7 +55,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'mg',
     projectileLook: 'none',
-    sound: 'mg',
+    sound: 'mgShot',
   },
   smg: {
     id: 'smg',
@@ -78,7 +78,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'smg',
     projectileLook: 'none',
-    sound: 'smg',
+    sound: 'smgShot',
   },
   grenade: {
     id: 'grenade',
@@ -101,7 +101,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'none',
     projectileLook: 'grenade',
-    sound: 'grenade',
+    sound: 'none',
   },
   mortar: {
     id: 'mortar',
@@ -124,7 +124,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'none',
     projectileLook: 'mortar',
-    sound: 'mortar',
+    sound: 'mortarLaunch',
   },
   sniperRifle: {
     id: 'sniperRifle',
@@ -147,7 +147,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'sniper',
     projectileLook: 'none',
-    sound: 'sniper',
+    sound: 'sniperShot',
   },
   rocket: {
     id: 'rocket',
@@ -170,7 +170,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'none',
     projectileLook: 'rocket',
-    sound: 'rocket',
+    sound: 'rocketLaunch',
   },
   tankGun: {
     id: 'tankGun',
@@ -239,7 +239,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: true,
     tracer: 'mg',
     projectileLook: 'none',
-    sound: 'mg',
+    sound: 'mgShot',
   },
   hqGun: {
     id: 'hqGun',
@@ -262,7 +262,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'mg',
     projectileLook: 'none',
-    sound: 'mg',
+    sound: 'bunkerMg',
   },
   pillboxGun: {
     id: 'pillboxGun',
@@ -285,7 +285,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'mg',
     projectileLook: 'none',
-    sound: 'mg',
+    sound: 'bunkerMg',
   },
   artilleryShell: {
     id: 'artilleryShell',
@@ -308,7 +308,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'none',
     projectileLook: 'shell',
-    sound: 'artillery',
+    sound: 'shellWhistle',
   },
   airRocket: {
     id: 'airRocket',
@@ -331,6 +331,6 @@ export const WEAPONS: Record<string, WeaponDef> = {
     moveAndFire: false,
     tracer: 'none',
     projectileLook: 'bomb',
-    sound: 'bomb',
+    sound: 'rocketLaunch',
   },
 };

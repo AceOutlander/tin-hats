@@ -36,12 +36,20 @@ const RANK_WEIGHT = 1e7;
 /** Structures are engaged only when no unit is in range. */
 const STRUCTURE_RANK = NO_PREFERENCE + 1;
 
+/*
+ * Allocation note. V8 boxes a floating-point value into a heap object whenever it is passed to a
+ * function that is not inlined, returned from one, or kept in a module-level variable. Hot paths
+ * here therefore hand numbers over in object fields (m.x, m.damageMul, m.rateMul, u.goalX,
+ * u.moveSpeed) or in typed arrays, never as double arguments or return values.
+ */
+
 /** Result of the last search(): written here instead of returned so the tick never allocates. */
 let foundType = TARGET_NONE;
 let foundIndex = -1;
 let foundId = -1;
-let foundX = 0;
 let foundRank = 0;
+/** World x of the last search() result (a typed array, so the double is not boxed). */
+const FOUND_X = new Float64Array(1);
 
 /** Damage-matrix column of a unit right now. */
 export function unitClass(u: UnitState): number {
@@ -69,12 +77,14 @@ export function smokeBlocks(w: World, fromX: number, toX: number): boolean {
 }
 
 /**
- * Find the best target for a weapon at x: the most preferred kind, then the
+ * Find the best target for a mount (at m.x): the most preferred kind, then the
  * nearest. Units come before structures. The result is left in the found*
  * variables; returns false if nothing is in range.
  */
-function search(w: World, side: number, x: number, wi: number): boolean {
+function search(w: World, m: MountState, side: number): boolean {
   const s = w.state;
+  const x = m.x;
+  const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   const mask = WEAPON_MASK[wi];
   const prefer = WEAPON_PREFER[wi];
@@ -99,12 +109,12 @@ function search(w: World, side: number, x: number, wi: number): boolean {
     const rank = prefer[t.kindIndex];
     const score = rank * RANK_WEIGHT + d;
     if (score >= best) continue;
-    if (direct && smokeBlocks(w, x, t.x)) continue;
+    if (direct && w.smokeCount > 0 && smokeBlocks(w, x, t.x)) continue;
     best = score;
     foundType = TARGET_UNIT;
     foundIndex = i;
     foundId = t.id;
-    foundX = t.x;
+    FOUND_X[0] = t.x;
     foundRank = rank;
   }
 
@@ -117,12 +127,12 @@ function search(w: World, side: number, x: number, wi: number): boolean {
       if (d > range || d < minRange) continue;
       const score = STRUCTURE_RANK * RANK_WEIGHT + d;
       if (score >= best) continue;
-      if (direct && smokeBlocks(w, x, p.x)) continue;
+      if (direct && w.smokeCount > 0 && smokeBlocks(w, x, p.x)) continue;
       best = score;
       foundType = TARGET_PILLBOX;
       foundIndex = i;
       foundId = -1;
-      foundX = p.x;
+      FOUND_X[0] = p.x;
       foundRank = STRUCTURE_RANK;
     }
   }
@@ -133,12 +143,11 @@ function search(w: World, side: number, x: number, wi: number): boolean {
       const d = hq.doorX > x ? hq.doorX - x : x - hq.doorX;
       if (d <= range && d >= minRange) {
         const score = STRUCTURE_RANK * RANK_WEIGHT + d;
-        if (score < best && !(direct && smokeBlocks(w, x, hq.doorX))) {
-          best = score;
+        if (score < best && !(direct && w.smokeCount > 0 && smokeBlocks(w, x, hq.doorX))) {
           foundType = TARGET_HQ;
           foundIndex = enemy;
           foundId = -1;
-          foundX = hq.doorX;
+          FOUND_X[0] = hq.doorX;
           foundRank = STRUCTURE_RANK;
         }
       }
@@ -153,7 +162,7 @@ function takeFound(m: MountState): void {
   m.targetType = foundType;
   m.targetIndex = foundIndex;
   m.targetId = foundId;
-  m.aimX = foundX;
+  m.aimX = FOUND_X[0];
   m.aim = weapon.aimTime;
   if (m.burstLeft > 0) {
     m.burstLeft = 0;
@@ -171,8 +180,9 @@ function dropTarget(m: MountState): void {
  * Check that the mount's target is still alive, targetable and in range.
  * Refreshes aimX. Returns false (and the caller drops the target) otherwise.
  */
-function targetValid(w: World, m: MountState, x: number): boolean {
+function targetValid(w: World, m: MountState): boolean {
   const s = w.state;
+  const x = m.x;
   const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   let tx: number;
@@ -201,7 +211,7 @@ function targetValid(w: World, m: MountState, x: number): boolean {
   }
   const d = tx > x ? tx - x : x - tx;
   if (d > weapon.range || d < weapon.minRange) return false;
-  if (weapon.delivery !== 'lob' && smokeBlocks(w, x, tx)) return false;
+  if (weapon.delivery !== 'lob' && w.smokeCount > 0 && smokeBlocks(w, x, tx)) return false;
   m.aimX = tx;
   return true;
 }
@@ -216,22 +226,22 @@ function currentRank(w: World, m: MountState): number {
  * Keep a mount's target up to date. Retargets only when the target died or
  * left range, when a unit comes into range while it is shooting at a
  * structure, or (checked every `retarget` call) when a more preferred kind appears.
- * Returns true if the mount has a target afterwards.
+ * The caller sets `m.x` (the muzzle position) first. Returns true if the mount has a target afterwards.
  */
-export function senseMount(w: World, m: MountState, side: number, x: number, retarget: boolean): boolean {
+export function senseMount(w: World, m: MountState, side: number, retarget: boolean): boolean {
   if (m.weaponIndex < 0) return false;
   if (m.targetType !== TARGET_NONE) {
-    if (targetValid(w, m, x)) {
+    if (targetValid(w, m)) {
       if (retarget) {
         const rank = currentRank(w, m);
         const couldImprove = rank === STRUCTURE_RANK || (rank > 0 && WEAPON_HAS_PREFER[m.weaponIndex]);
-        if (couldImprove && search(w, side, x, m.weaponIndex) && foundRank < rank) takeFound(m);
+        if (couldImprove && search(w, m, side) && foundRank < rank) takeFound(m);
       }
       return true;
     }
     dropTarget(m);
   }
-  if (search(w, side, x, m.weaponIndex)) {
+  if (search(w, m, side)) {
     takeFound(m);
     return true;
   }
@@ -243,13 +253,12 @@ function fireShot(
   w: World,
   m: MountState,
   side: number,
-  x: number,
   row: number,
   shooter: UnitState | null,
   source: EntityKind,
-  damageMul: number,
 ): void {
   const s = w.state;
+  const x = m.x;
   const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   const dtype = WEAPON_DTYPE[wi];
@@ -280,7 +289,7 @@ function fireShot(
   const chance = weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t;
   const hit = w.rng.next() < chance;
   if (hit) {
-    const amount = weapon.damage * damageFactor(dtype, cls) * damageMul;
+    const amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
     w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir);
   }
 
@@ -308,25 +317,23 @@ function fireShot(
  * Advance a mount by one tick. The reload always runs; the aim only settles
  * while `active` (the shooter is standing on a target) and resets otherwise.
  * It fires when both are done, then plays out its burst.
+ * The caller sets `m.x` (muzzle position), `m.damageMul` and `m.rateMul` first.
  */
 export function updateMount(
   w: World,
   m: MountState,
   active: boolean,
   side: number,
-  x: number,
   row: number,
   shooter: UnitState | null,
   source: EntityKind,
-  damageMul: number,
-  rateMul: number,
 ): void {
   if (m.weaponIndex < 0) return;
   const weapon = WEAPON_LIST[m.weaponIndex];
   const dt = w.dt;
   m.sinceShot += dt;
   if (m.cooldown > 0) {
-    m.cooldown -= dt * rateMul;
+    m.cooldown -= dt * m.rateMul;
     if (m.cooldown < 0) m.cooldown = 0;
   }
   if (!active || m.targetType === TARGET_NONE) {
@@ -340,7 +347,7 @@ export function updateMount(
   if (m.burstLeft > 0) {
     m.burstTimer -= dt;
     if (m.burstTimer <= 0) {
-      fireShot(w, m, side, x, row, shooter, source, damageMul);
+      fireShot(w, m, side, row, shooter, source);
       m.burstLeft--;
       if (m.burstLeft > 0) m.burstTimer += weapon.burstInterval;
       else m.cooldown = weapon.cooldown;
@@ -353,7 +360,7 @@ export function updateMount(
     m.aim = 0;
   }
   if (m.cooldown > 0) return;
-  fireShot(w, m, side, x, row, shooter, source, damageMul);
+  fireShot(w, m, side, row, shooter, source);
   m.burstLeft = weapon.burst - 1;
   if (m.burstLeft > 0) m.burstTimer = weapon.burstInterval;
   else m.cooldown = weapon.cooldown;

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin Hats: figure preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #2b2d2e;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Stick-figure preview (dev server only).
+        art-figures.html                         live grid: every kind for both factions cycling through every action,
+                                                 plus a lane of runners crossing the screen at their real speeds
+        art-figures.html?z=0.7                   the same at phone scale (a 58 wu figure is about 40 CSS px)
+        art-figures.html?mode=strip&kind=rifle&action=move&frames=12
+                                                 evenly spaced phases side by side on a light background
+           extra: faction=german, speed=80 (move), dur=1.2 (other actions), t0=0.2, death=blast, trench=1, carry=1,
+                  back=1 (walk backwards), z=4, from=aim (action before the strip starts)
+        art-figures.html?mode=deaths             every death fall over time
+        art-figures.html?mode=sheet&action=aim   every kind and faction side by side in one pose
+      ';' works in place of '&' (needed when the URL goes through x.cmd):
+        x.cmd npx tsx tools/shot.ts "dev/art-figures.html?mode=strip;kind=rifle;action=move" out.png --ready
+    -->
+    <canvas id="c"></canvas>
+    <script type="module" src="./art-figures.ts"></script>
+  </body>
+</html>

@@ -48,7 +48,8 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const orders = el('div', 'th-type th-orders');
   const objective = el('div', 'th-objective');
   add(objective, el('span', 'th-objective-label', 'Objective'), el('span', 'th-type th-objective-text', mission ? mission.objective : ''));
-  add(sheet, sheetHead, title, meta, orders, objective);
+  // The objective comes first so it is on screen at once even on the shortest phones; the orders type out below it.
+  add(sheet, sheetHead, title, meta, objective, orders);
 
   // Typewriter: every paragraph is laid out in full (so nothing reflows) and revealed a character at a time.
   const typed: Text[] = [];
@@ -94,8 +95,6 @@ export const briefingScreen: ScreenFactory = (ctx) => {
       if (active === -1 && n < lengths[i]) active = i;
     }
     for (let i = 0; i < paragraphs.length; i++) paragraphs[i].classList.toggle('is-typing', i === active);
-    const done = count >= total;
-    sheet.classList.toggle('is-typed', done);
   }
 
   function tick(now: number): void {

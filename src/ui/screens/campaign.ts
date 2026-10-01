@@ -3,11 +3,11 @@
  * selected mission's card, and the way into the Quartermaster and Settings.
  */
 import { CAMPAIGN_MAP_VIEW, mapX, mapY } from '../../data/campaignMap';
+import { boxPan, clampPan, layoutPins, type PinBox } from './mapLayout';
 import type { MissionCard } from '../contracts';
 import { add, button, clear, el, setStencil, stencil } from '../shell/dom';
 import { glyph } from '../shell/icons';
 import type { ScreenFactory } from '../shell/types';
-import { clampPan, mapSizeFor, relaxPins } from './mapLayout';
 import { paintCampaignMap, type MapPin, type PinState } from './mapPaint';
 
 function pinState(m: MissionCard): PinState {
@@ -78,7 +78,8 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     },
   });
   start.dataset.primary = '';
-  add(card, cardTop, cardTitle, cardPlace, cardDate, cardPips, start);
+  const cardObjective = el('p', 'th-type th-card-obj');
+  add(card, cardTop, cardTitle, cardPlace, cardDate, cardPips, cardObjective, start);
 
   const foot = el('div', 'th-side-foot');
   const qmPoints = el('span', 'th-points-num');
@@ -118,6 +119,9 @@ export const campaignScreen: ScreenFactory = (ctx) => {
   let panX = 0;
   let panY = 0;
   let laidOut = false;
+  /** True when the whole campaign fits on screen at once, so selecting a pin never needs to move the map. */
+  let fitsAll = false;
+  let pinBox: PinBox = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
 
   function selected(): MissionCard | undefined {
     return missions.find((m) => m.id === ctx.session.missionId);
@@ -138,6 +142,18 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     applyPan(animate);
   }
 
+  /** The resting view: every pin when they all fit, otherwise the selected mission. */
+  function settle(animate: boolean): void {
+    if (fitsAll) {
+      const pan = boxPan(pinBox, map.clientWidth, map.clientHeight);
+      panX = pan.x;
+      panY = pan.y;
+      applyPan(animate);
+    } else {
+      centreOn(ctx.session.missionId, animate);
+    }
+  }
+
   function buildPins(): void {
     for (const node of pinEls.values()) node.remove();
     pinEls.clear();
@@ -152,7 +168,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
         },
       });
       pinButton.addEventListener('focus', () => {
-        if (ctx.keyboard()) centreOn(m.id, true);
+        if (ctx.keyboard() && !fitsAll) centreOn(m.id, true);
       });
       const disc = el('span', 'th-pin-disc');
       const pips = el('span', 'th-pin-pips');
@@ -194,18 +210,27 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     const viewW = map.clientWidth;
     const viewH = map.clientHeight;
     if (viewW === 0 || viewH === 0) return;
-    const size = mapSizeFor(viewW, viewH);
-    mapW = size.w;
-    mapH = size.h;
+    const lay = layoutPins(
+      missions.map((m) => m.mapPos.lon),
+      missions.map((m) => m.mapPos.lat),
+      viewW,
+      viewH,
+    );
+    mapW = lay.size.w;
+    mapH = lay.size.h;
+    fitsAll = lay.fits;
+    pinBox = lay.box;
     world.style.width = `${mapW}px`;
     world.style.height = `${mapH}px`;
 
-    const xs = missions.map((m) => mapX(m.mapPos.lon) * mapW);
-    const ys = missions.map((m) => mapY(m.mapPos.lat) * mapH);
-    const ax = xs.slice();
-    const ay = ys.slice();
-    relaxPins(xs, ys, CAMPAIGN_MAP_VIEW.pinSeparationPx, mapW, mapH);
-    pins = missions.map((m, i) => ({ id: m.id, x: xs[i], y: ys[i], ax: ax[i], ay: ay[i], state: pinState(m) }));
+    pins = missions.map((m, i) => ({
+      id: m.id,
+      x: lay.xs[i],
+      y: lay.ys[i],
+      ax: mapX(m.mapPos.lon) * mapW,
+      ay: mapY(m.mapPos.lat) * mapH,
+      state: pinState(m),
+    }));
     for (const pin of pins) {
       const node = pinEls.get(pin.id);
       if (node) {
@@ -225,12 +250,13 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     if (!m) return;
     const state = pinState(m);
     card.dataset.state = state;
-    cardNo.textContent = `Mission ${m.id} of ${missions.length}`;
+    cardNo.textContent = `No. ${m.id}/${missions.length}`;
     cardStamp.textContent = state === 'locked' ? 'Locked' : state === 'cleared' ? 'Cleared' : 'Orders in';
     cardStamp.dataset.state = state;
     setStencil(cardTitle, m.title);
     cardPlace.textContent = m.location;
     cardDate.textContent = m.date;
+    cardObjective.textContent = m.unlocked ? m.objective : 'Clear the previous mission to receive these orders.';
     clear(cardPips);
     for (const d of view.difficulties) {
       const item = el('span', 'th-card-pip');
@@ -250,7 +276,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     ctx.session.missionId = id;
     updatePins();
     renderCard();
-    if (laidOut) centreOn(id, animate);
+    if (laidOut && !fitsAll) centreOn(id, animate);
   }
 
   function load(): void {
@@ -343,7 +369,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     el: root,
     mounted() {
       layout();
-      centreOn(ctx.session.missionId, false);
+      settle(false);
     },
     refresh() {
       load();
@@ -352,7 +378,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     },
     resize() {
       layout();
-      centreOn(ctx.session.missionId, false);
+      settle(false);
     },
     back() {
       ctx.go('title');

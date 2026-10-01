@@ -22,7 +22,7 @@ import {
   type Ctx,
   type Profile,
 } from '../kit';
-import { chance, range, type Rng } from '../rng';
+import { chance, range } from '../rng';
 import type { LayerPainter, TheatreArt } from '../scene';
 
 const S = SCENES.normandy;
@@ -147,7 +147,7 @@ const far: LayerPainter = (ctx, sc, rng, box) => {
   const shipXs = spread(rng, w, S.ships, 0.7);
   const anchors: number[] = [];
   for (let i = 0; i < shipXs.length; i++) {
-    const L = range(rng, 44, 70);
+    const L = range(rng, 52, 84);
     const sy = seaY + range(rng, 1, 5);
     const facing = chance(rng, 0.7) ? 1 : -1;
     const kind = i % 3;
@@ -192,8 +192,8 @@ const far: LayerPainter = (ctx, sc, rng, box) => {
   for (const cx of spread(rng, w, S.landingCraft, 0.8)) craft.push({ x: cx, f: rng() });
   craft.sort((a, b) => a.f - b.f);
   for (const c of craft) {
-    const y = seaY + 12 + c.f * 32;
-    const L = lerp(22, 44, c.f);
+    const y = seaY + 11 + c.f * (S.surfY - seaY - 22);
+    const L = lerp(28, 54, c.f);
     wrapped(w, c.x, L * 1.6, (cx) => landingCraft(ctx, cx, y, L, 1, hull, hullShade, foam, false));
   }
 };

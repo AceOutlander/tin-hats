@@ -249,6 +249,6 @@ export function paintForeground(ctx: Ctx, sc: Scene, rng: Rng, w: number): void 
     const s = lerp(0.85, 1.5, (p.base - BACKDROP.foregroundBaseMin) / span);
     const room = p.base - BACKDROP.foregroundLimit;
     const x = p.x % w;
-    wrappedSeeded(w, x, 70, rng, (cx, r) => drawItem(ctx, r, p.item, cx, p.base, s, room, inks, sc.light));
+    wrappedSeeded(w, x, 90, rng, (cx, r) => drawItem(ctx, r, p.item, cx, p.base, s, room, inks, sc.light));
   }
 }

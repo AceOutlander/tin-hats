@@ -792,7 +792,8 @@ export const SCENES = {
     backRangeY: 236,
     backRangeAmp: 96,
     massifY: 286,
-    massifAmp: 150,
+    massifAmp: 165,
+    massifHalf: 300,
     monasteryWidth: 92,
     midSlopeY: 306,
     midSlopeAmp: 44,
@@ -805,7 +806,7 @@ export const SCENES = {
     rubblePiles: 9,
   },
   normandy: {
-    seaY: 298,
+    seaY: 272,
     ships: 7,
     landingCraft: 8,
     balloons: 7,

@@ -31,7 +31,8 @@ export function updateEconomy(w: World): void {
       const kind = KIND_LIST[k];
       if (side.queue[kind] <= 0) continue;
       const trainTime = KIND_DEFS[k].trainTime;
-      let left = side.trainLeft[kind] - dt;
+      const slot = si * KIND_COUNT + k;
+      let left = w.trainLeft[slot] - dt;
       if (left <= 0) {
         // Under Fall Back the new unit stays inside with the garrison.
         const u = spawnUnit(w, si as Side, k, hq.doorX, 'army', side.order === 'fallBack', true);
@@ -43,13 +44,14 @@ export function updateEconomy(w: World): void {
           e.kind = kind;
           e.unit = u.index;
           e.unitId = u.id;
-          left = side.queue[kind] > 0 ? trainTime : 0;
+          // The next unit starts where this one finished, so the leftover fraction of a tick is not lost.
+          left = side.queue[kind] > 0 ? trainTime + left : 0;
         } else {
           // Unit pool full: keep the finished unit waiting and try again next tick.
           left = 0;
         }
       }
-      side.trainLeft[kind] = left;
+      w.trainLeft[slot] = left;
       side.progress[kind] = side.queue[kind] > 0 && trainTime > 0 ? 1 - left / trainTime : 0;
     }
 

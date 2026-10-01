@@ -31,6 +31,9 @@ export function createMount(): MountState {
     burstLeft: 0,
     burstTimer: 0,
     sinceShot: LONG_AGO,
+    x: 0,
+    damageMul: 1,
+    rateMul: 1,
   };
 }
 
@@ -42,6 +45,7 @@ export function resetMount(m: MountState, weaponId: string | null, x: number): v
   m.targetType = TARGET_NONE;
   m.targetIndex = -1;
   m.targetId = -1;
+  m.x = x;
   m.aimX = x;
   m.aim = weapon ? weapon.aimTime : 0;
   m.cooldown = 0;
@@ -81,6 +85,7 @@ export function createUnit(index: number): UnitState {
     kindIndex: 0,
     engaged: false,
     goalX: 0,
+    moveSpeed: 0,
     task: TASK_TO_DUMP,
     taskTime: 0,
     cell: -1,
@@ -194,6 +199,7 @@ export function spawnUnit(
   resetMount(u.mount2, def.secondary, px);
   u.engaged = false;
   u.goalX = px;
+  u.moveSpeed = 0;
   u.task = TASK_TO_DUMP;
   u.taskTime = 0;
   const serial = ++w.spawnCount[side];

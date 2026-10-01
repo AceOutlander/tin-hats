@@ -138,6 +138,14 @@ export interface MountState {
   burstTimer: number;
   /** Seconds since this mount last fired (large if it never has). */
   sinceShot: number;
+  /**
+   * internal: the owner's world x, damage multiplier and reload-speed multiplier for this tick.
+   * The owner writes them before sensing and firing so the hot path passes no doubles around
+   * (see the allocation note in combat.ts).
+   */
+  x: number;
+  damageMul: number;
+  rateMul: number;
 }
 
 /**
@@ -201,6 +209,8 @@ export interface UnitState {
   engaged: boolean;
   /** internal: where the unit wants to walk this tick. */
   goalX: number;
+  /** internal: speed in wu/s it walks at this tick (set together with goalX). */
+  moveSpeed: number;
   /** internal: sapper task (0 walking to the dump, 1 loading, 2 carrying back). */
   task: number;
   /** internal: seconds left in the current task (sapper loading). */
@@ -276,8 +286,6 @@ export interface SideState {
   progress: Record<UnitKind, number>;
   /** Living units per kind (on the field or inside the HQ). */
   alive: Record<UnitKind, number>;
-  /** internal: seconds left on the unit in training, per kind. */
-  trainLeft: Record<UnitKind, number>;
   /** Supports this side may call in this mission. */
   supportAvailable: Record<SupportKind, boolean>;
   /** Seconds until each support is ready again; 0 = ready. Always 0 until Phase 2. */

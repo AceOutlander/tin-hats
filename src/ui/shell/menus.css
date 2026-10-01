@@ -65,10 +65,8 @@
   transition: none;
 }
 
-.th-screen h1,
-.th-screen h2,
-.th-screen h3,
-.th-screen p {
+/* Zero specificity, so a component's own margins (title gaps, paragraph spacing) still apply. */
+:where(.th-screen) :is(h1, h2, h3, p) {
   margin: 0;
 }
 
@@ -339,9 +337,13 @@
   border-color: #4f3d10;
 }
 
+/* A small corner badge, so the label keeps the whole button width. */
 .th-seg-tick {
-  width: 13px;
-  height: 13px;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 11px;
+  height: 11px;
   color: var(--th-good);
 }
 
@@ -453,7 +455,7 @@
 
 .th-logo-helmet {
   width: clamp(92px, 31vh, 168px);
-  margin-bottom: clamp(-14px, -2.6vh, -6px);
+  margin-bottom: clamp(-6px, -1.2vh, -2px);
   transform: rotate(-7deg);
   filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.55));
 }
@@ -508,7 +510,7 @@
   overflow: hidden;
   touch-action: none;
   cursor: grab;
-  background: #7d8c84;
+  background: var(--th-desk);
 }
 
 .th-map.is-dragging {
@@ -529,6 +531,10 @@
   top: 0;
   transform-origin: 0 0;
   will-change: transform;
+  /* When the whole map is smaller than the screen it reads as a sheet lying on the desk. */
+  box-shadow:
+    0 0 0 2px #0d0e08,
+    0 6px 20px rgba(0, 0, 0, 0.6);
 }
 
 .th-map-world.is-gliding {
@@ -550,16 +556,20 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-right: 14px;
   background: rgba(20, 21, 15, 0.84);
   border: 1px solid rgba(200, 162, 74, 0.45);
   border-radius: 5px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* The map's own cartouche says what this is; keep the heading for screen readers so the plate stays small. */
 .th-map-title {
-  font-size: 17px;
-  color: var(--th-paper);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .th-pin {
@@ -728,12 +738,12 @@
 .th-card-pips {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 9px;
+  gap: 2px 7px;
   margin-top: 4px;
   font-family: var(--th-font-display);
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #4c452f;
 }
@@ -742,6 +752,25 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+
+/* Fills the spare height on taller phones; the foot fades out rather than cutting a line in half. */
+.th-card-obj {
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #3a3523;
+  -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent);
+  mask-image: linear-gradient(180deg, #000 72%, transparent);
+}
+
+@media (max-height: 349px) {
+  .th-card-obj {
+    display: none;
+  }
 }
 
 .th-card-start {
@@ -861,16 +890,10 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 9px;
-  padding: 6px 9px;
+  margin-bottom: 9px;
+  padding: 5px 9px;
   background: rgba(156, 43, 31, 0.07);
   border: 1.5px solid var(--th-red);
-  opacity: 0;
-  transition: opacity 220ms ease-out;
-}
-
-.th-sheet.is-typed .th-objective {
-  opacity: 1;
 }
 
 .th-objective-label {

@@ -15,9 +15,11 @@ import {
   balkenkreuz,
   bite,
   charOver,
+  ember,
   fillPoly,
   makeSpec,
   mix,
+  poly,
   recognitionFlash,
   rgba,
   rimPoly,
@@ -453,29 +455,41 @@ function paintHusk(ctx: Ctx, look: TankLook): void {
     ctx.restore();
   }
   HULL[look](ctx, P);
-  // Gun drooped, turret jolted off its ring.
+  // The turret has been blown off its ring: a ragged black hole in the deck, the turret
+  // slid back and cocked over the rear edge of it, the gun sagging.
+  const hx = L.turretRing.x;
+  const hy = L.turretRing.y;
+  const hw = L.turretBox.w * 0.34;
+  ctx.fillStyle = C.void;
+  poly(ctx, [
+    hx - hw, hy + 4, hx - hw * 0.72, hy - 4, hx - hw * 0.4, hy, hx - hw * 0.1, hy - 6, hx + hw * 0.3, hy - 1,
+    hx + hw * 0.62, hy - 5.5, hx + hw, hy + 4, hx + hw * 0.7, hy + 11, hx - hw * 0.7, hy + 11,
+  ]);
+  ctx.fill();
   ctx.save();
-  ctx.translate(L.trunnion.x - 5, L.trunnion.y);
-  ctx.rotate(0.2);
+  ctx.translate(hx - L.turretBox.w * 0.2, hy - 5);
+  ctx.rotate(-0.26);
+  ctx.save();
+  ctx.translate(L.trunnion.x - hx, L.trunnion.y - hy);
+  ctx.rotate(0.16);
   paintBarrel(ctx, look, P);
   ctx.restore();
-  ctx.save();
-  ctx.translate(L.turretRing.x - 5, L.turretRing.y - 1);
-  ctx.rotate(-0.075);
   TURRET[look](ctx, P);
   // A hatch left open.
   strokeLine(ctx, [-12, -L.turretBox.oy + 9, -19, -L.turretBox.oy + 1], P.bodyDark, 2);
   ctx.restore();
   // Burnt: darkened, sooted and rusting.
   const B = L.huskBox;
-  charOver(ctx, -B.ox, -B.oy, B.w, B.h, 0.55);
+  charOver(ctx, -B.ox, -B.oy, B.w, B.h, 0.62);
   ctx.save();
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillStyle = rgba(C.rust, 0.22);
+  ctx.fillStyle = rgba(C.rust, 0.2);
   ctx.fillRect(-B.ox, -B.oy, B.w, B.h);
   ctx.restore();
-  scorch(ctx, L.turretRing.x, L.turretRing.y - 6, L.length * 0.3, 34, 0.55);
+  scorch(ctx, hx + hw * 0.3, hy - 4, L.length * 0.3, 34, 0.6);
   scorch(ctx, -L.length * 0.3, -34, L.length * 0.22, 28, 0.5);
+  // Embers still glowing inside the hull.
+  ember(ctx, hx + hw * 0.25, hy + 4, hw * 0.55, 0.6);
 }
 
 // ---------------------------------------------------------------------------

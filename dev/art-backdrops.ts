@@ -214,6 +214,67 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
   ctx.fillText(text, x + size / 2, y + size * 0.25);
 }
 
+/** Rows where the last pixel column of a tile differs sharply from the first, against how often neighbouring columns do. */
+function seamScore(canvas: HTMLCanvasElement): { wrapBad: number; expected: number; rows: number; firstRow: number; lastRow: number } {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('no 2D context');
+  const W = canvas.width;
+  const H = canvas.height;
+  const diff = (a: Uint8ClampedArray, ia: number, b: Uint8ClampedArray, ib: number): number => {
+    if (a[ia + 3] < 8 && b[ib + 3] < 8) return 0;
+    return Math.max(Math.abs(a[ia] - b[ib]), Math.abs(a[ia + 1] - b[ib + 1]), Math.abs(a[ia + 2] - b[ib + 2]), Math.abs(a[ia + 3] - b[ib + 3]));
+  };
+  const THRESHOLD = 40;
+  const first = ctx.getImageData(0, 0, 1, H).data;
+  const last = ctx.getImageData(W - 1, 0, 1, H).data;
+  let wrapBad = 0;
+  let firstRow = -1;
+  let lastRow = -1;
+  for (let y = 0; y < H; y++) {
+    if (diff(last, y * 4, first, y * 4) <= THRESHOLD) continue;
+    wrapBad++;
+    if (firstRow < 0) firstRow = y;
+    lastRow = y;
+  }
+  // Baseline: the same measure between 24 pairs of neighbouring columns.
+  let inner = 0;
+  const pairs = 24;
+  for (let i = 0; i < pairs; i++) {
+    const x = 1 + Math.floor(((i + 0.5) / pairs) * (W - 3));
+    const a = ctx.getImageData(x, 0, 1, H).data;
+    const b = ctx.getImageData(x + 1, 0, 1, H).data;
+    for (let y = 0; y < H; y++) if (diff(a, y * 4, b, y * 4) > THRESHOLD) inner++;
+  }
+  return { wrapBad, expected: inner / pairs, rows: H, firstRow, lastRow };
+}
+
+/** Rasterise every tiling layer of a few theatres and report seams that stand out. Painted onto the canvas as text. */
+function runSeamTest(ctx: CanvasRenderingContext2D, dpr: number, seed: number): Record<string, unknown> {
+  const sets: { theatre: TheatreId; time: TimeOfDay }[] = [
+    ...THEATRE_IDS.map((t) => ({ theatre: t, time: 'day' as TimeOfDay })),
+    { theatre: 'france', time: 'night' },
+    { theatre: 'holland', time: 'dusk' },
+  ];
+  const lines: string[] = [];
+  const report: Record<string, unknown> = {};
+  let checked = 0;
+  for (const s of sets) {
+    for (const layer of getBackdrop(s.theatre, s.time, seed)) {
+      if (!layer.tile) continue;
+      const score = seamScore(rasteriseBackdropLayer(layer));
+      checked++;
+      // Thin blades and cloud rims can touch the seam legitimately (a dozen rows); a cut object shows far more.
+      const flagged = score.wrapBad > score.expected * 4 + 14;
+      report[layer.key] = score;
+      if (flagged) lines.push(`SEAM ${layer.key}  rows ${score.wrapBad}/${score.rows} (y ${(layer.y + score.firstRow / layer.scale).toFixed(0)}..${(layer.y + score.lastRow / layer.scale).toFixed(0)})  expected ${score.expected.toFixed(1)}`);
+    }
+  }
+  lines.unshift(`seam test: ${checked} tiling layers checked, ${lines.length} flagged`);
+  const size = Math.round(11 * dpr);
+  lines.forEach((text, i) => label(ctx, text, 8 * dpr, 8 * dpr + i * size * 1.8, size));
+  return report;
+}
+
 function isTheatre(v: string | null): v is TheatreId {
   return v !== null && (THEATRE_IDS as readonly string[]).includes(v);
 }
@@ -263,7 +324,9 @@ function main(): void {
   const sheet = q.get('sheet');
   const stats: Record<string, unknown> = {};
 
-  if (sheet !== null && sheet !== '0') {
+  if (flag('seamtest', false)) {
+    stats.seams = runSeamTest(ctx, dpr, o.seed);
+  } else if (sheet !== null && sheet !== '0') {
     // Thumbnails: seven theatres plus two time-of-day variants, or one theatre at all five times.
     const cells: { theatre: TheatreId; time: TimeOfDay }[] =
       sheet === 'times'
@@ -312,4 +375,7 @@ function main(): void {
   window.__ready = true;
 }
 
-main();
+// Heavy modes (sheet, seam test) take seconds: start after the load event so the page itself loads promptly.
+window.addEventListener('load', () => {
+  window.setTimeout(main, 0);
+});

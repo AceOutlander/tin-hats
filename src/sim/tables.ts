@@ -3,10 +3,14 @@
  * string: unit kinds, target classes, damage types and weapons all get small
  * integer indices.
  */
+import { CONFIG } from '../data/config';
 import { DAMAGE } from '../data/damage';
 import type { DamageType, TargetClass, UnitDef, UnitKind, WeaponDef } from '../data/schema';
 import { UNITS, UNIT_KINDS } from '../data/units';
 import { WEAPONS } from '../data/weapons';
+
+/** Seconds per tick. */
+export const DT = 1 / CONFIG.tickRate;
 
 export const KIND_LIST: readonly UnitKind[] = UNIT_KINDS;
 export const KIND_COUNT = KIND_LIST.length;

@@ -395,11 +395,10 @@ if (!game || !ui) throw new Error('ui-hud: missing #game or #ui');
 const bg = params.get('bg');
 if (bg === 'bright' || bg === 'dark') game.classList.add(bg);
 if (flag('guides')) game.classList.add('guides');
-if (params.get('font') === 'wide') {
-  document.documentElement.style.setProperty('--th-font-display', 'Verdana, sans-serif');
-}
-
 const hud: Hud = createHud(ui, app, params.get('painter') === '0' ? {} : { paintUnitIcon: paintStandInIcon });
+if (params.get('font') === 'wide' && ui.firstElementChild instanceof HTMLElement) {
+  ui.firstElementChild.style.fontFamily = 'Verdana, sans-serif';
+}
 
 // A tap on the stand-in battlefield: place the pending support, otherwise take or drop direct control.
 game.addEventListener('pointerdown', () => {

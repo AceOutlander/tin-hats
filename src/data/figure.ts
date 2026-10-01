@@ -49,7 +49,8 @@ export type WeaponModel =
   | 'piat'
   | 'panzerschreck';
 
-export type HandItem = 'none' | 'mills' | 'stick' | 'shell';
+/** Small item drawn in a hand: grenades, a mortar bomb, an anti-tank round. */
+export type HandItem = 'none' | 'mills' | 'stick' | 'shell' | 'rocket';
 
 /** How a kind works its weapon during the `reload` action. */
 export type ReloadStyle = 'none' | 'bolt' | 'magazine' | 'shell' | 'rocket';
@@ -209,7 +210,7 @@ const DEG = Math.PI / 180;
 function stance(over: Partial<StanceDef>): StanceDef {
   return {
     hipX: -0.5,
-    hipY: -27,
+    hipY: -28.9,
     spine: 0.02,
     chest: 0.04,
     head: -0.02,
@@ -228,8 +229,9 @@ function stance(over: Partial<StanceDef>): StanceDef {
 function upper(over: Partial<UpperDef>): UpperDef {
   return {
     ground: false,
-    ox: 0,
-    oy: 0,
+    // Unarmed poses park the (invisible) weapon point at the hip, never at the shoulder joint itself.
+    ox: 5,
+    oy: 11,
     angle: 0,
     aim: 0,
     nearPin: 0,
@@ -258,7 +260,7 @@ function gait(over: Partial<GaitStyle>): GaitStyle {
     toeOff: 0.6,
     strike: 0.3,
     center: 0.5,
-    hipHeight: 25.6,
+    hipHeight: 27.6,
     bob: 1.0,
     bobLag: 0.02,
     surge: 0.4,
@@ -285,36 +287,36 @@ const STAND = stance({});
 /** Offhand firing stance: support-side foot forward, shoulders turned. */
 const STAND_READY = stance({
   hipX: -1,
-  hipY: -26.2,
+  hipY: -28.0,
   spine: 0.1,
   chest: 0.08,
   head: 0.06,
   nearFootX: -6.5,
   farFootX: 6.6,
-  twist: 2.2,
+  twist: 1.5,
 });
 const ASSAULT_READY = stance({
   hipX: -0.5,
-  hipY: -24.4,
-  spine: 0.24,
+  hipY: -26.0,
+  spine: 0.26,
   chest: 0.1,
   head: -0.12,
   nearFootX: -7.4,
   farFootX: 7.6,
-  twist: 2.0,
+  twist: 1.5,
 });
 /** Near knee down, far foot forward. */
 const KNEEL = stance({
   hipX: -3.5,
-  hipY: -14.4,
+  hipY: -15.4,
   spine: 0.16,
   chest: 0.08,
   head: 0.04,
-  nearFootX: -13.2,
+  nearFootX: -14.2,
   nearFootY: -5,
   nearPitch: 1.25,
   farFootX: 8.6,
-  twist: 2.2,
+  twist: 1.5,
 });
 const KNEEL_STEADY = stance({ ...KNEEL, spine: 0.24, chest: 0.1, head: 0 });
 const KNEEL_UPRIGHT = stance({ ...KNEEL, spine: 0.06, chest: 0.04, head: 0.02, twist: 1.2 });
@@ -334,9 +336,9 @@ const PRONE = stance({
   spine: 1.36,
   chest: -0.24,
   head: -0.4,
-  nearFootX: -33.4,
+  nearFootX: -35.6,
   nearFootY: -2.3,
-  farFootX: -32.4,
+  farFootX: -34.6,
   farFootY: -2.1,
   nearPitch: 3.0,
   farPitch: 3.05,
@@ -345,17 +347,17 @@ const PRONE = stance({
 });
 const TRENCH = stance({
   hipX: -4,
-  hipY: -17,
+  hipY: -18.2,
   spine: 0.52,
   chest: 0.22,
   head: -0.36,
   nearFootX: -8,
   farFootX: 3.6,
-  twist: 2.0,
+  twist: 1.5,
 });
-const LOAD_BEND = stance({ hipX: -4.5, hipY: -21.5, spine: 1.0, chest: 0.26, head: -0.3, twist: 0 });
-const CHEER = stance({ hipY: -26.2, spine: -0.05, chest: -0.06, head: -0.2, twist: 0 });
-const THROW = stance({ hipX: -1, hipY: -25.6, spine: 0.04, chest: 0.04, head: -0.04, nearFootX: -7, farFootX: 7.2, twist: 1.0 });
+const LOAD_BEND = stance({ hipX: -4.5, hipY: -23.2, spine: 1.0, chest: 0.26, head: -0.3, twist: 0, settle: 1.4 });
+const CHEER = stance({ hipY: -28.0, spine: -0.05, chest: -0.06, head: -0.2, twist: 0 });
+const THROW = stance({ hipX: -1, hipY: -27.4, spine: 0.04, chest: 0.04, head: -0.04, nearFootX: -7, farFootX: 7.2, twist: 1.0 });
 
 export const FIGURE_STANCES = {
   stand: STAND,
@@ -369,24 +371,29 @@ export const FIGURE_STANCES = {
 // Gaits
 // ---------------------------------------------------------------------------
 
-const WALK = gait({});
+const WALK = gait({ stride: 40, hipHeight: 27.4 });
+/**
+ * Run: the foot lands about 8 wu ahead of the hip with the knee nearly straight,
+ * the hip is lowest over the planted foot, and the push-off rolls onto the toe
+ * with the leg extended behind. Short flight phase.
+ */
 const RUN = gait({
-  stride: 56,
+  stride: 58,
   duty: 0.36,
-  lift: 9.5,
-  liftSkew: 0.45,
-  kick: 0.7,
-  toeOff: 0.75,
-  strike: 0.22,
-  center: -1.2,
-  hipHeight: 24.3,
-  bob: -1.3,
+  lift: 8.5,
+  liftSkew: 0.3,
+  kick: 0.6,
+  toeOff: 0.8,
+  strike: 0.25,
+  center: -3.8,
+  hipHeight: 28.6,
+  bob: -1.0,
   bobLag: 0.03,
   surge: 0.6,
   hipX: -1,
-  lean: 0.24,
+  lean: 0.36,
   chest: 0.08,
-  headLevel: 0.75,
+  headLevel: 0.6,
   pitch: 0.03,
   armSwing: 0.95,
   elbow: 1.35,
@@ -395,37 +402,39 @@ const RUN = gait({
   weaponBob: 1.1,
   weaponRock: 0.07,
 });
+/** Assault trooper: long low strides, body pitched forward. */
 const SPRINT = gait({
   ...RUN,
-  stride: 68,
+  stride: 66,
   duty: 0.33,
-  lift: 11,
-  liftSkew: 0.5,
-  kick: 0.85,
-  center: -2,
-  hipHeight: 23.2,
-  bob: -1.4,
-  lean: 0.44,
-  chest: 0.12,
-  headLevel: 0.85,
+  lift: 10,
+  liftSkew: 0.4,
+  kick: 0.8,
+  center: -3.6,
+  hipHeight: 26.8,
+  bob: -1.3,
+  lean: 0.5,
+  chest: 0.1,
+  headLevel: 0.75,
   twist: 1.8,
   weaponBob: 1.2,
   weaponRock: 0.09,
 });
+/** Heavy-weapon crews: shorter, heavier steps with more knee bend. */
 const JOG_LOADED = gait({
   ...RUN,
-  stride: 46,
-  duty: 0.43,
+  stride: 48,
+  duty: 0.42,
   lift: 6,
   liftSkew: 0.3,
   kick: 0.45,
-  center: -0.6,
-  hipHeight: 23.6,
-  bob: -1.6,
+  center: -2.0,
+  hipHeight: 27.2,
+  bob: -1.4,
   bobLag: 0.045,
   lean: 0.27,
-  chest: 0.16,
-  headLevel: 0.7,
+  chest: 0.14,
+  headLevel: 0.65,
   pitch: 0.04,
   armSwing: 0.55,
   elbow: 1.0,
@@ -436,27 +445,28 @@ const JOG_LOADED = gait({
 const JOG = gait({
   ...RUN,
   stride: 54,
-  duty: 0.4,
+  duty: 0.38,
   lift: 8,
-  hipHeight: 24.6,
-  bob: -1.2,
-  lean: 0.17,
+  center: -2.6,
+  hipHeight: 28.4,
+  bob: -1.0,
+  lean: 0.2,
   chest: 0.05,
   armSwing: 1.0,
   elbow: 1.4,
 });
-const STALK = gait({ ...RUN, stride: 52, duty: 0.4, lift: 7.5, hipHeight: 23.4, lean: 0.3, chest: 0.12, bob: -1.0 });
+const STALK = gait({ ...RUN, stride: 52, duty: 0.4, lift: 7, center: -2.4, hipHeight: 26.8, lean: 0.38, chest: 0.12, bob: -1.0 });
 /** Sapper hauling a crate: short heavy steps, back straight against the load. */
 const HAUL = gait({
   ...RUN,
-  stride: 47,
+  stride: 46,
   duty: 0.46,
   lift: 5,
   liftSkew: 0.25,
   kick: 0.35,
-  center: 0,
-  hipHeight: 23.4,
-  bob: -1.9,
+  center: -1.0,
+  hipHeight: 27.0,
+  bob: -1.6,
   bobLag: 0.05,
   lean: 0.1,
   chest: -0.12,
@@ -466,7 +476,7 @@ const HAUL = gait({
   weaponBob: 1.6,
   weaponRock: 0.04,
 });
-const HAUL_SLOW = gait({ ...WALK, stride: 34, lift: 2.6, hipHeight: 24.8, bob: 1.2, lean: 0.08, chest: -0.1, headLevel: 0.2, twist: 0.4, weaponBob: 1.0 });
+const HAUL_SLOW = gait({ ...WALK, stride: 34, lift: 2.6, hipHeight: 27.0, bob: 1.0, lean: 0.08, chest: -0.1, headLevel: 0.2, twist: 0.4, weaponBob: 1.0 });
 
 const GAIT_INFANTRY: GaitProfile = { walkSpeed: 32, runSpeed: 70, slow: WALK, fast: RUN };
 const GAIT_ASSAULT: GaitProfile = { walkSpeed: 36, runSpeed: 96, slow: WALK, fast: SPRINT };
@@ -493,19 +503,20 @@ const ROCKET_RECOIL: RecoilDef = { add: 1, max: 1, decay: 0.14, back: 2.6, climb
 // ---------------------------------------------------------------------------
 
 const RIFLE_HOLD = { nearPin: 1, farPin: 1, farPx: 7.4, farPy: 0.9 } as const;
-const RIFLE_AIM = upper({ ...RIFLE_HOLD, ox: 9.3, oy: -2.8, aim: 1, head: 0.24 });
+const RIFLE_AIM = upper({ ...RIFLE_HOLD, ox: 11.0, oy: -2.8, aim: 1, head: 0.24 });
 const RIFLE_REST = upper({ ...RIFLE_HOLD, ox: 6.2, oy: 4.6, angle: -0.3, aim: 0.3 });
-const RIFLE_MOVE = upper({ ...RIFLE_HOLD, ox: 2.6, oy: 10.4, angle: 0.3 });
+const RIFLE_MOVE = upper({ ...RIFLE_HOLD, ox: 3.2, oy: 9.0, angle: 0.75 });
 /** Order arms: butt on the ground by the near foot, hand near the muzzle. */
 const RIFLE_ORDER = upper({ ground: true, ox: 4.4, oy: -10.7, angle: 1.5, nearPin: 1, nearPx: 15.6, nearPy: 0.2, farPx: 7.4, farPy: 0.9 });
 
 const SMG_HOLD = { nearPin: 1, farPin: 1, farPx: 6.3, farPy: 1.3 } as const;
-const SMG_AIM = upper({ ...SMG_HOLD, ox: 6.4, oy: -2.2, aim: 1, head: 0.18 });
+const SMG_AIM = upper({ ...SMG_HOLD, ox: 8.2, oy: -2.2, aim: 1, head: 0.18 });
 
 const LMG_HOLD = { nearPin: 1, farPin: 1, farPx: 6.6, farPy: 1.3 } as const;
 const LMG_HIP = upper({ ...LMG_HOLD, ox: 2.4, oy: 12, angle: -0.08 });
 
-const MORTAR_SHOULDER = upper({ ox: -8.6, oy: 1.4, angle: 0.36, nearPin: 1, nearPx: 16.5, nearPy: -0.4, farPx: 11, farPy: 1.3 });
+/** Tube over the shoulder, muzzle up behind, base held in front of the chest. */
+const MORTAR_SHOULDER = upper({ ox: 5.4, oy: 6.4, angle: 2.42, nearPin: 1, nearPx: 2.6, nearPy: 0.6, farSh: -0.1, farEl: 0.5 });
 const MORTAR_SET = upper({
   ground: true,
   ox: 10,
@@ -521,13 +532,14 @@ const MORTAR_SET = upper({
 });
 
 const AT_HOLD = { nearPin: 1, farPx: 4.6, farPy: 0.4 } as const;
-const AT_SHOULDER = upper({ ...AT_HOLD, ox: 7.4, oy: 2.5, angle: 0.1 });
-const AT_AIM = upper({ ...AT_HOLD, farPin: 1, ox: 7.4, oy: 2.3, aim: 1, head: 0.14 });
+/** Launcher carried on the shoulder, muzzle raised. */
+const AT_SHOULDER = upper({ ...AT_HOLD, ox: 4.6, oy: 4.0, angle: 0.4 });
+const AT_AIM = upper({ ...AT_HOLD, farPin: 1, ox: 8.4, oy: 2.3, aim: 1, head: 0.14 });
 
 const CRATE_HOLD = { nearPin: 1, farPin: 1, nearPx: 2.4, nearPy: 3.6, farPx: 1.4, farPy: 3.6 } as const;
 /** Sapper upper-body poses with a crate. */
 export const FIGURE_CRATE = {
-  carry: upper({ ...CRATE_HOLD, ox: 6.8, oy: 9.2, angle: 0.04 }),
+  carry: upper({ ...CRATE_HOLD, ox: 6.2, oy: 6.6, angle: 0.04 }),
   ground: upper({ ...CRATE_HOLD, ground: true, ox: 12.5, oy: -4.6 }),
   /** Half size of the crate in wu (it rests on the ground at y = -halfH). */
   halfW: 6.5,
@@ -552,6 +564,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: false,
     runAndGun: false,
     steadiness: 1,
+    reloadPace: 1,
+    aloft: false,
     pack: false,
     pouches: true,
     satchel: false,
@@ -562,7 +576,7 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     aim: { stance: STAND_READY, upper: RIFLE_AIM },
     aimAlt: { stance: KNEEL, upper: RIFLE_AIM },
     rest: RIFLE_REST,
-    trench: { stance: TRENCH, upper: upper({ ...RIFLE_HOLD, ox: 9.3, oy: -2.4, aim: 1, head: 0.2 }) },
+    trench: { stance: TRENCH, upper: upper({ ...RIFLE_HOLD, ox: 11.0, oy: -2.4, aim: 1, head: 0.2 }) },
     gait: GAIT_INFANTRY,
     recoil: RIFLE_RECOIL,
     reload: 'bolt',
@@ -571,6 +585,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: false,
     runAndGun: false,
     steadiness: 1,
+    reloadPace: 1,
+    aloft: true,
     pack: true,
     pouches: true,
     satchel: false,
@@ -596,6 +612,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: true,
     runAndGun: false,
     steadiness: 0.6,
+    reloadPace: 1,
+    aloft: true,
     pack: true,
     pouches: true,
     satchel: false,
@@ -606,7 +624,7 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     aim: { stance: ASSAULT_READY, upper: SMG_AIM },
     aimAlt: null,
     rest: upper({ ...SMG_HOLD, ox: 5.4, oy: 5.4, angle: -0.22, aim: 0.3 }),
-    trench: { stance: TRENCH, upper: upper({ ...SMG_HOLD, ox: 6.4, oy: -2, aim: 1, head: 0.16 }) },
+    trench: { stance: TRENCH, upper: upper({ ...SMG_HOLD, ox: 8.2, oy: -2, aim: 1, head: 0.16 }) },
     gait: GAIT_ASSAULT,
     recoil: SMG_RECOIL,
     reload: 'magazine',
@@ -615,6 +633,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: false,
     runAndGun: true,
     steadiness: 1.2,
+    reloadPace: 1,
+    aloft: true,
     pack: false,
     pouches: true,
     satchel: false,
@@ -634,6 +654,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: true,
     runAndGun: false,
     steadiness: 1,
+    reloadPace: 1,
+    aloft: false,
     pack: true,
     pouches: true,
     satchel: false,
@@ -641,10 +663,10 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
   sniper: {
     idle: { stance: STAND, upper: upper({ ...RIFLE_HOLD, ox: 1.2, oy: 9.4, angle: 1.05 }) },
     move: upper({ ...RIFLE_HOLD, ox: 2.4, oy: 10, angle: 0.55 }),
-    aim: { stance: KNEEL_STEADY, upper: upper({ ...RIFLE_HOLD, ox: 9.3, oy: -3, aim: 1, head: 0.3 }) },
+    aim: { stance: KNEEL_STEADY, upper: upper({ ...RIFLE_HOLD, ox: 11.0, oy: -3, aim: 1, head: 0.3 }) },
     aimAlt: null,
     rest: RIFLE_REST,
-    trench: { stance: TRENCH, upper: upper({ ...RIFLE_HOLD, ox: 9.3, oy: -2.6, aim: 1, head: 0.24 }) },
+    trench: { stance: TRENCH, upper: upper({ ...RIFLE_HOLD, ox: 11.0, oy: -2.6, aim: 1, head: 0.24 }) },
     gait: GAIT_SNIPER,
     recoil: SNIPER_RECOIL,
     reload: 'bolt',
@@ -653,12 +675,14 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: true,
     runAndGun: false,
     steadiness: 0.25,
+    reloadPace: 1.45,
+    aloft: true,
     pack: false,
     pouches: true,
     satchel: false,
   },
   medic: {
-    idle: { stance: STAND, upper: upper({ nearSh: 0.2, nearEl: 0.5 }) },
+    idle: { stance: STAND, upper: upper({ nearSh: 0.32, nearEl: 0.62, farSh: -0.14, farEl: 0.4 }) },
     move: upper({ nearSh: 0.1, nearEl: 0.2, farSh: 0, farEl: 0.2 }),
     aim: { stance: STAND, upper: FREE },
     aimAlt: null,
@@ -672,6 +696,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: false,
     runAndGun: false,
     steadiness: 1,
+    reloadPace: 1,
+    aloft: false,
     pack: false,
     pouches: false,
     satchel: true,
@@ -691,6 +717,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
     staysEmplaced: true,
     runAndGun: false,
     steadiness: 0.8,
+    reloadPace: 1,
+    aloft: true,
     pack: true,
     pouches: true,
     satchel: false,
@@ -866,19 +894,20 @@ export const FIGURE = {
   height: VIEW.figureHeight,
   /** Bone lengths in wu. They never change in any pose. */
   bones: {
-    thigh: 12.5,
-    shin: 12.5,
-    spineLower: 9.5,
+    thigh: 13.4,
+    shin: 13.4,
+    spineLower: 9,
     spineUpper: 8,
-    neck: 6,
+    neck: 5.2,
     upperArm: 9,
     forearm: 9,
   },
-  headRadius: 5.4,
+  headRadius: 5.0,
   /** Height of the ankle joint above the sole when the foot is flat. */
   ankle: 2.6,
-  /** Ankle to toe. */
+  /** Ankle to toe tip, and ankle back to the heel, along the sole. */
   footLength: 5.2,
+  heel: 1.8,
   /** The shoulders sit this far below the neck joint, along the upper spine. */
   shoulderDrop: 1.6,
   /** Limbs never straighten past this share of their full length, nor fold tighter than minReach. */
@@ -886,19 +915,20 @@ export const FIGURE = {
   minReach: 0.18,
   /** Half thickness of each part at its start and end joint (wu). */
   radius: {
-    thigh: [2.55, 2.3],
-    shin: [2.3, 1.95],
-    upperArm: [2.1, 1.9],
-    forearm: [1.9, 1.95],
-    torsoLower: [3.3, 3.6],
-    torsoUpper: [3.6, 3.2],
+    thigh: [2.35, 2.1],
+    shin: [2.1, 1.8],
+    upperArm: [1.95, 1.75],
+    forearm: [1.75, 1.8],
+    torsoLower: [3.1, 3.4],
+    torsoUpper: [3.4, 3.0],
   },
   colors: {
     /** Camera-side limbs, torso and head. */
     body: '#0c0c0e',
     /** Far-side limbs: a touch lighter so crossing legs and arms read. */
     bodyFar: '#25272b',
-    rim: 'rgba(238, 230, 208, 0.62)',
+    /** Opaque so overlapping rim pieces never double up at the joints. */
+    rim: '#a49e8f',
     steel: '#2a2f35',
     steelLight: '#4b535b',
     wood: '#4a3320',
@@ -909,25 +939,24 @@ export const FIGURE = {
     crateDark: '#463622',
   },
   /** Width of the light rim drawn under the black parts (wu). */
-  rimWidth: 0.85,
+  rimWidth: 0.75,
   /** How far joints must stay above the ground so the drawn limb does not sink into it. */
   ground: {
-    hip: 3.4,
-    chest: 3.6,
-    neck: 2.6,
-    head: 5.4,
-    knee: 2.3,
-    elbow: 1.9,
-    hand: 1.9,
+    hip: 3.0,
+    chest: 3.2,
+    neck: 2.2,
+    head: 4.6,
+    knee: 1.8,
+    elbow: 1.5,
+    hand: 1.4,
     ankle: 2.0,
-    toe: 0.5,
   },
   /** Spring time constants in seconds (critically damped; about 5x this to settle). */
   spring: {
     body: 0.072,
     feet: 0.07,
-    arm: 0.055,
-    pin: 0.045,
+    arm: 0.07,
+    pin: 0.055,
     hand: 0.04,
     gait: 0.075,
     style: 0.16,
@@ -937,7 +966,14 @@ export const FIGURE = {
     death: 0.042,
     deathLimb: 0.055,
     dropWeapon: 0.11,
+    /** The throwing arm and the body lunge are fast. */
+    throwArm: 0.012,
+    throwBody: 0.04,
   },
+  /** Fastest a pinned arm may swing (rad/s), so a hand never whips round when its grip passes close to the shoulder. */
+  armRate: 15,
+  /** Rise time of the recoil kick (s): sharp, but never a one-frame pop. */
+  recoilAttack: 0.014,
   /** Largest dt one update will take; longer frames are clamped (a tab that was hidden). */
   maxDt: 0.1,
   aimPitchLimit: 40 * DEG,
@@ -945,7 +981,7 @@ export const FIGURE = {
     /** Below this speed (wu/s) the figure stands. */
     minSpeed: 4,
     /** Share of the stance after which the heel starts to rise. */
-    heelRiseStart: 0.66,
+    heelRiseStart: 0.55,
     /** Share of the stance over which the toe comes down after heel strike. */
     strikeSpan: 0.16,
     /** Walking backwards: stride and foot lift multipliers, and the torso lean. */
@@ -957,6 +993,14 @@ export const FIGURE = {
     /** While blending between standing and the gait, a foot that has to travel hops this high. */
     blendLift: 2.6,
     blendLiftSpan: 7,
+    /** Posed feet moving at this speed (wu/s) are lifted by the full blendLift. */
+    hopSpeed: 60,
+    /** Swing foot reach: share of the stance foot speed kept at lift-off and touchdown (the foot reaches past its mark and pulls back). */
+    reachTangent: 0.55,
+    /** Share of the swing at each end over which the foot still carries weight (for the hip reach clamp). */
+    loadSpan: 0.12,
+    /** A move longer than this share of a stride in one update re-plants the feet (a teleport, or a frame after a long pause). */
+    teleport: 0.35,
     /** The arms and the carried weapon trail the legs by this share of a cycle. */
     armLag: 0.035,
     weaponLag: 0.06,
@@ -987,28 +1031,29 @@ export const FIGURE = {
     swayAngle: 0.012,
     swayPeriod: 2.3,
   },
+  /** Hit flinch: an under-damped jolt backward (kick is the velocity added per hit). */
   flinch: {
-    kick: 9,
-    frequency: 21,
-    damping: 0.42,
-    spine: 0.2,
-    head: 0.3,
-    hipX: 2.2,
+    kick: 22,
+    frequency: 16,
+    damping: 0.5,
+    spine: 0.35,
+    head: 0.5,
+    hipX: 2.5,
     hipY: 1.3,
-    arm: 0.35,
+    arm: 0.5,
   },
   reload: {
-    /** Bolt action: [time, bolt travel 0..1] then back to the grip. */
-    boltDelay: 0.12,
-    boltReach: 0.14,
-    boltBack: 0.3,
-    boltForward: 0.46,
-    boltDone: 0.66,
-    boltPull: 2.9,
+    /** Bolt action, seconds into the reload: hand leaves the grip, grabs the bolt, bolt open, bolt closed, hand back. */
+    boltStart: 0.1,
+    boltGrab: 0.24,
+    boltOpen: 0.38,
+    boltClosed: 0.52,
+    boltDone: 0.7,
+    boltPull: 4.4,
     /** The rifle comes off the aim line while the bolt is worked. */
-    boltDip: 0.16,
-    boltDrop: 1.6,
-    boltHead: -0.14,
+    boltDip: 0.3,
+    boltDrop: 2.4,
+    boltHead: -0.26,
     /** Magazine change: only shown when the reload lasts longer than magDelay. */
     magDelay: 0.34,
     magToPouch: 0.2,
@@ -1037,8 +1082,8 @@ export const FIGURE = {
   },
   throw: {
     /** Seconds from the start of the throw action to the moment the grenade leaves the hand. */
-    releaseTime: 0.34,
-    windUp: 0.24,
+    releaseTime: 0.36,
+    windUp: 0.22,
     followThrough: 0.56,
     done: 0.9,
     /** Throwing-arm swing and elbow flex at rest, wound up, at release and at the end. */
@@ -1058,6 +1103,8 @@ export const FIGURE = {
     itemOffset: 1.2,
   },
   load: {
+    /** The crate comes up to the chest this many seconds before loading ends. */
+    liftTime: 0.6,
     heavePeriod: 0.9,
     heaveLift: 2.2,
     heaveSpine: 0.12,
@@ -1096,11 +1143,11 @@ export const FIGURE = {
   },
   death: {
     /** Legs and arms hang this loosely (rad of random wobble) while a body is in the air. */
-    flail: 0.7,
-    flailRate: 10,
+    flail: 0.55,
+    flailRate: 6,
     /** Blast toss: launch speeds (wu/s), gravity (wu/s^2), bounce and slide. */
-    blastVx: 78,
-    blastVy: 150,
+    blastVx: 62,
+    blastVy: 140,
     gravity: 520,
     bounce: 0.3,
     bounceVx: 0.45,
@@ -1116,6 +1163,22 @@ export const FIGURE = {
     footFlex: 0.9,
     /** Speed variation between bodies (+- share). */
     timeSpread: 0.12,
+    /** Seconds over which the live pose at the moment of death fades into the fall. */
+    fade: 0.22,
+    /** Hip height of a body lying on the ground. */
+    lieHip: -3.8,
+    /** A soldier whose hip is lower than this (kneeling, prone) skips the start of the fall. */
+    skipAbove: -20,
+    /** Share of the matching track time actually skipped (the start offset absorbs the rest), and the slower rate of a skipped fall. */
+    skipShare: 0.7,
+    /** A body bent further than this (rad of lean) when shot falls on its face; one leaning back that far falls on its back. */
+    faceDownLean: 0.8,
+    /** Lying prone (lean beyond this) when killed: keep this share of the live pose and only go limp. */
+    proneLean: 1.1,
+    proneKeep: 0.8,
+    /** Seconds before the body comes to rest over which limbs settle onto the ground. */
+    restBlend: 0.45,
+    skipRate: 0.8,
   },
   icon: {
     /** Empty margin around a unit portrait as a share of the canvas. */

@@ -24,7 +24,8 @@
   pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
-  font-family: var(--th-font-display);
+  /* The theme's condensed stack, plus Android's system condensed face ahead of its generic fallback. */
+  font-family: 'Arial Narrow', 'Roboto Condensed', 'Avenir Next Condensed', sans-serif-condensed, var(--th-font-display);
   font-stretch: condensed;
   font-weight: 700;
   text-transform: uppercase;
@@ -1034,7 +1035,7 @@
 }
 
 .th-pause-panel {
-  width: min(380px, 100%);
+  width: min(100%, clamp(340px, 52vh, 520px));
   max-height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;

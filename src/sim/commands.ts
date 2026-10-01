@@ -5,6 +5,7 @@
 import { CONFIG } from '../data/config';
 import type { Order, UnitKind } from '../data/schema';
 import { UNITS } from '../data/units';
+import { KIND_COUNT, KIND_INDEX } from './tables';
 import { CMD_CONTROL, CMD_CONTROL_INPUT, CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type World } from './world';
 
 /** True if the side could queue this kind right now. The AI uses it to avoid issuing commands that would be dropped. */
@@ -26,7 +27,7 @@ function applyTrain(w: World, si: number, kind: UnitKind): void {
   side.stats.suppliesSpent += def.cost;
   side.pop += def.pop;
   if (side.queue[kind] === 0) {
-    side.trainLeft[kind] = def.trainTime;
+    w.trainLeft[si * KIND_COUNT + KIND_INDEX[kind]] = def.trainTime;
     side.progress[kind] = 0;
   }
   side.queue[kind]++;

@@ -88,7 +88,10 @@ export function senseStructures(w: World, retarget: boolean): void {
   const s = w.state;
   for (let side = 0; side < 2; side++) {
     const hq = s.sides[side].hq;
-    if (hq && hq.alive) senseMount(w, hq.gun, side, hq.gunX, retarget);
+    if (hq && hq.alive) {
+      hq.gun.x = hq.gunX;
+      senseMount(w, hq.gun, side, retarget);
+    }
   }
   // Phase 2: pillbox guns acquire targets here. NOT YET IMPLEMENTED.
 }
@@ -100,18 +103,11 @@ export function fireStructures(w: World): void {
     const hq = s.sides[side].hq;
     if (!hq || !hq.alive) continue;
     const mods = w.mods[side];
-    updateMount(
-      w,
-      hq.gun,
-      hq.gun.targetType !== TARGET_NONE,
-      side,
-      hq.gunX,
-      -1,
-      null,
-      'hq',
-      mods.hqGunDamage,
-      mods.hqGunRate,
-    );
+    const gun = hq.gun;
+    gun.x = hq.gunX;
+    gun.damageMul = mods.hqGunDamage;
+    gun.rateMul = mods.hqGunRate;
+    updateMount(w, gun, gun.targetType !== TARGET_NONE, side, -1, null, 'hq');
   }
   // Phase 2: pillbox guns fire here (updateMount with source 'pillbox'). NOT YET IMPLEMENTED.
 }

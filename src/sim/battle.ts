@@ -15,7 +15,7 @@ import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
 import { Rng } from './rng';
 import { computeFronts, fireStructures, senseStructures } from './structures';
-import { KIND_LIST } from './tables';
+import { KIND_COUNT, KIND_LIST } from './tables';
 import type {
   Battle,
   BattleConfig,
@@ -104,7 +104,6 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     queue: kindRecord(0),
     progress: kindRecord(0),
     alive: kindRecord(0),
-    trainLeft: kindRecord(0),
     supportAvailable,
     supportCooldown: supportRecord(0),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
@@ -215,12 +214,14 @@ class BattleImpl implements Battle, World {
   readonly limit = new Float64Array(2);
   readonly cells: [Uint8Array, Uint8Array];
   readonly doorTimer = new Float64Array(2);
+  readonly trainLeft = new Float64Array(2 * KIND_COUNT);
   readonly ai: [AiState | null, AiState | null];
   readonly eventFired: Uint8Array;
   readonly eventNext: Float64Array;
   nextUnitId = 1;
   readonly spawnCount = new Int32Array(2);
   nextProjectileId = 1;
+  smokeCount = 0;
   readonly retargetTicks: number;
 
   constructor(config: BattleConfig) {
