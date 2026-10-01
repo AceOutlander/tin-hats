@@ -49,6 +49,15 @@ const REQUIRED = [
   'defeatSting',
   'rain',
   'thunder',
+  // The audit of gameplay events: what the renderer was silent on.
+  'grenadeThrow',
+  'smokePop',
+  'wireSnap',
+  'pillboxCollapse',
+  'supportCall',
+  'trenchCaptured',
+  'waveHorn',
+  'timerTick',
 ];
 
 const WAVES = ['sine', 'triangle', 'square', 'sawtooth'];
@@ -188,12 +197,43 @@ describe('one-shot definitions', () => {
   });
 
   it('protects UI, whistles and stings from the voice limiter but not gunfire', () => {
-    for (const name of ['uiClick', 'uiDeny', 'uiConfirm', 'whistleHold', 'victorySting', 'defeatSting'] as const) {
+    for (const name of ['uiClick', 'uiDeny', 'uiConfirm', 'whistleHold', 'victorySting', 'defeatSting', 'supportCall', 'trenchCaptured', 'waveHorn', 'timerTick'] as const) {
       expect(SOUNDS[name].priority, name).toBe(1);
     }
     for (const name of ['rifleShot', 'mgShot', 'smgShot', 'bunkerMg', 'dirtHit', 'ricochet'] as const) {
       expect(SOUNDS[name].priority, name).toBe(0);
     }
+  });
+});
+
+describe('the gunfire bed and the ducking blasts', () => {
+  it('puts small arms and their impacts on the bed, and nothing that ducks', () => {
+    const bed = ONE_SHOT_NAMES.filter((name) => (SOUNDS[name] as SoundDef).bed === true);
+    expect(bed).toEqual(expect.arrayContaining(['rifleShot', 'mgShot', 'smgShot', 'bunkerMg', 'dirtHit', 'ricochet']));
+    for (const name of bed) expect((SOUNDS[name] as SoundDef).duck, name).toBeUndefined();
+    // The UI, whistles and stings are never ducked: they are not on the bed.
+    for (const name of ['uiClick', 'uiDeny', 'uiConfirm', 'whistleAdvance', 'victorySting', 'unitTrained']) expect(bed).not.toContain(name);
+  });
+
+  it('ducks the bed under blasts only, deeper and longer for bigger ones', () => {
+    const ducking = ONE_SHOT_NAMES.filter((name) => (SOUNDS[name] as SoundDef).duck !== undefined);
+    expect(ducking).toEqual(expect.arrayContaining(['grenadeExplosion', 'explosionMedium', 'explosionLarge', 'tankGun', 'pillboxCollapse']));
+    for (const name of ducking) {
+      const duck = (SOUNDS[name] as SoundDef).duck;
+      expect(duck?.depth, name).toBeGreaterThan(0);
+      expect(duck?.depth, name).toBeLessThanOrEqual(0.7);
+      expect(duck?.seconds, name).toBeGreaterThan(0.1);
+      expect(duck?.seconds, name).toBeLessThanOrEqual(1);
+    }
+    const duck = (name: 'grenadeExplosion' | 'explosionMedium' | 'explosionLarge'): { depth: number; seconds: number } => {
+      const d = (SOUNDS[name] as SoundDef).duck;
+      if (!d) throw new Error(`${name} does not duck`);
+      return d;
+    };
+    expect(duck('explosionLarge').depth).toBeGreaterThan(duck('explosionMedium').depth);
+    expect(duck('explosionMedium').depth).toBeGreaterThan(duck('grenadeExplosion').depth);
+    expect(duck('explosionLarge').seconds).toBeGreaterThan(duck('explosionMedium').seconds);
+    expect(AUDIO.duckAttack).toBeLessThan(AUDIO.duckRelease);
   });
 });
 

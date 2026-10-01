@@ -253,6 +253,17 @@ export class App implements AppApi {
     }
   }
 
+  /** The page went to the background (tab hidden, app switched away, phone locked): pause a running battle and silence the audio, menus included. */
+  pageHidden(): void {
+    this.autoPause();
+    this.audio.suspend();
+  }
+
+  /** The page is back in front: sound returns, unless a battle is still paused (the player resumes that). */
+  pageShown(): void {
+    if (!this.loop.paused) this.audio.resume();
+  }
+
   /** The tab or window lost focus, or the phone locked: pause a running battle and never resume by itself. */
   autoPause(): void {
     const session = this.session;

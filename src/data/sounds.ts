@@ -103,6 +103,13 @@ export interface SoundDef {
   reach: number;
   /** Buffers rendered with different random draws; one is picked per play. */
   variants: number;
+  /** Part of the gunfire bed: routed through the bus that blasts duck. Small arms and their impacts. */
+  bed?: boolean;
+  /**
+   * Blasts and other big events dip the bed by `depth` (0..1 of its level) for `seconds`, then it swells back,
+   * so a shell is heard over an army firing without being made louder than the compressor would allow.
+   */
+  duck?: { depth: number; seconds: number };
 }
 
 export interface LoopToneLayer {
@@ -153,9 +160,12 @@ export const AUDIO = {
   /** Distance past the screen edge (wu) at which a sound of reach 1 has fallen to half volume. */
   falloffWu: 700,
   /** Master compressor: only dense mixes should reach the threshold. */
-  compressor: { threshold: -12, knee: 8, ratio: 8, attack: 0.004, release: 0.2 },
+  compressor: { threshold: -6, knee: 6, ratio: 3, attack: 0.003, release: 0.15 },
   /** Gain after the compressor (which adds its own make-up gain of about 1.7 at these settings). */
-  masterGain: 0.8,
+  masterGain: 1.1,
+  /** Ducking of the gunfire bed: time constant of the dip and of the swell back (seconds). */
+  duckAttack: 0.012,
+  duckRelease: 0.18,
   /**
    * Seconds after the context starts before the first sound may begin. Browsers' compressors start fully
    * closed and open over about 0.15 s (measured: 74% at 0.06 s, 90% at 0.1 s), which would swallow the
@@ -290,6 +300,20 @@ function blast(at: number, length: number, freq: number, freqEnd?: number): Soun
   ];
 }
 
+/**
+ * One blast of an air-raid style klaxon: two detuned sawtooths climbing a fourth with their octave above, so the
+ * note carries on a phone speaker.
+ */
+function klaxon(at: number): SoundLayer[] {
+  const filter = lp(1900, 2600, 1, 0.2);
+  const env = { at, freqEnd: 247, sweep: 0.22, decayShape: 'lin' as const, filter };
+  return [
+    tone('sawtooth', 185, 0.9, 0.04, 0.34, 0.12, { ...env, detune: -7 }),
+    tone('sawtooth', 185, 0.7, 0.04, 0.34, 0.12, { ...env, detune: 8 }),
+    tone('square', 370, 0.25, 0.04, 0.34, 0.12, { ...env, freqEnd: 494, filter: lp(2200) }),
+  ];
+}
+
 /** One rolling swell of distant thunder. Start, level and colour are randomised per render. */
 function thunderRoll(at: number, gain: number): NoiseLayer {
   return noise('pink', gain, 0.3, 0.3, 1.5, {
@@ -309,8 +333,8 @@ export const SOUNDS = {
       tone('triangle', 180, 0.25, 0.001, 0.008, 0.1, { freqEnd: 60, sweep: 0.07 }),
       noise('pink', 0.9, 0.01, 0.03, 0.42, { filter: bp(700, 0.6, 300) }),
     ],
-    0.32,
-    { minInterval: 0.05, maxVoices: 5, pitchJitter: 0.07 },
+    0.26,
+    { minInterval: 0.05, maxVoices: 5, pitchJitter: 0.07, bed: true },
   ),
 
   /** One round from a light machine gun. Retriggered per shot, so a burst is a string of these. */
@@ -321,8 +345,8 @@ export const SOUNDS = {
       tone('square', 150, 0.2, 0.001, 0.004, 0.05, { freqEnd: 65, sweep: 0.04, filter: lp(700) }),
       noise('pink', 0.35, 0.003, 0.01, 0.16, { filter: lp(900, 400) }),
     ],
-    0.28,
-    { minInterval: 0.045, maxVoices: 5, pitchJitter: 0.05 },
+    0.22,
+    { minInterval: 0.045, maxVoices: 5, pitchJitter: 0.05, bed: true },
   ),
 
   /** Submachine gun: higher, drier and shorter. */
@@ -333,8 +357,8 @@ export const SOUNDS = {
       tone('triangle', 260, 0.15, 0.0008, 0.003, 0.03, { freqEnd: 120, sweep: 0.025 }),
       noise('pink', 0.5, 0.002, 0.006, 0.11, { filter: lp(1500, 600) }),
     ],
-    0.22,
-    { minInterval: 0.04, maxVoices: 4, pitchJitter: 0.06 },
+    0.17,
+    { minInterval: 0.04, maxVoices: 4, pitchJitter: 0.06, bed: true },
   ),
 
   /** Sniper rifle: a hard crack, then a long tail with two echoes. */
@@ -347,7 +371,7 @@ export const SOUNDS = {
       noise('white', 0.5, 0.004, 0.02, 0.25, { at: 0.17, filter: bp(1300, 0.9, 700) }),
       noise('white', 0.3, 0.006, 0.03, 0.3, { at: 0.36, filter: bp(1000, 0.9, 500) }),
     ],
-    0.4,
+    0.33,
     { minInterval: 0.12, pitchJitter: 0.04, reach: 1.6 },
   ),
 
@@ -360,8 +384,19 @@ export const SOUNDS = {
       tone('sine', 330, 0.08, 0.001, 0.004, 0.05),
       noise('brown', 0.4, 0.003, 0.01, 0.18, { filter: lp(450) }),
     ],
-    0.3,
-    { minInterval: 0.05, maxVoices: 4, pitchJitter: 0.04, reach: 1.2 },
+    0.24,
+    { minInterval: 0.05, maxVoices: 4, pitchJitter: 0.04, reach: 1.2, bed: true },
+  ),
+
+  /** A grenade leaves a hand: the spoon pings off, then a short whoosh rises and falls away. */
+  grenadeThrow: sound(
+    [
+      tone('triangle', 3300, 0.35, 0.0005, 0.003, 0.05, { freqEnd: 2500, sweep: 0.04 }),
+      noise('white', 0.25, 0.0005, 0.002, 0.012, { filter: hp(4000) }),
+      noise('pink', 1, 0.06, 0.04, 0.16, { at: 0.04, filter: bp(500, 1.2, 2400, 0.2) }),
+    ],
+    0.09,
+    { minInterval: 0.12, maxVoices: 2, pitchJitter: 0.1, reach: 0.9 },
   ),
 
   /** Hand grenade: a small sharp explosion with a patter of debris. */
@@ -373,8 +408,8 @@ export const SOUNDS = {
       tone('sine', 115, 0.5, 0.002, 0.02, 0.32, { freqEnd: 36, sweep: 0.18 }),
       noise('white', 0.08, 0.03, 0.05, 0.35, { at: 0.09, filter: bp(2600, 0.8) }),
     ],
-    0.5,
-    { minInterval: 0.08, pitchJitter: 0.08, reach: 1.8 },
+    0.55,
+    { minInterval: 0.08, pitchJitter: 0.08, reach: 1.8, duck: { depth: 0.3, seconds: 0.2 } },
   ),
 
   /** Mortar launch: a hollow thump from the tube. */
@@ -395,7 +430,7 @@ export const SOUNDS = {
       tone('triangle', 2140, 0.2, 0.55, 0.25, 0.2, { freqEnd: 715, decayShape: 'lin' }),
       noise('white', 0.25, 0.55, 0.25, 0.2, { decayShape: 'lin', filter: bp(2300, 5, 800) }),
     ],
-    0.25,
+    0.1,
     { minInterval: 0.25, pitchJitter: 0.1, reach: 1.5 },
   ),
 
@@ -410,8 +445,8 @@ export const SOUNDS = {
       noise('brown', 0.35, 0.18, 0.2, 1, { at: 0.12, filter: lp(220), tremolo: { rate: 4.1, depth: 0.35 } }),
       noise('white', 0.06, 0.05, 0.1, 0.5, { at: 0.12, filter: bp(2800, 0.8) }),
     ],
-    0.6,
-    { minInterval: 0.1, pitchJitter: 0.08, reach: 2.5 },
+    0.8,
+    { minInterval: 0.1, pitchJitter: 0.08, reach: 2.5, duck: { depth: 0.45, seconds: 0.3 } },
   ),
 
   /** Artillery shell or aircraft bomb: a bigger blast with a long low rumble and falling debris. */
@@ -426,8 +461,8 @@ export const SOUNDS = {
       noise('brown', 0.4, 0.3, 0.5, 1.8, { at: 0.18, filter: lp(200), tremolo: { rate: 3.1, depth: 0.4 } }),
       noise('white', 0.06, 0.08, 0.2, 0.9, { at: 0.2, filter: bp(2600, 0.8) }),
     ],
-    0.8,
-    { minInterval: 0.15, pitchJitter: 0.08, reach: 4 },
+    0.9,
+    { minInterval: 0.15, pitchJitter: 0.08, reach: 4, duck: { depth: 0.6, seconds: 0.55 } },
   ),
 
   /** Tank main gun: a violent crack, a deep thump, a ring from the breech and an echo. */
@@ -441,8 +476,8 @@ export const SOUNDS = {
       tone('triangle', 921, 0.05, 0.002, 0.01, 0.22),
       noise('pink', 0.5, 0.03, 0.1, 0.7, { at: 0.05, filter: bp(500, 0.6, 200) }),
     ],
-    0.65,
-    { minInterval: 0.12, reach: 2.5 },
+    0.85,
+    { minInterval: 0.12, reach: 2.5, duck: { depth: 0.4, seconds: 0.3 } },
   ),
 
   /** Anti-tank rocket leaving the tube: ignition hiss, then a rising whoosh. */
@@ -452,8 +487,8 @@ export const SOUNDS = {
       noise('pink', 1, 0.04, 0.16, 0.6, { filter: bp(450, 1.3, 2600, 0.4) }),
       tone('sawtooth', 95, 0.3, 0.02, 0.1, 0.3, { freqEnd: 60, filter: lp(320) }),
     ],
-    0.4,
-    { minInterval: 0.1, pitchJitter: 0.08, reach: 1.4 },
+    0.3,
+    { minInterval: 0.1, pitchJitter: 0.08, reach: 1.4, duck: { depth: 0.25, seconds: 0.2 } },
   ),
 
   /** A round glancing off armour: a clang and a falling whine. */
@@ -463,8 +498,33 @@ export const SOUNDS = {
       tone('sine', 3300, 0.5, 0.001, 0.02, 0.3, { freqEnd: 1150, sweep: 0.24 }),
       tone('triangle', 4350, 0.18, 0.001, 0.01, 0.2, { freqEnd: 1900, sweep: 0.2 }),
     ],
-    0.2,
-    { minInterval: 0.06, pitchJitter: 0.15 },
+    0.15,
+    { minInterval: 0.06, pitchJitter: 0.15, bed: true },
+  ),
+
+  /** A smoke canister: a pop, then a long hiss as the cloud pours out. */
+  smokePop: sound(
+    [
+      noise('pink', 1.3, 0.001, 0.01, 0.12, { filter: lp(1800, 300) }),
+      tone('sine', 240, 0.5, 0.001, 0.01, 0.1, { freqEnd: 90, sweep: 0.07 }),
+      tone('triangle', 620, 0.25, 0.001, 0.005, 0.06, { freqEnd: 360, sweep: 0.05 }),
+      noise('white', 0.9, 0.02, 0.25, 0.6, { at: 0.04, decayShape: 'lin', filter: bp(3000, 0.45) }),
+      noise('pink', 0.5, 0.03, 0.2, 0.5, { at: 0.04, decayShape: 'lin', filter: bp(1100, 0.8) }),
+    ],
+    0.26,
+    { minInterval: 0.3, maxVoices: 2, pitchJitter: 0.05, reach: 1.3 },
+  ),
+
+  /** Barbed wire parting under a tank or a blast: a snap and a short metallic twang. */
+  wireSnap: sound(
+    [
+      noise('white', 0.9, 0.0005, 0.002, 0.02, { filter: hp(3000) }),
+      tone('triangle', 560, 0.7, 0.001, 0.01, 0.5, { freqEnd: 470, sweep: 0.45, vibrato: { rate: 14, depth: 14 } }),
+      tone('sine', 1120, 0.35, 0.001, 0.01, 0.4, { freqEnd: 940, sweep: 0.35 }),
+      tone('sine', 1840, 0.18, 0.001, 0.005, 0.25),
+    ],
+    0.15,
+    { minInterval: 0.1, maxVoices: 3, pitchJitter: 0.12, reach: 0.9 },
   ),
 
   /** A bullet hitting dirt: a soft puff. */
@@ -474,7 +534,7 @@ export const SOUNDS = {
       tone('sine', 150, 0.25, 0.001, 0.003, 0.05, { freqEnd: 65, sweep: 0.04 }),
     ],
     0.12,
-    { minInterval: 0.05, pitchJitter: 0.15, reach: 0.7 },
+    { minInterval: 0.05, pitchJitter: 0.15, reach: 0.7, bed: true },
   ),
 
   uiClick: sound(
@@ -491,8 +551,11 @@ export const SOUNDS = {
     [
       tone('square', 277.18, 1, 0.004, 0.07, 0.04, { decayShape: 'lin', filter: lp(1500) }),
       tone('square', 207.65, 1.4, 0.004, 0.12, 0.06, { at: 0.12, decayShape: 'lin', filter: lp(1000) }),
+      // The octave above each buzz, so a phone speaker that drops the low notes still says no.
+      tone('triangle', 554.37, 0.7, 0.004, 0.07, 0.04, { decayShape: 'lin' }),
+      tone('triangle', 415.3, 0.9, 0.004, 0.12, 0.06, { at: 0.12, decayShape: 'lin' }),
     ],
-    0.2,
+    0.1,
     { minInterval: 0.15, maxVoices: 1, priority: 1, pitchJitter: 0 },
   ),
 
@@ -503,19 +566,19 @@ export const SOUNDS = {
       tone('triangle', 987.77, 1, 0.003, 0.06, 0.2, { at: 0.085 }),
       tone('sine', 1975.53, 0.2, 0.003, 0.03, 0.15, { at: 0.085 }),
     ],
-    0.24,
+    0.12,
     { minInterval: 0.1, maxVoices: 1, priority: 1, pitchJitter: 0 },
   ),
 
   /** Order whistle, Fall Back: three short blasts stepping down. */
   whistleFallBack: sound(
     [...blast(0, 0.13, 2950), ...blast(0.2, 0.13, 2650), ...blast(0.4, 0.22, 2350, 2150)],
-    0.3,
+    0.12,
     { minInterval: 0.3, maxVoices: 1, priority: 1, pitchJitter: 0 },
   ),
 
   /** Order whistle, Hold: two even blasts. */
-  whistleHold: sound([...blast(0, 0.16, 2750), ...blast(0.27, 0.16, 2750)], 0.3, {
+  whistleHold: sound([...blast(0, 0.16, 2750), ...blast(0.27, 0.16, 2750)], 0.12, {
     minInterval: 0.3,
     maxVoices: 1,
     priority: 1,
@@ -523,7 +586,7 @@ export const SOUNDS = {
   }),
 
   /** Order whistle, Advance: one long rising blast. */
-  whistleAdvance: sound(blast(0, 0.5, 2400, 3100), 0.3, {
+  whistleAdvance: sound(blast(0, 0.5, 2400, 3100), 0.12, {
     minInterval: 0.3,
     maxVoices: 1,
     priority: 1,
@@ -538,7 +601,7 @@ export const SOUNDS = {
       noise('white', 0.25, 0.001, 0.005, 0.08, { filter: hp(1800) }),
       noise('white', 0.25, 0.001, 0.005, 0.08, { at: 0.12, filter: hp(1800) }),
     ],
-    0.26,
+    0.14,
     { minInterval: 0.2, maxVoices: 2, priority: 1, pitchJitter: 0 },
   ),
 
@@ -552,8 +615,72 @@ export const SOUNDS = {
       tone('sine', 2093, 0.3, 0.003, 0.02, 0.5, { at: 0.19 }),
       tone('sine', 4327, 0.06, 0.002, 0.005, 0.12, { at: 0.1 }),
     ],
-    0.24,
+    0.2,
     { minInterval: 0.15, maxVoices: 2, pitchJitter: 0.02 },
+  ),
+
+  /** A pillbox giving way: a crack and a boom, then lumps of concrete rattling down and dust settling. */
+  pillboxCollapse: sound(
+    [
+      noise('white', 1.2, 0.001, 0.01, 0.1, { filter: bp(1600, 0.6, 700) }),
+      noise('pink', 1.6, 0.003, 0.05, 0.5, { filter: lp(2600, 300) }),
+      tone('sine', 85, 0.35, 0.002, 0.03, 0.6, { freqEnd: 34, sweep: 0.3 }),
+      noise('white', 0.5, 0.004, 0.01, 0.12, { at: 0.18, filter: bp(1900, 1.4), jitter: { at: 0.02, gain: 0.3 } }),
+      noise('white', 0.4, 0.004, 0.01, 0.1, { at: 0.34, filter: bp(1500, 1.4), jitter: { at: 0.03, gain: 0.3 } }),
+      noise('white', 0.32, 0.004, 0.01, 0.1, { at: 0.52, filter: bp(2300, 1.4), jitter: { at: 0.03, gain: 0.3 } }),
+      noise('white', 0.25, 0.004, 0.01, 0.12, { at: 0.75, filter: bp(1700, 1.4), jitter: { at: 0.04, gain: 0.3 } }),
+      noise('pink', 0.5, 0.05, 0.25, 1.2, { at: 0.15, filter: lp(900), tremolo: { rate: 9, depth: 0.5 } }),
+    ],
+    0.5,
+    { minInterval: 0.3, maxVoices: 2, pitchJitter: 0.06, reach: 2.2, duck: { depth: 0.5, seconds: 0.4 } },
+  ),
+
+  /** A support call-in acknowledged over the radio: squelch, two beeps, a breath of static. */
+  supportCall: sound(
+    [
+      noise('white', 0.7, 0.001, 0.01, 0.05, { filter: bp(2400, 1.2) }),
+      tone('square', 1040, 0.5, 0.002, 0.07, 0.01, { at: 0.06, decayShape: 'lin', filter: bp(1400, 2) }),
+      tone('square', 1400, 0.5, 0.002, 0.07, 0.01, { at: 0.17, decayShape: 'lin', filter: bp(1700, 2) }),
+      noise('white', 0.3, 0.003, 0.08, 0.1, { at: 0.26, decayShape: 'lin', filter: bp(1800, 0.8) }),
+      noise('white', 0.6, 0.001, 0.01, 0.04, { at: 0.38, filter: bp(2400, 1.2) }),
+    ],
+    0.08,
+    { minInterval: 0.2, maxVoices: 1, priority: 1, pitchJitter: 0.02 },
+  ),
+
+  /** A trench taken: cloth snaps in the wind, then a short rising bugle call. */
+  trenchCaptured: sound(
+    [
+      noise('pink', 0.5, 0.01, 0.05, 0.14, { filter: bp(1400, 0.8, 3200, 0.1) }),
+      ...brass(0.08, NOTE.G4, 0.07, 0.8),
+      ...brass(0.2, NOTE.C5, 0.07, 0.9),
+      ...brass(0.32, NOTE.G5, 0.3, 1),
+      noise('white', 0.25, 0.001, 0.005, 0.08, { at: 0.08, filter: hp(1800) }),
+      noise('white', 0.25, 0.001, 0.005, 0.08, { at: 0.2, filter: hp(1800) }),
+    ],
+    0.125,
+    { minInterval: 0.5, maxVoices: 1, priority: 1, pitchJitter: 0, reach: 2 },
+  ),
+
+  /** The enemy is coming: two blasts of a klaxon. */
+  waveHorn: sound(
+    [
+      ...klaxon(0),
+      ...klaxon(0.55),
+    ],
+    0.23,
+    { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0 },
+  ),
+
+  /** One tick of the clock in the last seconds of a timed mission. */
+  timerTick: sound(
+    [
+      tone('triangle', 2400, 0.8, 0.0005, 0.004, 0.03, { freqEnd: 1700, sweep: 0.02 }),
+      noise('white', 0.3, 0.0005, 0.002, 0.012, { filter: bp(3500, 2) }),
+      tone('sine', 700, 0.3, 0.0005, 0.006, 0.05, { freqEnd: 400, sweep: 0.03 }),
+    ],
+    0.18,
+    { minInterval: 0.3, maxVoices: 1, priority: 1, pitchJitter: 0 },
   ),
 
   /** Airdrop: the canopy snaps open, flutters down, and the crate lands. */
@@ -566,7 +693,7 @@ export const SOUNDS = {
       tone('sine', 125, 0.4, 0.002, 0.01, 0.12, { at: 1.2, freqEnd: 62, sweep: 0.06 }),
       noise('pink', 1, 0.002, 0.01, 0.09, { at: 1.2, filter: lp(1200, 350) }),
     ],
-    0.3,
+    0.4,
     { minInterval: 0.5, maxVoices: 2, pitchJitter: 0.03, reach: 2 },
   ),
 
@@ -599,8 +726,17 @@ export const SOUNDS = {
         filter: lp(400),
       }),
       noise('pink', 0.9, 1, 0.3, 1.3, { decayShape: 'lin', filter: bp(900, 0.7, 350) }),
+      // The engine's second harmonic, which a phone speaker can actually play.
+      tone('sawtooth', 296, 0.4, 1, 0.3, 1.3, {
+        freqEnd: 192,
+        sweepDelay: 0.9,
+        sweep: 0.6,
+        decayShape: 'lin',
+        filter: lp(2200, 900),
+        tremolo: { rate: 27, depth: 0.35 },
+      }),
     ],
-    0.45,
+    0.36,
     { minInterval: 1, maxVoices: 1, priority: 1, pitchJitter: 0.03, reach: 5 },
   ),
 
@@ -667,7 +803,7 @@ export const LOOPS = {
       { src: 'noise', color: 'white', gain: 0.25, filter: hp(5000), tremolo: { rate: 0.37, depth: 0.3 } },
       { src: 'noise', color: 'brown', gain: 0.6, filter: lp(420), tremolo: { rate: 0.21, depth: 0.25 } },
     ],
-    volume: 0.12,
+    volume: 0.1,
     fadeIn: 1.5,
     fadeOut: 1.5,
   },
@@ -723,6 +859,31 @@ export const UI_SOUND: Record<'click' | 'deny' | 'confirm', OneShotName> = {
   deny: 'uiDeny',
   confirm: 'uiConfirm',
 };
+
+/**
+ * The sounds the app plays for sim events the battlefield view is silent on (src/app/sfx.ts). Everything else
+ * on the field (shots, blasts, deliveries, whistles, engines, weather) is played by the view itself.
+ */
+export const EVENT_SOUND = {
+  trenchCaptured: 'trenchCaptured',
+  wireDestroyed: 'wireSnap',
+  smokeSpawned: 'smokePop',
+  supportCalled: 'supportCall',
+  grenadeThrown: 'grenadeThrow',
+  pillboxDestroyed: 'pillboxCollapse',
+  waveWarning: 'waveHorn',
+  timerTick: 'timerTick',
+} as const satisfies Record<string, OneShotName>;
+
+/** How the app's own event sounds are played. */
+export const SFX = {
+  /** A trench the enemy takes sounds like ours, but lower and quieter. */
+  enemyCapture: { volume: 0.7, pitch: 0.8 },
+  /** The clock ticks once a second in the last `tickSeconds` of a timed mission, louder in the last `loudSeconds`. */
+  tickSeconds: 10,
+  loudSeconds: 3,
+  loudTickVolume: 1.6,
+} as const;
 
 /** Seconds from the start of a sound to the end of its last layer, allowing for the latest random start. */
 export function soundDuration(def: SoundDef): number {

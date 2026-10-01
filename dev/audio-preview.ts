@@ -53,6 +53,14 @@ interface Expectation {
 /** What each sound should measure like, written from the intent of the sound, not from its layer data. */
 const EXPECT: Record<OneShotName, Expectation> = {
   rifleShot: { dur: [0.1, 0.4], trend: 'falling', centroid: [500, 4000] },
+  grenadeThrow: { dur: [0.15, 0.45], centroid: [800, 5000] },
+  smokePop: { dur: [0.6, 1.2], centroid: [800, 5000] },
+  wireSnap: { dur: [0.15, 0.5], centroid: [600, 4000] },
+  pillboxCollapse: { dur: [0.9, 1.9], trend: 'falling', centroid: [250, 2500] },
+  supportCall: { dur: [0.3, 0.55], centroid: [1200, 3500] },
+  trenchCaptured: { dur: [0.5, 0.95], trend: 'rising' },
+  waveHorn: { dur: [0.9, 1.4], centroid: [300, 1800] },
+  timerTick: { dur: [0.02, 0.12], centroid: [1000, 4500] },
   mgShot: { dur: [0.05, 0.2], centroid: [400, 4000] },
   smgShot: { dur: [0.03, 0.12], centroid: [800, 5000] },
   sniperShot: { dur: [0.45, 1.2], trend: 'falling', centroid: [500, 4000] },
@@ -73,13 +81,60 @@ const EXPECT: Record<OneShotName, Expectation> = {
   whistleHold: { dur: [0.42, 0.52], centroid: [2000, 4500] },
   whistleAdvance: { dur: [0.5, 0.6], trend: 'rising', centroid: [2000, 4500] },
   unitTrained: { dur: [0.38, 0.5] },
-  suppliesDelivered: { dur: [0.4, 0.75], trend: 'rising' },
+  suppliesDelivered: { dur: [0.35, 0.75], trend: 'rising' },
   airdrop: { dur: [1.22, 1.4], slowStart: true },
   planeFlyby: { dur: [2.2, 2.65], centroid: [60, 900], slowStart: true },
   victorySting: { dur: [1.9, 2.15], trend: 'rising' },
   defeatSting: { dur: [2.4, 2.65], trend: 'falling' },
   thunder: { dur: [3.2, 5.5], trend: 'falling' },
 };
+
+/**
+ * How loud each sound may be next to a rifle shot, in dB of phone-filtered punch (see Analysis.punchDb): the
+ * hierarchy of the mix. Gunfire is the bed that never stops, so single shots sit low; blasts stand clear of
+ * it; whistles, call-ins and stings are events and sit between; frequent sounds (a delivery, a click, a
+ * tick) stay under the rifle. Edit the volumes in src/data/sounds.ts until these hold.
+ */
+const LEVEL: Record<OneShotName, [number, number]> = {
+  rifleShot: [0, 0],
+  mgShot: [-5, -2.5],
+  smgShot: [-7, -4],
+  sniperShot: [2, 5],
+  bunkerMg: [-4, -1],
+  grenadeThrow: [-7, -3],
+  grenadeExplosion: [5, 9],
+  mortarLaunch: [1, 5],
+  shellWhistle: [2, 6],
+  explosionMedium: [10, 14],
+  explosionLarge: [13, 17],
+  tankGun: [9, 13],
+  rocketLaunch: [4, 8],
+  ricochet: [-8, 3],
+  smokePop: [0, 4],
+  wireSnap: [-4, 1],
+  dirtHit: [-16, -8],
+  uiClick: [-4, 1.5],
+  uiDeny: [0, 4.5],
+  uiConfirm: [0, 4.5],
+  whistleFallBack: [6, 9.5],
+  whistleHold: [6, 9.5],
+  whistleAdvance: [6, 9.5],
+  unitTrained: [2, 5],
+  suppliesDelivered: [-4, 0],
+  pillboxCollapse: [8, 12],
+  supportCall: [0, 3.5],
+  trenchCaptured: [1, 4.5],
+  waveHorn: [5, 8.5],
+  timerTick: [-4, 0],
+  airdrop: [0, 5],
+  planeFlyby: [6, 10],
+  victorySting: [9, 13],
+  defeatSting: [9, 13],
+  thunder: [9, 12.5],
+};
+
+/** Loops sit this far under a rifle shot's punch: beds, not events. */
+const LOOP_LEVEL: [number, number] = [-9, -2];
 
 /** Loops are background beds: their peak must sit well under a single rifle shot (0.32). */
 const LOOP_EXPECT: Record<LoopName, { peak: [number, number]; centroid: [number, number] }> = {
@@ -90,12 +145,20 @@ const LOOP_EXPECT: Record<LoopName, { peak: [number, number]; centroid: [number,
 /** Phone speakers reproduce little below this frequency... */
 const PHONE_LOW_HZ = 250;
 /** ...so at least this share of every sound's energy must lie above it. */
-const PHONE_MIN_SHARE = 0.25;
+const PHONE_MIN_SHARE = 0.3;
 
 interface Analysis {
   finite: boolean;
   peak: number;
   rms: number;
+  /**
+   * How loud it sounds on a phone: the loudest 100 ms of the sound after a high-pass at PHONE_LOW_HZ (what a small
+   * speaker leaves of it), in dB below full scale. Short cracks and long rumbles compare fairly on this where
+   * peak and whole-buffer RMS do not.
+   */
+  punchDb: number;
+  /** The same filtered signal's total energy (power summed over the whole sound) in dB: how much of a sound there is. */
+  energyDb: number;
   /** Seconds to the first and last audible sample. */
   onset: number;
   audible: number;
@@ -114,6 +177,9 @@ interface SoundRow extends Analysis {
   nominal: number;
   rawPeak: number;
   target: number;
+  /** Punch in dB relative to a rifle shot's, and the range it is allowed (filled in once every sound is measured). */
+  relDb: number;
+  allowed: [number, number];
   problems: string[];
 }
 
@@ -122,6 +188,8 @@ interface MixRow {
   seconds: number;
   peak: number;
   rms: number;
+  /** Phone-filtered level in dBFS of each measuring window of the scenario. */
+  levels: Record<string, number>;
   overKnee: number;
   requested: number;
   played: number;
@@ -186,6 +254,52 @@ function powerSpectrum(data: Float32Array, centre: number, size: number, out: Fl
   for (let i = 0; i <= size / 2; i++) out[i] = re[i] * re[i] + im[i] * im[i];
 }
 
+/** Second-order Butterworth high-pass (RBJ biquad) at PHONE_LOW_HZ: a stand-in for the bass a phone speaker drops. */
+function phoneFilter(data: Float32Array): Float32Array {
+  const w0 = (2 * Math.PI * PHONE_LOW_HZ) / SAMPLE_RATE;
+  const alpha = Math.sin(w0) / (2 * Math.SQRT1_2);
+  const cos = Math.cos(w0);
+  const a0 = 1 + alpha;
+  const b0 = (1 + cos) / 2 / a0;
+  const b1 = -(1 + cos) / a0;
+  const b2 = b0;
+  const a1 = (-2 * cos) / a0;
+  const a2 = (1 - alpha) / a0;
+  const out = new Float32Array(data.length);
+  let x1 = 0;
+  let x2 = 0;
+  let y1 = 0;
+  let y2 = 0;
+  for (let i = 0; i < data.length; i++) {
+    const x = data[i];
+    const y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    out[i] = y;
+    x2 = x1;
+    x1 = x;
+    y2 = y1;
+    y1 = y;
+  }
+  return out;
+}
+
+const PUNCH_WINDOW = Math.round(0.1 * SAMPLE_RATE);
+
+/** Loudest `PUNCH_WINDOW` samples of RMS in dB, and the total energy in dB, of the phone-filtered signal. */
+function loudness(data: Float32Array): { punchDb: number; energyDb: number } {
+  const filtered = phoneFilter(data);
+  const prefix = new Float64Array(filtered.length + 1);
+  for (let i = 0; i < filtered.length; i++) prefix[i + 1] = prefix[i] + filtered[i] * filtered[i];
+  const window = Math.min(PUNCH_WINDOW, filtered.length);
+  let best = 0;
+  for (let from = 0; from + window <= filtered.length; from += Math.round(SAMPLE_RATE / 100)) {
+    best = Math.max(best, (prefix[from + window] - prefix[from]) / window);
+  }
+  return {
+    punchDb: 10 * Math.log10(best + 1e-12),
+    energyDb: 10 * Math.log10(prefix[filtered.length] / SAMPLE_RATE + 1e-12),
+  };
+}
+
 function fftSizeFor(samples: number): number {
   return samples >= 0.3 * SAMPLE_RATE ? 2048 : 512;
 }
@@ -208,6 +322,7 @@ function analyse(data: Float32Array): Analysis {
     finite,
     peak: peakOf(data),
     rms: Math.sqrt(power / Math.max(1, data.length)),
+    ...loudness(data),
     onset: first < 0 ? 0 : first / SAMPLE_RATE,
     audible: (last + 1) / SAMPLE_RATE,
     earlyHz: 0,
@@ -373,6 +488,9 @@ function addSoundRow(body: HTMLElement, row: SoundRow, data: Float32Array, expec
   cell(tr, row.peak.toFixed(3));
   cell(tr, row.target.toFixed(2));
   cell(tr, row.rms.toFixed(3));
+  cell(tr, row.punchDb.toFixed(1));
+  cell(tr, (row.relDb >= 0 ? '+' : '') + row.relDb.toFixed(1));
+  cell(tr, `${row.allowed[0]}..${row.allowed[1]}`);
   cell(tr, row.earlyHz.toFixed(0));
   cell(tr, row.lateHz.toFixed(0));
   cell(tr, (row.phoneShare * 100).toFixed(0));
@@ -417,7 +535,7 @@ async function checkOneShot(name: OneShotName, Offline: NonNullable<ReturnType<t
   }
 
   return {
-    row: { ...analysis, name, kind: 'one-shot', layers: def.layers.length, nominal, rawPeak, target: def.volume, problems },
+    row: { ...analysis, name, kind: 'one-shot', layers: def.layers.length, nominal, rawPeak, target: def.volume, relDb: 0, allowed: LEVEL[name], problems },
     data,
   };
 }
@@ -447,7 +565,18 @@ async function checkLoop(name: LoopName, Offline: NonNullable<ReturnType<typeof 
     }
   }
   return {
-    row: { ...analysis, name, kind: 'loop', layers: def.layers.length, nominal: LOOP_SECONDS, rawPeak: analysis.peak, target: def.volume, problems },
+    row: {
+      ...analysis,
+      name,
+      kind: 'loop',
+      layers: def.layers.length,
+      nominal: LOOP_SECONDS,
+      rawPeak: analysis.peak,
+      target: def.volume,
+      relDb: 0,
+      allowed: LOOP_LEVEL,
+      problems,
+    },
     data,
   };
 }
@@ -459,11 +588,15 @@ interface MixExpectation {
   minPlayed: number;
   /** True when the scenario is meant to overload the engine, so sounds must have been refused. */
   mustDrop: boolean;
+  /** Measuring windows that must differ by at least `minDb`: the `loud` one must stand that far above the `quiet` one. */
+  contrasts?: Array<{ loud: string; quiet: string; minDb: number }>;
 }
 
 interface Scenario {
   name: string;
   seconds: number;
+  /** Stretches of the mix (seconds) whose phone-filtered level is measured and reported. */
+  windows?: Array<{ name: string; from: number; to: number }>;
   expect: MixExpectation;
   /** Called once per 30 Hz tick. Returns how many one-shots it asked for. */
   tick(audio: GameAudio, tick: number, rng: () => number): number;
@@ -480,14 +613,9 @@ const ARMY_SHOTS: Array<{ name: OneShotName; chance: number }> = [
   { name: 'bunkerMg', chance: 0.4 },
 ];
 
-/** 80 units firing at once across and beyond the screen, with explosions, UI, a sting, thunder and both loops. */
-function armyTick(audio: GameAudio, tick: number, rng: () => number): number {
+/** One 30 Hz tick of 80 units firing across and beyond the screen. Returns how many shots were asked for. */
+function armyFire(audio: GameAudio, rng: () => number): number {
   let requested = 0;
-  if (tick === 0) {
-    audio.setListener(1000, 1000);
-    audio.startLoop('rain');
-    audio.startLoop('tankEngine');
-  }
   for (let unit = 0; unit < 80; unit++) {
     const shot = ARMY_SHOTS[unit % ARMY_SHOTS.length];
     if (rng() < shot.chance) {
@@ -495,6 +623,17 @@ function armyTick(audio: GameAudio, tick: number, rng: () => number): number {
       requested++;
     }
   }
+  return requested;
+}
+
+/** 80 units firing at once across and beyond the screen, with explosions, UI, a sting, thunder and both loops. */
+function armyTick(audio: GameAudio, tick: number, rng: () => number): number {
+  if (tick === 0) {
+    audio.setListener(1000, 1000);
+    audio.startLoop('rain');
+    audio.startLoop('tankEngine');
+  }
+  let requested = armyFire(audio, rng);
   const x = 400 + rng() * 1200;
   const every: Array<[number, OneShotName]> = [
     [5, 'dirtHit'],
@@ -538,6 +677,70 @@ const SCENARIOS: Scenario[] = [
     seconds: 4,
     expect: { peak: [0.3, AUDIO.clipCeiling], overKnee: 5, minPlayed: 150, mustDrop: true },
     tick: armyTick,
+  },
+  {
+    // The hierarchy in a real fight: a blast must stand clear of a whole army firing, a large one further.
+    name: 'a blast over 80 units firing',
+    seconds: 5,
+    windows: [
+      { name: 'fire', from: 0.6, to: 1.9 },
+      { name: 'medium', from: 2, to: 2.15 },
+      { name: 'large', from: 3.5, to: 3.65 },
+      { name: 'tank', from: 4.5, to: 4.65 },
+    ],
+    expect: {
+      peak: [0.3, AUDIO.clipCeiling],
+      overKnee: 5,
+      minPlayed: 100,
+      mustDrop: true,
+      contrasts: [
+        { loud: 'medium', quiet: 'fire', minDb: 3 },
+        { loud: 'large', quiet: 'fire', minDb: 5 },
+        { loud: 'large', quiet: 'medium', minDb: 1 },
+        { loud: 'tank', quiet: 'fire', minDb: 3 },
+      ],
+    },
+    tick: (audio, tick, rng) => {
+      if (tick === 0) audio.setListener(1000, 1000);
+      let requested = armyFire(audio, rng);
+      const once: Array<[number, OneShotName]> = [
+        [60, 'explosionMedium'],
+        [105, 'explosionLarge'],
+        [135, 'tankGun'],
+      ];
+      for (const [when, name] of once) {
+        if (tick === when) {
+          audio.playAt(name, 1000);
+          requested++;
+        }
+      }
+      return requested;
+    },
+  },
+  {
+    // The same blasts with nothing else playing: what the blasts weigh in the full chain by themselves.
+    name: 'the same blasts alone',
+    seconds: 5,
+    windows: [
+      { name: 'medium', from: 2, to: 2.15 },
+      { name: 'large', from: 3.5, to: 3.65 },
+      { name: 'tank', from: 4.5, to: 4.65 },
+    ],
+    expect: { peak: [0.3, AUDIO.clipCeiling], overKnee: 3, minPlayed: 3, mustDrop: false },
+    tick: (audio, tick) => {
+      if (tick === 0) audio.setListener(1000, 1000);
+      for (const [when, name] of [
+        [60, 'explosionMedium'],
+        [105, 'explosionLarge'],
+        [135, 'tankGun'],
+      ] as Array<[number, OneShotName]>) {
+        if (tick === when) {
+          audio.playAt(name, 1000);
+          return 1;
+        }
+      }
+      return 0;
+    },
   },
   {
     name: 'one rifle shot',
@@ -617,11 +820,23 @@ async function runScenario(
     if (a > AUDIO.clipKnee || b > AUDIO.clipKnee) over++;
   }
   const stats = audio.getStats();
+  const levels: Record<string, number> = {};
+  if (scenario.windows) {
+    const filtered = phoneFilter(loudest);
+    for (const w of scenario.windows) {
+      const from = Math.max(0, Math.round(w.from * SAMPLE_RATE));
+      const to = Math.min(filtered.length, Math.round(w.to * SAMPLE_RATE));
+      let sum = 0;
+      for (let i = from; i < to; i++) sum += filtered[i] * filtered[i];
+      levels[w.name] = 10 * Math.log10(sum / Math.max(1, to - from) + 1e-12);
+    }
+  }
   const row: MixRow = {
     name: scenario.name,
     seconds: scenario.seconds,
     peak: peakOf(loudest),
     rms: Math.sqrt(power / Math.max(1, left.length)),
+    levels,
     overKnee: (over / Math.max(1, left.length)) * 100,
     requested,
     played: stats.played,
@@ -639,6 +854,10 @@ async function runScenario(
   if (row.played < expect.minPlayed) problems.push(`only ${row.played} sounds played`);
   if (row.played + row.dropped !== requested) problems.push('played + dropped does not match requested');
   if (row.maxVoices > AUDIO.maxVoices) problems.push(`${row.maxVoices} voices exceeds the cap of ${AUDIO.maxVoices}`);
+  for (const c of expect.contrasts ?? []) {
+    const gap = levels[c.loud] - levels[c.quiet];
+    if (!(gap >= c.minDb)) problems.push(`${c.loud} is only ${gap.toFixed(1)} dB over ${c.quiet}, wanted ${c.minDb}`);
+  }
   if (expect.mustDrop && row.dropped === 0) problems.push('the limiter never refused a sound');
   if (!expect.mustDrop && row.dropped > 0) problems.push(`${row.dropped} sounds refused in a quiet scene`);
   return { row, data: loudest };
@@ -656,6 +875,13 @@ function addMixRow(body: HTMLElement, row: MixRow, data: Float32Array): void {
   cell(tr, String(row.dropped));
   cell(tr, String(row.stolen));
   cell(tr, String(row.maxVoices));
+  cell(
+    tr,
+    Object.entries(row.levels)
+      .map(([name, db]) => `${name} ${db.toFixed(1)}`)
+      .join(', '),
+    'note',
+  );
   cell(tr, drawWaveform(data, WAVE_W + SPEC_W, 1), 'left');
   resultCell(tr, row.problems);
   body.appendChild(tr);
@@ -699,15 +925,22 @@ async function main(): Promise<void> {
     const Offline = findOfflineContext();
     if (!Offline) throw new Error('OfflineAudioContext is not available in this browser');
 
+    const measured: Array<{ row: SoundRow; data: Float32Array; expected: string }> = [];
     for (const name of ONE_SHOT_NAMES) {
-      const { row, data } = await checkOneShot(name, Offline);
+      const measure = await checkOneShot(name, Offline);
       const range = EXPECT[name].dur;
-      addSoundRow(soundBody, row, data, `${range[0]}..${range[1]}`);
-      sounds.push(row);
+      measured.push({ ...measure, expected: `${range[0]}..${range[1]}` });
     }
-    for (const name of LOOP_NAMES) {
-      const { row, data } = await checkLoop(name, Offline);
-      addSoundRow(soundBody, row, data, 'continuous');
+    for (const name of LOOP_NAMES) measured.push({ ...(await checkLoop(name, Offline)), expected: 'continuous' });
+    // Levels are judged against the rifle shot, so they can only be checked once everything is measured.
+    const reference = measured.find((m) => m.row.name === 'rifleShot');
+    if (!reference) throw new Error('no rifleShot to measure levels against');
+    for (const { row, data, expected } of measured) {
+      row.relDb = row.punchDb - reference.row.punchDb;
+      if (row.relDb < row.allowed[0] - 0.05 || row.relDb > row.allowed[1] + 0.05) {
+        row.problems.push(`${row.relDb.toFixed(1)} dB next to a rifle shot, outside ${row.allowed[0]}..${row.allowed[1]}`);
+      }
+      addSoundRow(soundBody, row, data, expected);
       sounds.push(row);
     }
     for (const scenario of SCENARIOS) {

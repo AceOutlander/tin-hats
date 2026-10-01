@@ -149,7 +149,7 @@ export interface DebugApi {
   /** Rounds in flight. */
   projectiles(): ProjectileInfo[];
   /** Sound engine state: 'running' once a first gesture has unlocked it, and how many sounds have played. */
-  audio(): { state: string; played: number; dropped: number };
+  audio(): { state: string; played: number; dropped: number; muted: boolean };
   /** Centre the camera on world x. */
   lookAt(x: number): void;
   field(): FieldInfo | null;
@@ -228,7 +228,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     audio() {
       const stats = audio.getStats();
-      return { state: stats.state, played: stats.played, dropped: stats.dropped };
+      return { state: stats.state, played: stats.played, dropped: stats.dropped, muted: audio.isMuted() };
     },
 
     lookAt: (x) => view.camera.setCenter(x, true),

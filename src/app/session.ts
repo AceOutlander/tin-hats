@@ -12,7 +12,7 @@ import type { Battle, UnitState } from '../sim';
 import type { BattleCamera } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel } from './hudModel';
-import { playEventSound, type SfxAudio } from './sfx';
+import { playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
 import type { Tutorial } from './tutorial';
 
 /** The part of the battle view the session drives. */
@@ -85,6 +85,8 @@ export class BattleSession {
   private sentFire = false;
   private bannerUntil = 0;
   private hintUntil = 0;
+  /** The whole second of the mission clock that last ticked (-1 = none yet). */
+  private lastTick = -1;
   private viewControlled = -1;
 
   constructor(
@@ -112,6 +114,10 @@ export class BattleSession {
     this.battle.step();
     this.view.afterStep();
     this.handleEvents();
+    const state = this.battle.state;
+    if (state.timer !== null && !state.over && this.opts.sound()) {
+      this.lastTick = playClockTick(this.audio, state.timer.secondsLeft, this.lastTick);
+    }
   }
 
   private handleEvents(): void {
@@ -131,6 +137,8 @@ export class BattleSession {
           else if (e.type === 'wave' && e.side === 1 && battle.state.mode === 'survival' && !this.bannerUp()) {
             this.showBanner(APP.notices.wave);
           }
+          // The enemy wave that the player is told about is also sounded.
+          if (sound && e.type === 'wave' && e.side === 1 && (e.text !== null || battle.state.mode === 'survival')) playWaveWarning(this.audio);
           break;
         case 'airdrop':
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));

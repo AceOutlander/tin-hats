@@ -412,13 +412,64 @@ describe('audio engine on a context', () => {
       ctx.currentTime += step;
       const marks = ctx.nodes.map((node) => node.gain.events.length);
       audio.playAt('tankGun', x);
+      // A voice channel is the gain node that feeds a panner (the buses do not).
       const index = ctx.nodes.findIndex(
-        (node, i) => node.kind === 'gain' && i < marks.length && node.gain.events.length > marks[i],
+        (node, i) =>
+          node.kind === 'gain' &&
+          i < marks.length &&
+          node.gain.events.length > marks[i] &&
+          node.outputs.some((out) => (out as FakeNode).kind === 'panner'),
       );
       return ctx.nodes[index].gain.last('set')?.[1] ?? NaN;
     };
     levels.push(voiceLevel(1400), voiceLevel(1500 + AUDIO.falloffWu * SOUNDS.tankGun.reach));
     expect(levels[1]).toBeCloseTo(levels[0] / 2, 6);
+  });
+
+  it('routes gunfire through its own bus and everything else through the main one', () => {
+    const { audio, ctx } = withFake();
+    // The two buses are the first gains made: main, then the gunfire bed that feeds it.
+    const [main, bed] = ctx.nodes;
+    expect(main.kind).toBe('gain');
+    expect(bed.outputs).toEqual([main]);
+    const lastOutput = (): unknown => {
+      const used = ctx.nodes.filter((node) => node.kind === 'panner' && node.pan.events.length > 0);
+      return used[used.length - 1].outputs[0];
+    };
+    audio.play('rifleShot');
+    expect(lastOutput()).toBe(bed);
+    audio.play('uiClick');
+    expect(lastOutput()).toBe(main);
+    audio.play('bunkerMg');
+    expect(lastOutput()).toBe(bed);
+    for (const name of ONE_SHOT_NAMES) expect(SOUNDS[name].bed === true, name).toBe(['rifleShot', 'mgShot', 'smgShot', 'bunkerMg', 'ricochet', 'dirtHit'].includes(name));
+  });
+
+  it('dips the gunfire bed under a blast, and a smaller blast does not cut a big one short', () => {
+    const { audio, ctx } = withFake();
+    const bed = ctx.nodes[1];
+    const duck = SOUNDS.explosionLarge.duck;
+    expect(duck).toBeDefined();
+    if (!duck) return;
+    audio.play('explosionLarge');
+    const dip = bed.gain.events.find((e) => e[0] === 'target' && e[1] === 1 - duck.depth);
+    const back = bed.gain.events.filter((e) => e[0] === 'target' && e[1] === 1);
+    expect(dip, 'the bed dips to its floor').toBeDefined();
+    expect(back.length).toBe(1);
+    // The swell back starts when the duck's time is up (counted from the sound's own start).
+    expect(back[0][2] - (dip?.[2] ?? 0)).toBeCloseTo(duck.seconds, 6);
+    // A smaller, shorter blast during the dip changes nothing.
+    ctx.currentTime += 0.05;
+    const marks = bed.gain.events.length;
+    audio.play('grenadeExplosion');
+    expect(bed.gain.events.length).toBe(marks);
+    // After the dip is over, the same small blast ducks again, to its own depth.
+    ctx.currentTime += duck.seconds + 1;
+    audio.play('grenadeExplosion');
+    const small = SOUNDS.grenadeExplosion.duck;
+    expect(bed.gain.events.some((e) => e[0] === 'target' && e[1] === 1 - (small?.depth ?? 0))).toBe(true);
+    // Gunfire itself never ducks anything.
+    for (const name of ['rifleShot', 'mgShot', 'smgShot', 'bunkerMg', 'uiClick']) expect(SOUNDS[name as 'rifleShot'].duck, name).toBeUndefined();
   });
 
   it('starts loops with a fade, retargets them and stops them with a fade', () => {

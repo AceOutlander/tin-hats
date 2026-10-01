@@ -117,6 +117,8 @@ interface Voice {
   end: number;
   /** True while a stolen voice fades out: it no longer counts against the limits. */
   releasing: boolean;
+  /** True while the channel feeds the gunfire bed bus instead of the main bus. */
+  onBed: boolean;
 }
 
 interface LoopState {
@@ -133,6 +135,10 @@ class AudioEngine implements GameAudio {
   private live: AudioContext | null = null;
   private ctx: BaseAudioContext | null = null;
   private bus: GainNode | null = null;
+  /** The gunfire bed: small arms play through it, and blasts dip its gain (see SoundDef.duck). */
+  private bedBus: GainNode | null = null;
+  private duckFloor = 1;
+  private duckUntil = -Infinity;
   private muteGain: GainNode | null = null;
 
   private readonly rng: () => number;
@@ -335,6 +341,8 @@ class AudioEngine implements GameAudio {
   /** Builds the master chain and the voice pool on a new context, then starts rendering buffers and wanted loops. */
   private attach(ctx: BaseAudioContext): void {
     const bus = ctx.createGain();
+    const bedBus = ctx.createGain();
+    bedBus.connect(bus);
     let tail: AudioNode = bus;
 
     if (typeof ctx.createDynamicsCompressor === 'function') {
@@ -389,11 +397,13 @@ class AudioEngine implements GameAudio {
         start: 0,
         end: -Infinity,
         releasing: false,
+        onBed: false,
       });
     }
 
     this.ctx = ctx;
     this.bus = bus;
+    this.bedBus = bedBus;
     this.muteGain = muteGain;
     this.warmUntil = ctx.currentTime + AUDIO.warmup;
     this.ready = this.prerender(ctx.sampleRate);
@@ -510,6 +520,7 @@ class AudioEngine implements GameAudio {
     const old = voice.sources;
     for (let i = 0; i < old.length; i++) old[i].disconnect();
     old.length = 0;
+    this.route(voice, def.bed === true);
 
     let rate = pitch;
     if (def.pitchJitter > 0) rate *= 1 + (this.rng() * 2 - 1) * def.pitchJitter;
@@ -549,6 +560,39 @@ class AudioEngine implements GameAudio {
     this.lastTime[index] = now;
     this.lastLoud[index] = loud;
     stats.played++;
+    if (def.duck) this.duckBed(def.duck.depth, def.duck.seconds, when);
+  }
+
+  /** Point a free channel at the gunfire bed or the main bus (only when that changes: the channel is silent). */
+  private route(voice: Voice, bed: boolean): void {
+    if (voice.onBed === bed) return;
+    const bus = bed ? this.bedBus : this.bus;
+    if (!bus) return;
+    const out: AudioNode = voice.pan ?? voice.gain;
+    out.disconnect();
+    out.connect(bus);
+    voice.onBed = bed;
+  }
+
+  /**
+   * Dip the gunfire bed by `depth` from time `at` for `seconds`, then let it swell back. A second duck while one
+   * is running only ever deepens or lengthens it, so a small blast cannot cut a big one's dip short.
+   */
+  private duckBed(depth: number, seconds: number, at: number): void {
+    const gain = this.bedBus?.gain;
+    if (!gain) return;
+    let floor = 1 - depth;
+    let until = at + seconds;
+    if (at < this.duckUntil) {
+      floor = Math.min(floor, this.duckFloor);
+      until = Math.max(until, this.duckUntil);
+      if (floor === this.duckFloor && until === this.duckUntil) return;
+    }
+    gain.cancelScheduledValues(at);
+    gain.setTargetAtTime(floor, at, AUDIO.duckAttack);
+    gain.setTargetAtTime(1, until, AUDIO.duckRelease);
+    this.duckFloor = floor;
+    this.duckUntil = until;
   }
 
   /** Fades a voice out quickly and frees its channel once the fade is over. */

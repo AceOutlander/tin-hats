@@ -32,8 +32,9 @@ export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: U
 
 /**
  * Unlock audio on the first user gesture and pause a running battle when the
- * tab is hidden, the window loses focus or the page is put away. Nothing here
- * resumes by itself. Returns a function that removes the listeners.
+ * tab is hidden, the window loses focus or the page is put away. A hidden page is
+ * also silent (menus too); sound returns when the page does, but a paused battle
+ * stays paused. Returns a function that removes the listeners.
  */
 export function installPageGuards(app: App, audio: GameAudio, doc: Document = document, win: Window = window): () => void {
   const gestures = ['pointerdown', 'touchend', 'keydown'] as const;
@@ -42,20 +43,32 @@ export function installPageGuards(app: App, audio: GameAudio, doc: Document = do
     audio.unlock();
     if (audio.getStats().state === 'running') for (const g of gestures) doc.removeEventListener(g, unlock, true);
   };
-  const onVisibility = (): void => {
-    if (doc.visibilityState === 'hidden') app.autoPause();
+  const arm = (): void => {
+    // Adding the same listener twice is a no-op, so this is safe whether or not the first unlock already happened.
+    for (const g of gestures) doc.addEventListener(g, unlock, true);
   };
+  const onVisibility = (): void => {
+    if (doc.visibilityState === 'hidden') {
+      app.pageHidden();
+    } else {
+      // A suspended context may refuse to restart without a gesture (iOS): the next touch will do it.
+      app.pageShown();
+      arm();
+    }
+  };
+  // Losing focus (another window in front) pauses a battle but leaves the sound of the menus alone.
   const onAway = (): void => app.autoPause();
+  const onHide = (): void => app.pageHidden();
 
-  for (const g of gestures) doc.addEventListener(g, unlock, true);
+  arm();
   doc.addEventListener('visibilitychange', onVisibility);
   win.addEventListener('blur', onAway);
-  win.addEventListener('pagehide', onAway);
+  win.addEventListener('pagehide', onHide);
 
   return () => {
     for (const g of gestures) doc.removeEventListener(g, unlock, true);
     doc.removeEventListener('visibilitychange', onVisibility);
     win.removeEventListener('blur', onAway);
-    win.removeEventListener('pagehide', onAway);
+    win.removeEventListener('pagehide', onHide);
   };
 }
