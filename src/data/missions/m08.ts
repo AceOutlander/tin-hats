@@ -154,5 +154,5 @@ export const M08: MissionDef = {
     ],
     firstAttackAfter: 200,
   },
-  expectedMinutes: [8, 11],
+  expectedMinutes: [8.5, 11.5],
 };

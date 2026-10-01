@@ -51,15 +51,15 @@ export const M06: MissionDef = {
       hasHq: true,
       supplies: 150,
       hqHpMul: 1,
-      incomeMul: 0.6,
+      incomeMul: 0.5,
       sappers: 2,
       forces: [
         { kind: 'rifle', count: 5, trenchId: 3 },
         { kind: 'lmg', count: 1, trenchId: 3 },
-        { kind: 'rifle', count: 5, trenchId: 5 },
+        { kind: 'rifle', count: 4, trenchId: 5 },
         { kind: 'lmg', count: 2, trenchId: 5 },
-        { kind: 'rifle', count: 5, trenchId: 7, behaviour: 'garrison' },
-        { kind: 'lmg', count: 2, trenchId: 7, behaviour: 'garrison' },
+        { kind: 'rifle', count: 4, trenchId: 7, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, trenchId: 7, behaviour: 'garrison' },
         { kind: 'mortar', count: 1 },
         { kind: 'sniper', count: 1 },
         { kind: 'medic', count: 1 },
@@ -157,7 +157,7 @@ export const M06: MissionDef = {
     firstAttackAfter: 420,
   },
   bot: {
-    sappers: 4,
+    sappers: 5,
     build: [
       { kind: 'rifle', count: 6, after: 0 },
       { kind: 'medic', count: 1, after: 15 },
@@ -170,5 +170,5 @@ export const M06: MissionDef = {
     ],
     firstAttackAfter: 170,
   },
-  expectedMinutes: [8, 11],
+  expectedMinutes: [8, 11.5],
 };

@@ -5,7 +5,8 @@
  * Two grounds:
  *   open    both armies start formed up on an empty field (MATCHUP.openX) and both advance;
  *   trench  side 0 (the attacker) advances on side 1 (the defender), which holds a trench at
- *           MATCHUP.trenchX with one slot per trench-capable defender (the others stand behind it).
+ *           MATCHUP.trenchX with one slot per trench-capable defender (the others stand behind it;
+ *           an army with no trench-capable unit holds the same line in the open).
  * A duel ends when one side has no armed unit left (that side loses) or after MATCHUP.maxSeconds
  * (undecided). Its outcome is the winner and the fraction of each side's starting value left
  * (summed supply cost x health fraction of the survivors).
@@ -128,12 +129,15 @@ export function matchupMission(a: readonly ArmyEntry[], b: readonly ArmyEntry[],
   const trench = ground === 'trench' && trenchSlots > 0;
   const startA = ground === 'open' ? MATCHUP.openX[0] : MATCHUP.attackX;
   const startB = ground === 'open' ? MATCHUP.openX[1] : MATCHUP.trenchX + MATCHUP.trenchWidth / 2 + CONFIG.trenchFormGap;
+  // Defenders that cannot use a trench (mortars, tanks) hold the same line in the open: the map ends
+  // where their HQ's hold line (holdLineOffset in front of it) falls on that line.
+  const length = ground === 'trench' && !trench ? startB + CONFIG.holdLineOffset + CONFIG.hqInset : MATCHUP.length;
   return {
     ...M01,
     id: 990,
     key: 'matchup',
     title: 'Matchup',
-    length: MATCHUP.length,
+    length,
     newUnit: null,
     units: [every, every],
     supports: [[], []],

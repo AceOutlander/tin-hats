@@ -22,6 +22,15 @@ export {
   type MatchupGround,
   type MatchupResult,
 } from './matchup';
+export {
+  median,
+  playMission,
+  runMirror,
+  runSeries,
+  type MirrorResult,
+  type MissionRun,
+  type MissionSeries,
+} from './balanceRuns';
 export { SIM_FEATURES } from './features';
 export { Rng } from './rng';
 export { TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';

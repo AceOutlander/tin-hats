@@ -9,7 +9,7 @@
  * reactions to what it sees), pick the order from relative strength with
  * hysteresis, and call in supports.
  */
-import { AI } from '../data/ai';
+import { AI, AI_RECOVERY } from '../data/ai';
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
@@ -44,18 +44,20 @@ export function createAi(w: World, kind: CommanderKind): AiState | null {
  * field    the same, on the field only;
  * group    on the field within AI.groupRadius of the rally point (the hold line, or the leading unit
  *          while advancing); units in a trench count AI.dugInWeight times (they are worth more there);
+ * strike   the same group at plain cost: what it brings to an attack once it leaves the trench;
  * foe      summed cost of the enemy's armed units on the field (what is visible);
  * foeW     the same with enemy infantry in trenches counted AI.dugInWeight times, AI.pillboxValue
  *          per living enemy pillbox, and AI.hqValue once its leading unit is near the enemy HQ's gun:
  *          what an attack has to beat;
  * foeAhead how far the nearest armed enemy is in front of its hold line (negative once past it);
- * hqThreat true when an armed enemy is within AI.hqThreatDistance of its HQ door or within
- *          AI.threatDistance of its hold line.
+ * hqThreat true when an armed enemy is within AI.hqThreatDistance of its HQ door, or within
+ *          AI.threatDistance of its hold line while that line is near home (AI_RECOVERY.homeLineReach).
  */
 const SV = {
   own: 0,
   field: 0,
   group: 0,
+  strike: 0,
   foe: 0,
   foeW: 0,
   foeTanks: 0,
@@ -94,6 +96,7 @@ function survey(w: World, si: number): void {
   SV.own = 0;
   SV.field = 0;
   SV.group = 0;
+  SV.strike = 0;
   SV.foe = 0;
   SV.foeW = 0;
   SV.foeTanks = 0;
@@ -112,7 +115,10 @@ function survey(w: World, si: number): void {
       if (u.inside) continue;
       SV.field += cost;
       const away = u.x > rally ? u.x - rally : rally - u.x;
-      if (away <= AI.groupRadius) SV.group += u.trenchId >= 0 ? cost * AI.dugInWeight : cost;
+      if (away <= AI.groupRadius) {
+        SV.group += u.trenchId >= 0 ? cost * AI.dugInWeight : cost;
+        SV.strike += cost;
+      }
     } else if (!u.inside) {
       if (u.def.armed) {
         SV.foe += u.def.cost;
@@ -136,7 +142,10 @@ function survey(w: World, si: number): void {
       SV.foeW += AI.pillboxValue;
     }
   }
-  if (SV.foeAhead <= AI.threatDistance) SV.hqThreat = true;
+  if (SV.foeAhead <= AI.threatDistance && hq) {
+    const home = side.holdLineX > hq.doorX ? side.holdLineX - hq.doorX : hq.doorX - side.holdLineX;
+    if (home <= AI_RECOVERY.homeLineReach) SV.hqThreat = true;
+  }
   const enemyHq = s.sides[1 - si].hq;
   if (enemyHq && enemyHq.alive) {
     const lead = w.armedFront[si];
@@ -212,7 +221,8 @@ function build(w: World, si: number, ai: AiState): void {
  * Hold -> Advance: once allowed (firstAttackAfter) and with a real force gathered at the line, when
  *   that group outweighs what an attack has to beat (foeW x attackRatio), or the population is
  *   capped, or it has waited long enough (impatience), or its whole army is far stronger
- *   (advantageRatio) - it never shelters while ahead.
+ *   (advantageRatio) - it never shelters while ahead - or a losing deadline is close (deadlineRush),
+ *   which also keeps it attacking until the attack is broken.
  * Advance -> Hold: once the advance has had AI.minAdvanceTime to arrive, when the group at the
  *   front has fallen well below what it faces (holdRatio, not at the population cap), or at any
  *   time when the attack is broken (regroupFrac). The wide band between attackRatio and holdRatio
@@ -234,18 +244,23 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   const mayAttack = !survival && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
   const broken = AI.minAttackStrength * AI.regroupFrac;
+  // Racing a clock that loses the battle (side 0 under a deadline): no more waiting.
+  const timer = w.state.timer;
+  const rushing = si === 0 && timer !== null && timer.onExpire === 'lose' && timer.secondsLeft <= AI_RECOVERY.deadlineRush;
   let next: Order = order;
   if (survival) {
     next = 'hold';
   } else if (order === 'hold') {
     if (SV.hqThreat && SV.group < SV.foe * AI.retreatRatio) {
       next = 'fallBack';
-    } else if (mayAttack && SV.group >= AI.minAttackStrength) {
+    } else if (mayAttack && SV.strike >= AI.minAttackStrength) {
+      // An attack leaves the trench behind: it is judged on the group's plain value.
       const impatient = time - ai.holdSince >= AI.impatienceAfter / ai.aggression;
       if (
-        SV.group >= (foeW * AI.attackRatio) / ai.aggression ||
+        SV.strike >= (foeW * AI.attackRatio) / ai.aggression ||
         capped ||
-        (impatient && SV.group >= foeW * AI.impatientRatio) ||
+        rushing ||
+        (impatient && SV.strike >= foeW * AI.impatientRatio) ||
         SV.own >= (foeW * AI.advantageRatio) / ai.aggression
       ) {
         next = 'advance';
@@ -258,7 +273,7 @@ function decideOrder(w: World, si: number, ai: AiState): void {
     if (ai.contactSince < 0 && (w.front[1 - si] - w.armedFront[si]) * dir <= AI.threatDistance) ai.contactSince = time;
     const settled = ai.contactSince >= 0 && time - ai.contactSince >= AI.minAdvanceTime;
     // At the population cap waiting cannot make the army any bigger, so only a broken attack stops.
-    if (SV.field < broken || (settled && (SV.group < broken || (!capped && SV.group < foeW * AI.holdRatio)))) next = 'hold';
+    if (SV.field < broken || (settled && !rushing && (SV.group < broken || (!capped && SV.group < foeW * AI.holdRatio)))) next = 'hold';
   } else if (mayAttack && SV.own >= AI.minAttackStrength && SV.own >= foeW * AI.commitRatio) {
     next = 'advance';
   } else if (!SV.hqThreat || SV.own >= SV.foe * AI.returnRatio) {
@@ -320,6 +335,31 @@ function bestCluster(w: World, si: number): void {
 }
 
 /**
+ * Smoke pays when the advance is closing on men in trenches or pillboxes within AI.supportReach of
+ * its leading unit. It does not when enemy armour is that close: smoke blinds the anti-tank rockets
+ * too and lets the tanks roll up to point-blank range, where their shells hit whole groups at once.
+ */
+function smokeHelps(w: World, si: number): boolean {
+  const s = w.state;
+  const dir = si === 0 ? 1 : -1;
+  const lead = w.armedFront[si];
+  let dug = false;
+  for (let i = 0; i < s.unitCount; i++) {
+    const u = s.units[i];
+    if (!u.alive || u.side === si || u.inside) continue;
+    const ahead = (u.x - lead) * dir;
+    if (ahead > AI.supportReach) continue;
+    if (u.def.class === 'vehicle') return false;
+    if (u.trenchId >= 0) dug = true;
+  }
+  for (let i = 0; i < s.pillboxes.length; i++) {
+    const p = s.pillboxes[i];
+    if (p.alive && p.side !== si && (p.x - lead) * dir <= AI.supportReach) dug = true;
+  }
+  return dug;
+}
+
+/**
  * Supports, under the same cooldowns and availability as the player: artillery on the densest
  * enemy cluster or an occupied trench, an air strike on a tank (the one nearest its own HQ) or a
  * big cluster, smoke between its leading unit and the enemy line while it advances on dug-in troops.
@@ -357,7 +397,7 @@ function callSupports(w: World, si: number, ai: AiState): void {
     }
   }
   if (s.time - ai.lastSupportTime < AI.supportGap) return;
-  if (side.order === 'advance' && SV.foeDugIn > 0 && canCallSupport(w, si, 'smoke')) {
+  if (side.order === 'advance' && SV.foeDugIn > 0 && canCallSupport(w, si, 'smoke') && smokeHelps(w, si)) {
     const lead = w.armedFront[si];
     const gap = (w.front[1 - si] - lead) * dir;
     if (gap >= AI.smokeMinGap && gap <= AI.smokeMaxGap) issueSupport(w, si, ai, 'smoke', lead + (dir * gap) / 2);

@@ -7,7 +7,7 @@ import type { Difficulty, DifficultyDef } from './schema';
 export const DIFFICULTIES: Record<Difficulty, DifficultyDef> = {
   normal: { id: 'normal', name: 'Normal', aiIncomeMul: 1, aiAggression: 1, aiWaveMul: 1, aiPopCapMul: 1, aiThinkInterval: 1 },
   hard: { id: 'hard', name: 'Hard', aiIncomeMul: 1.3, aiAggression: 1.2, aiWaveMul: 1.3, aiPopCapMul: 1.15, aiThinkInterval: 0.7 },
-  insane: { id: 'insane', name: 'Insane', aiIncomeMul: 1.65, aiAggression: 1.45, aiWaveMul: 1.6, aiPopCapMul: 1.3, aiThinkInterval: 0.5 },
+  insane: { id: 'insane', name: 'Insane', aiIncomeMul: 1.9, aiAggression: 1.45, aiWaveMul: 1.8, aiPopCapMul: 1.4, aiThinkInterval: 0.5 },
 };
 
 /** In menu order. */

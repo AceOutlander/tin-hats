@@ -151,8 +151,11 @@ function fireEvent(w: World, ev: MissionEventDef): void {
 }
 
 /**
- * Reserve units walk out of their HQ door, oldest group first, while there is room under the cap.
- * A group that does not fit blocks the ones behind it, so reinforcements keep their scripted order.
+ * Reserve units come in, oldest group first, while there is room under the cap. A group scripted at
+ * a position (a forward landing, a trench) arrives there while that ground lies behind the side's
+ * hold line, as it would have without the wait; otherwise, and for groups with no position, it walks
+ * out of the HQ door. A group that does not fit blocks the ones behind it, so reinforcements keep
+ * their scripted order.
  */
 function releaseReserve(w: World): void {
   const reserve = w.reserve;
@@ -173,8 +176,16 @@ function releaseReserve(w: World): void {
     for (let k = 0; k < i; k++) {
       if (reserve[k].side === g.side) ahead += reserve[k].left * KIND_DEFS[reserve[k].kindIndex].pop;
     }
+    const dir = g.side === 0 ? 1 : -1;
+    const posted = !Number.isNaN(g.postX) && (g.postX - side.holdLineX) * dir <= 0;
     while (g.left > 0 && side.pop + ahead + def.pop <= side.popCap) {
-      const u = spawnUnit(w, g.side, g.kindIndex, hq.doorX, g.behaviour, false, false);
+      let x = hq.doorX;
+      if (posted) {
+        x = g.postX - dir * CONFIG.spacing * (g.left - 1);
+        if (x < CONFIG.mapMargin) x = CONFIG.mapMargin;
+        else if (x > s.length - CONFIG.mapMargin) x = s.length - CONFIG.mapMargin;
+      }
+      const u = spawnUnit(w, g.side, g.kindIndex, x, g.behaviour, false, false);
       if (!u) break;
       g.left--;
       side.reservePop -= def.pop;

@@ -5,7 +5,7 @@ import type { MissionDef } from '../schema';
  * (wire, a pillbox, the trench, a second pillbox), nine pillboxes in all, and a King Tiger on guard
  * before the German HQ. The enemy fields every unit plus Barrage and Smoke, and sends reserves from
  * its HQ as each line falls. The player gets reinforcements at each capture and a free echelon every
- * 150 s from minute 10 (the walk from the HQ takes 3 minutes and the long slogs never ended without
+ * 120 s from minute 8 (the walk from the HQ takes 3 minutes and the long slogs never ended without
  * them). Introduces the Typhoon Air Strike: harsh on columns and trenches, mild on armour, so the
  * PIAT Teams are the answer to the King Tiger.
  */
@@ -55,8 +55,8 @@ export const M10: MissionDef = {
       faction: 'german',
       hasHq: true,
       supplies: 300,
-      hqHpMul: 1.3,
-      incomeMul: 1,
+      hqHpMul: 1.1,
+      incomeMul: 0.75,
       sappers: 3,
       forces: [
         { kind: 'rifle', count: 5, trenchId: 2 },
@@ -185,7 +185,7 @@ export const M10: MissionDef = {
     },
     {
       type: 'wave',
-      when: { every: 150, from: 600 },
+      when: { every: 120, from: 480 },
       side: 0,
       forces: [
         { kind: 'tank', count: 1 },
@@ -215,7 +215,8 @@ export const M10: MissionDef = {
       { kind: 'tank', count: 3, after: 560 },
     ],
     firstAttackAfter: 480,
-  },  bot: {
+  },
+  bot: {
     sappers: 5,
     build: [
       { kind: 'rifle', count: 5, after: 0 },

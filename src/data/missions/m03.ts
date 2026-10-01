@@ -1,4 +1,4 @@
-﻿import type { MissionDef } from '../schema';
+import type { MissionDef } from '../schema';
 
 /**
  * Mission 3: Operation Crusader, Libya, 1941. The first enemy trench line to storm: one German
@@ -48,7 +48,7 @@ export const M03: MissionDef = {
       hasHq: true,
       supplies: 100,
       hqHpMul: 1,
-      incomeMul: 0.6,
+      incomeMul: 0.5,
       sappers: 2,
       forces: [
         { kind: 'rifle', count: 4, trenchId: 2 },
@@ -120,5 +120,5 @@ export const M03: MissionDef = {
     ],
     firstAttackAfter: 130,
   },
-  expectedMinutes: [4, 7],
+  expectedMinutes: [3.5, 6],
 };

@@ -39,3 +39,26 @@ export const AI: AiDef = {
   smokeMinGap: 220,
   smokeMaxGap: 700,
 };
+
+/**
+ * AI tunables added in the balance phase. They live beside AI rather than in AiDef so the shared
+ * contract in schema.ts stays as it is.
+ */
+export interface AiRecoveryDef {
+  /**
+   * The enemy at the hold line counts as a threat to the HQ (and so can trigger Fall Back) only
+   * while that line lies within this distance of the HQ door. An army outnumbered at a captured
+   * trench far forward holds it instead of running the length of the map with the enemy behind it.
+   */
+  homeLineReach: number;
+  /**
+   * A side that loses when the mission clock runs out stops waiting for the perfect moment once
+   * this many seconds are left: it attacks with whatever has gathered and keeps attacking.
+   */
+  deadlineRush: number;
+}
+
+export const AI_RECOVERY: AiRecoveryDef = {
+  homeLineReach: 1900,
+  deadlineRush: 150,
+};

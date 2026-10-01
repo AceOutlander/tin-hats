@@ -50,8 +50,8 @@ export const M05: MissionDef = {
       faction: 'german',
       hasHq: true,
       supplies: 100,
-      hqHpMul: 0.9,
-      incomeMul: 0.55,
+      hqHpMul: 0.8,
+      incomeMul: 0.5,
       sappers: 2,
       forces: [
         { kind: 'rifle', count: 4, trenchId: 3 },
@@ -160,16 +160,16 @@ export const M05: MissionDef = {
     firstAttackAfter: 300,
   },
   bot: {
-    sappers: 4,
+    sappers: 5,
     build: [
       { kind: 'rifle', count: 5, after: 0 },
       { kind: 'sniper', count: 2, after: 15 },
       { kind: 'assault', count: 4, after: 30 },
-      { kind: 'mortar', count: 1, after: 50 },
+      { kind: 'mortar', count: 2, after: 50 },
       { kind: 'rifle', count: 9, after: 90 },
       { kind: 'assault', count: 7, after: 120 },
     ],
     firstAttackAfter: 130,
   },
-  expectedMinutes: [5, 8.5],
+  expectedMinutes: [6, 9],
 };

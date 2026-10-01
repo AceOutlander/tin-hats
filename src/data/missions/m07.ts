@@ -2,7 +2,7 @@ import type { MissionDef } from '../schema';
 
 /**
  * Mission 7: Sword Beach, Normandy, 6 June 1944. The player lands with a weak beachhead HQ and a
- * thin income. A sea-wall strongpoint (wire, five tough pillboxes and a garrisoned trench) covers
+ * thin income. A sea-wall strongpoint (wire, four tough pillboxes and a garrisoned trench) covers
  * the sand, two more lines lie inland, and a panzer counter-attack arrives late: 80 s after the sea
  * wall falls, when the second wave lands behind the player. Riflemen cannot hurt concrete: the PIAT
  * Team (rocket, strong against fortifications and tanks) is the answer to both the pillboxes and the
@@ -52,7 +52,7 @@ export const M07: MissionDef = {
       hasHq: true,
       supplies: 100,
       hqHpMul: 1,
-      incomeMul: 0.55,
+      incomeMul: 0.6,
       sappers: 2,
       forces: [
         { kind: 'rifle', count: 6, trenchId: 2 },
@@ -71,13 +71,12 @@ export const M07: MissionDef = {
     { id: 4, x: 8200, width: 160, slots: 6, owner: 1 },
   ],
   pillboxes: [
-    { id: 1, x: 1800, side: 1, hpMul: 1.6 },
-    { id: 2, x: 2050, side: 1, hpMul: 1.6 },
-    { id: 3, x: 2550, side: 1, hpMul: 1.6 },
-    { id: 4, x: 2800, side: 1, hpMul: 1.6 },
-    { id: 5, x: 3050, side: 1, hpMul: 1.6 },
-    { id: 6, x: 5900, side: 1, hpMul: 1 },
-    { id: 7, x: 8450, side: 1, hpMul: 1 },
+    { id: 1, x: 1800, side: 1, hpMul: 1.2 },
+    { id: 2, x: 2050, side: 1, hpMul: 1.2 },
+    { id: 3, x: 2550, side: 1, hpMul: 1.2 },
+    { id: 4, x: 2800, side: 1, hpMul: 1.2 },
+    { id: 5, x: 5900, side: 1, hpMul: 1 },
+    { id: 6, x: 8450, side: 1, hpMul: 1 },
   ],
   wire: [
     { id: 1, x: 1650, width: 160, owner: 1 },
@@ -122,7 +121,7 @@ export const M07: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 2, delay: 80 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3, behaviour: 'assault' },
+        { kind: 'tank', count: 2, behaviour: 'assault' },
         { kind: 'rifle', count: 3, behaviour: 'assault' },
       ],
       announce: 'Panzers! The counter-attack is coming in.',
@@ -160,5 +159,5 @@ export const M07: MissionDef = {
     ],
     firstAttackAfter: 160,
   },
-  expectedMinutes: [8, 11],
+  expectedMinutes: [8, 11.5],
 };
