@@ -15,6 +15,8 @@
     "test:balance": "vitest run tests/balance",
     "test:e2e": "playwright test",
     "sim": "tsx tools/sim-cli.ts",
+    "icons": "tsx tools/gen-icons.ts",
+    "perf": "tsx tools/perf.ts",
     "check": "npm run typecheck && npm run lint && npm run build && npm run test:unit"
   },
   "dependencies": {

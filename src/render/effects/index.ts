@@ -9,14 +9,16 @@
  * With `enabled` false (fast-forward) events are ignored and nothing is drawn.
  */
 import type Phaser from 'phaser';
-import { FX, FX_LAYERS } from '../../data/fx';
+import { FX_LAYERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
+import { type QualityLevel, RENDER_PERF } from '../../data/renderPerf';
 import { VIEW } from '../../data/view';
 import { createRng, createShake, mixSeed, ParticleSystem, type Rng01, type ScreenShake, shakeStrength } from '../../fx';
 import type { BattleState, SimEvent } from '../../sim';
 import type { SpriteRegistry } from '../atlas';
 import type { Layers } from '../layers';
 import type { StructureViews } from '../structures';
+import { burstDensity } from '../quality';
 import type { UnitViews } from '../units';
 import { Ambient } from './ambient';
 import { DecalPool } from './decals';
@@ -92,10 +94,13 @@ export class EffectContext {
   night = 0;
   /** Smoothed real frame time (s), for thinning low-priority effects under load. */
   frameTime = 0;
+  /** The effect level the frame-time governor has chosen (set by the view each frame). */
+  quality: QualityLevel = RENDER_PERF.quality.levels[0];
   /** Time (effect seconds) each HQ was ruined, or -1. */
   readonly ruinedAt: [number, number] = [-1, -1];
 
   private source: Rng01;
+  private tracerTick = 0;
 
   constructor(
     readonly scene: Phaser.Scene,
@@ -105,7 +110,8 @@ export class EffectContext {
     readonly structures: StructureViews,
   ) {
     this.source = createRng(1);
-    this.particles = new ParticleSystem<PresetId>(this.rng, FX.capacity, PRESET_DEFS);
+    // The pool is exactly as big as the best level's hard cap: nothing can ever grow past it.
+    this.particles = new ParticleSystem<PresetId>(this.rng, RENDER_PERF.quality.levels[0].hardCap, PRESET_DEFS);
     this.tracers = new TracerPool(scene, layers.lit, reg);
     this.shake = createShake();
     this.decals = new DecalPool(scene, layers.byName.groundDecals, reg);
@@ -133,9 +139,14 @@ export class EffectContext {
     return Math.max(a, b) > this.camLeft - m && Math.min(a, b) < this.camRight + m;
   }
 
-  /** False when the particle pool is crowded or the frame rate is poor: dust, casings and exhaust then stop (partly or fully). */
+  /**
+   * False when the particle pool is crowded, the frame rate is poor or the quality level is low: dust, casings and
+   * exhaust then stop (partly or fully).
+   */
   lowOk(): boolean {
-    if (this.particles.count >= R.softParticleCap) return false;
+    const q = this.quality;
+    if (this.particles.count >= q.softCap) return false;
+    if (q.lowShare < 1 && this.rng() >= q.lowShare) return false;
     const f = this.frameTime;
     if (f <= R.slowFrame) return true;
     if (f >= R.stopFrame) return false;
@@ -150,10 +161,24 @@ export class EffectContext {
    * @param size scales particles, speeds, shake and decal
    */
   play(id: PresetId, x: number, y: number, dirX = 1, dirY = 0, ground: number = VIEW.groundY, size = 1): void {
-    this.particles.spawn(id, x, y, dirX, dirY, ground, size);
+    // Hard cap: past the soft cap bursts shrink the fuller the pool gets, at the hard cap nothing spawns (the shake
+    // and the decal below still happen).
+    const density = burstDensity(this.quality, this.particles.count);
+    if (density > 0) {
+      this.particles.density = density;
+      this.particles.spawn(id, x, y, dirX, dirY, ground, size);
+    }
     const def = PRESET_DEFS[id];
     if (def.shake) this.shake.add(def.shake, shakeStrength(x, this.camLeft, this.camRight - this.camLeft) * Math.min(1.4, Math.max(0.7, size)));
     if (def.decal) this.decals.add(def.decal, x, ground, (def.decalScale ?? 1) * size);
+  }
+
+  /** True if this tracer should be drawn: the quality level may thin them out (every Nth is kept). Shots and hits still happen. */
+  keepTracer(): boolean {
+    const every = this.quality.tracerEvery;
+    if (every <= 1) return true;
+    this.tracerTick = (this.tracerTick + 1) % every;
+    return this.tracerTick === 0;
   }
 
   /** Muzzle of a shot event's shooter (the drawn pose when it can), into out. */
@@ -275,7 +300,8 @@ export class EffectsSystem {
       ctx.floaters.update(dt);
     }
     ctx.sound.tanks(ctx.ambient.tanksNear, dt);
-    this.drawer.draw(ctx.particles);
+    const m = RENDER.unit.cullMargin;
+    this.drawer.draw(ctx.particles, ctx.camLeft - m, ctx.camRight + m);
   }
 
   clear(): void {

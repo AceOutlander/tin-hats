@@ -69,6 +69,7 @@ function fakeFx(playerSide = 0): { fx: EffectContext; rec: Recorder } {
     groundY: () => 404,
     onScreen: () => true,
     lowOk: () => true,
+    keepTracer: () => true,
     play: (id: string, x: number, _y: number, _dx: number, _dy: number, _g: number, size: number) => rec.plays.push({ id, x, size }),
     shotOrigin: (e: SimEvent, out: { x: number; y: number }) => {
       out.x = e.x;

@@ -111,9 +111,17 @@ export class SkyPool {
     const first = x - dir * def.spread;
     const endX = x + dir * (def.spread + A.overrun);
     // The same call-in announced twice (called, then incoming): keep one aircraft and re-time it.
-    let p = this.planes.find((q) => q.active && q.dir === dir && Math.abs(q.endX - endX) < 30);
-    const fresh = p === undefined;
-    if (!p) p = this.planes.find((q) => !q.active) ?? this.planes[0];
+    let p: Plane | null = null;
+    let spare: Plane | null = null;
+    for (const q of this.planes) {
+      if (q.active && q.dir === dir && Math.abs(q.endX - endX) < 30) {
+        p = q;
+        break;
+      }
+      if (!q.active && spare === null) spare = q;
+    }
+    const fresh = p === null;
+    if (p === null) p = spare ?? this.planes[0];
     p.active = true;
     p.dir = dir;
     p.speed = speed;
@@ -128,8 +136,14 @@ export class SkyPool {
 
   /** A supply crate parachutes down to land at x. */
   airdrop(x: number, side: number, supplies: number): void {
-    let d = this.drops.find((q) => !q.active);
-    if (!d) d = this.drops[0];
+    let d: Drop | null = null;
+    for (const q of this.drops) {
+      if (!q.active) {
+        d = q;
+        break;
+      }
+    }
+    if (d === null) d = this.drops[0];
     d.active = true;
     d.x = x;
     d.age = 0;

@@ -164,6 +164,11 @@ export class ParticleSystem<Id extends string = FxPresetId> {
   wind: number = FX.wind;
   /** Ground line used when spawn() is not given one. */
   groundY: number = VIEW.groundY;
+  /**
+   * Share of each emitter's particles that spawn() creates (1 = all, 0 = none). The renderer lowers it as the pool fills
+   * or the frame rate drops; a burst keeps at least one particle per emitter while it is above 0.
+   */
+  density = 1;
 
   /**
    * Render state, valid for indices [0, count) after update() or spawn().
@@ -259,7 +264,8 @@ export class ParticleSystem<Id extends string = FxPresetId> {
 
     for (let e = first; e < end; e++) {
       const em = this.emitters[e];
-      const n = em.countMin + Math.floor(rng() * (em.countMax - em.countMin + 1));
+      let n = em.countMin + Math.floor(rng() * (em.countMax - em.countMin + 1));
+      if (this.density < 1) n = this.density > 0 ? Math.ceil(n * this.density) : 0;
       for (let k = 0; k < n; k++) {
         if (this.count >= this.capacity) {
           this.dropped++;

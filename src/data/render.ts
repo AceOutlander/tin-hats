@@ -177,14 +177,11 @@ export const RENDER = {
     missMin: 20,
     missSpread: 90,
     missDy: 8,
-    /** Most particle images drawn per frame. */
-    maxParticleImages: 1536,
   },
 
   /** The full effects pass (src/render/effects). */
   fx: {
-    /** Low-priority effects (dust, casings, exhaust) stop at this many live particles. */
-    softParticleCap: 900,
+    /** Particle caps (low-priority effects stop, bursts thin out, nothing spawns) are part of the quality levels: src/data/renderPerf.ts. */
     /** Smoothed real frame time (s) above which low-priority effects thin out, and at which they stop. */
     slowFrame: 0.026,
     stopFrame: 0.045,

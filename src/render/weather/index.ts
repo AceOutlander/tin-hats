@@ -76,6 +76,7 @@ export class WeatherView {
   private readonly flash: Img;
   private readonly bolt: BoltView;
   private lastIntensity = -1;
+  private lastShare = 1;
   private streaksShown = false;
   private flashShown = false;
   private boltShown = false;
@@ -254,10 +255,17 @@ export class WeatherView {
     const wrap = this.fieldW;
     const parFar = W.parallax[0] * camLeft;
     const parNear = W.parallax[1] * camLeft;
-    const alphaChanged = intensity !== this.lastIntensity;
+    // A lower quality level draws an even share of the streaks.
+    const share = this.fx.quality.weatherShare;
+    const alphaChanged = intensity !== this.lastIntensity || share !== this.lastShare;
     this.lastIntensity = intensity;
+    this.lastShare = share;
     for (let i = 0; i < field.count; i++) {
       const img = this.streaks[i];
+      if (share < 1 && Math.floor((i + 1) * share) === Math.floor(i * share)) {
+        img.visible = false;
+        continue;
+      }
       const far = i < field.farCount;
       let x = (field.x[i] - (far ? parFar : parNear)) % wrap;
       if (x < 0) x += wrap;

@@ -166,6 +166,7 @@ export class Floaters {
   private readonly y: Float32Array;
   private readonly count: Uint8Array;
   private readonly frameKey: string[] = [];
+  private readonly labels = new Map<number, string>();
   private readonly inv: number;
   private next = 0;
 
@@ -191,9 +192,19 @@ export class Floaters {
     }
   }
 
+  /** The "+N" text of a value, built once per value. */
+  private label(value: number): string {
+    let text = this.labels.get(value);
+    if (text === undefined) {
+      text = `+${value}`;
+      this.labels.set(value, text);
+    }
+    return text;
+  }
+
   /** Float "+value" up from (x, y). */
   add(x: number, y: number, value: number): void {
-    const text = `+${Math.max(0, Math.round(value))}`;
+    const text = this.label(Math.max(0, Math.round(value)));
     const i = this.next;
     this.next = (this.next + 1) % FL.max;
     const n = Math.min(MAX_GLYPHS, text.length);

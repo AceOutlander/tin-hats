@@ -29,6 +29,8 @@ import type { AttachOptions, AudioSink, BattleView, RenderStats, TargetingKind, 
 import { EffectsSystem, pillboxAt } from './effects';
 import { PanInput } from './input';
 import { addImage, createLayers, type Layers } from './layers';
+import { FramePerf, type PerfReport } from './perf';
+import { QualityGovernor, startQuality } from './quality';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { renderSprites } from './sprites';
 import { StructureViews } from './structures';
@@ -99,6 +101,9 @@ export class BattleViewImpl implements BattleView {
   private renderMs = 0;
   private afterStepMs = 0;
   private readonly screenPos = { x: 0, y: 0 };
+  /** Per-frame cost samples (read through perfReport) and the frame-time governor that lowers the effect level. */
+  private readonly perf = new FramePerf();
+  readonly quality = new QualityGovernor();
   private resizeObserver: ResizeObserver | null = null;
   private ready: ((v: BattleView) => void) | null;
   private debugZoom = 1;
@@ -119,6 +124,7 @@ export class BattleViewImpl implements BattleView {
     ready: (v: BattleView) => void,
   ) {
     this.ready = ready;
+    this.quality.force(startQuality(window.location.search, navigator.webdriver === true));
     this.measure();
     this.game = new Phaser.Game({
       type: Phaser.WEBGL,
@@ -209,6 +215,8 @@ export class BattleViewImpl implements BattleView {
       this.resizeObserver.observe(this.parent);
     }
     this.applySize();
+    this.game.events.on(Phaser.Core.Events.PRE_RENDER, this.onPreDraw);
+    this.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPostDraw);
     const ready = this.ready;
     this.ready = null;
     if (ready) ready(this);
@@ -216,9 +224,26 @@ export class BattleViewImpl implements BattleView {
 
   onUpdate(deltaMs: number): void {
     this.realDt = Math.min(0.25, Math.max(0, deltaMs / 1000));
+    const probe = this.perf;
+    const t0 = performance.now();
+    probe.beginFrame(t0, this.effects === null || this.effects.enabled);
+    // Fast-forward runs with the effects off and slow frames of its own; only real-time play says how the device copes.
+    if (this.effects) {
+      if (this.effects.enabled) this.quality.update(probe.lastInterval);
+      this.effects.ctx.quality = this.quality.current;
+    }
     if (this.frameHandler) this.frameHandler(deltaMs);
     else this.render(1, this.realDt);
+    probe.endFrame(performance.now());
   }
+
+  /** Phaser's own draw is about to start / has finished (timed for the frame probe). */
+  private readonly onPreDraw = (): void => {
+    this.perf.beginDraw(performance.now());
+  };
+  private readonly onPostDraw = (): void => {
+    this.perf.endDraw(performance.now());
+  };
 
   private readonly onWindowResize = (): void => {
     this.resize();
@@ -338,13 +363,16 @@ export class BattleViewImpl implements BattleView {
       }
       effects.handle(e);
     }
-    this.afterStepMs += (performance.now() - t0 - this.afterStepMs) * RENDER.statsSmoothing;
+    const spent = performance.now() - t0;
+    this.afterStepMs += (spent - this.afterStepMs) * RENDER.statsSmoothing;
+    this.perf.addAfterStep(spent);
   }
 
   render(alpha: number, dtSeconds: number): void {
     const scene = this.scene;
     if (!scene || !this.backdrop) return;
     const t0 = performance.now();
+    this.perf.beginRender(t0);
     const dt = Math.max(0, dtSeconds);
     const a = Math.max(0, Math.min(1, alpha));
     const rig = this.camera;
@@ -378,7 +406,9 @@ export class BattleViewImpl implements BattleView {
       this.effects.update(dt, this.realDt);
     }
     this.placeOverlays(left, viewW);
-    this.renderMs += (performance.now() - t0 - this.renderMs) * RENDER.statsSmoothing;
+    const t1 = performance.now();
+    this.renderMs += (t1 - t0 - this.renderMs) * RENDER.statsSmoothing;
+    this.perf.endRender(t1);
   }
 
   /** The night tint's opacity now: the mission's own, pushed toward full night by setDarkness(). */
@@ -490,6 +520,45 @@ export class BattleViewImpl implements BattleView {
     return this.screenPos;
   }
 
+  /** Game objects per layer, and how many are visible (for the perf tool: hidden pooled objects still cost the scene a pass each frame). */
+  layerCounts(): { name: string; total: number; visible: number }[] {
+    const out: { name: string; total: number; visible: number }[] = [];
+    const layers = this.layers;
+    if (!layers) return out;
+    const count = (name: string, layer: Phaser.GameObjects.Layer): void => {
+      let total = 0;
+      let visible = 0;
+      const walk = (list: Phaser.GameObjects.GameObject[]): void => {
+        for (const o of list) {
+          if (o instanceof Phaser.GameObjects.Container) {
+            walk(o.list);
+            continue;
+          }
+          total++;
+          if ((o as Phaser.GameObjects.Image).visible) visible++;
+        }
+      };
+      walk(layer.getChildren());
+      if (total > 0) out.push({ name, total, visible });
+    };
+    for (const [name, layer] of Object.entries(layers.byName)) count(name, layer);
+    layers.rows.forEach((layer, i) => count(`unitRow${i}`, layer));
+    count('glow', layers.glow);
+    count('lit', layers.lit);
+    count('grade', layers.grade);
+    return out;
+  }
+
+  /** Per-frame JS cost of the frames since the last resetPerf()
+ (the most recent 8192 at most). */
+  perfReport(): PerfReport {
+    return this.perf.report();
+  }
+
+  resetPerf(): void {
+    this.perf.reset();
+  }
+
   getStats(): RenderStats {
     let images = 0;
     let visible = 0;
@@ -520,6 +589,8 @@ export class BattleViewImpl implements BattleView {
       imagesVisible: visible,
       tracers: this.effects?.ctx.tracers.count ?? 0,
       particles: this.effects?.particleCount() ?? 0,
+      particlesLive: this.effects?.ctx.particles.count ?? 0,
+      quality: this.quality.level,
       atlasPages: this.registry?.pageCount() ?? 0,
       atlasPixels: this.registry?.pixels() ?? 0,
       backdropPixels: this.backdrop?.pixels ?? 0,
@@ -538,15 +609,52 @@ export class BattleViewImpl implements BattleView {
     window.removeEventListener('orientationchange', this.onWindowResize);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.game.events.off(Phaser.Core.Events.PRE_RENDER, this.onPreDraw);
+    this.game.events.off(Phaser.Core.Events.POST_RENDER, this.onPostDraw);
     this.backdrop?.clear();
     this.frameHandler = null;
     this.game.destroy(true);
   }
 }
 
+/**
+ * What window.__THPERF offers when the page has ?debug=1 (next to window.__TH): tools/perf.ts reads exact per-frame
+ * costs, the live object counts and the quality governor through it.
+ */
+export interface PerfHook {
+  reset(): void;
+  report(): PerfReport;
+  stats(): RenderStats;
+  /** Game objects per layer (total and visible). */
+  layers(): { name: string; total: number; visible: number }[];
+  quality(): { level: number; name: string; avgMs: number; drops: number; raises: number };
+  /** Pin a quality level (0 = best), or null to let the frame times decide. */
+  forceQuality(level: number | null): void;
+}
+
+function perfHook(view: BattleViewImpl): PerfHook {
+  return {
+    reset: () => view.resetPerf(),
+    report: () => view.perfReport(),
+    stats: () => view.getStats(),
+    layers: () => view.layerCounts(),
+    quality: () => ({
+      level: view.quality.level,
+      name: view.quality.current.name,
+      avgMs: view.quality.avgMs,
+      drops: view.quality.drops,
+      raises: view.quality.raises,
+    }),
+    forceQuality: (level) => view.quality.force(level),
+  };
+}
+
 /** Boot Phaser inside `parent` (which should fill the screen) and resolve once the atlases are built. */
 export function createBattleView(parent: HTMLElement): Promise<BattleView> {
   return new Promise((resolve) => {
-    new BattleViewImpl(parent, resolve);
+    new BattleViewImpl(parent, (view) => {
+      if (new URLSearchParams(window.location.search).get('debug') === '1') Reflect.set(window, '__THPERF', perfHook(view as BattleViewImpl));
+      resolve(view);
+    });
   });
 }

@@ -79,7 +79,12 @@ export interface RenderStats {
   imagesVisible: number;
   /** Live effect counts. */
   tracers: number;
+  /** Particle images drawn last frame. */
   particles: number;
+  /** Particles alive in the system (drawn or waiting out a delay). */
+  particlesLive: number;
+  /** Effect quality level chosen by the frame-time governor: 0 = full, higher = thinner effects. */
+  quality: number;
   /** Atlas pages and their total texture pixels; backdrop texture pixels. */
   atlasPages: number;
   atlasPixels: number;

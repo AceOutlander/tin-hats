@@ -6,7 +6,7 @@
  */
 import Phaser from 'phaser';
 import { FX_LAYERS, FX_SPRITES, FX_SPRITE_KEYS } from '../../data/fx';
-import { RENDER } from '../../data/render';
+import { RENDER_PERF } from '../../data/renderPerf';
 import type { ParticleSystem } from '../../fx';
 import type { SpriteFrame, SpriteRegistry } from '../atlas';
 import { addImage } from '../layers';
@@ -16,6 +16,8 @@ type Img = Phaser.GameObjects.Image;
 
 const EFFECTS_LAYER = FX_LAYERS.findIndex((l) => l.name === 'effects');
 const SPRITES = FX_SPRITE_KEYS.length;
+/** Most particle images drawn in a frame: the particle pool never holds more than this. */
+const MAX_IMAGES = RENDER_PERF.quality.levels[0].hardCap;
 
 export class ParticleDrawer {
   /** pools[target * SPRITES + sprite]: the images drawing that sprite on that target layer. */
@@ -28,6 +30,9 @@ export class ParticleDrawer {
   private readonly lit: Uint8Array;
   private readonly litTarget = FX_LAYERS.length;
   private total = 0;
+  /** Particles outside [cullLeft, cullRight] (world x) are not drawn. */
+  private cullLeft = -Infinity;
+  private cullRight = Infinity;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -45,7 +50,7 @@ export class ParticleDrawer {
   }
 
   private readonly visit = (x: number, y: number, rotation: number, scale: number, alpha: number, sprite: number, layer: number): void => {
-    if (this.total >= RENDER.shots.maxParticleImages) return;
+    if (this.total >= MAX_IMAGES || x < this.cullLeft || x > this.cullRight) return;
     const target = layer === EFFECTS_LAYER && this.lit[sprite] === 1 ? this.litTarget : layer;
     const p = target * SPRITES + sprite;
     const pool = this.pools[p];
@@ -70,8 +75,10 @@ export class ParticleDrawer {
     this.total++;
   };
 
-  /** Copy every visible particle onto images; hide the rest. */
-  draw(ps: ParticleSystem<PresetId>): void {
+  /** Copy every visible particle between world x left and ight onto images; hide the rest. */
+  draw(ps: ParticleSystem<PresetId>, left: number, right: number): void {
+    this.cullLeft = left;
+    this.cullRight = right;
     const used = this.used;
     const shown = this.shown;
     this.used = shown;

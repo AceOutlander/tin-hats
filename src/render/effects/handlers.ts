@@ -165,7 +165,9 @@ function onShot(fx: EffectContext, e: SimEvent): void {
     return;
   }
 
-  if (weapon && weapon.tracer !== 'none' && FX_TRACERS[weapon.tracer]) fx.tracers.spawn(weapon.tracer, from.x, from.y, to.x, to.y);
+  if (weapon && weapon.tracer !== 'none' && FX_TRACERS[weapon.tracer] && fx.keepTracer()) {
+    fx.tracers.spawn(weapon.tracer, from.x, from.y, to.x, to.y);
+  }
   // The hit or the dirt shows when the tracer gets there.
   const speed = weapon && weapon.tracer !== 'none' ? FX_TRACERS[weapon.tracer].speed : 2600;
   const delay = Math.min(R.impactMaxDelay, Math.hypot(to.x - from.x, to.y - from.y) / speed);

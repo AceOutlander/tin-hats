@@ -1,4 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+
+/** A colour of the game theme (`--th-<name>` in src/ui/theme.css): the manifest and the page meta use the same ones. */
+function themeColour(name: string): string {
+  const css = readFileSync(new URL('./src/ui/theme.css', import.meta.url), 'utf8');
+  const m = new RegExp(`--th-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css);
+  if (!m) throw new Error(`src/ui/theme.css has no --th-${name}`);
+  return m[1];
+}
+
+const INK = themeColour('ink');
 
 // base './' keeps every asset URL relative so the build can be dropped into a
 // Capacitor webview (file-style origin) as well as served from any sub-path.
@@ -6,8 +18,63 @@ export default defineConfig({
   base: './',
   build: {
     target: 'es2022',
-    chunkSizeWarningLimit: 2500,
+    // Phaser alone is a 1.4 MB script (about 360 kB gzipped) and now has a chunk of its own; the game's code is the other
+    // 560 kB (190 kB gzipped). The engine is the only chunk over Vite's default 500 kB warning, so the limit sits just
+    // above it: any other chunk past 1.5 MB, or Phaser growing past it, still warns.
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        // Phaser rarely changes and is most of the bytes: its own long-lived chunk keeps the app chunk small and the
+        // browser (and service worker) cache useful across game updates.
+        manualChunks(id: string): string | undefined {
+          return id.includes('node_modules/phaser/') ? 'phaser' : undefined;
+        },
+      },
+    },
   },
   server: { host: true },
   preview: { host: true },
+  plugins: [
+    VitePWA({
+      // The page registers the worker itself (src/pwa), so nothing is injected and no update prompt appears mid-battle.
+      injectRegister: false,
+      registerType: 'prompt',
+      manifestFilename: 'manifest.webmanifest',
+      includeAssets: ['icons/favicon-32.png', 'icons/apple-touch-icon.png'],
+      manifest: {
+        id: './',
+        name: 'Tin Hats',
+        short_name: 'Tin Hats',
+        description: 'A 2D side-view WW2 real-time strategy game. Train, order, and win the battle.',
+        lang: 'en',
+        categories: ['games'],
+        start_url: './',
+        scope: './',
+        // Fullscreen where the browser supports it, a plain app window elsewhere; always landscape.
+        display: 'standalone',
+        display_override: ['fullscreen', 'standalone'],
+        orientation: 'landscape',
+        theme_color: INK,
+        background_color: INK,
+        icons: [
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        // Everything the build makes is precached, so the game starts and plays with no network.
+        globPatterns: ['**/*.{html,js,css,png,svg,webmanifest,woff2}'],
+        // The Phaser chunk is over the 2 MiB default.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        navigateFallback: 'index.html',
+        // A new version installs in the background and waits: it takes over on the next launch (src/pwa), never in
+        // the middle of a battle. Only a first install claims the open page.
+        skipWaiting: false,
+        clientsClaim: true,
+      },
+      devOptions: { enabled: false },
+    }),
+  ],
 });

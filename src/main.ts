@@ -7,6 +7,7 @@ import { createAudio } from './audio';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { browserStorage, createIconPainter, installPageGuards } from './app/page';
+import { registerServiceWorker } from './pwa';
 import { createBattleView } from './render';
 import { createUi } from './ui';
 
@@ -47,3 +48,5 @@ boot().catch((err: unknown) => {
   const notice = document.getElementById('boot');
   if (notice) notice.textContent = 'Tin Hats could not start. Reload the page to try again.';
 });
+
+registerServiceWorker();
