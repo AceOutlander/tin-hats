@@ -395,10 +395,15 @@ describe('BattleSession', () => {
         return { ...ctx, rifle };
       }
 
+      // The dead zone is anchored `lead` behind the centre (away from the enemy), so the view looks ahead of him.
       it('stays still while the man is inside the dead zone', () => {
         const { session, view, rifle } = controlled();
+        const lead = APP.follow.lead * view.camera.viewWidthWu;
         view.camera.centers.length = 0;
-        view.camera.centerX = rifle.x + 0.5 * APP.follow.deadZone * view.camera.viewWidthWu;
+        view.camera.centerX = rifle.x + lead + 0.5 * APP.follow.deadZone * view.camera.viewWidthWu;
+        session.fill(false, false);
+        expect(view.camera.centers).toEqual([]);
+        view.camera.centerX = rifle.x + lead - 0.5 * APP.follow.deadZone * view.camera.viewWidthWu;
         session.fill(false, false);
         expect(view.camera.centers).toEqual([]);
       });
@@ -406,14 +411,25 @@ describe('BattleSession', () => {
       it('glides after him once he leaves it, to either side, leaving him inside the zone', () => {
         const { session, view, rifle } = controlled();
         const dead = APP.follow.deadZone * view.camera.viewWidthWu;
+        const lead = APP.follow.lead * view.camera.viewWidthWu;
         view.camera.centers.length = 0;
         view.camera.centerX = rifle.x - 3 * dead;
         session.fill(false, false);
-        expect(view.camera.centers).toEqual([rifle.x - dead * APP.follow.settle]);
-        view.camera.centerX = rifle.x + 3 * dead;
+        expect(view.camera.centers).toEqual([rifle.x + lead - dead * APP.follow.settle]);
+        view.camera.centerX = rifle.x + lead + 3 * dead;
         session.fill(false, false);
-        expect(view.camera.centers[1]).toBeCloseTo(rifle.x + dead * APP.follow.settle, 6);
+        expect(view.camera.centers[1]).toBeCloseTo(rifle.x + lead + dead * APP.follow.settle, 6);
         expect(dead * APP.follow.settle).toBeLessThan(dead);
+      });
+
+      it('keeps him behind the centre, away from the enemy, so the view shows what is ahead', () => {
+        const { session, view, rifle } = controlled();
+        view.camera.centers.length = 0;
+        view.camera.centerX = rifle.x - 2000;
+        session.fill(false, false);
+        const settled = view.camera.centers[0];
+        expect(settled).toBeGreaterThan(rifle.x);
+        expect(settled - rifle.x).toBeLessThan(APP.follow.lead * view.camera.viewWidthWu);
       });
 
       it('leaves a view the player is dragging alone', () => {

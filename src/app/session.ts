@@ -205,15 +205,17 @@ export class BattleSession {
 
   /**
    * Keep the controlled unit on screen without gluing the camera to it: the view stays still while the unit is
-   * within the dead zone around the centre, and glides after it once it leaves (a finger dragging the view is left alone).
+   * within the dead zone around its anchor (a little behind the centre, so the view looks ahead toward the enemy),
+   * and glides after it once it leaves (a finger dragging the view is left alone). The player's side faces +x.
    */
   private followControlled(x: number): void {
     const camera = this.view.camera;
     if ('dragging' in camera && camera.dragging === true) return;
     const dead = camera.viewWidthWu * APP.follow.deadZone;
-    const off = x - camera.centerX;
-    if (off > dead) camera.setCenter(x - dead * APP.follow.settle);
-    else if (off < -dead) camera.setCenter(x + dead * APP.follow.settle);
+    const lead = camera.viewWidthWu * APP.follow.lead;
+    const off = x + lead - camera.centerX;
+    if (off > dead) camera.setCenter(x + lead - dead * APP.follow.settle);
+    else if (off < -dead) camera.setCenter(x + lead + dead * APP.follow.settle);
   }
 
   /** Called at the start of every frame: forward the stick and buttons of a controlled unit. */

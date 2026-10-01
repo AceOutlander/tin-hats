@@ -254,8 +254,8 @@ export const RENDER = {
       /** Direct shells and rockets sag slightly; this is the drop as a fraction of the distance, at most dropMax wu. */
       dropRatio: 0.03,
       dropMax: 26,
-      /** Air-dropped ordnance starts this high above the ground (wu) at the launch x. */
-      airAltitude: 245,
+      /** Air-dropped ordnance starts this high above the ground (wu) at the launch x (just under the aircraft). */
+      airAltitude: 195,
       /** Sprite size multiplier and spin (rad/s) by look. */
       scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5 } as Readonly<Record<string, number>>,
       spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0 } as Readonly<Record<string, number>>,
@@ -265,8 +265,12 @@ export const RENDER = {
       provisionalMin: 0.12,
       provisionalMax: 0.9,
     },
-    /** Air strike: the aircraft's altitude above the ground line, speed limits, and how far past the target strip it flies before leaving. */
-    aircraft: { altitude: 250, minSpeed: 380, maxSpeed: 900, overrun: 900, scale: 1, shadowAlpha: 0.9, exhaustInterval: 0.04 },
+    /**
+     * Air strike: the aircraft's altitude above the ground line, speed limits, and how far past the target strip it flies
+     * before leaving. 200 wu keeps the whole aircraft below the HUD's top bar and objective line on a phone (at 250 it
+     * flew behind the top bar).
+     */
+    aircraft: { altitude: 200, minSpeed: 380, maxSpeed: 900, overrun: 900, scale: 1, shadowAlpha: 0.9, exhaustInterval: 0.04 },
     /** Airdrop: seconds from the top of the screen to the ground, sway (wu) and rate (rad/s), crate and canopy sizes, and the canopy's collapse time. */
     airdrop: { fall: 4.2, startAbove: 140, swayX: 22, swayRate: 1.9, swayTilt: 0.09, canopyScale: 1, crateScale: 1, collapse: 1.6, crateLinger: 0.5, soundLead: 1.3 },
     /** Order marker at the hold line: seconds, rise (wu) and starting scale. */

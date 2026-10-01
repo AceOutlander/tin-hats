@@ -32,9 +32,11 @@ export interface AppTunables {
   visualSeedOffset: number;
   /**
    * Camera follow of a directly controlled unit: the view stays still while the unit is within deadZone (fraction of
-   * the view width) of the centre, then glides after it, leaving it settle (0..1) of the dead zone off-centre.
+   * the view width) of its anchor, then glides after it, leaving it settle (0..1) of the dead zone off the anchor. The
+   * anchor sits lead (fraction of the view width) behind the centre, away from the enemy, so the player sees what is
+   * ahead and the unit stays clear of the FIRE cluster in the bottom-right corner.
    */
-  follow: { deadZone: number; settle: number };
+  follow: { deadZone: number; settle: number; lead: number };
   /** Name of the secondary-weapon button while a unit is controlled. */
   abilityNames: Partial<Record<UnitKind, string>>;
   abilityNameFallback: string;
@@ -72,7 +74,7 @@ export const APP: AppTunables = {
   explosionLargeRadius: 100,
   perfSmoothing: 0.1,
   visualSeedOffset: 7919,
-  follow: { deadZone: 0.14, settle: 0.5 },
+  follow: { deadZone: 0.14, settle: 0.5, lead: 0.1 },
   abilityNames: { assault: 'Grenade', tank: 'Hull MG', heavyTank: 'Hull MG' },
   abilityNameFallback: 'Ability',
   reasons: {

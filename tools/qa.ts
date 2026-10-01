@@ -741,6 +741,51 @@ async function controlScenes(browser: Browser, ctx: BrowserContext, page: Page, 
   await cdp.detach();
 }
 
+/** Take the Churchill with a tap, drive it with the stick into the German wire and shoot the moment it goes flat. */
+async function tankThroughWire(browser: Browser, ctx: BrowserContext, page: Page, strips: boolean): Promise<void> {
+  const tank = (await unitsOf(page)).find((u) => u.side === 0 && u.kind === 'tank');
+  if (!tank) return;
+  await lookAt(page, tank.x);
+  await page.waitForTimeout(200);
+  const where = await th<{ x: number; y: number } | null>(page, `unitScreenPos(${tank.id})`);
+  if (!where) return;
+  await page.touchscreen.tap(where.x, where.y);
+  if (!(await waitFor(page, 'tank control', async () => (await st(page)).controlled?.kind === 'tank', 5000))) return;
+  const stick = await page.getByTestId('stick').boundingBox();
+  if (!stick) return;
+  const cdp = await ctx.newCDPSession(page);
+  const push = { x: stick.x + stick.width - 6, y: stick.y + stick.height / 2, id: 0 };
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: stick.x + stick.width / 2, y: push.y, id: 0 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [push] });
+  if (strips) {
+    await page.waitForTimeout(600);
+    const me = (await unitsOf(page)).find((u) => u.id === tank.id);
+    if (me) await strip(browser, page, 'tank-drive', me, { wWu: 280, hWu: 130, n: 12, step: 66, follow: true });
+  }
+  await speed(page, 8);
+  await waitFor(page, 'the tank at the wire', async () => ((await st(page)).controlled?.x ?? 0) > SB.enemyWire - 420, 90_000, 50);
+  await speed(page, 1);
+  await lookAt(page, SB.enemyWire + 40);
+  let pre = false;
+  const crushed = await catchUntil(page, async () => {
+    const s = await st(page);
+    if (!pre && (s.controlled?.x ?? 0) > SB.enemyWire - 200) {
+      pre = true;
+      await shot(page, 'sb-wire-pre');
+    }
+    return s.tally.wireDestroyed > 0 || s.controlled === null;
+  }, 15_000, 50);
+  if (crushed) {
+    await page.clock.runFor(250);
+    await shot(page, 'sb-wire');
+    await page.clock.resume();
+  } else log(`  the wire was not crushed (tank at ${String((await st(page)).controlled?.x)})`);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+  await tapId(page, 'release');
+  if (!(await waitFor(page, 'released', async () => (await st(page)).controlled === null, 3000))) await page.keyboard.press('KeyR');
+}
+
 /**
  * --only=sandbox (and sbstrips for the film strips): the proving ground from the production build. Covers the
  * Phase 2 scenes (trench garrison, direct control, the three call-ins, an armoured push through wire into the German
@@ -758,8 +803,13 @@ async function sandboxRun(browser: Browser, port: number): Promise<void> {
   await lookAt(page, SB.ownTrench + 120);
   await page.waitForTimeout(400);
   await shot(page, 'sb-trench');
+  // The German garrison and its specialists, for the faction read.
+  await lookAt(page, SB.enemyTrenches[0] + 250);
+  await page.waitForTimeout(300);
+  await shot(page, 'sb-germans');
 
   await controlScenes(browser, ctx, page, strips);
+  await tankThroughWire(browser, ctx, page, strips);
 
   // The three call-ins, on the German trench and the ground in front of it.
   if (await callSupport(page, 'artillery', SB.enemyTrenches[0])) {
@@ -796,6 +846,10 @@ async function sandboxRun(browser: Browser, port: number): Promise<void> {
     await page.waitForTimeout(200);
   }
   await speed(page, 1);
+  // Every British kind waiting behind the line, for the silhouette read.
+  await lookAt(page, SB.ownTrench - 250);
+  await page.waitForTimeout(600);
+  await shot(page, 'sb-army');
   const leaver = (await unitsOf(page)).find((u) => u.side === 0 && u.trench === 1 && u.kind === 'rifle');
   if (strips && leaver) {
     await lookAt(page, leaver.x + 40);
@@ -804,11 +858,12 @@ async function sandboxRun(browser: Browser, port: number): Promise<void> {
   await tapId(page, 'order-advance');
   if (strips && leaver) await strip(browser, page, 'trench-advance', leaver, { wWu: 200, hWu: 100, n: 12, step: 100 });
 
-  const want = new Set(['wire', 'assault', 'mortar-pillbox', 'rubble', 'duel', 'at', 'medic', 'sniper', 'rain']);
-  if (strips) for (const k of ['tank-strip', 'throw-strip', 'mortar-strip', 'tank-drive', 'drop-strip']) want.add(k);
+  const want = new Set(['assault', 'mortar-pillbox', 'rubble', 'duel', 'at', 'medic', 'sniper', 'rain']);
+  if (strips) for (const k of ['tank-strip', 'throw-strip', 'mortar-strip', 'drop-strip']) want.add(k);
   const end = Date.now() + 300_000;
   let fast = 3;
   let ruinSeen = -1;
+  let dropTries = 0;
   while (want.size > 0 && Date.now() < end) {
     await speed(page, fast);
     await grant(page, 800);
@@ -833,44 +888,6 @@ async function sandboxRun(browser: Browser, port: number): Promise<void> {
       want.delete(key);
       took = true;
     };
-    // Wire: watch a tank roll up to the German belt under a paused clock and shoot the moment it goes flat.
-    const roller = tanks.find((u) => u.action === 'move' && u.x > SB.enemyWire - 420 && u.x < SB.enemyWire - 170);
-    if (want.has('wire') && s.tally.wireDestroyed > 0) {
-      log('  the German wire went before a tank reached it');
-      want.delete('wire');
-    }
-    if (want.has('wire') && roller) {
-      await speed(page, 1);
-      await lookAt(page, SB.enemyWire + 30);
-      let pre = false;
-      const crushed = await catchUntil(page, async () => {
-        const me = (await unitsOf(page)).find((u) => u.id === roller.id);
-        if (!pre && me && me.x > SB.enemyWire - 190) {
-          pre = true;
-          await shot(page, 'sb-wire-pre');
-        }
-        return (await st(page)).tally.wireDestroyed > 0;
-      }, 10_000, 50);
-      if (crushed) {
-        await page.clock.runFor(200);
-        await shot(page, 'sb-wire');
-        await page.clock.resume();
-        want.delete('wire');
-      }
-      took = true;
-    }
-    // A man taking his place in a trench (either side), filmed from a few steps out.
-    const occupancy = (u: UnitInfo): number => {
-      const t = s.trenches.find((tr) => tr.owner === u.side && Math.abs(tr.x - u.x) < 150);
-      return t && t.occupants < 6 ? t.x : NaN;
-    };
-    const dropper = us.find((u) => !u.inside && u.trench < 0 && u.action === 'move' && u.kind !== 'tank' && u.kind !== 'heavyTank' && u.kind !== 'sapper' && !Number.isNaN(occupancy(u)));
-    if (!took && want.has('drop-strip') && dropper) {
-      await speed(page, 1);
-      const ok = await launchStrip(browser, page, 'trench-drop', dropper, (_ps, me) => me.trench >= 0, { wWu: 160, hWu: 100, before: 10, after: 8, follow: true });
-      if (ok) want.delete('drop-strip');
-      took = true;
-    }
     // A grenade in the air over a German trench or pillbox.
     if (!took && want.has('assault') && mine.some((u) => u.kind === 'assault' && u.action === 'throw')) {
       await speed(page, 1);
@@ -959,13 +976,18 @@ async function sandboxRun(browser: Browser, port: number): Promise<void> {
       if (ok) want.delete('tank-strip');
       took = true;
     }
-    const mover = tanks.find((u) => u.action === 'move');
-    if (!took && want.has('tank-drive') && mover) {
+    // A man taking his place in a trench (either side), filmed from a few steps out. Many walkers pass a trench without
+    // a free slot, so this is tried last and only a few times.
+    const occupancy = (u: UnitInfo): number => {
+      const t = s.trenches.find((tr) => tr.owner === u.side && Math.abs(tr.x - u.x) < 150);
+      return t && t.occupants < 6 ? t.x : NaN;
+    };
+    const dropper = us.find((u) => !u.inside && u.trench < 0 && u.action === 'move' && u.kind !== 'tank' && u.kind !== 'heavyTank' && u.kind !== 'sapper' && !Number.isNaN(occupancy(u)));
+    if (!took && want.has('drop-strip') && dropper && dropTries < 4) {
+      dropTries++;
       await speed(page, 1);
-      await lookAt(page, mover.x + 80);
-      await page.waitForTimeout(100);
-      await strip(browser, page, 'tank-drive', mover, { wWu: 280, hWu: 130, n: 12, step: 66 });
-      want.delete('tank-drive');
+      const ok = await launchStrip(browser, page, 'trench-drop', dropper, (_ps, me) => me.trench >= 0, { wWu: 160, hWu: 100, before: 10, after: 8, follow: true, maxMs: 5000 });
+      if (ok) want.delete('drop-strip');
       took = true;
     }
     fast = took ? 3 : Math.min(fast + 1, 6);
