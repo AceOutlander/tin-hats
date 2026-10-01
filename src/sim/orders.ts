@@ -14,7 +14,7 @@ import { DT, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
 import { senseControlled } from './control';
 import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, type SideState, type UnitState } from './types';
-import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq } from './units';
+import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
 import type { World } from './world';
 
 /*
@@ -143,6 +143,22 @@ function senseGuard(w: World, u: UnitState, hasTarget: boolean): void {
   u.goalX = goal < lo ? lo : goal > hi ? hi : goal;
 }
 
+/**
+ * Garrisons hold their trench whatever the order: a trench-capable man keeps (or takes back) a slot
+ * in it and fights from there; anyone else, or a man who finds it full, stands at his post behind it.
+ * They never chase. Once the trench has fallen the survivors join the army (see senseUnits).
+ */
+function senseGarrison(w: World, u: UnitState, hasTarget: boolean, patient: boolean): void {
+  if (u.slot < 0 && u.postTrench >= 0 && u.def.usesTrench) claimSlot(w, u, u.postTrench);
+  if (u.slot >= 0) {
+    u.goalX = w.slotX[u.slot];
+    u.engaged = u.trenchId >= 0 && hasTarget;
+    return;
+  }
+  u.engaged = hasTarget || patient;
+  u.goalX = u.engaged ? u.x : u.postX;
+}
+
 /** Pass 1: targets, and for each unit whether it stands to fight (`engaged`) and where it is heading (`goalX`). */
 export function senseUnits(w: World): void {
   const s = w.state;
@@ -153,6 +169,9 @@ export function senseUnits(w: World): void {
     if (!u.alive || u.inside || u.kindIndex === KIND_SAPPER) continue;
     const side = s.sides[u.side];
     const dir = u.side === 0 ? 1 : -1;
+    if (u.behaviour === 'garrison' && u.postTrench >= 0 && s.trenches[u.postTrench].owner === 1 - u.side) {
+      joinArmy(w, u);
+    }
     const order = u.behaviour === 'army' ? side.order : u.behaviour === 'assault' ? 'advance' : 'hold';
     const retarget = (s.tick + i) % retargetTicks === 0;
     const m = u.mount;
@@ -182,6 +201,8 @@ export function senseUnits(w: World): void {
       else goToFormation(w, u, side, dir);
     } else if (u.behaviour === 'guard') {
       senseGuard(w, u, hasTarget);
+    } else if (u.behaviour === 'garrison') {
+      senseGarrison(w, u, hasTarget, patient);
     } else if (order === 'hold') {
       senseHold(w, u, side, dir, hasTarget, patient);
     } else {

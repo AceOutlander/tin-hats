@@ -9,8 +9,10 @@
  *   <w>-strip-<name>.png    film strips: consecutive cropped frames around one unit, enlarged
  * Scenes are shot at --dsf; strips come from a second context at --sdsf so the limbs are sharp.
  * --only picks parts: main (the mission 1 walkthrough), strips, defeat, rain, hud, sandbox (the Phase 2 proving
- * ground, `<w>-sb-*.png`; add sbstrips for its film strips, --seed=11 picks the battle), and page
- * (dev/render-preview.html on the Vite dev server, no build needed: see pageRun for its flags).
+ * ground, `<w>-sb-*.png`; add sbstrips for its film strips, --seed=11 picks the battle), missions (every campaign
+ * mission played by the test bot, `<w>-mNN-*.png`; --missions=1,5 and --mseed=7 narrow it), campaign (map,
+ * Quartermaster, briefing and result screens on a prepared save), and page (dev/render-preview.html on the
+ * Vite dev server, no build needed: see pageRun for its flags).
  */
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -20,6 +22,9 @@ import { fileURLToPath } from 'node:url';
 import { createServer, preview } from 'vite';
 import type { DebugState, FieldInfo, ProjectileInfo, UnitInfo } from '../src/app/debug';
 import { CONFIG } from '../src/data/config';
+import { META } from '../src/data/meta';
+import { MISSIONS } from '../src/data/missions';
+import { UPGRADES } from '../src/data/upgrades';
 import { VIEW, VIEW_TOP_WU } from '../src/data/view';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -609,6 +614,152 @@ async function hudRun(browser: Browser, port: number): Promise<void> {
   await ctx.close();
 }
 
+// --- Phase 3: every mission, and the campaign screens ----------------------------------------
+
+/** Missions to capture (--missions=1,5,10; default all ten) and the battle seed (--mseed). */
+const MISSION_IDS = (flags.get('missions') ?? '1,2,3,4,5,6,7,8,9,10').split(',').map(Number);
+const MISSION_SEED = Number(flags.get('mseed') ?? 7);
+
+/** The most forward fighting unit of each side on the field (the player faces +x), or null. */
+async function fronts(page: Page): Promise<{ mine: number | null; theirs: number | null }> {
+  let mine: number | null = null;
+  let theirs: number | null = null;
+  for (const u of await unitsOf(page)) {
+    if (u.inside || u.kind === 'sapper') continue;
+    if (u.side === 0) {
+      if (mine === null || u.x > mine) mine = u.x;
+    } else if (theirs === null || u.x < theirs) {
+      theirs = u.x;
+    }
+  }
+  return { mine, theirs };
+}
+
+/**
+ * --only=missions: each mission from the production build, played for the player by the sim's test bot
+ * (debug autopilot): `mNN-open` (the opening view), `mNN-line` (the first German line), `mNN-boss` (a King
+ * Tiger, if any), `mNN-mid` (the front once the lines are in contact well into the battle) and, for a deadline
+ * mission, `mNN-late` (near the end of its clock).
+ */
+async function missionsRun(browser: Browser, port: number): Promise<void> {
+  const { ctx, page } = await openGame(browser, port, DSF);
+  log('missions');
+  await th<void>(page, 'autopilot(true)');
+  for (const id of MISSION_IDS) {
+    const m = MISSIONS.find((x) => x.id === id);
+    if (!m) continue;
+    const tag = `m${String(id).padStart(2, '0')}`;
+    await th<boolean>(page, `startMission(${id}, 'normal', ${MISSION_SEED})`);
+    await waitFor(page, 'battle', async () => (await st(page)).screen === 'battle');
+    await page.getByTestId('order-advance').waitFor({ timeout: 20_000 });
+    await waitFor(page, 'tick 45', async () => (await st(page)).tick > 45);
+    await shot(page, `${tag}-open`);
+    const enemy = [...m.trenches.filter((t) => t.owner === 1).map((t) => t.x), ...m.pillboxes.filter((p) => p.side === 1).map((p) => p.x)];
+    if (enemy.length > 0) {
+      await lookAt(page, Math.min(...enemy) + 250);
+      await page.waitForTimeout(500);
+      await shot(page, `${tag}-line`);
+    }
+    const boss = (await unitsOf(page)).find((u) => u.kind === 'heavyTank');
+    if (boss) {
+      await lookAt(page, boss.x - 120);
+      await page.waitForTimeout(500);
+      await shot(page, `${tag}-boss`);
+    }
+    await speed(page, 10);
+    const minTime = m.timer ? m.timer.seconds * 0.45 : 150;
+    await waitFor(
+      page,
+      `${tag} contact`,
+      async () => {
+        const s = await st(page);
+        if (s.screen !== 'battle' || s.over) return true;
+        if (s.time < minTime) return false;
+        const f = await fronts(page);
+        return f.mine !== null && f.theirs !== null && f.theirs - f.mine < 420;
+      },
+      300_000,
+      400,
+    );
+    await speed(page, 1);
+    const f = await fronts(page);
+    if (f.mine !== null) await lookAt(page, f.mine + 120);
+    await page.waitForTimeout(1500);
+    await shot(page, `${tag}-mid`);
+    if (m.timer && m.timer.onExpire === 'lose') {
+      const lateAt = m.timer.seconds * 0.12;
+      await speed(page, 10);
+      await waitFor(
+        page,
+        `${tag} late`,
+        async () => {
+          const s = await st(page);
+          return s.screen !== 'battle' || s.over || (s.timer ?? 0) < lateAt;
+        },
+        240_000,
+        400,
+      );
+      await speed(page, 1);
+      const g = await fronts(page);
+      if (g.mine !== null) await lookAt(page, g.mine + 120);
+      await page.waitForTimeout(1200);
+      await shot(page, `${tag}-late`);
+    }
+  }
+  await th<void>(page, 'autopilot(false)');
+  await ctx.close();
+}
+
+/**
+ * --only=campaign: the menus on a save with four missions cleared and eight points spent: `campaign` (the map),
+ * `quartermaster`, `briefing` (mission 5, with its NEW cards) and `result` (mission 5 played to the end by the
+ * test bot at speed).
+ */
+async function campaignRun(browser: Browser, port: number): Promise<void> {
+  const ids = UPGRADES.map((u) => u.id);
+  const save = {
+    version: META.saveVersion,
+    cleared: { 1: ['normal'], 2: ['normal'], 3: ['hard'], 4: ['normal'] },
+    upgrades: { [ids[0]]: 2, [ids[2]]: 1, [ids[5]]: 2, [ids[6]]: 3 },
+    lastMission: 4,
+    settings: { muted: true, difficulty: 'normal', hints: true },
+  };
+  curDsf = DSF;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: DSF, hasTouch: true, isMobile: true });
+  await ctx.addInitScript(`try { localStorage.setItem(${JSON.stringify(META.saveKey)}, ${JSON.stringify(JSON.stringify(save))}); } catch (e) {}`);
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  await page.goto(`http://127.0.0.1:${port}/?debug=1`);
+  await page.waitForFunction('window.__TH && window.__TH.ready === true', undefined, { timeout: 60_000 });
+  log('campaign');
+  const screenIs = (name: string) => waitFor(page, name, async () => (await st(page)).screen === name, 20_000);
+  await tapId(page, 'play');
+  await screenIs('campaign');
+  await page.waitForTimeout(900);
+  await shot(page, 'campaign');
+  await tapId(page, 'quartermaster');
+  await screenIs('quartermaster');
+  await page.waitForTimeout(900);
+  await shot(page, 'quartermaster');
+  await tapId(page, 'back');
+  await screenIs('campaign');
+  await page.waitForTimeout(600);
+  await tapId(page, 'mission-pin-5');
+  await page.waitForTimeout(400);
+  await tapId(page, 'mission-start');
+  await screenIs('briefing');
+  await page.waitForTimeout(900);
+  await shot(page, 'briefing');
+  await th<void>(page, 'autopilot(true)');
+  await tapId(page, 'begin');
+  await screenIs('battle');
+  await speed(page, 12);
+  await waitFor(page, 'result', async () => (await st(page)).screen === 'result', 400_000, 500);
+  await page.waitForTimeout(1200);
+  await shot(page, 'result');
+  await ctx.close();
+}
+
 // --- the proving ground (Phase 2) ---------------------------------------------------------
 
 /** Seed of the proving-ground run (--seed). */
@@ -1012,6 +1163,8 @@ async function main(): Promise<number> {
     ['defeat', defeatRun],
     ['rain', rainRun],
     ['hud', hudRun],
+    ['missions', missionsRun],
+    ['campaign', campaignRun],
     ['sandbox', sandboxRun],
     ['page', pageRun],
   ];

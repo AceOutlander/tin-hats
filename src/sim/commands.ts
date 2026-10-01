@@ -11,14 +11,18 @@ import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX } from './tables';
 import { CMD_CONTROL, CMD_CONTROL_INPUT, CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type World } from './world';
 
-/** True if the side could queue this kind right now. The AI uses it to avoid issuing commands that would be dropped. */
+/**
+ * True if the side could queue this kind right now. The AI uses it to avoid issuing commands that would be dropped.
+ * Room under the population cap is kept for scripted reinforcements still waiting in the reserve.
+ */
 export function canTrain(w: World, si: number, kind: UnitKind): boolean {
   const side = w.state.sides[si];
   const hq = side.hq;
   if (!side.hasHq || !hq || !hq.alive) return false;
   if (side.available[kind] !== true) return false;
   const def = UNITS[kind];
-  return side.queue[kind] < CONFIG.maxQueue && side.supplies >= def.cost && side.pop + def.pop <= side.popCap;
+  const room = side.pop + side.reservePop + def.pop <= side.popCap;
+  return side.queue[kind] < CONFIG.maxQueue && side.supplies >= def.cost && room;
 }
 
 function applyTrain(w: World, si: number, kind: UnitKind): void {

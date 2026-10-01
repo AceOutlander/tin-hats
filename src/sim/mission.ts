@@ -18,15 +18,19 @@ import type { World } from './world';
  * - otherwise at the HQ door, or at the map edge for a side with no HQ.
  * At mission start, army units with no position stand ready in the hold formation instead.
  * Units of a side with no HQ (survival attackers) default to 'assault': they always advance.
- * Returns the number of units spawned.
+ * A wave never takes a side with an HQ over its population cap: whoever does not fit (and everyone
+ * behind units already waiting) goes into the reserve and walks out of the HQ door later.
+ * Returns the number of units spawned now.
  */
 function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): number {
   const s = w.state;
   const side = s.sides[si];
   const dir = si === 0 ? 1 : -1;
   const kindIndex = KIND_INDEX[force.kind];
+  const def = KIND_DEFS[kindIndex];
   const behaviour = force.behaviour ?? (side.hq ? 'army' : 'assault');
   const count = atStart ? force.count : Math.max(1, Math.round(force.count * w.mods[si].wave));
+  const capped = !atStart && side.hq !== null;
   const edge = si === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
 
   let baseX = side.hq ? side.hq.doorX : edge;
@@ -53,11 +57,18 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let spawned = 0;
   let behind = 0;
   for (let j = 0; j < count; j++) {
-    const seat = trench >= 0 && KIND_DEFS[kindIndex].usesTrench;
+    if (capped && side.pop + side.reservePop + def.pop > side.popCap) {
+      const post = force.x ?? (trench >= 0 ? s.trenches[trench].x : NaN);
+      w.reserve.push({ side: si, kindIndex, behaviour, postX: post, postTrench: trench, left: count - j });
+      side.reservePop += (count - j) * def.pop;
+      break;
+    }
+    const seat = trench >= 0 && def.usesTrench;
     const startX = trench < 0 ? baseX + j * step : seat ? s.trenches[trench].x : baseX + behind * step;
     const u = spawnUnit(w, si, kindIndex, startX, behaviour, false, false);
     if (!u) break;
     spawned++;
+    if (behaviour === 'garrison') u.postTrench = trench;
     let x: number;
     if (seat && claimSlot(w, u, trench)) {
       x = w.slotX[u.slot];
@@ -139,10 +150,47 @@ function fireEvent(w: World, ev: MissionEventDef): void {
   }
 }
 
-/** Advance the mission timer and fire any scripted events that are due. */
+/**
+ * Reserve units walk out of their HQ door, oldest group first, while there is room under the cap.
+ * A group that does not fit blocks the ones behind it, so reinforcements keep their scripted order.
+ */
+function releaseReserve(w: World): void {
+  const reserve = w.reserve;
+  const s = w.state;
+  let i = 0;
+  while (i < reserve.length) {
+    const g = reserve[i];
+    const side = s.sides[g.side];
+    const hq = side.hq;
+    const def = KIND_DEFS[g.kindIndex];
+    if (!hq || !hq.alive) {
+      side.reservePop -= g.left * def.pop;
+      reserve.splice(i, 1);
+      continue;
+    }
+    // Room = the cap less what is in use and what the groups ahead of this one (of its side) still need.
+    let ahead = 0;
+    for (let k = 0; k < i; k++) {
+      if (reserve[k].side === g.side) ahead += reserve[k].left * KIND_DEFS[reserve[k].kindIndex].pop;
+    }
+    while (g.left > 0 && side.pop + ahead + def.pop <= side.popCap) {
+      const u = spawnUnit(w, g.side, g.kindIndex, hq.doorX, g.behaviour, false, false);
+      if (!u) break;
+      g.left--;
+      side.reservePop -= def.pop;
+      if (!Number.isNaN(g.postX)) u.postX = g.postX;
+      if (g.behaviour === 'garrison') u.postTrench = g.postTrench;
+    }
+    if (g.left === 0) reserve.splice(i, 1);
+    else i++;
+  }
+}
+
+/** Advance the mission timer, let waiting reinforcements out, and fire any scripted events that are due. */
 export function updateMission(w: World): void {
   const s = w.state;
   const time = s.time;
+  if (w.reserve.length > 0) releaseReserve(w);
   if (s.timer) {
     const left = s.timer.total - time;
     s.timer.secondsLeft = left > 0 ? left : 0;

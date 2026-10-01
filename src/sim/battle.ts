@@ -46,6 +46,7 @@ import {
   applyUpgrades,
   createSideMods,
   type AiState,
+  type ReserveGroup,
   type SideMods,
   type World,
 } from './world';
@@ -140,7 +141,8 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     supplies: start.supplies,
     income: 0,
     pop: 0,
-    popCap: CONFIG.popCap,
+    popCap: Math.round(CONFIG.popCap * mods.popCap),
+    reservePop: 0,
     order: 'hold',
     available,
     queue: kindRecord(0),
@@ -266,6 +268,7 @@ class BattleImpl implements Battle, World {
   readonly ai: [AiState | null, AiState | null];
   readonly eventFired: Uint8Array;
   readonly eventNext: Float64Array;
+  readonly reserve: ReserveGroup[] = [];
   nextUnitId = 1;
   readonly spawnCount = new Int32Array(2);
   nextProjectileId = 1;
@@ -310,6 +313,7 @@ class BattleImpl implements Battle, World {
       this.mods[si].income = mission.start[si].incomeMul * (isAi ? difficulty.aiIncomeMul : 1);
       this.mods[si].airdrop = isAi ? difficulty.aiIncomeMul : 1;
       this.mods[si].wave = isAi ? difficulty.aiWaveMul : 1;
+      this.mods[si].popCap = isAi ? difficulty.aiPopCapMul : 1;
     }
 
     const cellCount = CONFIG.formationColumns * CONFIG.rows;

@@ -236,6 +236,11 @@ export interface DifficultyDef {
   aiAggression: number;
   /** Multiplier on the unit counts of scripted waves sent by an AI side (rounded, at least 1 per group). */
   aiWaveMul: number;
+  /**
+   * Multiplier on an AI side's population cap (rounded). Scripted waves never take a side over its cap (the
+   * rest wait in the reserve), so a bigger wave only adds strength if the army it joins may be bigger too.
+   */
+  aiPopCapMul: number;
   /** Seconds between AI decisions. */
   aiThinkInterval: number;
 }
@@ -494,8 +499,11 @@ export interface ForceDef {
   x?: number;
   /** Place into this trench's slots instead. */
   trenchId?: number;
-  /** guard = stay within config.guardLeash of the spawn point (boss tank); assault = always advance (waves). */
-  behaviour?: 'army' | 'guard' | 'assault';
+  /**
+   * guard = stay within config.guardLeash of the spawn point (boss tank); assault = always advance (waves);
+   * garrison = with `trenchId`, hold that trench whatever the order until it falls, then join the army.
+   */
+  behaviour?: 'army' | 'guard' | 'assault' | 'garrison';
 }
 
 export interface SideStart {

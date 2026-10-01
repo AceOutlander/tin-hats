@@ -101,8 +101,11 @@ export interface SimFeatures {
 // State
 // ---------------------------------------------------------------------------
 
-/** How a unit relates to its side's order: army = obeys it; guard = holds its post; assault = always advances. */
-export type Behaviour = 'army' | 'guard' | 'assault';
+/**
+ * How a unit relates to its side's order: army = obeys it; guard = holds its post; assault = always
+ * advances; garrison = holds the trench it was placed in until that trench falls, then joins the army.
+ */
+export type Behaviour = 'army' | 'guard' | 'assault' | 'garrison';
 
 /** Why the battle ended. `none` while it is still running. */
 export type EndReason =
@@ -252,8 +255,10 @@ export interface UnitState {
   slotDepth: number;
   /** internal: fixed 0..1 value per unit, used to stagger stopping distances so units do not stack. */
   jitter: number;
-  /** internal: the post a guard unit returns to. */
+  /** internal: the post a guard or garrison unit returns to. */
   postX: number;
+  /** internal: index into state.trenches of the trench a garrison unit holds, -1 for none. */
+  postTrench: number;
   /** internal: index into state.trenches of the trench slot it holds or is walking to, -1 for none. */
   trench: number;
   /** internal: global trench slot index it holds or is walking to, -1 for none. */
@@ -316,6 +321,11 @@ export interface SideState {
   /** Population in use: living units plus queued units. Never above popCap. */
   pop: number;
   popCap: number;
+  /**
+   * Population kept free for scripted reinforcements that arrived while the side was at its cap; they
+   * wait at the HQ and walk out as room frees up. Training needs pop + reservePop + its own pop <= popCap.
+   */
+  reservePop: number;
   /** The current army-wide order. */
   order: Order;
   /** Unit kinds this side may train in this mission. */

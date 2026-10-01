@@ -57,7 +57,7 @@ export const M08: MissionDef = {
         { kind: 'rifle', count: 4, trenchId: 3 },
         { kind: 'lmg', count: 1, trenchId: 3 },
         { kind: 'at', count: 1, trenchId: 3 },
-        { kind: 'rifle', count: 3, trenchId: 4 },
+        { kind: 'rifle', count: 3, trenchId: 4, behaviour: 'garrison' },
         { kind: 'tank', count: 1, x: 6900 },
       ],
     },

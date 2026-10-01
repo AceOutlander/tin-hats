@@ -99,6 +99,7 @@ export function createUnit(index: number): UnitState {
     slotDepth: 0,
     jitter: 0,
     postX: 0,
+    postTrench: -1,
     trench: -1,
     slot: -1,
     setup: 0,
@@ -142,6 +143,13 @@ function allocCell(w: World, u: UnitState): void {
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = u.def.formationDepth;
+}
+
+/** A garrison whose trench has fallen joins its side's army and takes a place in the hold formation. */
+export function joinArmy(w: World, u: UnitState): void {
+  u.behaviour = 'army';
+  u.postTrench = -1;
+  allocCell(w, u);
 }
 
 function freeCell(w: World, u: UnitState): void {
@@ -219,6 +227,7 @@ export function spawnUnit(
   u.mount.spread = u.jitter;
   u.mount2.spread = u.jitter;
   u.postX = px;
+  u.postTrench = -1;
   u.trench = -1;
   u.slot = -1;
   u.setup = 0;

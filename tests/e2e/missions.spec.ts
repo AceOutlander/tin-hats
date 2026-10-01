@@ -208,11 +208,18 @@ for (const m of MISSIONS) {
       await setTimeScale(page, 40);
       let s = mid;
       let dusk = false;
-      for (let i = 0; i < 400 && !s.over && (s.timer ?? 999) > 52; i++) {
+      let slowed = false;
+      for (let i = 0; i < 600 && !s.over && (s.timer ?? 999) > 52; i++) {
         await grantSupplies(page, 800);
         for (let j = 0; j < 3; j++) await tapIfThere(page, 'train-rifle');
         await page.waitForTimeout(250);
         s = await state(page);
+        if (!slowed && (s.timer ?? 999) < 120) {
+          // One pass of this loop can take a second of real time: at 40x that would jump straight over the
+          // sampling window below, so the last two minutes run at 4x.
+          slowed = true;
+          await setTimeScale(page, 4);
+        }
         if (m.timer.onExpire === 'lose' && !dusk && s.darkness > 0.55) {
           // The sky is well on its way to night, whether or not the battle lasts to the deadline.
           dusk = true;

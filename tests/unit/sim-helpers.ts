@@ -221,10 +221,12 @@ export function checkInvariants(b: Battle): void {
   for (let si = 0; si < 2; si++) {
     const side = s.sides[si];
     if (side.supplies < -1e-9) throw new Error(`${where}: side ${si} supplies ${side.supplies}`);
-    // Training respects the cap; scripted units may exceed it: a side with no HQ is all scripted, and a
-    // side whose mission scripts waves for it (counter-attacks, reinforcements) can be pushed over.
-    const scripted = !side.hasHq || b.config.mission.events.some((e) => e.type === 'wave' && e.side === si);
-    if (!scripted && side.pop > side.popCap) throw new Error(`${where}: side ${si} population ${side.pop} over the cap`);
+    // Neither training nor a scripted wave takes a side with an HQ over its cap (a wave that does not fit
+    // waits in the reserve). A side with no HQ has no economy: it is all scripted and has no cap to keep.
+    if (side.hasHq && side.pop > side.popCap) throw new Error(`${where}: side ${si} population ${side.pop} over the cap`);
+    if (side.reservePop < -1e-9 || (!side.hasHq && side.reservePop !== 0)) {
+      throw new Error(`${where}: side ${si} reservePop ${side.reservePop}`);
+    }
     let queued = 0;
     for (const kind of KINDS) {
       queued += side.queue[kind] * UNITS[kind].pop;

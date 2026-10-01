@@ -61,10 +61,11 @@ export const M10: MissionDef = {
       forces: [
         { kind: 'rifle', count: 5, trenchId: 2 },
         { kind: 'lmg', count: 2, trenchId: 2 },
+        // The last two belts keep their own garrisons (they hold their trench until it falls).
         { kind: 'rifle', count: 4, trenchId: 3 },
         { kind: 'at', count: 1, trenchId: 3 },
-        { kind: 'rifle', count: 3, trenchId: 4 },
-        { kind: 'rifle', count: 2, trenchId: 5 },
+        { kind: 'rifle', count: 3, trenchId: 4, behaviour: 'garrison' },
+        { kind: 'rifle', count: 2, trenchId: 5, behaviour: 'garrison' },
         { kind: 'heavyTank', count: 1, x: 12800, behaviour: 'guard' },
       ],
     },

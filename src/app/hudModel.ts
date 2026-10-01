@@ -162,7 +162,9 @@ export class HudModel {
       t.queued = queued;
       t.progress = me.progress[t.kind];
       t.fielded = me.alive[t.kind];
-      t.affordable = me.supplies >= t.cost && me.pop + t.pop <= me.popCap && queued < CONFIG.maxQueue;
+      // Room kept for scripted reinforcements waiting at the HQ counts as taken (sim canTrain).
+      const room = me.pop + me.reservePop + t.pop <= me.popCap;
+      t.affordable = me.supplies >= t.cost && room && queued < CONFIG.maxQueue;
     }
 
     const supports = st.supports;

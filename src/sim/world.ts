@@ -3,11 +3,20 @@
  * that takes the World; the Battle class in battle.ts owns it. Nothing in
  * here is part of the public API.
  */
-import type { MissionAiPlan, MissionDef, Order, SupportKind, UnitKind, UpgradeDef, UpgradeLevels } from '../data/schema';
+import type {
+  MissionAiPlan,
+  MissionDef,
+  Order,
+  Side,
+  SupportKind,
+  UnitKind,
+  UpgradeDef,
+  UpgradeLevels,
+} from '../data/schema';
 import type { EventQueue } from './events';
 import type { Rng } from './rng';
 import { KIND_COUNT, KIND_INDEX } from './tables';
-import type { BattleConfig, BattleState } from './types';
+import type { BattleConfig, BattleState, Behaviour } from './types';
 
 /** Multipliers applied to one side: Quartermaster upgrades, mission income and difficulty. All default to 1. */
 export interface SideMods {
@@ -28,6 +37,8 @@ export interface SideMods {
   airdrop: number;
   /** Multiplier on scripted wave sizes (difficulty aiWaveMul, AI sides only). */
   wave: number;
+  /** Multiplier on the population cap (difficulty aiPopCapMul, AI sides only). */
+  popCap: number;
 }
 
 export function createSideMods(): SideMods {
@@ -44,6 +55,7 @@ export function createSideMods(): SideMods {
     income: 1,
     airdrop: 1,
     wave: 1,
+    popCap: 1,
   };
 }
 
@@ -219,6 +231,22 @@ export class DamageQueue {
   }
 }
 
+/**
+ * Units of a scripted wave that did not fit under their side's population cap. They wait at the
+ * HQ and walk out of its door, in the order they were scripted, as room frees up.
+ */
+export interface ReserveGroup {
+  side: Side;
+  kindIndex: number;
+  behaviour: Behaviour;
+  /** Where a guard posts itself or a garrison stands; NaN = no post. */
+  postX: number;
+  /** Index into state.trenches of a garrison's trench, -1 for none. */
+  postTrench: number;
+  /** Units still waiting. */
+  left: number;
+}
+
 /** Per-side memory of the AI commander (also used by the test bot). */
 export interface AiState {
   plan: MissionAiPlan;
@@ -268,6 +296,8 @@ export interface World {
   eventFired: Uint8Array;
   /** Per mission event: battle time of its next firing (repeating events and delayed triggers). */
   eventNext: Float64Array;
+  /** Scripted reinforcements waiting for room under the population cap (only sides with an HQ). */
+  reserve: ReserveGroup[];
   nextUnitId: number;
   /** Per side: units spawned so far. Per-unit variation derives from this, not the id, so mirrored sides match. */
   spawnCount: Int32Array;

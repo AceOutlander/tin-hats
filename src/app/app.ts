@@ -65,6 +65,8 @@ export class App implements AppApi {
   darkness = 0;
   /** Set by the debug hook: every mission is open on the map. Never saved. */
   private unlockedAll = false;
+  /** Debug only: battles started from now on are played for the player by the sim's test bot. */
+  autopilot = false;
   private pendingResult: ResultView | null = null;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
@@ -149,7 +151,7 @@ export class App implements AppApi {
       difficulty,
       seed,
       upgrades: { ...this.save.upgrades },
-      commanders: ['human', 'ai'],
+      commanders: [this.autopilot ? 'bot' : 'human', 'ai'],
       upgradeDefs: this.upgradeDefs,
     });
     this.view.attach(battle, { playerSide: 0, weather: this.weatherMode, visualSeed: seed + APP.visualSeedOffset });

@@ -154,6 +154,8 @@ export interface DebugApi {
   lookAt(x: number): void;
   field(): FieldInfo | null;
   startMission(id: number, difficulty?: Difficulty, seed?: number): boolean;
+  /** Battles started after this are played for the player by the sim's test bot (real mid-battle scenes for captures). */
+  autopilot(on: boolean): void;
   /**
    * Start the proving ground (every unit and support for both sides, trenches, pillboxes and wire), which is never
    * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
@@ -302,6 +304,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     startMission(id, difficulty, seed) {
       return app.beginMission(id, difficulty ?? app.save.settings.difficulty, seed);
+    },
+
+    autopilot(on) {
+      app.autopilot = on;
     },
 
     startSandbox(seed, mirror) {
