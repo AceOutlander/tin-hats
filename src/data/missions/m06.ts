@@ -1,9 +1,9 @@
 import type { MissionDef } from '../schema';
 
 /**
- * Mission 6: Monte Cassino, Italy, 1944. Three fortified lines, the heaviest defences so far.
- * Introduces the Medic and the Smoke Screen.
- * FIRST DRAFT (placeholder layout and plans): valid and loadable, to be replaced by the mission author.
+ * Mission 6: Monte Cassino, Italy, May 1944. Three fortified lines in succession, each with
+ * wire, a pillbox and a stronger garrison than the last, and German guns that shell any crowd.
+ * The grind that needs staying power: introduces the Medic and the Smoke Screen.
  */
 export const M06: MissionDef = {
   id: 6,
@@ -13,9 +13,9 @@ export const M06: MissionDef = {
   date: 'May 1944',
   mapPos: { lon: 13.81, lat: 41.49 },
   briefing: [
-    'The Gustav Line has held all spring. Three fortified lines stand between us and the monastery hill.',
-    'Medics will keep your men in the fight, and smoke will hide them while they cross the open ground.',
-    'Break all three lines and destroy the German HQ.',
+    'Three times since January the Allies have attacked the Gustav Line at Cassino, and three times they have been held. The fourth attempt is under way, with every corps in Italy attacking together. The monastery on the hill is the famous part of the problem; the rest of it is a valley in which every yard is covered by guns on the heights.',
+    'Your sector offers three fortified lines in succession, each with wire, a pillbox and gunners who have had four months to settle in. Every line will cost you men, so the Medics have come forward. A Medic cannot fight, but a wounded man he patches up is a man you need not train again. The Germans keep medical orderlies of their own, which is only civilised.',
+    'The other new issue is smoke. A Smoke Screen laid between your men and the line ahead blinds the machine guns for a few seconds, and a few seconds is all it takes to cross open ground if nobody stops to look about. Break all three lines, in order, and then destroy the German headquarters.',
   ],
   objective: 'Break three fortified lines and destroy the German HQ.',
   theatre: 'italy',
@@ -28,7 +28,7 @@ export const M06: MissionDef = {
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic'],
   ],
-  supports: [['artillery', 'smoke'], ['artillery']],
+  supports: [['artillery', 'smoke'], []],
   start: [
     {
       faction: 'british',
@@ -49,58 +49,100 @@ export const M06: MissionDef = {
       hasHq: true,
       supplies: 150,
       hqHpMul: 1,
-      incomeMul: 0.7,
+      incomeMul: 0.6,
       sappers: 2,
       forces: [
-        { kind: 'rifle', count: 4, trenchId: 2 },
-        { kind: 'rifle', count: 3, trenchId: 3 },
-        { kind: 'lmg', count: 1, trenchId: 3 },
-        { kind: 'rifle', count: 3, trenchId: 4 },
+        { kind: 'rifle', count: 5, trenchId: 2 },
+        { kind: 'lmg', count: 1, trenchId: 2 },
+        { kind: 'rifle', count: 5, trenchId: 3 },
+        { kind: 'lmg', count: 2, trenchId: 3 },
+        { kind: 'rifle', count: 5, trenchId: 4 },
+        { kind: 'lmg', count: 2, trenchId: 4 },
+        { kind: 'mortar', count: 1 },
+        { kind: 'sniper', count: 1 },
+        { kind: 'medic', count: 1 },
       ],
     },
   ],
   trenches: [
     { id: 1, x: 1500, width: 160, slots: 6, owner: 0 },
-    { id: 2, x: 4500, width: 160, slots: 6, owner: 1 },
-    { id: 3, x: 6200, width: 160, slots: 6, owner: 1 },
-    { id: 4, x: 7900, width: 160, slots: 6, owner: 1 },
+    { id: 2, x: 4050, width: 180, slots: 7, owner: 1 },
+    { id: 3, x: 6100, width: 180, slots: 7, owner: 1 },
+    { id: 4, x: 8150, width: 180, slots: 7, owner: 1 },
   ],
   pillboxes: [
-    { id: 1, x: 4750, side: 1, hpMul: 0.8 },
-    { id: 2, x: 6450, side: 1, hpMul: 1 },
+    { id: 1, x: 3940, side: 1, hpMul: 0.8 },
+    { id: 2, x: 5990, side: 1, hpMul: 0.9 },
+    { id: 3, x: 8040, side: 1, hpMul: 1 },
   ],
   wire: [
-    { id: 1, x: 4250, width: 100, owner: 1 },
-    { id: 2, x: 5950, width: 100, owner: 1 },
+    { id: 1, x: 3600, width: 120, owner: 1 },
+    { id: 2, x: 5650, width: 120, owner: 1 },
+    { id: 3, x: 7700, width: 140, owner: 1 },
   ],
   timer: null,
   events: [
-    { type: 'hint', when: { at: 4 }, text: 'Medics heal wounded infantry near them. Keep one behind every attack.' },
-    { type: 'hint', when: { at: 40 }, text: 'A Smoke Screen blocks direct fire. Lay it in front of your men as they Advance.' },
+    {
+      type: 'hint',
+      when: { at: 3 },
+      text: 'New: Medic. He heals every wounded infantryman near him but carries no weapon. Keep one with the attack, behind the line.',
+    },
+    {
+      type: 'hint',
+      when: { at: 28 },
+      text: 'New: Smoke Screen. It blocks direct fire for a few seconds. Tap it, then tap the ground between your men and the enemy line.',
+    },
+    {
+      type: 'hint',
+      when: { at: 70 },
+      text: 'Three lines stand between you and the HQ. Take them one at a time: Hold at each, heal, reinforce, then press on.',
+    },
+    {
+      type: 'hint',
+      when: { trenchCapturedBy: 0, trenchId: 2, delay: 1 },
+      text: 'First line taken. Let the Medics work and bring up fresh men before you go on.',
+    },
+    {
+      type: 'hint',
+      when: { trenchCapturedBy: 0, trenchId: 3, delay: 1 },
+      text: 'Second line broken. One more, and then the HQ. Smoke first, then Advance.',
+    },
+    {
+      type: 'announce',
+      when: { trenchCapturedBy: 0, trenchId: 4 },
+      text: 'The last line has fallen. The way to the German headquarters is open.',
+    },
+    {
+      type: 'hint',
+      when: { hqHpBelow: 0.5, side: 0 },
+      text: 'Your HQ is under fire. Fall Back lets its machine gun do the work while you rebuild.',
+    },
   ],
   ai: {
     sappers: 2,
     build: [
-      { kind: 'rifle', count: 5, after: 0 },
-      { kind: 'lmg', count: 1, after: 60 },
-      { kind: 'mortar', count: 1, after: 120 },
-      { kind: 'medic', count: 1, after: 180 },
-      { kind: 'rifle', count: 8, after: 300 },
+      { kind: 'rifle', count: 6, after: 0 },
+      { kind: 'lmg', count: 3, after: 60 },
+      { kind: 'mortar', count: 2, after: 120 },
+      { kind: 'medic', count: 1, after: 150 },
+      { kind: 'sniper', count: 2, after: 200 },
+      { kind: 'rifle', count: 9, after: 260 },
     ],
-    firstAttackAfter: 360,
+    firstAttackAfter: 420,
   },
   bot: {
     sappers: 4,
     build: [
-      { kind: 'rifle', count: 5, after: 0 },
-      { kind: 'mortar', count: 2, after: 20 },
-      { kind: 'assault', count: 5, after: 40 },
-      { kind: 'medic', count: 2, after: 60 },
-      { kind: 'lmg', count: 2, after: 80 },
-      { kind: 'rifle', count: 9, after: 120 },
-      { kind: 'assault', count: 8, after: 160 },
+      { kind: 'rifle', count: 6, after: 0 },
+      { kind: 'medic', count: 1, after: 15 },
+      { kind: 'mortar', count: 2, after: 25 },
+      { kind: 'assault', count: 4, after: 40 },
+      { kind: 'lmg', count: 2, after: 60 },
+      { kind: 'medic', count: 2, after: 90 },
+      { kind: 'rifle', count: 10, after: 100 },
+      { kind: 'assault', count: 6, after: 130 },
     ],
-    firstAttackAfter: 160,
+    firstAttackAfter: 170,
   },
-  expectedMinutes: [7, 10],
+  expectedMinutes: [8, 11],
 };
