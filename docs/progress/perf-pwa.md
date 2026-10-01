@@ -3,7 +3,7 @@
 Done: PWA (vite-plugin-pwa, `src/pwa`, icons by code in `tools/gen-icons.ts`, `tests/e2e/pwa.spec.ts`), Phaser chunk, frame probe
 (`src/render/perf.ts`, `window.__THPERF` with ?debug=1), perf harness (`tools/perf.ts`, `npm run perf`), quality governor and hard
 particle cap (`src/render/quality.ts`, `src/data/renderPerf.ts`), off-screen particle culling, `tests/e2e/perf.spec.ts`,
-unit tests `tests/unit/perf-quality.test.ts` and `perf-pwa.test.ts`, `docs/CAPACITOR.md`. DECISIONS 202 to 209.
+unit tests `tests/unit/perf-quality.test.ts` and `perf-pwa.test.ts`, `docs/CAPACITOR.md`. DECISIONS 202 to 210.
 In progress: nothing. Next: a run on a real phone (nothing here was measured on one).
 
 Numbers (desktop, software WebGL, 844x390, ~75 units, proving ground seed 1; `npm run perf -- --scene=sandbox --quality=0`):
