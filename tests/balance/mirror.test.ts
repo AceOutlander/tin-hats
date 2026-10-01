@@ -10,9 +10,10 @@
 import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_RUNS } from '../../src/data/balance';
 import { runMirror } from '../../src/sim';
+import { HEAVY } from './helpers';
 
 describe('mirrored AI against AI on the proving ground', () => {
-  it(`wins 45 to 55 percent from either side over ${CAMPAIGN_RUNS.mirrorSeeds} seeds, with under 5 percent undecided`, () => {
+  it(`wins 45 to 55 percent from either side over ${CAMPAIGN_RUNS.mirrorSeeds} seeds, with under 5 percent undecided`, HEAVY, () => {
     expect(CAMPAIGN_RUNS.mirrorSeeds).toBeGreaterThanOrEqual(100);
     const r = runMirror(CAMPAIGN_RUNS.mirrorSeeds);
     const summary = `side 0 ${r.wins[0]}, side 1 ${r.wins[1]}, undecided ${r.undecided} of ${r.seeds}`;

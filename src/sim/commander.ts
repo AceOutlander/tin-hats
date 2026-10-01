@@ -227,8 +227,8 @@ function build(w: World, si: number, ai: AiState): void {
  *   front has fallen well below what it faces (holdRatio, not at the population cap), or at any
  *   time when the attack is broken (regroupFrac). The wide band between attackRatio and holdRatio
  *   is the hysteresis; recalling a trickle lets the army gather and attack together.
- * Hold -> Fall Back: only when the HQ is threatened (the enemy at the hold line or near the HQ) and
- *   it is badly outnumbered.
+ * Hold -> Fall Back: only when the HQ is threatened (the enemy near the HQ, or at a hold line close
+ *   to home) and it is badly outnumbered; a line far forward is held, not abandoned.
  * Fall Back -> out: as soon as the HQ is no longer threatened or the garrison is strong enough;
  *   straight to Advance when it is clearly stronger.
  */

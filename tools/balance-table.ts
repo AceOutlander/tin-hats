@@ -1,31 +1,39 @@
 /**
- * Equal-cost matchup tables for every ordered pair of combat unit kinds, written to docs/BALANCE.md.
+ * The balance report, written to docs/BALANCE.md:
+ *   - equal-cost matchup tables for every ordered pair of combat unit kinds, in the open and attacking
+ *     a trench, and one line per unit kind with what it beats and what beats it;
+ *   - the campaign: every mission played by the reasonable-player bot against the AI on Normal, Hard
+ *     and Insane, and by the idle commander on Normal (win rate, median winning time);
+ *   - the AI against itself on the mirrored proving ground.
  *
- *   x.cmd npx tsx tools/balance-table.ts [--seeds N] [--out docs/BALANCE.md] [--print]
+ *   x.cmd npx tsx tools/balance-table.ts [--seeds N] [--out docs/BALANCE.md] [--print] [--quick]
  *
- * Two grounds (see src/sim/matchup.ts): in the open with both sides advancing, and the row kind
- * attacking the column kind dug into a trench. Rows attack, columns defend. A cell reads
- * "A 4/4 63%": the attacker won 4 of 4 duels and kept 63% of its value on average in its wins;
- * "D ..." is the same for the defender; "= ..." is a tie. Below the tables, one line per unit
- * kind lists what it beats and what beats it.
+ * Matchups (see src/sim/matchup.ts): rows attack, columns defend. A cell reads "A 4/4 63%": the
+ * attacker won 4 of 4 duels and kept 63% of its value on average in its wins; "D ..." is the same for
+ * the defender; "= ..." is a tie. --seeds sets the matchup seeds; the campaign and mirror use
+ * CAMPAIGN_RUNS (src/data/balance.ts). --quick skips the campaign and the mirror.
  */
 import { writeFileSync } from 'node:fs';
-import { MATCHUP } from '../src/data/balance';
+import { CAMPAIGN_RUNS, MATCHUP } from '../src/data/balance';
+import { DIFFICULTIES, DIFFICULTY_LIST } from '../src/data/difficulty';
+import { MISSIONS } from '../src/data/missions';
 import { UNITS } from '../src/data/units';
 import type { UnitKind } from '../src/data/schema';
-import { runMatchup, type MatchupGround, type MatchupResult } from '../src/sim';
+import { runMatchup, runMirror, runSeries, type MatchupGround, type MatchupResult, type MissionSeries } from '../src/sim';
 
 interface Options {
   seeds: number;
   out: string;
   print: boolean;
+  quick: boolean;
 }
 
 function parseArgs(argv: string[]): Options {
-  const opts: Options = { seeds: MATCHUP.seeds, out: 'docs/BALANCE.md', print: false };
+  const opts: Options = { seeds: MATCHUP.seeds, out: 'docs/BALANCE.md', print: false, quick: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--print') opts.print = true;
+    else if (arg === '--quick') opts.quick = true;
     else if (arg === '--seeds') opts.seeds = Number(argv[++i]);
     else if (arg === '--out') opts.out = argv[++i] ?? opts.out;
     else {
@@ -60,6 +68,71 @@ function table(kinds: readonly UnitKind[], results: Map<string, MatchupResult>, 
   return lines;
 }
 
+function list(kinds: string[]): string {
+  return kinds.join(', ') || 'nothing';
+}
+
+/** One line per unit kind: what it beats and what beats it, in the open and around a trench. */
+function perUnit(kinds: readonly UnitKind[], results: Map<string, MatchupResult>): string[] {
+  const get = (ground: MatchupGround, a: UnitKind, b: UnitKind): MatchupResult => results.get(`${ground}:${a}:${b}`) as MatchupResult;
+  const lines: string[] = [];
+  for (const k of kinds) {
+    const beats: string[] = [];
+    const beatenBy: string[] = [];
+    const breaks: string[] = [];
+    const brokenBy: string[] = [];
+    const holds: string[] = [];
+    const fallsTo: string[] = [];
+    for (const o of kinds) {
+      if (o === k) continue;
+      // In the open over both orderings (as side 0 and as side 1).
+      const mine = get('open', k, o).winsA + get('open', o, k).winsB;
+      const theirs = get('open', k, o).winsB + get('open', o, k).winsA;
+      if (mine > theirs) beats.push(o);
+      else if (theirs > mine) beatenBy.push(o);
+      const attack = get('trench', k, o).verdict;
+      if (attack > 0) breaks.push(o);
+      else if (attack < 0) brokenBy.push(o);
+      const hold = get('trench', o, k).verdict;
+      if (hold < 0) holds.push(o);
+      else if (hold > 0) fallsTo.push(o);
+    }
+    const won = beats.length + breaks.length + holds.length;
+    const lost = beatenBy.length + brokenBy.length + fallsTo.length;
+    lines.push(
+      `- **${k}** (${UNITS[k].cost} supplies; wins ${won}, loses ${lost} of its matchups against other kinds). ` +
+        `In the open it beats: ${list(beats)}; it is beaten by: ${list(beatenBy)}. ` +
+        `Attacking a trench it breaks: ${list(breaks)}; it fails against: ${list(brokenBy)}. ` +
+        `Dug in it holds against: ${list(holds)}; it falls to: ${list(fallsTo)}.`,
+    );
+  }
+  return lines;
+}
+
+function seriesCell(r: MissionSeries): string {
+  const time = r.wins > 0 ? ` in ${r.medianWinMinutes.toFixed(1)} min` : '';
+  const undecided = r.undecided > 0 ? `, ${r.undecided} undecided` : '';
+  return `${pct(r.winRate)}${time}${undecided}`;
+}
+
+function campaign(print: boolean): string[] {
+  const seeds = CAMPAIGN_RUNS.seeds;
+  const header = DIFFICULTY_LIST.map((d) => `bot, ${DIFFICULTIES[d].name}`);
+  const lines = [
+    `| mission | expected | ${header.join(' | ')} | idle, Normal |`,
+    `| --- | --- | ${header.map(() => '---').join(' | ')} | --- |`,
+  ];
+  for (const m of MISSIONS) {
+    const bot = DIFFICULTY_LIST.map((d) => runSeries(m, d, 'bot', seeds));
+    const idle = runSeries(m, 'normal', 'idle', seeds);
+    const idleCell = `lost ${idle.losses}/${seeds}`;
+    const row = `| ${m.id} ${m.title} | ${m.expectedMinutes[0]} to ${m.expectedMinutes[1]} min | ${bot.map(seriesCell).join(' | ')} | ${idleCell} |`;
+    lines.push(row);
+    if (print) console.log(row);
+  }
+  return lines;
+}
+
 function main(): void {
   const opts = parseArgs(process.argv.slice(2));
   const kinds = MATCHUP.kinds;
@@ -84,62 +157,68 @@ function main(): void {
       }
     }
   }
-  const seconds = (performance.now() - t0) / 1000;
-
-  // Per unit: in the open, who wins over both orderings (as side 0 and as side 1).
-  const perUnit: string[] = [];
-  for (const k of kinds) {
-    const beats: string[] = [];
-    const beatenBy: string[] = [];
-    for (const o of kinds) {
-      if (o === k) continue;
-      const asA = results.get(`open:${k}:${o}`) as MatchupResult;
-      const asB = results.get(`open:${o}:${k}`) as MatchupResult;
-      const mine = asA.winsA + asB.winsB;
-      const theirs = asA.winsB + asB.winsA;
-      if (mine > theirs) beats.push(o);
-      else if (theirs > mine) beatenBy.push(o);
-    }
-    const breaks: string[] = [];
-    const holds: string[] = [];
-    for (const o of kinds) {
-      if ((results.get(`trench:${k}:${o}`) as MatchupResult).verdict > 0) breaks.push(o);
-      if ((results.get(`trench:${o}:${k}`) as MatchupResult).verdict < 0) holds.push(o);
-    }
-    perUnit.push(
-      `- **${k}** (${UNITS[k].cost} supplies). In the open it beats: ${beats.join(', ') || 'nothing'}; ` +
-        `it is beaten by: ${beatenBy.join(', ') || 'nothing'}. Attacking a trench it breaks: ${breaks.join(', ') || 'none'}; ` +
-        `dug in it holds against: ${holds.join(', ') || 'none'}.`,
-    );
-  }
 
   const doc = [
-    '# Balance: equal-cost matchups',
+    '# Balance',
     '',
-    'Generated by `tools/balance-table.ts` from `src/sim/matchup.ts` (do not edit by hand).',
+    'Generated by `tools/balance-table.ts` (do not edit by hand). The balance tests in `tests/balance` assert what',
+    'these tables show: the counters (`matchups.test.ts`), the campaign on Normal (`missions.test.ts`), the',
+    'difficulty gradient (`difficulty.test.ts`) and the mirror (`mirror.test.ts`).',
+    '',
+    '## Equal-cost matchups',
+    '',
     `Each side spends ${MATCHUP.budgetMin} to ${MATCHUP.budgetMax} supplies on one unit kind, counts chosen so both sides cost`,
     `(nearly) the same; ${opts.seeds} seeds per cell; a duel still running after ${MATCHUP.maxSeconds} s is undecided.`,
     'Rows attack, columns defend. "A 4/4 63%" = the attacker won 4 of 4 and kept 63% of its value in its wins;',
     '"D" = the defender won; "=" = tied.',
     '',
-    '## (a) In the open, both advancing',
+    '### (a) In the open, both advancing',
     '',
     ...table(kinds, results, 'open'),
     '',
-    '## (b) Attacking the column kind dug into a trench',
+    '### (b) Attacking the column kind dug into a trench',
     '',
     `One trench at x ${MATCHUP.trenchX}, ${MATCHUP.trenchWidth} wu wide, one slot per defender that can use it`,
-    '(mortars and tanks stand behind it). The defender holds; the attacker advances.',
+    '(mortars and tanks stand behind it; an army of only mortars or tanks holds the same line in the open).',
+    'The defender holds; the attacker advances.',
     '',
     ...table(kinds, results, 'trench'),
     '',
-    '## Per unit',
+    '### Per unit',
     '',
-    ...perUnit,
+    'In the open over both orderings (as side 0 and as side 1); around a trench as the attacker and as the',
+    'defender. Matchups against its own kind are left out of the counts.',
     '',
-  ].join('\n');
-  writeFileSync(opts.out, doc);
-  console.log(`Wrote ${opts.out} (${kinds.length * kinds.length * 2} pairings, ${opts.seeds} seeds each, ${seconds.toFixed(1)} s)`);
+    ...perUnit(kinds, results),
+    '',
+  ];
+  const matchupSeconds = (performance.now() - t0) / 1000;
+
+  if (!opts.quick) {
+    const t1 = performance.now();
+    doc.push(
+      '## Campaign missions',
+      '',
+      `Each mission played over seeds 1 to ${CAMPAIGN_RUNS.seeds} with no upgrades: the reasonable-player bot against the AI on`,
+      'each difficulty (win rate, median length of the wins), and the idle commander on Normal. A battle still',
+      `running after ${CAMPAIGN_RUNS.capMinutes} minutes is undecided. Difficulty changes only the AI's income, aggression, think`,
+      'interval, wave strength and army size.',
+      '',
+      ...campaign(opts.print),
+      '',
+    );
+    const mirror = runMirror(CAMPAIGN_RUNS.mirrorSeeds);
+    const line =
+      `The AI against itself on the mirrored proving ground over seeds 1 to ${mirror.seeds}: side 0 won ${mirror.wins[0]}, ` +
+      `side 1 won ${mirror.wins[1]}, ${mirror.undecided} undecided (side 0's share of the decided battles ${(mirror.share * 100).toFixed(1)}%); ` +
+      `battles last ${mirror.meanMinutes.toFixed(1)} minutes on average.`;
+    if (opts.print) console.log(line);
+    doc.push('## Mirror', '', line, '');
+    console.log(`Campaign and mirror: ${((performance.now() - t1) / 1000).toFixed(1)} s`);
+  }
+
+  writeFileSync(opts.out, doc.join('\n'));
+  console.log(`Wrote ${opts.out} (${kinds.length * kinds.length * 2} pairings, ${opts.seeds} seeds each, ${matchupSeconds.toFixed(1)} s)`);
 }
 
 main();

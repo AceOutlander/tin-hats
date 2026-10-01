@@ -13,6 +13,7 @@ import { DIFFICULTY_LIST } from '../../src/data/difficulty';
 import { MISSIONS } from '../../src/data/missions';
 import type { Difficulty, MissionDef } from '../../src/data/schema';
 import { runSeries, type MissionSeries } from '../../src/sim';
+import { HEAVY } from './helpers';
 
 const SEEDS = CAMPAIGN_RUNS.seeds;
 /** Win rates this close count as the same (two seeds of sixteen). */
@@ -62,7 +63,7 @@ it('the difficulties come in order Normal, Hard, Insane', () => {
 });
 
 describe.each(MISSIONS.map((m) => [m.id, m] as const))('mission %i', (_id, m) => {
-  it('the bot does no better on Hard than on Normal, nor on Insane than on Hard', () => {
+  it('the bot does no better on Hard than on Normal, nor on Insane than on Hard', HEAVY, () => {
     const [normal, hard, insane] = DIFFICULTY_LIST.map((d) => series(m, d));
     const summary = [normal, hard, insane].map(show).join(', ');
     expect(didBetter(hard, normal), summary).toBe(false);
@@ -70,7 +71,7 @@ describe.each(MISSIONS.map((m) => [m.id, m] as const))('mission %i', (_id, m) =>
   });
 });
 
-it(`Insane is clearly harder than Normal on at least ${CLEARLY_HARDER_MIN} of the ${MISSIONS.length} missions`, () => {
+it(`Insane is clearly harder than Normal on at least ${CLEARLY_HARDER_MIN} of the ${MISSIONS.length} missions`, HEAVY, () => {
   const lines: string[] = [];
   let harder = 0;
   for (const m of MISSIONS) {
@@ -83,7 +84,7 @@ it(`Insane is clearly harder than Normal on at least ${CLEARLY_HARDER_MIN} of th
   expect(harder, lines.join('\n')).toBeGreaterThanOrEqual(CLEARLY_HARDER_MIN);
 });
 
-it('mission 9 on Hard is hard but possible for the bot', () => {
+it('mission 9 on Hard is hard but possible for the bot', HEAVY, () => {
   const m = MISSIONS.find((x) => x.id === 9) as MissionDef;
   const normal = series(m, 'normal');
   const hard = series(m, 'hard');

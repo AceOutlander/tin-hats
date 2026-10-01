@@ -13,7 +13,7 @@ import { CAMPAIGN_RUNS } from '../../src/data/balance';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef } from '../../src/data/schema';
 import { runSeries, type CommanderKind, type MissionSeries } from '../../src/sim';
-import { strictWatch } from './helpers';
+import { HEAVY, strictWatch } from './helpers';
 
 const SEEDS = CAMPAIGN_RUNS.seeds;
 /** Share of seeds the bot must win. */
@@ -39,19 +39,19 @@ it(`plays every mission over at least twelve seeds (${SEEDS})`, () => {
 });
 
 describe.each(MISSIONS.map((m) => [m.id, m] as const))('mission %i on Normal with no upgrades', (_id, m) => {
-  it(`the bot wins at least ${MIN_WIN_RATE * 100} percent of the seeds and no battle is left undecided`, () => {
+  it(`the bot wins at least ${MIN_WIN_RATE * 100} percent of the seeds and no battle is left undecided`, HEAVY, () => {
     const r = series(m, 'bot');
     expect(r.undecided, describeRuns(r)).toBe(0);
     expect(r.winRate, describeRuns(r)).toBeGreaterThanOrEqual(MIN_WIN_RATE);
   });
 
-  it(`the bot's median winning time lies inside the expected ${m.expectedMinutes[0]} to ${m.expectedMinutes[1]} minutes`, () => {
+  it(`the bot's median winning time lies inside the expected ${m.expectedMinutes[0]} to ${m.expectedMinutes[1]} minutes`, HEAVY, () => {
     const r = series(m, 'bot');
     expect(r.medianWinMinutes, describeRuns(r)).toBeGreaterThanOrEqual(m.expectedMinutes[0]);
     expect(r.medianWinMinutes, describeRuns(r)).toBeLessThanOrEqual(m.expectedMinutes[1]);
   });
 
-  it('the idle commander loses every seed', () => {
+  it('the idle commander loses every seed', HEAVY, () => {
     const r = series(m, 'idle');
     expect(r.losses, describeRuns(r)).toBe(SEEDS);
     // A survival mission is lost well before the clock would have saved it.

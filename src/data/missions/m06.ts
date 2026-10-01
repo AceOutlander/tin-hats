@@ -2,7 +2,7 @@ import type { MissionDef } from '../schema';
 
 /**
  * Mission 6: Monte Cassino, Italy, May 1944. Three fortified lines in succession, each with a
- * belt of wire, pillboxes and a bigger garrison than the last (the heaviest defences so far),
+ * belt of wire, pillboxes and a garrison of its own (the heaviest defences so far),
  * and an empty trench (a forward post, owner -1) 500 wu short of each line to stage from.
  * The grind that needs staying power and a way across the open ground: introduces the Medic and
  * the Smoke Screen. The Germans have no artillery here; their strength is the three lines.
@@ -54,7 +54,7 @@ export const M06: MissionDef = {
       incomeMul: 0.5,
       sappers: 2,
       forces: [
-        { kind: 'rifle', count: 5, trenchId: 3 },
+        { kind: 'rifle', count: 4, trenchId: 3 },
         { kind: 'lmg', count: 1, trenchId: 3 },
         { kind: 'rifle', count: 4, trenchId: 5 },
         { kind: 'lmg', count: 2, trenchId: 5 },

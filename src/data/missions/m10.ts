@@ -56,7 +56,7 @@ export const M10: MissionDef = {
       hasHq: true,
       supplies: 300,
       hqHpMul: 1.1,
-      incomeMul: 0.75,
+      incomeMul: 0.7,
       sappers: 3,
       forces: [
         { kind: 'rifle', count: 5, trenchId: 2 },

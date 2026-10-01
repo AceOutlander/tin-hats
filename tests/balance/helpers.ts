@@ -4,6 +4,12 @@
 import type { Battle } from '../../src/sim';
 import { checkInvariants } from '../unit/sim-helpers';
 
+/**
+ * Timeout of a test that plays whole battles in series: a few seconds to a minute on an idle machine,
+ * several times that when the machine is busy.
+ */
+export const HEAVY = { timeout: 600_000 };
+
 /** A unit in 'move' that has not moved FROZEN_DISTANCE in FROZEN_SECONDS is frozen. */
 export const FROZEN_SECONDS = 30;
 const FROZEN_DISTANCE = 1;
