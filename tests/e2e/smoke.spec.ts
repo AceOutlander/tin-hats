@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Browser smoke tests on the production build: a phone in landscape with touch.
  * They drive the real UI with taps and drags, and use the ?debug=1 hooks
  * (window.__TH) to read the simulation, grant supplies and fast-forward.
@@ -58,15 +58,20 @@ test.describe('debug hooks', () => {
         'grantPopulation',
         'grantSupplies',
         'lookAt',
+        'missions',
         'perf',
         'projectiles',
         'ready',
+        'result',
+        'save',
         'setTimeScale',
+        'setUpgrades',
         'startMission',
         'startSandbox',
         'state',
         'unitScreenPos',
         'units',
+        'unlockAll',
         'weatherStats',
       ].sort(),
     );
@@ -454,7 +459,7 @@ test.describe('whole battles at high speed', () => {
       await expect(page.getByTestId('result-reason')).toHaveText(reasonText(end));
       if (end.winner !== 0) {
         await shot(page, `result-lose-${mission.id}`);
-        expect(await savedGame(page)).toBeNull();
+        expect((await savedGame(page))?.cleared ?? {}, 'a loss clears nothing').toEqual({});
         // Retry starts the same mission again.
         await tap(page, 'result-retry');
         await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');

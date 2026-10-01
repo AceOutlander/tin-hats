@@ -7,7 +7,9 @@
 import { expect, test as base, type CDPSession, type Page } from '@playwright/test';
 import { join, resolve } from 'node:path';
 import type { DebugApi, DebugState, FieldInfo } from '../../src/app/debug';
+import { describeEnd } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
+import { MISSIONS } from '../../src/data/missions';
 import type { Difficulty, UnitKind } from '../../src/data/schema';
 
 /** window.__TH as the page sees it (it is not declared globally, because a dev page declares another type). */
@@ -59,18 +61,52 @@ export const startMission = (page: Page, id: number, seed?: number, difficulty?:
   ]);
 export const firstUnit = (page: Page, side: 0 | 1, kind: UnitKind) =>
   page.evaluate(([s, k]) => ((window as unknown as Hooked).__TH as DebugApi).firstUnitScreenPos(s, k), [side, kind] as [0 | 1, UnitKind]);
+export interface StoredSave {
+  version: number;
+  cleared: Record<string, string[]>;
+  upgrades: Record<string, number>;
+  lastMission: number;
+  settings: { muted: boolean; hints: boolean; difficulty: string };
+}
+
+/** The save as it sits in localStorage (parsed), or null when nothing is stored. */
 export const savedGame = (page: Page) =>
   page.evaluate((key) => {
     const text = window.localStorage.getItem(key);
-    return text === null
-      ? null
-      : (JSON.parse(text) as { cleared: Record<string, string[]>; settings: { muted: boolean; hints: boolean; difficulty: string } });
+    return text === null ? null : (JSON.parse(text) as StoredSave);
   }, SAVE_KEY);
+
+/** Put raw text into the save slot, as a damaged or old save would be. */
+export const storeRaw = (page: Page, text: string) => page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [SAVE_KEY, text] as [string, string]);
+
+export const unlockAll = (page: Page) => page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).unlockAll());
+export const missionList = (page: Page) => page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).missions());
+export const lastResult = (page: Page) => page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).result());
+export const memorySave = (page: Page) => page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).save());
 
 /** The result text the app shows for how a battle ended. */
 export function reasonText(end: DebugState): string {
-  const reason = APP.reasons[end.endReason === 'none' ? 'draw' : end.endReason];
-  return end.winner === 0 ? reason.win : reason.lose;
+  const label = MISSIONS.find((m) => m.id === end.missionId)?.timer?.label ?? null;
+  return describeEnd(end.endReason, end.winner === 0, label);
+}
+
+/** The screen that is on show (a screen that is leaving stays in the page for its fade, marked `inert`). */
+export const arrived = (page: Page, screen: string) => page.locator(`.th-screen.is-in[data-screen="${screen}"]`);
+
+/** Upgrade points the arriving screen says are left to spend. */
+export async function pointsLeft(page: Page, screen: 'campaign' | 'quartermaster'): Promise<number> {
+  return Number(await arrived(page, screen).getByTestId('points-available').textContent());
+}
+
+/** The level of an upgrade card in the Quartermaster. */
+export async function upgradeLevel(page: Page, id: string): Promise<number> {
+  const card = arrived(page, 'quartermaster').getByTestId(`upgrade-buy-${id}`).locator('xpath=ancestor::article');
+  return Number(await card.getAttribute('data-level'));
+}
+
+/** The campaign map's pin for a mission: 'locked', 'open' or 'cleared'. */
+export async function pinState(page: Page, id: number): Promise<string | null> {
+  return arrived(page, 'campaign').getByTestId(`mission-pin-${id}`).getAttribute('data-state');
 }
 
 export async function shot(page: Page, name: string): Promise<void> {
@@ -86,6 +122,11 @@ export async function open(page: Page, query = '?debug=1'): Promise<void> {
 
 export async function tap(page: Page, testId: string): Promise<void> {
   await page.getByTestId(testId).tap({ timeout: 10_000 });
+}
+
+/** Tap a control on the screen that has arrived (a screen that is leaving is still in the page for its fade). */
+export async function tapIn(page: Page, screen: string, testId: string): Promise<void> {
+  await arrived(page, screen).getByTestId(testId).tap({ timeout: 10_000 });
 }
 
 /** Tap a control that may not be there any more (the battle can end between two taps). */
@@ -224,6 +265,32 @@ export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
       await grantSupplies(page, 800);
       for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
       if (s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
+    }
+    await page.waitForTimeout(250);
+    s = await state(page);
+  }
+  expect(s.over, `the battle should end (tick ${s.tick}, time ${s.time.toFixed(0)} s)`).toBe(true);
+  return s;
+}
+
+/**
+ * Fast-forward a battle to its end. For `keenMs` of real time a keen player keeps buying riflemen with granted
+ * supplies and sends the army forward; after that nobody touches anything and the clock runs at its top speed, so every
+ * battle ends within `totalMs` (an idle army loses sooner or later). Returns the final state.
+ */
+export async function fastForward(page: Page, keenMs: number, totalMs: number): Promise<DebugState> {
+  const started = Date.now();
+  await setTimeScale(page, 40);
+  let s = await state(page);
+  let fast = false;
+  while (!s.over && Date.now() - started < totalMs) {
+    if (Date.now() - started < keenMs) {
+      await grantSupplies(page, 800);
+      for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
+      if (s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
+    } else if (!fast) {
+      fast = true;
+      await setTimeScale(page, APP.maxTimeScale);
     }
     await page.waitForTimeout(250);
     s = await state(page);

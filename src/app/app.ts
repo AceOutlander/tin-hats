@@ -61,7 +61,8 @@ export class App implements AppApi {
   weatherMode: WeatherMode = 'auto';
 
   private ui: UiApi | null = null;
-  private darkness = 0;
+  /** How far the sky has been pushed toward night for a deadline mission (0..1); what the view was last told. */
+  darkness = 0;
   /** Set by the debug hook: every mission is open on the map. Never saved. */
   private unlockedAll = false;
   private pendingResult: ResultView | null = null;

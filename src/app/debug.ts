@@ -53,6 +53,8 @@ export interface DebugState {
   timer: number | null;
   /** The upgrade levels this battle was built with (empty outside a battle). */
   upgrades: UpgradeLevels;
+  /** How far toward night the view has been told to darken the sky (0..1; only a deadline mission darkens). */
+  darkness: number;
   /** True once the result is known (the result screen follows shortly). */
   resultReady: boolean;
   /** The player's unit under direct control, or null. `inTrench` = it holds a trench slot. */
@@ -335,6 +337,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           hq: [null, null],
           timer: null,
           upgrades: {},
+          darkness: 0,
           resultReady: app.lastResult !== null,
           controlled: null,
           supports: noSupports(),
@@ -379,6 +382,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         hq: [hq(0), hq(1)],
         timer: s.timer ? s.timer.secondsLeft : null,
         upgrades: { ...session.battle.config.upgrades },
+        darkness: app.darkness,
         resultReady: app.lastResult !== null,
         controlled:
           under && under.alive

@@ -23,15 +23,11 @@ function levels(build: (i: number) => UpgradeEffect[]): UpgradeEffect[][] {
   return [build(0), build(1), build(2)];
 }
 
-function pct(muls: readonly number[]): string {
-  return muls.map((m) => `+${Math.round((m - 1) * 100)}%`).join(' / ');
-}
-
 function unitHealth(id: string, unit: UnitKind, name: string, what: string): UpgradeDef {
   return {
     id,
     name,
-    description: `${what} Health ${pct(HEALTH)}.`,
+    description: what,
     unit,
     levels: levels((i) => [{ stat: 'unitHealth', unit, mul: HEALTH[i] }]),
     costPerLevel: POINTS_PER_LEVEL,
@@ -42,7 +38,7 @@ function unitDamage(id: string, unit: UnitKind, name: string, what: string): Upg
   return {
     id,
     name,
-    description: `${what} Damage ${pct(DAMAGE)}.`,
+    description: what,
     unit,
     levels: levels((i) => [{ stat: 'unitDamage', unit, mul: DAMAGE[i] }]),
     costPerLevel: POINTS_PER_LEVEL,
@@ -54,7 +50,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'sapperDrill',
     name: 'Sapper Drill',
-    description: `Sappers march faster (${pct(SAPPER_SPEED)}) and carry more per trip (${pct(SAPPER_CARRY)}).`,
+    description: 'Sappers march faster and carry more per trip.',
     unit: null,
     levels: levels((i) => [
       { stat: 'sapperSpeed', mul: SAPPER_SPEED[i] },
@@ -65,7 +61,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'hqIncome',
     name: 'Requisition Orders',
-    description: `The HQ draws more supplies from the rear. Passive income ${pct(HQ_INCOME)}.`,
+    description: 'The HQ draws more supplies from the rear.',
     unit: null,
     levels: levels((i) => [{ stat: 'hqIncome', mul: HQ_INCOME[i] }]),
     costPerLevel: POINTS_PER_LEVEL,
@@ -73,7 +69,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'hqHealth',
     name: 'Sandbagged HQ',
-    description: `Extra sandbags and timber on the command post. HQ health ${pct(HQ_HEALTH)}.`,
+    description: 'Extra sandbags and timber on the command post.',
     unit: null,
     levels: levels((i) => [{ stat: 'hqHealth', mul: HQ_HEALTH[i] }]),
     costPerLevel: POINTS_PER_LEVEL,
@@ -81,7 +77,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'hqGun',
     name: 'HQ Vickers Gun',
-    description: `A better-served HQ machine gun. Damage ${pct(HQ_GUN_DAMAGE)}, rate of fire ${pct(HQ_GUN_RATE)}.`,
+    description: 'A better-served HQ machine gun: it hits harder and fires faster.',
     unit: null,
     levels: levels((i) => [
       { stat: 'hqGunDamage', mul: HQ_GUN_DAMAGE[i] },
@@ -103,7 +99,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'medicHealing',
     name: 'Field Dressings',
-    description: `Medics carry better kit. Healing rate ${pct(HEALING)}.`,
+    description: 'Medics carry better kit and patch men up faster.',
     unit: 'medic',
     levels: levels((i) => [{ stat: 'unitHeal', unit: 'medic', mul: HEALING[i] }]),
     costPerLevel: POINTS_PER_LEVEL,
