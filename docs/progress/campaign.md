@@ -1,4 +1,5 @@
-# Track campaign (Phase 3: campaign flow, Quartermaster, difficulties, saving in the real game)
-Done (milestone 1, committed): save v2 with migration (v1 -> v2 adds lastMission), SaveRules (mission ids, upgrade table) that drop progress with gaps, unknown upgrades, levels over the maximum and points spent over points earned; fuzz tests on garbage. App: real UPGRADES by default, darkness from timer.progress, airdrop and plain-wave notices, `{label}` in the deadline defeat text, difficulty remembered when a mission starts or on the briefing buttons, map opens on the last mission played. Debug hooks unlockAll, setUpgrades, save, missions, result, state().upgrades. Unit tests: meta-save (32), app-campaign (27).
-In progress: browser specs tests/e2e/campaign.spec.ts and missions.spec.ts, smoke.spec key list.
-Next: look at the 10-pin map, briefing, Quartermaster with 20 upgrades and each mission in screenshots; fix UI problems found; DECISIONS 141+; final report.
+# Track campaign (Phase 3: campaign flow, Quartermaster, difficulties, saving in the real game): DONE
+Done: save v2 + migration + SaveRules clamping + fuzz tests; real UPGRADES in the app; darkness from timer.progress; airdrop and plain-wave banners; `{label}` deadline defeat text; difficulty remembered; map opens on the last mission; debug hooks unlockAll, setUpgrades, save, missions, result, state().upgrades/darkness; HUD objective wraps to two lines; Quartermaster descriptions without repeated percentages.
+Tests: unit meta-save (32), app-campaign (27); browser campaign.spec.ts (13) and missions.spec.ts (10) plus the old specs: 70 browser tests green on a fresh build. Pictures docs/screenshots/e2e-campaign-*.png, e2e-mission-NN*.png looked at.
+Checks on the final tree: typecheck, sim typecheck, lint (0 warnings), 42 unit files (634 tests), build, 70 browser tests.
+Open: see docs/PROGRESS.md known issues (campaign line). DECISIONS 158 to 166.

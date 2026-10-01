@@ -362,10 +362,17 @@
   box-shadow: 0 2px 6px var(--th-shadow);
 }
 
+/* A long objective ("Clear the beach defences, beat the panzers and destroy the German HQ.") wraps to two lines. */
 .th-obj-text {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .th-obj-time {
