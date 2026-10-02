@@ -8,6 +8,7 @@ import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
 import { browserStorage, createIconPainter, installPageGuards } from './app/page';
+import { withStorageFallback } from './meta';
 import { registerServiceWorker } from './pwa';
 import { createBattleView } from './render';
 import { createUi } from './ui';
@@ -24,7 +25,14 @@ async function boot(): Promise<void> {
   const audio = createAudio();
   // The HUD is loaded here, before the UI exists, so it is never missing at the first frame of a battle.
   const [view, { createHud }] = await Promise.all([createBattleView(gameEl), import('./ui/hud')]);
-  const app = new App({ view, audio, storage: browserStorage() });
+  // Whatever is stored in this browser (an old save, damaged data, settings from a newer version), the game starts:
+  // loading falls back to defaults by itself, and if building the app on the stored data still throws, it is built
+  // again on an empty store.
+  const app = withStorageFallback(
+    browserStorage(),
+    (storage) => new App({ view, audio, storage }),
+    (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
+  );
   const ui = createUi(uiEl, app, {
     paintUnitIcon: createIconPainter(app),
     createHud,

@@ -77,7 +77,11 @@ export interface SaveData {
   settings: SaveSettings;
 }
 
-export type LoadStatus = 'ok' | 'fresh' | 'corrupt';
+/**
+ * ok = read as stored (after any version upgrade); fresh = nothing stored; corrupt = unusable, defaults given;
+ * repaired = upgrading or checking it failed, so progress was kept and the settings went back to defaults.
+ */
+export type LoadStatus = 'ok' | 'fresh' | 'corrupt' | 'repaired';
 
 export interface LoadResult {
   data: SaveData;
@@ -240,7 +244,22 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
   return out;
 }
 
-/** Read the save. A missing or damaged entry, or a storage that throws, gives defaults. */
+/** Copy a stored save that could not be used as it was into its own slot, so the next write does not destroy it. */
+function keepUnreadable(storage: StorageLike | null, text: string): void {
+  if (!storage || text.length > META.unreadableMaxChars) return;
+  try {
+    storage.setItem(META.unreadableKey, text);
+  } catch {
+    // A full or read-only storage: nothing more can be done, and loading must go on.
+  }
+}
+
+/**
+ * Read the save. Never throws, whatever is stored: a missing or damaged entry, or a storage that throws, gives
+ * defaults. Checking and upgrading a save are written not to throw either, but if a step ever does (a mistake in a
+ * migration, a half-updated copy of the game), the player loses the settings at most, never the start of the game:
+ * the save is read again without its settings, and only if that fails too does a fresh save take its place.
+ */
 export function loadSave(storage: StorageLike | null, rules: SaveRules = {}): LoadResult {
   let text: string | null;
   try {
@@ -253,10 +272,42 @@ export function loadSave(storage: StorageLike | null, rules: SaveRules = {}): Lo
   try {
     parsed = JSON.parse(text);
   } catch {
+    keepUnreadable(storage, text);
     return { data: defaultSave(), status: 'corrupt' };
   }
-  const data = sanitizeSave(parsed, rules);
-  return data ? { data, status: 'ok' } : { data: defaultSave(), status: 'corrupt' };
+  try {
+    const data = sanitizeSave(parsed, rules);
+    if (data) return { data, status: 'ok' };
+    keepUnreadable(storage, text);
+    return { data: defaultSave(), status: 'corrupt' };
+  } catch {
+    keepUnreadable(storage, text);
+  }
+  try {
+    const data = isRecord(parsed) ? sanitizeSave({ ...parsed, settings: undefined }, rules) : null;
+    if (data) return { data, status: 'repaired' };
+  } catch {
+    // Not even the progress could be read: a fresh save it is.
+  }
+  return { data: defaultSave(), status: 'corrupt' };
+}
+
+/**
+ * Build something on the real storage; if what is stored there makes that throw, report it and build again on an
+ * empty in-memory store. The last line of defence at start-up: saved data can never stop the game from starting.
+ * The stored data is left untouched, and that session runs on defaults without saving.
+ */
+export function withStorageFallback<T>(
+  storage: StorageLike,
+  build: (storage: StorageLike) => T,
+  report: (err: unknown) => void,
+): T {
+  try {
+    return build(storage);
+  } catch (err) {
+    report(err);
+    return build(createMemoryStorage());
+  }
 }
 
 /** Write the save. Returns false when there is no storage or it refused (full, private mode). */

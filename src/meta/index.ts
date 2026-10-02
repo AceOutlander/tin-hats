@@ -27,6 +27,7 @@ export {
   migrateSave,
   sanitizeSave,
   VOLUME_KEYS,
+  withStorageFallback,
   writeSave,
   type LoadResult,
   type LoadStatus,

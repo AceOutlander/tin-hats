@@ -7,6 +7,13 @@ export interface MetaTunables {
   saveKey: string;
   /** Written into every save; a save from a newer version is not understood and is replaced, an older one is migrated step by step (src/meta/save.ts). */
   saveVersion: number;
+  /**
+   * Where a stored save that could not be used as it was (damaged, from a newer version, or one whose upgrade failed)
+   * is copied before the game carries on, so it is not lost when the next save overwrites it. One slot; longer texts
+   * than unreadableMaxChars are not kept.
+   */
+  unreadableKey: string;
+  unreadableMaxChars: number;
   /** Upgrade points for the first clear of a mission (on any difficulty). */
   firstClearPoints: number;
   /** Upgrade levels per upgrade (an upgrade definition may have fewer). */
@@ -31,6 +38,8 @@ export interface MetaTunables {
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
   saveVersion: 4,
+  unreadableKey: 'tinhats.save.unreadable',
+  unreadableMaxChars: 100_000,
   firstClearPoints: 2,
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',
