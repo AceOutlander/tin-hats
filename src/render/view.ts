@@ -553,6 +553,7 @@ export class BattleViewImpl implements BattleView {
     };
     for (const [name, layer] of Object.entries(layers.byName)) count(name, layer);
     layers.rows.forEach((layer, i) => count(`unitRow${i}`, layer));
+    layers.pips.forEach((layer, i) => count(`pipsRow${i}`, layer));
     count('glow', layers.glow);
     count('lit', layers.lit);
     count('grade', layers.grade);
@@ -585,6 +586,7 @@ export class BattleViewImpl implements BattleView {
     if (this.layers) {
       for (const l of Object.values(this.layers.byName)) count(l.getChildren());
       for (const l of this.layers.rows) count(l.getChildren());
+      for (const l of this.layers.pips) count(l.getChildren());
       count(this.layers.glow.getChildren());
       count(this.layers.lit.getChildren());
       count(this.layers.grade.getChildren());

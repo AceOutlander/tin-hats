@@ -4,6 +4,7 @@
  * and keep their insertion order inside it, so the scene never re-sorts.
  */
 import Phaser from 'phaser';
+import { RENDER } from '../data/render';
 import { DEPTH, VIEW } from '../data/view';
 
 export type LayerName = Exclude<keyof typeof DEPTH, 'unitRow0'>;
@@ -13,6 +14,11 @@ export interface Layers {
   readonly byName: Record<LayerName, Phaser.GameObjects.Layer>;
   /** Unit row r draws at DEPTH.unitRow0 + r (0 = farthest). */
   readonly rows: Phaser.GameObjects.Layer[];
+  /**
+   * Health pips of the units on row r, just over that row (DEPTH.unitRow0 + r + RENDER.unit.pipRowLift): over every
+   * man of their own row, under every nearer row, so a tank in front hides the pips of the men behind it.
+   */
+  readonly pips: Phaser.GameObjects.Layer[];
   /**
    * Additive (glow) effects: muzzle flashes, sparks and blast flares. They sit above the night tint, so they
    * stay bright against it, and in their own layer so blend changes do not break up the effects batch.
@@ -33,10 +39,14 @@ export function createLayers(scene: Phaser.Scene): Layers {
     byName[name] = layer;
   }
   const rows: Phaser.GameObjects.Layer[] = [];
+  const pips: Phaser.GameObjects.Layer[] = [];
   for (let r = 0; r < VIEW.rows; r++) {
     const layer = scene.add.layer();
     layer.setDepth(DEPTH.unitRow0 + r);
     rows.push(layer);
+    const pipLayer = scene.add.layer();
+    pipLayer.setDepth(DEPTH.unitRow0 + r + RENDER.unit.pipRowLift);
+    pips.push(pipLayer);
   }
   const glow = scene.add.layer();
   glow.setDepth(DEPTH.nightTint + 0.5);
@@ -44,7 +54,7 @@ export function createLayers(scene: Phaser.Scene): Layers {
   lit.setDepth(DEPTH.nightTint + 0.25);
   const grade = scene.add.layer();
   grade.setDepth((DEPTH.nearBackdrop + DEPTH.ground) / 2);
-  return { byName, rows, glow, lit, grade };
+  return { byName, rows, pips, glow, lit, grade };
 }
 
 /** Make an Image that is not on any display list yet, then add it to `layer`. */

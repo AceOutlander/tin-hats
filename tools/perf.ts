@@ -441,7 +441,10 @@ async function main(): Promise<number> {
     console.log(row('SIM + RENDER + HUD (budget)', report.js));
     console.log(row('Phaser draw (informational)', report.draw));
     console.log(row('frame interval', report.interval));
-    console.log(`  main thread CPU per frame      ${result.cpuMsPerFrame.toFixed(2)} ms (of which script ${result.scriptMsPerFrame.toFixed(2)} ms) (CPU time, so other programs on the machine do not inflate it)`);
+    // Under CPU throttling Chrome stretches tasks with idle waits: ThreadTime stays real CPU time while ScriptDuration is
+    // wall time, so the script figure is then the larger one and is labelled as such.
+    const scriptNote = cpu > 1 ? `script wall time ${result.scriptMsPerFrame.toFixed(2)} ms, stretched by the x${cpu} throttle` : `of which script ${result.scriptMsPerFrame.toFixed(2)} ms`;
+    console.log(`  main thread CPU per frame      ${result.cpuMsPerFrame.toFixed(2)} ms (${scriptNote}) (CPU time, so other programs on the machine do not inflate it)`);
     console.log(
       `live objects: ${result.units.avg.toFixed(0)} units (${result.units.min} to ${result.units.max}), ${result.live.unitViews} unit views (${result.live.unitViewsDrawn} drawn), ` +
         `${result.live.images} images (${result.live.visible} visible), particles avg ${result.live.particlesAvg} peak ${result.live.particlesPeak}, tracers peak ${result.live.tracersPeak}`,

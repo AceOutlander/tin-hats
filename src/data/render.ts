@@ -63,6 +63,11 @@ export const RENDER = {
     pipH: 2.4,
     pipGap: 1.2,
     pipLift: 9,
+    /**
+     * The pips of row r draw at DEPTH.unitRow0 + r + pipRowLift: over their own row, under the nearer rows (a tank in
+     * front hides the pips of the men behind it). Below 0.5 so they stay under the pillboxes between rows 1 and 2.
+     */
+    pipRowLift: 0.25,
     /** Pip colours (0xRRGGBB): filled for each side, empty, and the dark backing. */
     pipFill: [0x9fd36a, 0xe0a050] as readonly number[],
     pipEmpty: 0x3a3a34,

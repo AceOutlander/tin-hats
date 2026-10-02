@@ -132,11 +132,13 @@ abstract class UnitViewBase {
     this.shadow = addImage(scene, layers.byName.shadows, reg.get(RENDER_KEYS.shadow).frame);
     this.shadow.setTint(0x000000);
     this.shadow.visible = false;
-    this.pipBack = addImage(scene, layers.byName.markers, reg.get(RENDER_KEYS.whiteTL).frame);
+    // On the row's own pip layer, not the shared markers layer: a nearer tank must cover the pips of the men behind it.
+    const pipLayer = layers.pips[row];
+    this.pipBack = addImage(scene, pipLayer, reg.get(RENDER_KEYS.whiteTL).frame);
     this.pipBack.setTint(U.pipBack);
     this.pipBack.visible = false;
     for (let i = 0; i < U.pips; i++) {
-      const p = addImage(scene, layers.byName.markers, reg.get(RENDER_KEYS.whiteTL).frame);
+      const p = addImage(scene, pipLayer, reg.get(RENDER_KEYS.whiteTL).frame);
       p.visible = false;
       this.pips.push(p);
       this.pipTint.push(-1);
