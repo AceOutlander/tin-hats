@@ -22,6 +22,7 @@ import {
   ONE_SHOT_NAMES,
   SOUNDS,
   VOLUME,
+  CATALOGUE_LEVEL,
   busOf,
   layerGainSum,
   volumeGain,
@@ -260,6 +261,8 @@ class AudioEngine implements GameAudio {
   private readonly buffers: AudioBuffer[][] = [];
   /** Channel gain that brings a live-built sound to roughly its target level. */
   private readonly liveGain: number[] = [];
+  /** Per sound: its bus's catalogue level (CATALOGUE_LEVEL), so it plays as mixed at the default sliders. */
+  private readonly catalogue: number[] = [];
   private readonly lastTime: number[] = [];
   private readonly lastLoud: number[] = [];
   private readonly voices: Voice[] = [];
@@ -287,6 +290,7 @@ class AudioEngine implements GameAudio {
       this.defs.push(def);
       this.buffers.push([]);
       this.liveGain.push(def.volume / Math.max(def.volume, layerGainSum(def)));
+      this.catalogue.push(CATALOGUE_LEVEL[busOf(def)]);
       this.lastTime.push(-Infinity);
       this.lastLoud.push(0);
     }
@@ -831,10 +835,10 @@ class AudioEngine implements GameAudio {
       source.connect(voice.gain);
       source.start(when);
       voice.sources.push(source);
-      level = volume;
+      level = volume * this.catalogue[index];
       end = when + buffer.duration / rate;
     } else {
-      level = volume * this.liveGain[index];
+      level = volume * this.liveGain[index] * this.catalogue[index];
       end = buildOneShot(ctx, def, voice.gain, when, this.rng, this.bank, rate, voice.sources);
     }
     voice.gain.gain.cancelScheduledValues(now);
@@ -915,7 +919,7 @@ class AudioEngine implements GameAudio {
     } else {
       this.holdParam(gain.gain, now);
     }
-    gain.gain.linearRampToValueAtTime(loop.def.volume * loop.wanted, now + loop.def.fadeIn);
+    gain.gain.linearRampToValueAtTime(loop.def.volume * loop.wanted * CATALOGUE_LEVEL[busOf(loop.def)], now + loop.def.fadeIn);
   }
 
   /** Freezes a parameter at whatever value its automation has reached, ready for a new ramp. */

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAudio, LOOP_NAMES, ONE_SHOT_NAMES, SOUND_NAMES, type GameAudio } from '../../src/audio';
 import { MENU_STORM } from '../../src/data/menuStorm';
-import { AUDIO, LOOPS, SOUNDS, VOLUME, busOf, soundDuration, volumeGain } from '../../src/data/sounds';
+import { AUDIO, CATALOGUE_LEVEL, LOOPS, SOUNDS, VOLUME, busOf, layerGainSum, soundDuration, volumeGain, type SoundDef } from '../../src/data/sounds';
 
 /**
  * A stand-in for the WebAudio graph that records what the engine asks of it.
@@ -659,5 +659,57 @@ describe('the three mix buses: Music, Ambience and Sound effects', () => {
       expect(target).toBeGreaterThanOrEqual(range[0]);
       expect(target).toBeLessThanOrEqual(range[1]);
     });
+  });
+});
+
+describe('the sound catalogue plays as it was mixed at the default sliders', () => {
+  /** What a sound's channel gain was when the catalogue was mixed (every slider at full, no lift): the live-build level. */
+  const mixedLevel = (name: keyof typeof SOUNDS): number => {
+    const def = SOUNDS[name] as SoundDef;
+    return def.volume / Math.max(def.volume, layerGainSum(def));
+  };
+
+  it('lifts each bus by exactly what the default slider takes off, whatever the defaults are', () => {
+    for (const bus of ['music', 'ambience', 'sfx'] as const) {
+      expect(volumeGain(VOLUME.defaults[bus]) * CATALOGUE_LEVEL[bus], bus).toBeCloseTo(volumeGain(VOLUME.catalogueMixedAt[bus]), 12);
+      expect(VOLUME.catalogueMixedAt[bus], bus).toBe(100);
+    }
+  });
+
+  it('plays every bus at its reference level at the default sliders: weapons, the UI, battle thunder and the stings', () => {
+    const { audio, ctx } = withFake();
+    const [sfx, bed, music, ambience] = ctx.nodes;
+    // The buses start at the default slider positions.
+    expect(sfx.gain.value).toBeCloseTo(volumeGain(VOLUME.defaults.sfx), 12);
+    const busOfNode = new Map<unknown, number>([
+      [sfx, sfx.gain.value],
+      [bed, bed.gain.value * sfx.gain.value],
+      [music, music.gain.value],
+      [ambience, ambience.gain.value],
+    ]);
+    for (const name of ['rifleShot', 'uiClick', 'explosionLarge', 'thunder', 'victorySting'] as const) {
+      ctx.currentTime += 60;
+      audio.play(name);
+      const panner = ctx.nodes.filter((node) => node.kind === 'panner' && node.pan.events.length > 0).at(-1);
+      const channel = ctx.nodes.find((node) => node.kind === 'gain' && node.outputs.includes(panner));
+      const set = channel?.gain.last('set')?.[1] ?? Number.NaN;
+      const busGain = busOfNode.get(panner?.outputs[0]) ?? Number.NaN;
+      // The channel's level times its bus's gain is what the sound had when it was mixed (bus at 1, no lift).
+      expect(set * busGain, name).toBeCloseTo(mixedLevel(name), 9);
+    }
+  });
+
+  it('plays the battle rain loop at its reference level, and leaves the title storm and music to their own levels', () => {
+    const { audio, ctx } = withFake();
+    const ambience = ctx.nodes[3];
+    const made = ctx.nodes.length;
+    audio.startLoop('rain', 1);
+    const loopGain = ctx.nodes.slice(made).find((node) => node.kind === 'gain' && node.outputs.includes(ambience));
+    expect((loopGain?.gain.last('linear')?.[1] ?? Number.NaN) * ambience.gain.value).toBeCloseTo(LOOPS.rain.volume, 9);
+    // The title's rain bed is not lifted: its own data level, on the bus at the default slider.
+    const before = ctx.nodes.length;
+    audio.startRainBed();
+    const bedOut = ctx.nodes.slice(before).find((node) => node.kind === 'gain' && node.outputs.includes(ambience));
+    expect(bedOut?.gain.last('linear')?.[1]).toBeCloseTo(MENU_STORM.rainAudio.volume, 12);
   });
 });

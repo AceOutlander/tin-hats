@@ -30,11 +30,29 @@ export const AUDIO_BUSES: readonly AudioBus[] = ['music', 'ambience', 'sfx'];
 /** The volume sliders: what a fresh save starts on (0..100), and how a slider position becomes a bus gain. */
 export const VOLUME = {
   defaults: { music: 80, ambience: 80, sfx: 80 } as Readonly<Record<AudioBus, number>>,
+  /**
+   * The slider positions the sound catalogue below (SOUNDS and LOOPS: battle sounds, the UI, the stings, the battle
+   * rain and thunder) was mixed at. It was balanced with every slider at full; see CATALOGUE_LEVEL.
+   */
+  catalogueMixedAt: { music: 100, ambience: 100, sfx: 100 } as Readonly<Record<AudioBus, number>>,
   /** Slider 0..100 to gain: (value / 100) ^ curve. 2 makes the middle of the slider about 12 dB down, close to half as loud. */
   curve: 2,
   /** Time constant (s) of the glide to a new bus gain, so dragging a slider never clicks. */
   glide: 0.04,
 } as const;
+
+/**
+ * How much each bus lifts the sound catalogue (every SOUNDS and LOOPS entry) so that at the DEFAULT slider positions
+ * it plays exactly as loud as it was mixed (at VOLUME.catalogueMixedAt): the default sliders sit below full to leave
+ * headroom for the title's music and storm, and the battle must not get quieter for it. The title's storm and music
+ * have levels of their own (src/data/menuStorm.ts, src/data/music.ts) and are not lifted. The sliders themselves work
+ * as before on top of this.
+ */
+export const CATALOGUE_LEVEL: Readonly<Record<AudioBus, number>> = {
+  music: volumeGain(VOLUME.catalogueMixedAt.music) / volumeGain(VOLUME.defaults.music),
+  ambience: volumeGain(VOLUME.catalogueMixedAt.ambience) / volumeGain(VOLUME.defaults.ambience),
+  sfx: volumeGain(VOLUME.catalogueMixedAt.sfx) / volumeGain(VOLUME.defaults.sfx),
+};
 
 export interface FilterDef {
   kind: FilterKind;

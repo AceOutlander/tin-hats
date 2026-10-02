@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin Hats battle loudness</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 10px 14px;
+        background: #15170f;
+        color: #d8d6c4;
+        font: 12px/1.35 ui-monospace, Consolas, 'Courier New', monospace;
+      }
+      td,
+      th {
+        padding: 2px 8px;
+        text-align: right;
+        border-bottom: 1px solid #2c2f22;
+      }
+      td:first-child,
+      th:first-child {
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Battle sounds through the engine, measured</h1>
+    <p id="what">Rendering...</p>
+    <table id="out"></table>
+    <script type="module" src="./battle-loudness.ts"></script>
+  </body>
+</html>

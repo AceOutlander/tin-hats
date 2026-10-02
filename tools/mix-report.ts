@@ -49,7 +49,9 @@ async function main(): Promise<number> {
       return 1;
     }
     const { track, mix } = out;
-    const f = (n: number): string => n.toFixed(1).padStart(6);
+    // --precise prints three decimals (to show that two runs agree exactly, not just to the tenth).
+    const digits = process.argv.includes('--precise') ? 3 : 1;
+    const f = (n: number): string => n.toFixed(digits).padStart(digits + 5);
     console.log(`track: ${track.seconds.toFixed(1)} s, rendered in ${track.renderMs.toFixed(0)} ms, raw peak ${track.rawPeak.toFixed(3)}`);
     console.log(`sliders music ${mix.sliders.music}, ambience ${mix.sliders.ambience}, sfx ${mix.sliders.sfx}; thunder loudness ${mix.thunderLoudness.toFixed(2)}`);
     console.log('                                  full   phone');
@@ -68,8 +70,9 @@ async function main(): Promise<number> {
     row('thunder peak over bed', 'thunderPeakOverBed');
     const c = mix.chain;
     const a = mix.chainAtFull;
-    console.log(`chain at defaults: output peak ${c.outputPeak.toFixed(2)}, bed reduction ${c.bedReductionDb.toFixed(1)} dB, max ${c.maxReductionDb.toFixed(1)} dB, ${c.pumpSeconds.toFixed(2)} s pumping`);
-    console.log(`chain at full:     output peak ${a.outputPeak.toFixed(2)}, bed reduction ${a.bedReductionDb.toFixed(1)} dB, max ${a.maxReductionDb.toFixed(1)} dB, ${a.pumpSeconds.toFixed(2)} s pumping`);
+    const p = digits + 1;
+    console.log(`chain at defaults: output peak ${c.outputPeak.toFixed(p)}, bed reduction ${c.bedReductionDb.toFixed(digits)} dB, max ${c.maxReductionDb.toFixed(digits)} dB, ${c.pumpSeconds.toFixed(2)} s pumping`);
+    console.log(`chain at full:     output peak ${a.outputPeak.toFixed(p)}, bed reduction ${a.bedReductionDb.toFixed(digits)} dB, max ${a.maxReductionDb.toFixed(digits)} dB, ${a.pumpSeconds.toFixed(2)} s pumping`);
     if (process.argv.includes('--series')) {
       console.log(`reduction at defaults, every 0.05 s: ${c.series.map((r) => r.toFixed(1)).join(' ')}`);
     }
