@@ -20,6 +20,22 @@ export type WaveShape = 'sine' | 'triangle' | 'square' | 'sawtooth';
 export type NoiseColor = 'white' | 'pink' | 'brown';
 export type FilterKind = 'lowpass' | 'highpass' | 'bandpass';
 
+/**
+ * The three mix buses, each with its own volume slider in Settings. Music: actual music and the victory and defeat
+ * stings. Ambience: rain and thunder, on the title screen and in battle. Sound effects: everything else.
+ */
+export type AudioBus = 'music' | 'ambience' | 'sfx';
+export const AUDIO_BUSES: readonly AudioBus[] = ['music', 'ambience', 'sfx'];
+
+/** The volume sliders: what a fresh save starts on (0..100), and how a slider position becomes a bus gain. */
+export const VOLUME = {
+  defaults: { music: 100, ambience: 100, sfx: 100 } as Readonly<Record<AudioBus, number>>,
+  /** Slider 0..100 to gain: (value / 100) ^ curve. 2 makes the middle of the slider about 12 dB down, close to half as loud. */
+  curve: 2,
+  /** Time constant (s) of the glide to a new bus gain, so dragging a slider never clicks. */
+  glide: 0.04,
+} as const;
+
 export interface FilterDef {
   kind: FilterKind;
   /** Cutoff or centre frequency in Hz at the start of the layer. */
@@ -110,6 +126,8 @@ export interface SoundDef {
    * so a shell is heard over an army firing without being made louder than the compressor would allow.
    */
   duck?: { depth: number; seconds: number };
+  /** Mix bus (see AudioBus). Default 'sfx'. */
+  bus?: AudioBus;
 }
 
 export interface LoopToneLayer {
@@ -139,6 +157,8 @@ export interface LoopDef {
   /** Fade times in seconds. */
   fadeIn: number;
   fadeOut: number;
+  /** Mix bus (see AudioBus). Default 'sfx'. */
+  bus?: AudioBus;
 }
 
 /** Engine and mix constants. */
@@ -757,7 +777,7 @@ export const SOUNDS = {
       ...brass(1.08, NOTE.Bb3, 0.85, 0.5),
     ],
     0.5,
-    { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0 },
+    { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0, bus: 'music' },
   ),
 
   /** Defeat: an original slow falling phrase in D minor on darker, muted brass. */
@@ -774,7 +794,7 @@ export const SOUNDS = {
       ...brass(1.3, NOTE.D3, 1.1, 0.5, 0.5, 0.06),
     ],
     0.5,
-    { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0 },
+    { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0, bus: 'music' },
   ),
 
   /** Thunder: a sharp crack and a tearing sound, then a boom and a long low roll. Randomised per render and per play. */
@@ -791,7 +811,7 @@ export const SOUNDS = {
       thunderRoll(3, 0.45),
     ],
     0.75,
-    { minInterval: 1.5, maxVoices: 2, priority: 1, pitchJitter: 0.12, variants: 3 },
+    { minInterval: 1.5, maxVoices: 2, priority: 1, pitchJitter: 0.12, variants: 3, bus: 'ambience' },
   ),
 } satisfies Record<string, SoundDef>;
 
@@ -806,6 +826,7 @@ export const LOOPS = {
     volume: 0.1,
     fadeIn: 1.5,
     fadeOut: 1.5,
+    bus: 'ambience',
   },
 
   /**
@@ -893,6 +914,23 @@ export function soundDuration(def: SoundDef): number {
     if (stop > end) end = stop;
   }
   return end;
+}
+
+/** The mix bus a sound or loop plays on. */
+export function busOf(def: SoundDef | LoopDef): AudioBus {
+  return def.bus ?? 'sfx';
+}
+
+/** A volume slider position (anything) as a whole number from 0 to 100; `fallback` when it is not a finite number. */
+export function clampVolume(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+/** The gain a bus runs at for a slider position 0..100. */
+export function volumeGain(value: number): number {
+  const v = Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0)) / 100;
+  return Math.pow(v, VOLUME.curve);
 }
 
 /** Sum of the layer levels: an upper bound on the peak of a sound before it is normalised. */

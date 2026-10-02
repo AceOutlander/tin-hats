@@ -164,6 +164,32 @@ export interface SettingsView {
   muted: boolean;
   difficulty: Difficulty;
   hints: boolean;
+  /** Volume sliders, whole numbers 0..100: Music (music and the stings), Ambience (rain and thunder), Sound effects (everything else). */
+  musicVolume: number;
+  ambienceVolume: number;
+  sfxVolume: number;
+  /** Lightning as a slow soft glow instead of sharp flashes, for photosensitive players. */
+  reduceFlash: boolean;
+}
+
+/**
+ * Raindrops running down the title panel (src/fx/menuStorm.ts PanelDrops). The same object every frame; only the first
+ * `count` entries are valid. Positions are fractions of the panel, so the UI scales them to whatever size it is.
+ */
+export interface PanelDropsState {
+  count: number;
+  /** 0..1 across the panel. */
+  readonly x: Float32Array;
+  /** 0..1 down the panel: the head of the drop. */
+  readonly y: Float32Array;
+  /** Length of the wet trail above the head, as a fraction of the panel height. */
+  readonly trail: Float32Array;
+  /** Radius of the head in CSS px. */
+  readonly size: Float32Array;
+  /** Opacity 0..1 (drops fade in where they form). */
+  readonly alpha: Float32Array;
+  /** Changes whenever the drops moved. */
+  version: number;
 }
 
 export interface CampaignView {
@@ -217,6 +243,8 @@ export interface UiApi {
   current(): ScreenId;
   /** Called every rendered frame during a battle. Must not allocate and must only write to the DOM on change. */
   updateHud(state: HudState): void;
+  /** Called every frame while the title storm runs: the drops running down the title panel. Must not allocate. */
+  updateTitleDrops(drops: PanelDropsState): void;
   /** Re-read campaign(), e.g. after the save changed. */
   refresh(): void;
 }

@@ -236,7 +236,15 @@ test.describe('campaign', () => {
         const fresh = await memorySave(page);
         expect(fresh.cleared).toEqual({});
         expect(fresh.upgrades).toEqual({});
-        expect(fresh.settings).toEqual({ muted: META.defaultMuted, difficulty: META.defaultDifficulty, hints: META.defaultHints });
+        expect(fresh.settings).toEqual({
+          muted: META.defaultMuted,
+          difficulty: META.defaultDifficulty,
+          hints: META.defaultHints,
+          musicVolume: META.defaultMusicVolume,
+          ambienceVolume: META.defaultAmbienceVolume,
+          sfxVolume: META.defaultSfxVolume,
+          reduceFlash: META.defaultReduceFlash,
+        });
         await tap(page, 'play');
         await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
         expect(await pinStates(page)).toEqual(['open', ...Array<string>(9).fill('locked')]);
@@ -266,7 +274,16 @@ test.describe('campaign', () => {
       expect(migrated.version).toBe(META.saveVersion);
       expect(migrated.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
       expect(migrated.upgrades).toEqual({ rifleHealth: 1 });
-      expect(migrated.settings).toEqual({ muted: true, difficulty: 'hard', hints: false });
+      // The volumes and reduce flashing did not exist in version 1: they come in at their defaults.
+      expect(migrated.settings).toEqual({
+        muted: true,
+        difficulty: 'hard',
+        hints: false,
+        musicVolume: META.defaultMusicVolume,
+        ambienceVolume: META.defaultAmbienceVolume,
+        sfxVolume: META.defaultSfxVolume,
+        reduceFlash: META.defaultReduceFlash,
+      });
       await tap(page, 'play');
       expect(await pinStates(page)).toEqual(['cleared', 'cleared', 'open', ...Array<string>(7).fill('locked')]);
       expect(await pointsLeft(page, 'campaign'), 'four points earned, one spent').toBe(3);

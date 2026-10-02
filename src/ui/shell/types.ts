@@ -1,6 +1,6 @@
 /** Types shared by the UI shell and the menu screens. */
 import type { Difficulty } from '../../data/schema';
-import type { AppApi, CampaignView, HudState, ResultView, ScreenId } from '../contracts';
+import type { AppApi, CampaignView, HudState, PanelDropsState, ResultView, ScreenId } from '../contracts';
 import type { PaintUnitIcon } from './icons';
 
 /** What the HUD track's createHud returns (src/ui/hud/index.ts). */
@@ -87,6 +87,8 @@ export interface ScreenView {
   destroy?(): void;
   /** Arrow keys and other screen-specific shortcuts; return true if handled. */
   key?(ev: KeyboardEvent): boolean;
+  /** The title storm's drops on the panel moved (every frame while it runs). Must not allocate. */
+  drops?(state: PanelDropsState): void;
 }
 
 export type ScreenFactory = (ctx: ScreenCtx) => ScreenView;

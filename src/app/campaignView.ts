@@ -90,7 +90,7 @@ export function buildCampaignView(save: SaveData, missions: readonly MissionDef[
     pointsSpent: pointsSpent(save, defs),
     pointsAvailable: pointsAvailable(save, defs),
     upgrades: defs.map((d) => upgradeView(save, defs, d)),
-    settings: { muted: save.settings.muted, difficulty: save.settings.difficulty, hints: save.settings.hints },
+    settings: { ...save.settings },
     difficulties: DIFFICULTY_LIST.map((id) => ({ id, name: DIFFICULTIES[id].name })),
   };
 }

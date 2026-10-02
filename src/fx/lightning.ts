@@ -168,6 +168,8 @@ export interface LightningFx {
   readonly boltAlpha: number;
   /** True while a flash is playing. */
   readonly active: boolean;
+  /** Seconds since the last strike began (Infinity before the first): what a softer envelope ("Reduce flashing") plays from. */
+  readonly sinceStrike: number;
   /**
    * Start a strike somewhere across the visible strip [viewLeft, viewLeft + viewWidth]
    * (any consistent x units; the bolt comes back in the same space, y in view wu).
@@ -182,6 +184,7 @@ class LightningPlayer implements LightningFx {
   flash = 0;
   boltAlpha = 0;
   active = false;
+  sinceStrike = Infinity;
 
   private time = 0;
   private thunderIn = -1;
@@ -205,6 +208,7 @@ class LightningPlayer implements LightningFx {
     const x0 = x1 + (bottom - top) * shape.lean * (rng() * 2 - 1);
     generateBolt(Math.floor(rng() * 4294967296), x0, top, x1, bottom, shape, this.bolt);
     this.time = 0;
+    this.sinceStrike = 0;
     this.active = true;
     this.flash = lightningFlash(0, this.look.flash);
     this.boltAlpha = this.flash;
@@ -215,6 +219,7 @@ class LightningPlayer implements LightningFx {
 
   update(dtSeconds: number): boolean {
     if (!(dtSeconds > 0)) return false;
+    this.sinceStrike += dtSeconds;
     if (this.active) {
       this.time += dtSeconds;
       if (this.time >= this.duration) {

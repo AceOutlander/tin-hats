@@ -66,7 +66,15 @@ export interface StoredSave {
   cleared: Record<string, string[]>;
   upgrades: Record<string, number>;
   lastMission: number;
-  settings: { muted: boolean; hints: boolean; difficulty: string };
+  settings: {
+    muted: boolean;
+    hints: boolean;
+    difficulty: string;
+    musicVolume: number;
+    ambienceVolume: number;
+    sfxVolume: number;
+    reduceFlash: boolean;
+  };
 }
 
 /** The save as it sits in localStorage (parsed), or null when nothing is stored. */

@@ -5,7 +5,7 @@ import { APP } from '../../src/data/app';
 import { M01 } from '../../src/data/missions/m01';
 import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { UpgradeDef } from '../../src/data/schema';
-import { createMemoryStorage, defaultSave, loadSave, recordClear, writeSave } from '../../src/meta';
+import { createMemoryStorage, defaultSave, defaultSettings, loadSave, recordClear, writeSave } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView, quickMission } from './app-helpers';
 
 function makeApp(missions = [quickMission(1, true), quickMission(2, false)], upgradeDefs: UpgradeDef[] = []) {
@@ -255,8 +255,8 @@ describe('app flow', () => {
     expect(audio.muted).toBe(true);
     app.setSetting('difficulty', 'insane');
     app.setSetting('hints', false);
-    expect(loadSave(storage).data.settings).toEqual({ muted: true, difficulty: 'insane', hints: false });
-    expect(app.campaign().settings).toEqual({ muted: true, difficulty: 'insane', hints: false });
+    expect(loadSave(storage).data.settings).toEqual({ ...defaultSettings(), muted: true, difficulty: 'insane', hints: false });
+    expect(app.campaign().settings).toEqual({ ...defaultSettings(), muted: true, difficulty: 'insane', hints: false });
 
     expect(app.campaign().upgrades[0].canBuy).toBe(false);
     recordClear(app.save, 1, 'normal');

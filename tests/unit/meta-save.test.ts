@@ -4,9 +4,11 @@ import { META } from '../../src/data/meta';
 import type { UpgradeDef } from '../../src/data/schema';
 import { UPGRADES } from '../../src/data/upgrades';
 import {
+  cleanSetting,
   clearSave,
   createMemoryStorage,
   defaultSave,
+  defaultSettings,
   loadSave,
   maxLevel,
   migrateSave,
@@ -47,7 +49,7 @@ describe('save data', () => {
     recordClear(save, 1, 'hard');
     recordClear(save, 2, 'normal');
     save.upgrades = { sapperDrill: 2, riflemanHealth: 3 };
-    save.settings = { muted: true, difficulty: 'hard', hints: false };
+    save.settings = { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 0, sfxVolume: 72, reduceFlash: true };
     expect(writeSave(storage, save)).toBe(true);
 
     const loaded = loadSave(storage);
@@ -86,7 +88,8 @@ describe('save data', () => {
     expect(data).not.toBeNull();
     expect(data?.cleared).toEqual({ '1': ['normal'] });
     expect(data?.upgrades).toEqual({ good: 2, tooHigh: META.maxUpgradeLevel });
-    expect(data?.settings).toEqual({ muted: META.defaultMuted, difficulty: 'insane', hints: false });
+    // A version 1 save has no volumes: they come in at their defaults.
+    expect(data?.settings).toEqual({ ...defaultSettings(), muted: META.defaultMuted, difficulty: 'insane', hints: false });
     expect(Object.getPrototypeOf(data?.upgrades)).toBe(Object.prototype);
   });
 
@@ -131,7 +134,7 @@ describe('migration', () => {
       cleared: v1.cleared,
       upgrades: v1.upgrades,
       lastMission: 0,
-      settings: v1.settings,
+      settings: { ...defaultSettings(), ...v1.settings },
     });
   });
 
@@ -159,6 +162,102 @@ describe('migration', () => {
   ])('does not understand %s', (_name, doc) => {
     expect(migrateSave(doc)).toBeNull();
     expect(sanitizeSave(doc)).toBeNull();
+  });
+});
+
+describe('version 3: the volume sliders and reduce flashing', () => {
+  /** A save as version 2 wrote it (no volumes, no reduce flashing). */
+  const v2 = {
+    version: 2,
+    cleared: { '1': ['normal'] },
+    upgrades: { rifleHealth: 1 },
+    lastMission: 1,
+    settings: { muted: true, difficulty: 'hard', hints: false },
+  };
+
+  it('is the current version', () => {
+    expect(META.saveVersion).toBe(3);
+    expect(defaultSave().version).toBe(3);
+  });
+
+  it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
+    expect(defaultSave().settings).toEqual({
+      muted: META.defaultMuted,
+      difficulty: META.defaultDifficulty,
+      hints: META.defaultHints,
+      musicVolume: META.defaultMusicVolume,
+      ambienceVolume: META.defaultAmbienceVolume,
+      sfxVolume: META.defaultSfxVolume,
+      reduceFlash: false,
+    });
+    for (const v of [META.defaultMusicVolume, META.defaultAmbienceVolume, META.defaultSfxVolume]) {
+      expect(Number.isInteger(v) && v >= 0 && v <= 100).toBe(true);
+    }
+  });
+
+  it('migrates a version 2 save step by step and keeps what the player had set', () => {
+    const migrated = migrateSave(v2);
+    expect(migrated?.version).toBe(3);
+    expect(migrated?.settings).toEqual({ ...v2.settings, musicVolume: META.defaultMusicVolume, ambienceVolume: META.defaultAmbienceVolume, sfxVolume: META.defaultSfxVolume, reduceFlash: false });
+    const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v2) }));
+    expect(loaded.status).toBe('ok');
+    expect(loaded.data.version).toBe(3);
+    expect(loaded.data.lastMission).toBe(1);
+    expect(loaded.data.settings).toEqual({ ...defaultSettings(), muted: true, difficulty: 'hard', hints: false });
+    // A version 1 save goes through both steps.
+    const v1 = { version: 1, cleared: {}, upgrades: {}, settings: { muted: false, difficulty: 'insane', hints: true } };
+    expect(sanitizeSave(v1)?.settings).toEqual({ ...defaultSettings(), difficulty: 'insane' });
+  });
+
+  it('migrates a version 2 save whose settings are missing or damaged without failing', () => {
+    expect(sanitizeSave({ ...v2, settings: undefined })?.settings).toEqual(defaultSettings());
+    expect(sanitizeSave({ ...v2, settings: 'loud' })?.settings).toEqual(defaultSettings());
+    expect(sanitizeSave({ ...v2, settings: [1, 2] })?.settings).toEqual(defaultSettings());
+  });
+
+  it('round-trips the three volumes and reduce flashing', () => {
+    const storage = createMemoryStorage();
+    const save = defaultSave();
+    save.settings = { ...save.settings, musicVolume: 0, ambienceVolume: 47, sfxVolume: 100, reduceFlash: true };
+    writeSave(storage, save);
+    expect(loadSave(storage).data.settings).toEqual(save.settings);
+  });
+
+  it.each([
+    ['above 100', 250, 100],
+    ['below 0', -12, 0],
+    ['a fraction', 33.6, 34],
+    ['a tiny fraction', 0.2, 0],
+    ['text', '80', 'default'],
+    ['NaN', Number.NaN, 'default'],
+    ['infinity', Number.POSITIVE_INFINITY, 'default'],
+    ['null', null, 'default'],
+    ['a boolean', true, 'default'],
+  ])('clamps a stored volume that is %s', (_name, stored, expected) => {
+    const doc = { version: 3, cleared: {}, upgrades: {}, settings: { musicVolume: stored, ambienceVolume: stored, sfxVolume: stored } };
+    const s = sanitizeSave(doc)?.settings;
+    expect(s).toBeDefined();
+    expect(s?.musicVolume).toBe(expected === 'default' ? META.defaultMusicVolume : expected);
+    expect(s?.ambienceVolume).toBe(expected === 'default' ? META.defaultAmbienceVolume : expected);
+    expect(s?.sfxVolume).toBe(expected === 'default' ? META.defaultSfxVolume : expected);
+  });
+
+  it('accepts only true or false for reduce flashing', () => {
+    const doc = (v: unknown) => ({ version: 3, settings: { reduceFlash: v } });
+    expect(sanitizeSave(doc(true))?.settings.reduceFlash).toBe(true);
+    expect(sanitizeSave(doc(false))?.settings.reduceFlash).toBe(false);
+    for (const bad of ['yes', 1, null, {}, []]) expect(sanitizeSave(doc(bad))?.settings.reduceFlash).toBe(META.defaultReduceFlash);
+  });
+
+  it('cleans one setting the way the app applies a change', () => {
+    expect(cleanSetting('musicVolume', 140)).toBe(100);
+    expect(cleanSetting('ambienceVolume', -1)).toBe(0);
+    expect(cleanSetting('sfxVolume', 49.5)).toBe(50);
+    expect(cleanSetting('sfxVolume', Number.NaN)).toBe(META.defaultSfxVolume);
+    expect(cleanSetting('reduceFlash', 'on')).toBe(META.defaultReduceFlash);
+    expect(cleanSetting('muted', true)).toBe(true);
+    expect(cleanSetting('difficulty', 'nightmare')).toBe(META.defaultDifficulty);
+    expect(cleanSetting('difficulty', 'hard')).toBe('hard');
   });
 });
 
@@ -276,7 +375,18 @@ function nearlyRight(rand: () => number): unknown {
         : junk(rand, 1),
     upgrades: rand() < 0.8 ? { rifleHealth: junk(rand, 2), hqIncome: Math.floor(rand() * 9) - 2, sapperDrill: 3, ghost: 1 } : junk(rand, 1),
     lastMission: junk(rand, 2),
-    settings: rand() < 0.8 ? { muted: junk(rand, 2), difficulty: junk(rand, 2), hints: junk(rand, 2) } : junk(rand, 1),
+    settings:
+      rand() < 0.8
+        ? {
+            muted: junk(rand, 2),
+            difficulty: junk(rand, 2),
+            hints: junk(rand, 2),
+            musicVolume: junk(rand, 2),
+            ambienceVolume: junk(rand, 2),
+            sfxVolume: junk(rand, 2),
+            reduceFlash: junk(rand, 2),
+          }
+        : junk(rand, 1),
   };
 }
 
@@ -303,6 +413,13 @@ function expectUsable(data: SaveData, rules: { missionIds: readonly number[]; up
   expect(typeof data.settings.muted).toBe('boolean');
   expect(typeof data.settings.hints).toBe('boolean');
   expect(DIFFICULTY_LIST).toContain(data.settings.difficulty);
+  for (const v of [data.settings.musicVolume, data.settings.ambienceVolume, data.settings.sfxVolume]) {
+    expect(Number.isInteger(v)).toBe(true);
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThanOrEqual(100);
+  }
+  expect(typeof data.settings.reduceFlash).toBe('boolean');
+  expect(Object.keys(data.settings).sort()).toEqual(['ambienceVolume', 'difficulty', 'hints', 'musicVolume', 'muted', 'reduceFlash', 'sfxVolume']);
   expect(Object.getPrototypeOf(data.upgrades)).toBe(Object.prototype);
   expect(Object.getPrototypeOf(data.cleared)).toBe(Object.prototype);
   expect(Object.keys(data).sort()).toEqual(['cleared', 'lastMission', 'settings', 'upgrades', 'version']);

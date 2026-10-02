@@ -59,6 +59,7 @@ test.describe('debug hooks', () => {
         'grantPopulation',
         'grantSupplies',
         'lookAt',
+        'menuStorm',
         'missions',
         'perf',
         'projectiles',

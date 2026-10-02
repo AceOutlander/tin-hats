@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAudio, LOOP_NAMES, ONE_SHOT_NAMES, SOUND_NAMES, type GameAudio } from '../../src/audio';
-import { AUDIO, SOUNDS, soundDuration } from '../../src/data/sounds';
+import { MENU_STORM } from '../../src/data/menuStorm';
+import { AUDIO, LOOPS, SOUNDS, VOLUME, busOf, soundDuration, volumeGain } from '../../src/data/sounds';
 
 /**
  * A stand-in for the WebAudio graph that records what the engine asks of it.
@@ -507,5 +508,156 @@ describe('audio engine on a context', () => {
     const ctx = FakeContext.created[0];
     const sources = ctx.sounding().filter((node) => node.kind === 'bufferSource' && node.loop);
     expect(sources.length).toBe(3);
+  });
+});
+
+describe('the three mix buses: Music, Ambience and Sound effects', () => {
+  /** The buses in the order the engine makes them: sound effects (the main bus), the gunfire bed feeding it, music, ambience. */
+  function buses(ctx: FakeContext): { sfx: FakeNode; bed: FakeNode; music: FakeNode; ambience: FakeNode } {
+    const [sfx, bed, music, ambience] = ctx.nodes;
+    return { sfx, bed, music, ambience };
+  }
+
+  /** Every node `from` reaches by following its outputs. */
+  function reach(from: FakeNode): Set<unknown> {
+    const seen = new Set<unknown>();
+    const stack: unknown[] = [from];
+    while (stack.length > 0) {
+      const node = stack.pop() as FakeNode;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      if (node && Array.isArray(node.outputs)) for (const out of node.outputs) stack.push(out);
+    }
+    return seen;
+  }
+
+  /** The nodes made by `act`, and of those the ones that feed `bus` directly. */
+  function madeInto(ctx: FakeContext, bus: FakeNode, act: () => void): number {
+    const before = ctx.nodes.length;
+    act();
+    return ctx.nodes.slice(before).filter((node) => node.outputs.includes(bus)).length;
+  }
+
+  it('sends the stings to Music, thunder to Ambience and every other sound to Sound effects', () => {
+    const { audio, ctx } = withFake();
+    const b = buses(ctx);
+    expect(b.bed.outputs).toEqual([b.sfx]);
+    for (const name of ONE_SHOT_NAMES) {
+      ctx.currentTime += 60;
+      const played = audio.getStats().played;
+      audio.play(name);
+      expect(audio.getStats().played, name).toBe(played + 1);
+      const used = ctx.nodes.filter((node) => node.kind === 'panner' && node.pan.events.length > 0);
+      const out = used[used.length - 1].outputs[0];
+      const music = name === 'victorySting' || name === 'defeatSting';
+      const want = music ? b.music : name === 'thunder' ? b.ambience : SOUNDS[name].bed === true ? b.bed : b.sfx;
+      expect(out, name).toBe(want);
+      expect(busOf(SOUNDS[name]), name).toBe(music ? 'music' : name === 'thunder' ? 'ambience' : 'sfx');
+    }
+  });
+
+  it('plays the battle rain on Ambience and the tank engine on Sound effects', () => {
+    const { audio, ctx } = withFake();
+    const b = buses(ctx);
+    expect(busOf(LOOPS.rain)).toBe('ambience');
+    expect(busOf(LOOPS.tankEngine)).toBe('sfx');
+    expect(madeInto(ctx, b.ambience, () => audio.startLoop('rain'))).toBe(1);
+    expect(madeInto(ctx, b.sfx, () => audio.startLoop('tankEngine'))).toBe(1);
+    expect(madeInto(ctx, b.sfx, () => audio.startLoop('rain', 0.5))).toBe(0);
+  });
+
+  it('plays the title rain bed and the title thunder on Ambience', () => {
+    const { audio, ctx } = withFake();
+    const b = buses(ctx);
+    expect(madeInto(ctx, b.ambience, () => audio.startRainBed())).toBe(1);
+    ctx.state = 'running';
+    const into = madeInto(ctx, b.ambience, () => expect(audio.thunder(0.9, 4)).toBe(true));
+    expect(into).toBeGreaterThan(3);
+    expect(madeInto(ctx, b.sfx, () => audio.thunder(0.5, 3))).toBe(0);
+    expect(madeInto(ctx, b.music, () => audio.thunder(0.5, 3))).toBe(0);
+    expect(audio.mixStats().thunders).toBe(3);
+  });
+
+  it('runs every bus through the one mute at the end, so mute silences all three', () => {
+    const { audio, ctx } = withFake();
+    const b = buses(ctx);
+    const mute = ctx.nodes.find((node) => node.outputs.includes(ctx.destination));
+    expect(mute).toBeDefined();
+    for (const bus of [b.sfx, b.bed, b.music, b.ambience]) expect(reach(bus).has(mute)).toBe(true);
+    audio.setMuted(true);
+    expect(mute?.gain.last('target')?.[1]).toBe(0);
+    // Nothing new is even started while muted, the title thunder included.
+    ctx.state = 'running';
+    expect(audio.thunder(1, 5)).toBe(false);
+    audio.play('victorySting');
+    audio.play('rifleShot');
+    expect(audio.getStats().played).toBe(0);
+    audio.setMuted(false);
+    expect(mute?.gain.last('target')?.[1]).toBe(1);
+  });
+
+  it('turns a slider position into a bus gain on the volume curve and glides there', () => {
+    const { audio, ctx } = withFake();
+    const b = buses(ctx);
+    audio.setVolume('ambience', 0.5);
+    audio.setVolume('music', 0);
+    audio.setVolume('sfx', 1);
+    expect(b.ambience.gain.last('target')?.[1]).toBeCloseTo(volumeGain(50), 9);
+    expect(volumeGain(50)).toBeCloseTo(Math.pow(0.5, VOLUME.curve), 9);
+    expect(b.music.gain.last('target')?.[1]).toBe(0);
+    expect(b.sfx.gain.last('target')?.[1]).toBe(1);
+    // Out-of-range and broken values are held to 0..1.
+    audio.setVolume('ambience', 7);
+    expect(b.ambience.gain.last('target')?.[1]).toBe(1);
+    audio.setVolume('ambience', Number.NaN);
+    expect(b.ambience.gain.last('target')?.[1]).toBe(0);
+  });
+
+  it('remembers the sliders and the rain bed from before the first gesture and fades the bed in after it', () => {
+    vi.stubGlobal('AudioContext', FakeContext);
+    const audio = createAudio();
+    audio.setVolume('music', 0.4);
+    audio.setVolume('ambience', 0.8);
+    audio.setVolume('sfx', 0.2);
+    audio.startRainBed();
+    expect(audio.mixStats().bedOn).toBe(true);
+    audio.unlock();
+    const ctx = FakeContext.created[0];
+    const [sfx, , music, ambience] = ctx.nodes;
+    expect(sfx.gain.value).toBeCloseTo(volumeGain(20), 9);
+    expect(music.gain.value).toBeCloseTo(volumeGain(40), 9);
+    expect(ambience.gain.value).toBeCloseTo(volumeGain(80), 9);
+    const bed = ctx.nodes.find((node) => node.kind === 'gain' && node.outputs.includes(ambience));
+    const ramp = bed?.gain.last('linear');
+    expect(ramp?.[1]).toBeCloseTo(MENU_STORM.rainAudio.volume, 9);
+    expect(ramp?.[2]).toBeCloseTo(ctx.currentTime + MENU_STORM.rainAudio.fadeIn, 9);
+    // The bed is noise layers at different rates: never one short buffer on its own.
+    const rates = ctx.nodes.filter((node) => node.kind === 'bufferSource' && node.loop).map((node) => node.playbackRate.value);
+    expect(new Set(rates).size).toBe(MENU_STORM.rainAudio.layers.length);
+    audio.stopRainBed();
+    expect(audio.mixStats().bedOn).toBe(false);
+  });
+
+  it('keeps the rain bed drifting with automation only, a glide per layer at a time', () => {
+    const { audio, ctx } = withFake();
+    audio.startRainBed();
+    const filters = ctx.nodes.filter((node) => node.kind === 'filter');
+    expect(filters.length).toBe(MENU_STORM.rainAudio.layers.length);
+    audio.tickRainBed();
+    const first = filters.map((f) => f.frequency.events.length);
+    for (const n of first) expect(n).toBeGreaterThan(0);
+    // Ticking again right away schedules nothing more: the glides are already booked.
+    audio.tickRainBed();
+    expect(filters.map((f) => f.frequency.events.length)).toEqual(first);
+    // Once the clock passes them, each layer books its next glide, to a new random target inside its range.
+    ctx.currentTime += 30;
+    audio.tickRainBed();
+    filters.forEach((f, i) => {
+      expect(f.frequency.events.length).toBeGreaterThan(first[i]);
+      const target = f.frequency.last('exp')?.[1] ?? 0;
+      const range = MENU_STORM.rainAudio.layers[i].freq;
+      expect(target).toBeGreaterThanOrEqual(range[0]);
+      expect(target).toBeLessThanOrEqual(range[1]);
+    });
   });
 });

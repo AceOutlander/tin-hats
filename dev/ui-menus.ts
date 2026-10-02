@@ -269,10 +269,20 @@ const MAX_LEVEL = 3;
 
 const startProgress = Math.max(0, Math.min(MISSIONS.length, Number(params.get('progress') ?? 4)));
 
+const DEFAULT_SETTINGS: SettingsView = {
+  muted: false,
+  difficulty: 'normal',
+  hints: true,
+  musicVolume: 100,
+  ambienceVolume: 100,
+  sfxVolume: 100,
+  reduceFlash: false,
+};
+
 const mock = {
   clearedCount: startProgress,
   levels: {} as Record<string, number>,
-  settings: { muted: false, difficulty: 'normal', hints: true } as SettingsView,
+  settings: { ...DEFAULT_SETTINGS },
   sounds: [] as string[],
   replayed: 0,
   started: null as { id: number; difficulty: Difficulty } | null,
@@ -457,7 +467,7 @@ const app: AppApi = {
   resetSave() {
     mock.clearedCount = 0;
     mock.levels = {};
-    mock.settings = { muted: false, difficulty: 'normal', hints: true };
+    mock.settings = { ...DEFAULT_SETTINGS };
   },
   replayHints() {
     mock.replayed++;

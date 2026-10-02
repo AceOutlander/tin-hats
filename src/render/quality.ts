@@ -52,6 +52,11 @@ export class QualityGovernor {
     return this.cfg.levels[this.level];
   }
 
+  /** True while a level is pinned (force()): frame times are then not acted on. */
+  get pinned(): boolean {
+    return this.forced >= 0;
+  }
+
   /** Pin a level (a debug page or a test), or null to let the frame times decide again. */
   force(level: number | null): void {
     if (level === null) {

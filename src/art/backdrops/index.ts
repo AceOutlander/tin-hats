@@ -202,3 +202,4 @@ export function backdropLayerX(l: BackdropLayer, camX: number): number {
 }
 
 export { rasteriseBackdropLayer } from './raster';
+export { franceSpireTileX } from './theatres/france';

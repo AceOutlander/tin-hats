@@ -1,4 +1,4 @@
-/**
+﻿/**
  * createBattleView(): the Phaser 4 game, its one scene, and the glue between
  * battle state and every view (backdrop, structures, units, effects, camera,
  * input). See ./contracts.ts for the public API.
@@ -18,6 +18,7 @@ import { propSpecs } from '../art/props';
 import { structureSpecs } from '../art/structures';
 import { vehicleSpecs } from '../art/vehicles';
 import { FX_KEYS } from '../data/fx';
+import { MENU_STORM } from '../data/menuStorm';
 import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
@@ -25,7 +26,8 @@ import type { Battle, BattleState } from '../sim';
 import { SpriteRegistry, type SpriteFrame } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
-import type { AttachOptions, AudioSink, BattleView, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
+import { StormGuard, type MenuStormState } from '../fx';
+import type { AttachOptions, AudioSink, BattleView, MenuSceneStats, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
 import { EffectsSystem, pillboxAt } from './effects';
 import { PanInput } from './input';
 import { addImage, createLayers, type Layers } from './layers';
@@ -36,6 +38,7 @@ import { renderSprites } from './sprites';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
+import { MenuStormView } from './weather/menuStorm';
 
 const ATLAS_GROUP = 'th/atlas';
 const BATTLE_GROUP = 'th/battle';
@@ -84,6 +87,12 @@ export class BattleViewImpl implements BattleView {
   private effects: EffectsSystem | null = null;
   private input: PanInput | null = null;
   private weatherView: WeatherView | null = null;
+  private menuView: MenuStormView | null = null;
+  /** Sheds title rain when frames stay slow. */
+  readonly stormGuard = new StormGuard();
+  /** The menu scene was asked for before the scene existed. */
+  private menuWanted = false;
+  private reducedFlashing = false;
   private nightTint: Phaser.GameObjects.Image | null = null;
   /** The night tint's alpha for the mission's own time of day, and how far setDarkness() has pushed it toward full night. */
   private nightAlpha = 0;
@@ -140,8 +149,14 @@ export class BattleViewImpl implements BattleView {
       disableContextMenu: true,
       scale: { mode: Phaser.Scale.NONE, zoom: 1 / this.dpr, autoRound: false },
       // Every sprite is a soft-edged texture, so multisampling the canvas adds little; on a dense phone screen it is pure
-      // memory bandwidth. Only a low-density screen (a desktop window) keeps it.
-      render: { antialias: true, antialiasGL: this.dpr < 1.5, roundPixels: false, powerPreference: 'high-performance' },
+      // memory bandwidth. Only a low-density screen of modest size keeps it: on a big desktop window it multiplied the
+      // fill cost of every full-screen backdrop layer (measured: it halved the title's frame rate at 1920x1080).
+      render: {
+        antialias: true,
+        antialiasGL: this.dpr < 1.5 && this.cssW * this.cssH * this.dpr * this.dpr <= VIEW.msaaMaxPixels,
+        roundPixels: false,
+        powerPreference: 'high-performance',
+      },
       scene: [new BattleScene(this)],
     });
   }
@@ -150,7 +165,13 @@ export class BattleViewImpl implements BattleView {
   private measure(): void {
     this.cssW = Math.max(1, this.parent.clientWidth || window.innerWidth);
     this.cssH = Math.max(1, this.parent.clientHeight || window.innerHeight);
-    this.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, VIEW.maxDevicePixelRatio) * this.quality.current.renderScale);
+    let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, VIEW.maxDevicePixelRatio) * this.quality.current.renderScale);
+    // The title scene has a pixel budget: a big or dense desktop window costs no more than a phone.
+    if (this.menuWanted && !this.battle) {
+      const P = MENU_STORM.perf;
+      dpr = Math.max(P.minPixelRatio, Math.min(dpr, Math.sqrt(P.maxCanvasPixels / (this.cssW * this.cssH))));
+    }
+    this.dpr = dpr;
   }
 
   get internals(): RenderInternals | null {
@@ -203,6 +224,9 @@ export class BattleViewImpl implements BattleView {
     this.reticle = addImage(scene, layers.byName.markers, this.reticleFrame.frame);
     this.reticle.visible = false;
     this.weatherView = new WeatherView(scene, layers, reg, this.effects.ctx);
+    this.weatherView.reduced = this.reducedFlashing;
+    this.menuView = new MenuStormView(scene, layers, reg, this.backdrop);
+    if (this.menuWanted && !this.battle) this.menuView.show(true);
 
     this.input = new PanInput(
       this.game.canvas,
@@ -285,13 +309,18 @@ export class BattleViewImpl implements BattleView {
   attach(battle: Battle, opts: AttachOptions): void {
     if (!this.registry || !this.structures || !this.units || !this.effects || !this.backdrop) throw new Error('render: attach before the view is ready');
     this.detach();
+    // A battle replaces the title storm scene (and rebuilds the backdrop for its own theatre below) and its pixel budget.
+    this.menuWanted = false;
+    this.menuView?.show(false);
     this.battle = battle;
+    this.resize();
     this.playerSide = opts.playerSide;
     this.weather = opts.weather ?? 'auto';
     this.visualSeed = opts.visualSeed;
     const state = battle.state;
     const mission = battle.config.mission;
     this.backdrop.build(mission.theatre, mission.timeOfDay, opts.visualSeed);
+    this.backdrop.setAllHidden(false);
     const colours = getTheatreColours(mission.theatre, mission.timeOfDay);
     this.nightAlpha = colours.nightTintAlpha;
     if (this.nightTint) this.nightTint.setTint(colours.int.nightTint);
@@ -515,6 +544,47 @@ export class BattleViewImpl implements BattleView {
 
   forceThunder(): void {
     this.weatherView?.forceThunder();
+  }
+
+  setReducedFlashing(on: boolean): void {
+    this.reducedFlashing = on;
+    if (this.weatherView) this.weatherView.reduced = on;
+  }
+
+  setMenuScene(on: boolean): void {
+    this.menuWanted = on;
+    if (on && this.battle) return;
+    this.menuView?.show(on);
+    // The title's pixel budget comes and goes with it.
+    this.resize();
+  }
+
+  renderMenu(storm: MenuStormState, dt: number, fade: number): void {
+    const scene = this.scene;
+    const menu = this.menuView;
+    if (!scene || !menu || !this.backdrop || this.battle || !menu.visible) return;
+    const t0 = performance.now();
+    this.perf.beginRender(t0);
+    const cam = scene.cameras.main;
+    const viewW = this.camera.viewWidthWu;
+    const zoom = (cam.height / VIEW.viewHeightWu) * this.debugZoom;
+    if (cam.zoom !== zoom) cam.setZoom(zoom);
+    const left = menu.cameraLeft(viewW);
+    cam.centerOn(left + viewW / 2, VIEW_TOP_WU + VIEW.viewHeightWu / 2);
+    this.backdrop.update(left, viewW);
+    // The quality governor's rain share, thinned further by the title's own load guard (both idle while the level is
+    // pinned, as under browser automation), never below the guard's floor.
+    if (!this.quality.pinned) this.stormGuard.update(this.perf.lastInterval);
+    const share = Math.max(MENU_STORM.guard.floor, this.quality.current.weatherShare * this.stormGuard.share);
+    menu.update(storm, Math.max(0, dt), Math.max(0, Math.min(1, fade)), left, viewW, this.cssW, this.cssH, share);
+    const t1 = performance.now();
+    this.renderMs += (t1 - t0 - this.renderMs) * RENDER.statsSmoothing;
+    this.perf.endRender(t1);
+  }
+
+  menuStats(): MenuSceneStats {
+    if (this.menuView) return this.menuView.stats();
+    return { shown: false, drops: [0, 0, 0], splashes: 0, rainShare: 1, spireX: 0, spireY: 0, forkDrawn: false, skyFlash: 0 };
   }
 
   weatherStats(): WeatherStats {

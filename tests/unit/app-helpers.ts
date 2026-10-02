@@ -1,5 +1,5 @@
 /** Fakes for the view, the audio and the UI, so the app controller runs in Node. */
-import type { GameAudio } from '../../src/audio';
+import type { AudioBus, GameAudio, MixStats } from '../../src/audio';
 import type { MissionDef } from '../../src/data/schema';
 import { M01 } from '../../src/data/missions/m01';
 import type { AttachOptions, BattleCamera, BattleView, RenderStats } from '../../src/render/contracts';
@@ -27,6 +27,10 @@ export interface FakeView extends BattleView {
   controlled: number[];
   targeting: (string | null)[];
   frame: ((dtMs: number) => void) | null;
+  /** The title storm scene: whether it is up, and the storm dt and fade of every menu frame drawn. */
+  menuScene: boolean;
+  menuFrames: { dt: number; fade: number; flash: number }[];
+  reducedFlashing: boolean;
 }
 
 export function createFakeView(): FakeView {
@@ -74,6 +78,9 @@ export function createFakeView(): FakeView {
     controlled: [],
     targeting: [],
     frame: null,
+    menuScene: false,
+    menuFrames: [],
+    reducedFlashing: false,
     onTapUnit: null,
     onTapGround: null,
     attach(battle, opts) {
@@ -108,6 +115,16 @@ export function createFakeView(): FakeView {
     forceWeather() {},
     forceThunder() {},
     weatherStats: () => ({ raining: false, checksMade: 0, strikes: 0 }),
+    setReducedFlashing(on) {
+      view.reducedFlashing = on;
+    },
+    setMenuScene(on) {
+      view.menuScene = on;
+    },
+    renderMenu(storm, dt, fade) {
+      view.menuFrames.push({ dt, fade, flash: storm.flash });
+    },
+    menuStats: () => ({ shown: view.menuScene, drops: [0, 0, 0], splashes: 0, rainShare: 1, spireX: 0, spireY: 0, forkDrawn: false, skyFlash: 0 }),
     unitScreenPos: () => null,
     getStats: () => stats,
     resize() {},
@@ -120,14 +137,42 @@ export interface FakeAudio extends GameAudio {
   played: string[];
   muted: boolean;
   suspended: boolean;
+  /** Slider positions 0..1 per bus, as the app set them. */
+  volumes: Record<AudioBus, number>;
+  bedOn: boolean;
+  /** Every thunder asked for: [loudness, length]. */
+  thunders: [number, number][];
 }
 
 export function createFakeAudio(): FakeAudio {
+  const mix: MixStats = { music: 0, ambience: 0, sfx: 0, bedOn: false, bed: 0, rain: 0, thunders: 0, output: 0 };
   const audio: FakeAudio = {
     played: [],
     muted: false,
     suspended: false,
+    volumes: { music: 1, ambience: 1, sfx: 1 },
+    bedOn: false,
+    thunders: [],
     unlock() {},
+    setVolume(bus, level) {
+      audio.volumes[bus] = level;
+    },
+    startRainBed() {
+      audio.bedOn = true;
+    },
+    stopRainBed() {
+      audio.bedOn = false;
+    },
+    tickRainBed() {},
+    thunder(loudness, length) {
+      audio.thunders.push([loudness, length]);
+      return !audio.muted && !audio.suspended;
+    },
+    mixStats() {
+      mix.bedOn = audio.bedOn;
+      mix.thunders = audio.thunders.length;
+      return mix;
+    },
     play(name) {
       audio.played.push(name);
     },
@@ -157,6 +202,9 @@ export interface FakeUi extends UiApi {
   screens: ScreenId[];
   results: ResultView[];
   huds: number;
+  /** Frames of panel drops handed over, and the last drops version seen. */
+  dropFrames: number;
+  dropVersion: number;
 }
 
 export function createFakeUi(): FakeUi {
@@ -165,6 +213,8 @@ export function createFakeUi(): FakeUi {
     screens: [],
     results: [],
     huds: 0,
+    dropFrames: 0,
+    dropVersion: -1,
     show(screen, payload) {
       current = screen;
       ui.screens.push(screen);
@@ -173,6 +223,10 @@ export function createFakeUi(): FakeUi {
     current: () => current,
     updateHud(_state: HudState) {
       ui.huds++;
+    },
+    updateTitleDrops(drops) {
+      ui.dropFrames++;
+      ui.dropVersion = drops.version;
     },
     refresh() {},
   };

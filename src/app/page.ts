@@ -34,7 +34,8 @@ export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: U
  * Unlock audio on the first user gesture and pause a running battle when the
  * tab is hidden, the window loses focus or the page is put away. A hidden page is
  * also silent (menus too); sound returns when the page does, but a paused battle
- * stays paused. Returns a function that removes the listeners.
+ * stays paused. The title storm freezes in all three cases and carries on when the
+ * page is back in front. Returns a function that removes the listeners.
  */
 export function installPageGuards(app: App, audio: GameAudio, doc: Document = document, win: Window = window): () => void {
   const gestures = ['pointerdown', 'touchend', 'keydown'] as const;
@@ -56,19 +57,26 @@ export function installPageGuards(app: App, audio: GameAudio, doc: Document = do
       arm();
     }
   };
-  // Losing focus (another window in front) pauses a battle but leaves the sound of the menus alone.
-  const onAway = (): void => app.autoPause();
+  // Losing focus (another window in front) pauses a battle and freezes the title storm; other menus keep their sound.
+  const onAway = (): void => app.pageBlurred();
+  const onFocus = (): void => {
+    if (doc.visibilityState === 'hidden') return;
+    app.pageFocused();
+    arm();
+  };
   const onHide = (): void => app.pageHidden();
 
   arm();
   doc.addEventListener('visibilitychange', onVisibility);
   win.addEventListener('blur', onAway);
+  win.addEventListener('focus', onFocus);
   win.addEventListener('pagehide', onHide);
 
   return () => {
     for (const g of gestures) doc.removeEventListener(g, unlock, true);
     doc.removeEventListener('visibilitychange', onVisibility);
     win.removeEventListener('blur', onAway);
+    win.removeEventListener('focus', onFocus);
     win.removeEventListener('pagehide', onHide);
   };
 }

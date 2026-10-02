@@ -14,18 +14,24 @@
  * The engine never touches storage: the app passes the saved mute setting in
  * and persists changes itself.
  */
+import { MENU_STORM } from '../data/menuStorm';
 import {
   AUDIO,
   LOOP_NAMES,
   LOOPS,
   ONE_SHOT_NAMES,
   SOUNDS,
+  VOLUME,
+  busOf,
   layerGainSum,
+  volumeGain,
+  type AudioBus,
   type LoopDef,
   type SoundDef,
 } from '../data/sounds';
 import { makeClipCurve } from './dsp';
 import { findOfflineContext, renderSound } from './render';
+import { buildThunder, RainBed } from './storm';
 import { buildLoop, buildOneShot, createNoiseBank, type NoiseBank } from './synth';
 
 export interface PlayOptions {
@@ -55,6 +61,22 @@ export interface AudioStats {
   state: string;
 }
 
+/** The mix as the debug hooks and the tests read it. */
+export interface MixStats {
+  /** Gain each bus runs at now (its slider through the volume curve; 0 before the context exists). */
+  music: number;
+  ambience: number;
+  sfx: number;
+  /** The title rain bed: asked for, its own fade level now (0..1 of its data volume), and its level after the Ambience bus. */
+  bedOn: boolean;
+  bed: number;
+  rain: number;
+  /** Thunder rumbles synthesised so far. */
+  thunders: number;
+  /** RMS of what leaves the engine (after the mute), over the last few hundredths of a second. */
+  output: number;
+}
+
 export interface AudioOptions {
   /** Start muted (the app passes its saved setting). */
   muted?: boolean;
@@ -79,6 +101,21 @@ export interface GameAudio {
   stopLoop(name: string): void;
   setMuted(muted: boolean): void;
   isMuted(): boolean;
+  /** Set a bus's volume slider, 0..1 of its travel (the engine applies the volume curve and glides there). */
+  setVolume(bus: AudioBus, level: number): void;
+  /**
+   * The title screen's rain bed on the Ambience bus. Asked for before the first gesture, it starts with the sound;
+   * either way it fades in over the storm data's time and drifts at random while it plays.
+   */
+  startRainBed(): void;
+  /** Fade the rain bed out (the storm data's time) and stop it. */
+  stopRainBed(): void;
+  /** Keep the rain bed's random drift scheduled; call once a frame while it plays. Allocates nothing. */
+  tickRainBed(): void;
+  /** One synthesised thunder rumble on the Ambience bus. False when it could not sound (no context, muted, frozen). */
+  thunder(loudness: number, length: number): boolean;
+  /** The buses, the rain bed and the output level (debug hooks and tests). The same object every time. */
+  mixStats(): Readonly<MixStats>;
   /** Freeze all sound (pause, tab hidden). One-shots requested while suspended are discarded. */
   suspend(): void;
   resume(): void;
@@ -117,8 +154,21 @@ interface Voice {
   end: number;
   /** True while a stolen voice fades out: it no longer counts against the limits. */
   releasing: boolean;
-  /** True while the channel feeds the gunfire bed bus instead of the main bus. */
-  onBed: boolean;
+  /** Which bus the channel feeds (OUT_SFX, OUT_BED, OUT_MUSIC or OUT_AMBIENCE). */
+  out: number;
+}
+
+/** Where a voice channel is routed: the sound-effects bus, the gunfire bed (which feeds it), music or ambience. */
+const OUT_SFX = 0;
+const OUT_BED = 1;
+const OUT_MUSIC = 2;
+const OUT_AMBIENCE = 3;
+
+function outFor(def: SoundDef): number {
+  const bus = busOf(def);
+  if (bus === 'music') return OUT_MUSIC;
+  if (bus === 'ambience') return OUT_AMBIENCE;
+  return def.bed === true ? OUT_BED : OUT_SFX;
 }
 
 interface LoopState {
@@ -134,12 +184,27 @@ class AudioEngine implements GameAudio {
   /** The real output context, when the engine created it. */
   private live: AudioContext | null = null;
   private ctx: BaseAudioContext | null = null;
+  /** The sound-effects bus: every sound that is not music or ambience. */
   private bus: GainNode | null = null;
-  /** The gunfire bed: small arms play through it, and blasts dip its gain (see SoundDef.duck). */
+  /** The gunfire bed: small arms play through it, and blasts dip its gain (see SoundDef.duck). It feeds the sound-effects bus. */
   private bedBus: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private ambienceBus: GainNode | null = null;
   private duckFloor = 1;
   private duckUntil = -Infinity;
   private muteGain: GainNode | null = null;
+  /** Slider positions 0..1 per bus, remembered until the context exists. */
+  private readonly volumes: Record<AudioBus, number> = {
+    music: VOLUME.defaults.music / 100,
+    ambience: VOLUME.defaults.ambience / 100,
+    sfx: VOLUME.defaults.sfx / 100,
+  };
+  private bedWanted = false;
+  private rainBed: RainBed | null = null;
+  private thunders = 0;
+  private analyser: AnalyserNode | null = null;
+  private analysis: Float32Array<ArrayBuffer> | null = null;
+  private readonly mix: MixStats = { music: 0, ambience: 0, sfx: 0, bedOn: false, bed: 0, rain: 0, thunders: 0, output: 0 };
 
   private readonly rng: () => number;
   private readonly bank: NoiseBank = createNoiseBank();
@@ -301,6 +366,93 @@ class AudioEngine implements GameAudio {
     return this.muted;
   }
 
+  setVolume(bus: AudioBus, level: number): void {
+    const v = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : 0;
+    this.volumes[bus] = v;
+    const node = this.busNode(bus);
+    const ctx = this.ctx;
+    if (!node || !ctx) return;
+    const now = ctx.currentTime;
+    node.gain.cancelScheduledValues(now);
+    node.gain.setTargetAtTime(volumeGain(v * 100), now, VOLUME.glide);
+  }
+
+  private busNode(bus: AudioBus): GainNode | null {
+    return bus === 'music' ? this.musicBus : bus === 'ambience' ? this.ambienceBus : this.bus;
+  }
+
+  startRainBed(): void {
+    this.bedWanted = true;
+    if (this.ctx) this.makeBed();
+  }
+
+  stopRainBed(): void {
+    this.bedWanted = false;
+    const bed = this.rainBed;
+    if (!bed) return;
+    this.rainBed = null;
+    const live = this.live;
+    // Time is frozen in a suspended context, so a fade would only play after resume: cut it now instead.
+    bed.stop(live && live.state !== 'running' ? 0 : MENU_STORM.rainAudio.fadeOut);
+  }
+
+  tickRainBed(): void {
+    if (this.rainBed) this.rainBed.drift(MENU_STORM.rainAudio.lookahead);
+  }
+
+  private makeBed(): void {
+    const ctx = this.ctx;
+    const dest = this.ambienceBus;
+    if (!ctx || !dest) return;
+    if (!this.rainBed) this.rainBed = new RainBed(ctx, dest, MENU_STORM.rainAudio.layers, this.rng, this.bank);
+    this.rainBed.fadeTo(MENU_STORM.rainAudio.volume, MENU_STORM.rainAudio.fadeIn);
+  }
+
+  thunder(loudness: number, length: number): boolean {
+    const ctx = this.ctx;
+    const dest = this.ambienceBus;
+    if (!ctx || !dest || this.muted || this.paused) return false;
+    const live = this.live;
+    if (live && live.state !== 'running') return false;
+    if (!(loudness > 0) || !(length > 0)) return false;
+    const now = ctx.currentTime;
+    buildThunder(ctx, dest, now < this.warmUntil ? this.warmUntil : now, loudness, length, MENU_STORM.thunder.synth, this.rng, this.bank);
+    this.thunders++;
+    return true;
+  }
+
+  mixStats(): Readonly<MixStats> {
+    const m = this.mix;
+    m.music = this.musicBus ? this.musicBus.gain.value : 0;
+    m.ambience = this.ambienceBus ? this.ambienceBus.gain.value : 0;
+    m.sfx = this.bus ? this.bus.gain.value : 0;
+    m.bedOn = this.bedWanted;
+    m.bed = this.rainBed ? this.rainBed.level() / MENU_STORM.rainAudio.volume : 0;
+    m.rain = m.bed * m.ambience;
+    m.thunders = this.thunders;
+    m.output = this.outputLevel();
+    return m;
+  }
+
+  /** RMS of the engine's output; the analyser is only made the first time something asks. */
+  private outputLevel(): number {
+    const ctx = this.ctx;
+    const tap = this.muteGain;
+    if (!ctx || !tap || typeof ctx.createAnalyser !== 'function') return 0;
+    if (!this.analyser) {
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 2048;
+      tap.connect(this.analyser);
+      this.analysis = new Float32Array(this.analyser.fftSize);
+    }
+    const data = this.analysis;
+    if (!data) return 0;
+    this.analyser.getFloatTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    return Math.sqrt(sum / data.length);
+  }
+
   suspend(): void {
     this.paused = true;
     const live = this.live;
@@ -340,10 +492,16 @@ class AudioEngine implements GameAudio {
 
   /** Builds the master chain and the voice pool on a new context, then starts rendering buffers and wanted loops. */
   private attach(ctx: BaseAudioContext): void {
+    // Three buses, one per volume slider: sound effects (with the gunfire bed feeding it), music and ambience.
     const bus = ctx.createGain();
     const bedBus = ctx.createGain();
     bedBus.connect(bus);
-    let tail: AudioNode = bus;
+    const musicBus = ctx.createGain();
+    const ambienceBus = ctx.createGain();
+    bus.gain.value = volumeGain(this.volumes.sfx * 100);
+    musicBus.gain.value = volumeGain(this.volumes.music * 100);
+    ambienceBus.gain.value = volumeGain(this.volumes.ambience * 100);
+    let tail: AudioNode;
 
     if (typeof ctx.createDynamicsCompressor === 'function') {
       const compressor = ctx.createDynamicsCompressor();
@@ -352,9 +510,13 @@ class AudioEngine implements GameAudio {
       compressor.ratio.value = AUDIO.compressor.ratio;
       compressor.attack.value = AUDIO.compressor.attack;
       compressor.release.value = AUDIO.compressor.release;
-      tail.connect(compressor);
       tail = compressor;
+    } else {
+      tail = ctx.createGain();
     }
+    bus.connect(tail);
+    musicBus.connect(tail);
+    ambienceBus.connect(tail);
 
     // The clip curve spans inputs of +-clipRange, so the signal is scaled down into the shaper's -1..1 input.
     const master = ctx.createGain();
@@ -397,19 +559,22 @@ class AudioEngine implements GameAudio {
         start: 0,
         end: -Infinity,
         releasing: false,
-        onBed: false,
+        out: OUT_SFX,
       });
     }
 
     this.ctx = ctx;
     this.bus = bus;
     this.bedBus = bedBus;
+    this.musicBus = musicBus;
+    this.ambienceBus = ambienceBus;
     this.muteGain = muteGain;
     this.warmUntil = ctx.currentTime + AUDIO.warmup;
     this.ready = this.prerender(ctx.sampleRate);
     for (let i = 0; i < this.loops.length; i++) {
       if (this.loops[i].wanted >= 0) this.applyLoop(this.loops[i]);
     }
+    if (this.bedWanted) this.makeBed();
   }
 
   /** Renders every one-shot (and its variants) one after another, most-used sounds first as listed in the data. */
@@ -520,7 +685,7 @@ class AudioEngine implements GameAudio {
     const old = voice.sources;
     for (let i = 0; i < old.length; i++) old[i].disconnect();
     old.length = 0;
-    this.route(voice, def.bed === true);
+    this.route(voice, outFor(def));
 
     let rate = pitch;
     if (def.pitchJitter > 0) rate *= 1 + (this.rng() * 2 - 1) * def.pitchJitter;
@@ -563,15 +728,15 @@ class AudioEngine implements GameAudio {
     if (def.duck) this.duckBed(def.duck.depth, def.duck.seconds, when);
   }
 
-  /** Point a free channel at the gunfire bed or the main bus (only when that changes: the channel is silent). */
-  private route(voice: Voice, bed: boolean): void {
-    if (voice.onBed === bed) return;
-    const bus = bed ? this.bedBus : this.bus;
+  /** Point a free channel at its bus (only when that changes: the channel is silent). */
+  private route(voice: Voice, target: number): void {
+    if (voice.out === target) return;
+    const bus = target === OUT_BED ? this.bedBus : target === OUT_MUSIC ? this.musicBus : target === OUT_AMBIENCE ? this.ambienceBus : this.bus;
     if (!bus) return;
     const out: AudioNode = voice.pan ?? voice.gain;
     out.disconnect();
     out.connect(bus);
-    voice.onBed = bed;
+    voice.out = target;
   }
 
   /**
@@ -610,7 +775,7 @@ class AudioEngine implements GameAudio {
 
   private applyLoop(loop: LoopState): void {
     const ctx = this.ctx;
-    const bus = this.bus;
+    const bus = this.busNode(busOf(loop.def));
     if (!ctx || !bus) return;
     const now = ctx.currentTime;
     let gain = loop.gain;

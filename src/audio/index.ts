@@ -7,10 +7,13 @@
  *   audio.playAt('rifleShot', shooterX);
  *   audio.play(ORDER_WHISTLE[order]);
  *   audio.startLoop('rain');
+ *   audio.setVolume('ambience', 0.8);                   // the three sliders: music, ambience, sfx
  */
 export { createAudio } from './engine';
-export type { AudioOptions, AudioStats, GameAudio, PlayAtOptions, PlayOptions } from './engine';
+export type { AudioOptions, AudioStats, GameAudio, MixStats, PlayAtOptions, PlayOptions } from './engine';
 export {
+  AUDIO_BUSES,
+  type AudioBus,
   LOOP_NAMES,
   ONE_SHOT_NAMES,
   ORDER_WHISTLE,

@@ -514,10 +514,21 @@
 
 /* ----------------------------------------------------------------- title */
 
+/* A light vignette: the storm behind the plate (src/app/menuStorm.ts) stays visible to the edges. */
 .th-title {
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at 50% 45%, rgba(10, 10, 6, 0.28) 0%, rgba(10, 10, 6, 0.74) 100%);
+  background: radial-gradient(ellipse at 50% 45%, rgba(10, 10, 6, 0.1) 0%, rgba(10, 10, 6, 0.42) 100%);
+}
+
+/* Raindrops running down the front of the plate: drawn over it, never in the way of a touch. */
+.th-title-rain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .th-title-plate {
@@ -1474,22 +1485,29 @@ svg.th-group-icon {
 .th-settings-plate {
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 3vh, 16px);
+  gap: clamp(6px, 2vh, 14px);
   width: min(100%, 580px);
   max-height: 100%;
-  padding: clamp(12px, 4vh, 22px) clamp(16px, 3vw, 24px) clamp(14px, 4.4vh, 24px);
+  padding: clamp(10px, 3vh, 20px) clamp(16px, 3vw, 24px) clamp(10px, 3.4vh, 22px);
 }
 
 .th-settings-head {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 12px;
+}
+
+/* The controls scroll (with the cue) only when the screen is too short for them all. */
+.th-settings-plate > .th-scrollwrap {
+  flex: 0 1 auto;
 }
 
 .th-set-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 10px;
+  align-content: start;
+  gap: 6px 10px;
 }
 
 .th-toggle {
@@ -1591,6 +1609,92 @@ svg.th-group-icon {
 
 .th-set-grid > .th-btn-danger {
   justify-self: start;
+}
+
+.th-set-grid > .th-toggle {
+  min-height: 48px;
+}
+
+/* Volume slider (shell/slider.ts): label and value over the track; the whole cell takes the touch. */
+.th-slider {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 5px 14px 7px;
+  color: var(--th-paper);
+  background: rgba(233, 223, 195, 0.07);
+  border: 1px solid rgba(233, 223, 195, 0.28);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.th-slider:focus-visible {
+  outline: 2px solid #e3c06c;
+  outline-offset: 1px;
+}
+
+.th-slider.is-dragging {
+  background: rgba(233, 223, 195, 0.14);
+}
+
+.th-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--th-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.th-slider-label {
+  min-width: 0;
+}
+
+.th-slider-value {
+  flex: none;
+  min-width: 2.2em;
+  font-size: 12px;
+  text-align: right;
+  color: #e3c06c;
+}
+
+.th-slider-track {
+  position: relative;
+  display: block;
+  height: 8px;
+  margin: 0 7px;
+  background: #34362a;
+  border: 2px solid #0f100a;
+  border-radius: 6px;
+}
+
+.th-slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--th-olive);
+  border-radius: 4px;
+}
+
+.th-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: #e3c06c;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 /* --------------------------------------------------------- confirm modal */

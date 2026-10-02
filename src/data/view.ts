@@ -38,6 +38,11 @@ export const VIEW = {
   /** Art canvases are rasterised at this multiple of wu so they stay crisp on high-dpi phones. */
   textureScale: 2,
   maxDevicePixelRatio: 2,
+  /**
+   * Multisampling (MSAA) is asked for only on a low-density screen with at most this many canvas pixels at start: it
+   * multiplies the fill cost of every full-screen layer, which a big desktop window cannot afford.
+   */
+  msaaMaxPixels: 1_000_000,
 } as const;
 
 /** World y of the top edge of the battle view (everything above it is cropped sky). */
@@ -48,8 +53,14 @@ export const DEPTH = {
   sky: 0,
   celestial: 1,
   clouds: 2,
+  /** Title-screen storm (src/render/weather/menuStorm.ts): the flash over the sky and clouds only. */
+  menuSkyFlash: 2.2,
+  /** Title-screen storm: the distant fork and its glow, behind the far hills so the church spire stands out against it. */
+  menuFork: 2.5,
   farBackdrop: 3,
   midBackdrop: 4,
+  /** Title-screen storm: the faint, slow rain behind the tree line. */
+  menuRainFar: 4.5,
   nearBackdrop: 5,
   ground: 10,
   groundDecals: 11,
@@ -71,6 +82,8 @@ export const DEPTH = {
   projectiles: 40,
   effects: 41,
   smokeScreen: 42,
+  /** Title-screen storm: the middle rain layer, in front of the field but behind the foreground ferns. */
+  menuRainMid: 45,
   foreground: 50,
   nightTint: 55,
   rain: 60,

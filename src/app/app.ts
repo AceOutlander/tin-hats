@@ -16,6 +16,7 @@ import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import {
   buyUpgrade,
+  cleanSetting,
   clearSave,
   defaultSave,
   loadSave,
@@ -33,6 +34,7 @@ import { createBattle } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
 import { buildCampaignView, buildResult } from './campaignView';
 import { GameLoop } from './loop';
+import { MenuStormDirector } from './menuStorm';
 import { BattleSession } from './session';
 import { TipMemory, Tutorial } from './tutorial';
 
@@ -71,6 +73,8 @@ export class App implements AppApi {
   private pendingResult: ResultView | null = null;
   /** Which tutorial tips have ended; they never come back (until the player asks for them again). */
   readonly tips: TipMemory;
+  /** The title screen's storm. */
+  readonly storm: MenuStormDirector;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
   private readonly storage: StorageLike | null;
@@ -85,7 +89,8 @@ export class App implements AppApi {
     this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
     this.random = deps.random ?? Math.random;
     this.save = loadSave(deps.storage, { missionIds: this.missions.map((m) => m.id), upgradeDefs: this.upgradeDefs }).data;
-    this.audio.setMuted(this.save.settings.muted);
+    this.storm = new MenuStormDirector(this.view, this.audio, () => this.ui);
+    this.applySettings();
 
     this.loop = new GameLoop(
       {
@@ -108,7 +113,19 @@ export class App implements AppApi {
     };
     this.view.setFrameHandler((dtMs) => {
       if (this.session) this.loop.frame(dtMs);
+      else this.storm.frame(dtMs);
     });
+  }
+
+  /** Hand every saved setting to the audio, the view and the storm (at start and after a reset). */
+  private applySettings(): void {
+    const s = this.save.settings;
+    this.audio.setMuted(s.muted);
+    this.audio.setVolume('music', s.musicVolume / 100);
+    this.audio.setVolume('ambience', s.ambienceVolume / 100);
+    this.audio.setVolume('sfx', s.sfxVolume / 100);
+    this.view.setReducedFlashing(s.reduceFlash);
+    this.storm.setReduced(s.reduceFlash);
   }
 
   /** Hand over the UI (it is created after the app, because it needs the AppApi). */
@@ -116,9 +133,14 @@ export class App implements AppApi {
     this.ui = ui;
   }
 
-  /** The UI changed screen: leaving the battle screens ends the battle. */
+  /**
+   * The UI changed screen: leaving the battle screens ends the battle. The title starts its storm; Settings opened
+   * from the title keeps it going (so the volume sliders can be heard against the rain); anything else stops it.
+   */
   onScreen(screen: ScreenId): void {
     if (screen !== 'battle' && screen !== 'result') this.endSession();
+    if (screen === 'title') this.storm.start();
+    else if (!(screen === 'settings' && this.storm.running)) this.storm.stop();
   }
 
   get currentUi(): UiApi | null {
@@ -256,11 +278,32 @@ export class App implements AppApi {
   /** The page went to the background (tab hidden, app switched away, phone locked): pause a running battle and silence the audio, menus included. */
   pageHidden(): void {
     this.autoPause();
+    this.storm.setAway(true);
     this.audio.suspend();
   }
 
   /** The page is back in front: sound returns, unless a battle is still paused (the player resumes that). */
   pageShown(): void {
+    this.storm.setAway(false);
+    if (!this.loop.paused) this.audio.resume();
+  }
+
+  /**
+   * The window lost focus (another window or app in front). A running battle pauses (autoPause); the title storm
+   * freezes and its sound is suspended. Other menus keep their sound.
+   */
+  pageBlurred(): void {
+    this.autoPause();
+    if (this.storm.running && !this.storm.away) {
+      this.storm.setAway(true);
+      this.audio.suspend();
+    }
+  }
+
+  /** The window has focus again (and is visible): the storm carries on where it froze. */
+  pageFocused(): void {
+    if (!this.storm.away) return;
+    this.storm.setAway(false);
     if (!this.loop.paused) this.audio.resume();
   }
 
@@ -325,9 +368,31 @@ export class App implements AppApi {
     this.persist();
   }
 
+  /** Change one setting: checked and clamped like a stored one (volumes are whole numbers 0..100), applied at once and saved. */
   setSetting<K extends keyof SettingsView>(key: K, value: SettingsView[K]): void {
-    Object.assign(this.save.settings, { [key]: value });
-    if (key === 'muted') this.audio.setMuted(value === true);
+    const settings = this.save.settings;
+    const clean = cleanSetting(key, value);
+    settings[key] = clean;
+    switch (key) {
+      case 'muted':
+        this.audio.setMuted(settings.muted);
+        break;
+      case 'musicVolume':
+        this.audio.setVolume('music', settings.musicVolume / 100);
+        break;
+      case 'ambienceVolume':
+        this.audio.setVolume('ambience', settings.ambienceVolume / 100);
+        break;
+      case 'sfxVolume':
+        this.audio.setVolume('sfx', settings.sfxVolume / 100);
+        break;
+      case 'reduceFlash':
+        this.view.setReducedFlashing(settings.reduceFlash);
+        this.storm.setReduced(settings.reduceFlash);
+        break;
+      default:
+        break;
+    }
     this.persist();
   }
 
@@ -335,7 +400,7 @@ export class App implements AppApi {
     this.save = defaultSave();
     clearSave(this.storage);
     this.tips.clear();
-    this.audio.setMuted(this.save.settings.muted);
+    this.applySettings();
   }
 
   replayHints(): void {

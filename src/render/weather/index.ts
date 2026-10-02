@@ -18,8 +18,19 @@ import { RENDER } from '../../data/render';
 import type { TheatreId } from '../../data/schema';
 import { THEATRES } from '../../data/theatres';
 import { VIEW } from '../../data/view';
-import { WEATHER, type RainLook } from '../../data/weather';
-import { createLightning, createRainField, createRng, createWeather, type LightningFx, type RainField, type Rng01, type Weather, type WeatherOverride } from '../../fx';
+import { SOFT_LIGHTNING, WEATHER, type RainLook } from '../../data/weather';
+import {
+  createLightning,
+  createRainField,
+  createRng,
+  createWeather,
+  lightningFlash,
+  type LightningFx,
+  type RainField,
+  type Rng01,
+  type Weather,
+  type WeatherOverride,
+} from '../../fx';
 import type { SpriteRegistry } from '../atlas';
 import type { WeatherMode, WeatherStats } from '../contracts';
 import type { EffectContext } from '../effects';
@@ -81,6 +92,8 @@ export class WeatherView {
   private flashShown = false;
   private boltShown = false;
   private attached = false;
+  /** "Reduce flashing": a strike only swells into a slow soft glow, and no bolt is drawn. */
+  reduced = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -179,17 +192,18 @@ export class WeatherView {
 
   private drawLightning(lightning: LightningFx, camLeft: number, viewW: number, enabled: boolean): void {
     const m = W.margin;
-    const flash = enabled ? lightning.flash : 0;
+    const reduced = this.reduced;
+    const flash = !enabled ? 0 : reduced ? lightningFlash(lightning.sinceStrike, SOFT_LIGHTNING.glow) : lightning.flash;
     if (flash > 0.002) {
       fit(this.flash, camLeft - m, -m, viewW + 2 * m, VIEW.heightWu + 2 * m);
-      this.flash.alpha = Math.min(1, flash * LIGHT.flashAlpha * W.flashGain);
+      this.flash.alpha = Math.min(1, reduced ? flash * SOFT_LIGHTNING.alpha : flash * LIGHT.flashAlpha * W.flashGain);
       this.flash.visible = true;
       this.flashShown = true;
     } else if (this.flashShown) {
       this.flash.visible = false;
       this.flashShown = false;
     }
-    const a = enabled ? lightning.boltAlpha : 0;
+    const a = enabled && !reduced ? lightning.boltAlpha : 0;
     if (a > 0.002) {
       this.bolt.draw(lightning.bolt, a);
       this.boltShown = true;

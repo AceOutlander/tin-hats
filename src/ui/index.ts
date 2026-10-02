@@ -7,7 +7,7 @@
  *   ui.show('title');
  */
 import { version as packageVersion } from '../../package.json';
-import type { AppApi, CampaignView, HudState, ScreenId, UiApi } from './contracts';
+import type { AppApi, CampaignView, HudState, PanelDropsState, ScreenId, UiApi } from './contracts';
 import { briefingScreen } from './screens/briefing';
 import { campaignScreen } from './screens/campaign';
 import { quartermasterScreen } from './screens/quartermaster';
@@ -271,6 +271,9 @@ export function createUi(root: HTMLElement, app: AppApi, opts: UiOptions = {}): 
     current: () => currentId,
     updateHud(state: HudState) {
       if (hud) hud.update(state);
+    },
+    updateTitleDrops(drops: PanelDropsState) {
+      if (active && active.drops) active.drops(drops);
     },
     refresh: reload,
     getHudButtonRects: () => (hud ? hud.getButtonRects() : null),

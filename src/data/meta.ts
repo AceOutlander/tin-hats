@@ -1,5 +1,6 @@
 /** Rules and keys of the save data and campaign progress (src/meta). */
 import type { Difficulty } from './schema';
+import { VOLUME } from './sounds';
 
 export interface MetaTunables {
   /** Storage key of the save. */
@@ -14,14 +15,24 @@ export interface MetaTunables {
   defaultDifficulty: Difficulty;
   defaultMuted: boolean;
   defaultHints: boolean;
+  /** Volume sliders (0..100) of a fresh save, from VOLUME.defaults in src/data/sounds.ts. */
+  defaultMusicVolume: number;
+  defaultAmbienceVolume: number;
+  defaultSfxVolume: number;
+  /** "Reduce flashing" (lightning as a slow soft glow) of a fresh save. */
+  defaultReduceFlash: boolean;
 }
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 2,
+  saveVersion: 3,
   firstClearPoints: 2,
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',
   defaultMuted: false,
   defaultHints: true,
+  defaultMusicVolume: VOLUME.defaults.music,
+  defaultAmbienceVolume: VOLUME.defaults.ambience,
+  defaultSfxVolume: VOLUME.defaults.sfx,
+  defaultReduceFlash: false,
 };

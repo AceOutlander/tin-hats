@@ -15,7 +15,26 @@
  * anything on screen (unitScreenPos, taps).
  */
 import type { Side, SupportKind } from '../data/schema';
+import type { MenuStormState } from '../fx';
 import type { Battle } from '../sim';
+
+/** What the title storm scene is drawing, for the debug hooks and the tests. */
+export interface MenuSceneStats {
+  shown: boolean;
+  /** Streaks falling per layer, back to front (behind the trees, in front of the field, nearest). */
+  drops: number[];
+  /** Splashes on the grass right now. */
+  splashes: number;
+  /** Share of the rain drawn (1 = all): the quality governor and the load guard thin it when frames are slow. */
+  rainShare: number;
+  /** World position of the spire's tip (x on screen = (spireX - camera left) in wu). */
+  spireX: number;
+  spireY: number;
+  /** True while a fork is drawn. */
+  forkDrawn: boolean;
+  /** Opacity of the light over the sky right now. */
+  skyFlash: number;
+}
 
 export type WeatherMode = 'auto' | 'rain' | 'clear';
 
@@ -128,6 +147,19 @@ export interface BattleView {
   /** Debug: a lightning strike now (flash, then thunder after its delay), rain or not. */
   forceThunder(): void;
   weatherStats(): WeatherStats;
+  /** "Reduce flashing": lightning in battle and on the title screen only swells into a slow soft glow, with no bolt. */
+  setReducedFlashing(on: boolean): void;
+  /**
+   * The title screen's storm scene (src/render/weather/menuStorm.ts): on puts up the French fields under a storm light
+   * (building the backdrop when a battle replaced it), off takes it down. A battle attach takes it down too.
+   */
+  setMenuScene(on: boolean): void;
+  /**
+   * Draw one frame of the title storm while no battle is attached. `dt` = storm seconds advanced (0 while it is paused
+   * or frozen: nothing moves), `fade` 0..1 scales the rain and the light (for the fade in and out).
+   */
+  renderMenu(storm: MenuStormState, dt: number, fade: number): void;
+  menuStats(): MenuSceneStats;
   /**
    * Where a unit is drawn (body centre), in CSS px from the parent element's top-left corner; null if it is not
    * on screen. Returns a shared object: read it before the next call.

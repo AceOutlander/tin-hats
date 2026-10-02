@@ -1,5 +1,5 @@
 /** France: rolling fields, hedgerows, poplars, a distant village with a church spire, telegraph poles. */
-import { SCENES } from '../../../data/theatres';
+import { BACKDROP, SCENES } from '../../../data/theatres';
 import {
   bush,
   clumps,
@@ -28,6 +28,14 @@ import { chance, range, type Rng } from '../rng';
 import type { LayerPainter, Scene, TheatreArt } from '../scene';
 
 const S = SCENES.france;
+
+/** The spire's tip is this far (wu) from the village centre: the tower stands at x - 12 .. x - 3. */
+const SPIRE_DX = -7.5;
+
+/** Where the tip of the church spire is across the far strip's tile, wu from its left edge. */
+export function franceSpireTileX(): number {
+  return BACKDROP.tileW.farBackdrop * S.churchAt + SPIRE_DX;
+}
 
 function houseLook(sc: Scene, haze: number): HouseLook {
   const P = sc.pal;
@@ -59,7 +67,7 @@ function village(ctx: Ctx, sc: Scene, rng: Rng, yOf: Profile, x: number, haze: n
     ctx.fillRect(x - 12 + (sc.light < 0 ? 6 : 0), base - 26, 3, 26);
     ctx.fillStyle = look.opening;
     ctx.fillRect(x - 9, base - 22, 2.6, 4.5);
-    fillPoly(ctx, [x - 13.2, base - 26, x - 7.5, base - 26 - S.spireHeight, x - 1.8, base - 26], sc.tone(P.roofAlt, haze));
+    fillPoly(ctx, [x - 13.2, base - 26, x + SPIRE_DX, base - 26 - S.spireHeight, x - 1.8, base - 26], sc.tone(P.roofAlt, haze));
   }
   for (let i = 0; i < houses; i++) {
     const side = i % 2 === 0 ? -1 : 1;
@@ -113,7 +121,7 @@ const far: LayerPainter = (ctx, sc, rng, box) => {
   ctx.restore();
   clumps(ctx, rng, w, y2, 80, 2.5, 5.5, sc.tone(P.foliageShade, haze + 0.05), 2);
 
-  village(ctx, sc, rng, y2, w * 0.31, haze - 0.08, S.villageHouses, true);
+  village(ctx, sc, rng, y2, w * S.churchAt, haze - 0.08, S.villageHouses, true);
   village(ctx, sc, rng, y2, w * 0.79, haze - 0.04, 4, false);
 };
 

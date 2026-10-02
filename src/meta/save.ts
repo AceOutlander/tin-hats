@@ -8,6 +8,7 @@
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { META } from '../data/meta';
 import type { Difficulty, UpgradeDef, UpgradeLevels } from '../data/schema';
+import { clampVolume } from '../data/sounds';
 import { maxLevel, pointsEarned } from './campaign';
 
 /** The part of Storage the game uses. */
@@ -22,6 +23,47 @@ export interface SaveSettings {
   /** The difficulty the briefing starts on. */
   difficulty: Difficulty;
   hints: boolean;
+  /** Volume sliders, whole numbers 0..100: Music (music and the stings), Ambience (rain and thunder), Sound effects (the rest). */
+  musicVolume: number;
+  ambienceVolume: number;
+  sfxVolume: number;
+  /** Lightning as a slow soft glow instead of sharp flashes (title screen and battles). */
+  reduceFlash: boolean;
+}
+
+/** The volume settings, by key. */
+export const VOLUME_KEYS = ['musicVolume', 'ambienceVolume', 'sfxVolume'] as const;
+export type VolumeKey = (typeof VOLUME_KEYS)[number];
+
+/** Settings of a fresh save. */
+export function defaultSettings(): SaveSettings {
+  return {
+    muted: META.defaultMuted,
+    difficulty: META.defaultDifficulty,
+    hints: META.defaultHints,
+    musicVolume: META.defaultMusicVolume,
+    ambienceVolume: META.defaultAmbienceVolume,
+    sfxVolume: META.defaultSfxVolume,
+    reduceFlash: META.defaultReduceFlash,
+  };
+}
+
+/**
+ * One setting checked and clamped: a volume becomes a whole number 0..100, anything of the wrong type gives the
+ * default. Used for the stored save and for every change the player makes.
+ */
+export function cleanSetting<K extends keyof SaveSettings>(key: K, value: unknown): SaveSettings[K] {
+  const fallback = defaultSettings()[key];
+  switch (key) {
+    case 'musicVolume':
+    case 'ambienceVolume':
+    case 'sfxVolume':
+      return clampVolume(value, fallback as number) as SaveSettings[K];
+    case 'difficulty':
+      return (isDifficulty(value) ? value : fallback) as SaveSettings[K];
+    default:
+      return (typeof value === 'boolean' ? value : fallback) as SaveSettings[K];
+  }
 }
 
 export interface SaveData {
@@ -60,7 +102,7 @@ export function defaultSave(): SaveData {
     cleared: {},
     upgrades: {},
     lastMission: 0,
-    settings: { muted: META.defaultMuted, difficulty: META.defaultDifficulty, hints: META.defaultHints },
+    settings: defaultSettings(),
   };
 }
 
@@ -80,6 +122,17 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   // 1 -> 2: the save remembers the mission last played.
   1: (doc) => {
     doc.lastMission = 0;
+  },
+  // 2 -> 3: three volume sliders and "Reduce flashing" join the settings, at their defaults.
+  2: (doc) => {
+    if (!isRecord(doc.settings)) return;
+    doc.settings = {
+      ...doc.settings,
+      musicVolume: META.defaultMusicVolume,
+      ambienceVolume: META.defaultAmbienceVolume,
+      sfxVolume: META.defaultSfxVolume,
+      reduceFlash: META.defaultReduceFlash,
+    };
   },
 };
 
@@ -165,9 +218,12 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
 
   if (isRecord(doc.settings)) {
     const s = doc.settings;
-    if (typeof s.muted === 'boolean') out.settings.muted = s.muted;
-    if (typeof s.hints === 'boolean') out.settings.hints = s.hints;
-    if (isDifficulty(s.difficulty)) out.settings.difficulty = s.difficulty;
+    const settings = out.settings;
+    settings.muted = cleanSetting('muted', s.muted);
+    settings.hints = cleanSetting('hints', s.hints);
+    settings.difficulty = cleanSetting('difficulty', s.difficulty);
+    for (const key of VOLUME_KEYS) settings[key] = cleanSetting(key, s[key]);
+    settings.reduceFlash = cleanSetting('reduceFlash', s.reduceFlash);
   }
   return out;
 }

@@ -11,11 +11,18 @@ export const RENDER_KEYS = {
   white: 'rd/white',
   /** Same square with its origin at the top-left corner (full-screen overlays, bars). */
   whiteTL: 'rd/whiteTL',
+  /** A raindrop streak for the title storm: STREAK_W x STREAK_H wu, white, fading out toward its top; origin at its centre. */
+  streak: 'rd/streak',
+  /** A soft white disc fading to nothing at its rim (GLOW_SIZE wu across, origin at its centre): cold light, tinted. */
+  glow: 'rd/glow',
 } as const;
 
 export const SHADOW_W = 64;
 export const SHADOW_H = 16;
 export const WHITE_SIZE = 8;
+export const STREAK_W = 4;
+export const STREAK_H = 32;
+export const GLOW_SIZE = 64;
 
 /** Glyphs of the floating "+N" text: the digits and the plus sign, drawn once with Canvas text. */
 export const GLYPH_CHARS = '0123456789+';
@@ -97,6 +104,41 @@ export function renderSprites(): SpriteSpec[] {
       draw(ctx) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, WHITE_SIZE, WHITE_SIZE);
+      },
+    },
+    {
+      key: RENDER_KEYS.streak,
+      w: STREAK_W,
+      h: STREAK_H,
+      ax: 0.5,
+      ay: 0.5,
+      draw(ctx) {
+        // A soft-sided line, clear at the top and brightest just above its leading (lower) end.
+        const g = ctx.createLinearGradient(0, 0, 0, STREAK_H);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.75, 'rgba(255,255,255,0.75)');
+        g.addColorStop(1, 'rgba(255,255,255,1)');
+        ctx.fillStyle = g;
+        ctx.fillRect(STREAK_W * 0.25, 0, STREAK_W * 0.5, STREAK_H);
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(0, 0, STREAK_W, STREAK_H);
+        ctx.globalAlpha = 1;
+      },
+    },
+    {
+      key: RENDER_KEYS.glow,
+      w: GLOW_SIZE,
+      h: GLOW_SIZE,
+      ax: 0.5,
+      ay: 0.5,
+      draw(ctx) {
+        const r = GLOW_SIZE / 2;
+        const g = ctx.createRadialGradient(r, r, 0, r, r, r);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, GLOW_SIZE, GLOW_SIZE);
       },
     },
   ];

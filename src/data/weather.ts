@@ -102,6 +102,22 @@ export interface LightningBoltShape {
   lean: number;
 }
 
+/**
+ * Battle lightning with the "Reduce flashing" setting on: the strike, its timing and its thunder are unchanged, but the
+ * screen only swells into a slow soft glow (no sharp brightness step) and no bolt is drawn.
+ */
+export const SOFT_LIGHTNING = {
+  /** Glow brightness over time, [seconds since the strike, 0..1]. */
+  glow: [
+    [0, 0],
+    [0.7, 0.5],
+    [1.5, 0.32],
+    [2.6, 0],
+  ] as readonly (readonly [number, number])[],
+  /** Opacity of the full-screen glow overlay at brightness 1. */
+  alpha: 0.3,
+} as const;
+
 export const WEATHER: WeatherConfig & { rain: RainLook; lightning: LightningLook } = {
   rainChance: 0.4,
   thunderCheckInterval: 2,

@@ -15,6 +15,7 @@ import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
 import type { App } from './app';
+import type { MenuStormStats } from './menuStorm';
 import { newTally, type EventTally } from './session';
 
 export interface ScreenPoint {
@@ -176,6 +177,20 @@ export interface DebugApi {
   unitScreenPos(id: number): ScreenPoint | null;
   firstUnitScreenPos(side: 0 | 1, kind: UnitKind): (ScreenPoint & { id: number }) | null;
   perf(): { fps: number; stepMsAvg: number; renderMsAvg: number };
+  /** The title screen's storm. */
+  menuStorm: MenuStormHooks;
+}
+
+export interface MenuStormHooks {
+  stats(): MenuStormStats;
+  /** A flash now; `fork` forces the fork on or off (omitted: rolled as usual). */
+  forceFlash(fork?: boolean): void;
+  /** Stop storm time (true) or let it run with the frames again (false). */
+  freeze(on: boolean): void;
+  /** Move storm time on by this many seconds, frozen or not (thunder cues fall due as they would). */
+  advance(seconds: number): void;
+  /** Turn the storm off (it fades out and stays off) or back on (it starts if the title is up): for measurements. */
+  enable(on: boolean): void;
 }
 
 function zeroCounts(): UnitCounts {
@@ -460,6 +475,18 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     perf() {
       return { fps: view.getStats().fps, stepMsAvg: app.loop.stepMsAvg, renderMsAvg: app.loop.renderMsAvg };
+    },
+
+    menuStorm: {
+      stats: () => app.storm.stats(),
+      forceFlash: (fork) => app.storm.forceFlash(fork),
+      freeze: (on) => app.storm.freeze(on),
+      advance: (seconds) => app.storm.advance(seconds),
+      enable(on) {
+        app.storm.enabled = on;
+        if (!on) app.storm.stop();
+        else if (ui.current() === 'title') app.storm.start();
+      },
     },
   };
 

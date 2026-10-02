@@ -1,8 +1,17 @@
-/** Settings screen: sound, default difficulty, hints, and reset progress behind a confirm step. */
+/**
+ * Settings screen: sound on or off, the Music, Ambience and Sound effects volumes, reduce flashing, tutorial hints,
+ * the default difficulty, and reset progress behind a confirm step. The controls sit in a scroll area with a cue,
+ * so on the smallest phones the last row scrolls into view instead of being cut off.
+ */
 import type { Difficulty } from '../../data/schema';
+import type { SettingsView } from '../contracts';
 import { add, button, clear, el, stencil } from '../shell/dom';
 import { glyph } from '../shell/icons';
+import { withScrollCue } from '../shell/scrollCue';
+import { slider, type Slider } from '../shell/slider';
 import type { ScreenFactory } from '../shell/types';
+
+type VolumeSetting = 'musicVolume' | 'ambienceVolume' | 'sfxVolume';
 
 export const settingsScreen: ScreenFactory = (ctx) => {
   const root = el('section', 'th-screen th-settings');
@@ -34,6 +43,35 @@ export const settingsScreen: ScreenFactory = (ctx) => {
       const muted = !ctx.view().settings.muted;
       ctx.app.setSetting('muted', muted);
       ctx.app.uiSound('click');
+      ctx.reload();
+    },
+  });
+
+  // The three volumes act at once while the finger moves; Sound effects clicks at its new level when let go.
+  const volume = (key: VolumeSetting, testid: string, label: string): Slider =>
+    slider({
+      testid,
+      label,
+      value: ctx.view().settings[key],
+      onInput: (value) => ctx.app.setSetting(key, value),
+      onCommit: () => {
+        if (key === 'sfxVolume') ctx.app.uiSound('click');
+        ctx.reload();
+      },
+    });
+  const music = volume('musicVolume', 'setting-music', 'Music');
+  const ambience = volume('ambienceVolume', 'setting-ambience', 'Ambience');
+  const sfx = volume('sfxVolume', 'setting-sfx', 'Sound effects');
+
+  const flashState = el('span', 'th-toggle-state');
+  const reduceFlash = button({
+    testid: 'setting-reduce-flash',
+    className: 'th-toggle',
+    bare: true,
+    content: [el('span', 'th-toggle-label', 'Reduce flashing'), flashState, el('span', 'th-switch')],
+    onTap: () => {
+      ctx.app.uiSound('click');
+      ctx.app.setSetting('reduceFlash', !ctx.view().settings.reduceFlash);
       ctx.reload();
     },
   });
@@ -109,13 +147,25 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     },
   });
 
-  const grid = el('div', 'th-set-grid');
-  add(grid, mute, hints, diffRow, replay, reset);
-  add(plate, head, grid);
+  const grid = el('div', 'th-set-grid th-scroll');
+  grid.dataset.scroll = '';
+  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, hints, diffRow, replay, reset);
+  const cue = withScrollCue(grid, 'dark');
+  add(plate, head, cue.el);
   root.append(plate);
 
+  function toggle(node: HTMLButtonElement, state: HTMLElement, on: boolean): void {
+    node.setAttribute('aria-pressed', on ? 'true' : 'false');
+    node.dataset.state = on ? 'on' : 'off';
+    state.textContent = on ? 'On' : 'Off';
+  }
+
   function render(): void {
-    const s = ctx.view().settings;
+    const s: SettingsView = ctx.view().settings;
+    music.set(s.musicVolume);
+    ambience.set(s.ambienceVolume);
+    sfx.set(s.sfxVolume);
+    toggle(reduceFlash, flashState, s.reduceFlash);
     const soundOn = !s.muted;
     mute.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     mute.dataset.state = soundOn ? 'on' : 'off';
@@ -123,9 +173,7 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     muteState.textContent = soundOn ? 'On' : 'Off';
     clear(muteIcon);
     muteIcon.append(glyph(soundOn ? 'sound' : 'muted'));
-    hints.setAttribute('aria-pressed', s.hints ? 'true' : 'false');
-    hints.dataset.state = s.hints ? 'on' : 'off';
-    hintsState.textContent = s.hints ? 'On' : 'Off';
+    toggle(hints, hintsState, s.hints);
     for (const [id, node] of diffButtons) {
       const on = id === s.difficulty;
       node.classList.toggle('is-on', on);
@@ -137,6 +185,9 @@ export const settingsScreen: ScreenFactory = (ctx) => {
   return {
     el: root,
     refresh: render,
+    mounted: () => cue.update(),
+    resize: () => cue.update(),
+    destroy: () => cue.destroy(),
     back() {
       ctx.go(ctx.session.settingsFrom);
     },

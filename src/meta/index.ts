@@ -18,12 +18,15 @@ export {
   type ClearResult,
 } from './campaign';
 export {
+  cleanSetting,
   clearSave,
   createMemoryStorage,
   defaultSave,
+  defaultSettings,
   loadSave,
   migrateSave,
   sanitizeSave,
+  VOLUME_KEYS,
   writeSave,
   type LoadResult,
   type LoadStatus,
@@ -31,4 +34,5 @@ export {
   type SaveRules,
   type SaveSettings,
   type StorageLike,
+  type VolumeKey,
 } from './save';

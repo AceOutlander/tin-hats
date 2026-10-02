@@ -747,6 +747,8 @@ export const SCENES = {
     farRidgeY: 268,
     farRidgeAmp: 20,
     villageHouses: 9,
+    /** The village with the church sits this far across the far strip's tile (0..1). */
+    churchAt: 0.31,
     spireHeight: 36,
     midRidgeY: 304,
     midRidgeAmp: 11,
