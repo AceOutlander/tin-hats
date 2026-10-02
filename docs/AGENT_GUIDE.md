@@ -11,16 +11,16 @@ alternative and note it under Known issues in `docs/PROGRESS.md`.
 
 ## Where things are
 
-- Project root: `the project folder` (a git repo). Your shell usually starts one level up in the parent folder. Never touch anything outside `tin-hats`.
-- Node, npm and git are NOT installed on this machine. Project-local copies live in `tin-hats\.tools`. Run every command through the wrapper, which sets PATH and changes into the project root:
+- Project root: `this folder` (a git repo). Never touch anything outside it. An older copy in a cloud-synced folder (`an older folder`) is stale and must not be used.
+- Node, npm and git are NOT installed on this machine. Project-local copies live in `.tools`. Run every command through the wrapper, which sets PATH and changes into the project root:
 
 ```powershell
-.\tin-hats\x.cmd npm run typecheck
-.\tin-hats\x.cmd npx vitest run tests/unit/economy.test.ts
-.\tin-hats\x.cmd git status --short
+.\x.cmd npm run typecheck
+.\x.cmd npx vitest run tests/unit/economy.test.ts
+.\x.cmd git status --short
 ```
 
-  If your shell is already inside `tin-hats`, use `.\x.cmd ...`. Use absolute paths with the file tools.
+  From another folder use the full path: `.\x.cmd ...`. Use absolute paths with the file tools.
 - The shell is Windows PowerShell 5.1: no `&&`, no `||`. Chain with `;`.
 - Never install anything globally. Never push, deploy or publish. New npm packages only if truly needed (ask yourself twice).
 
@@ -69,8 +69,8 @@ Commit only when your task brief tells you to. When you do: stage only your own 
 special characters, and retry after a couple of seconds if the index is locked.
 
 ```powershell
-.\tin-hats\x.cmd git add src/sim tests/unit
-.\tin-hats\x.cmd git commit -m "Sim core with economy, orders and rifle combat"
+.\x.cmd git add src/sim tests/unit
+.\x.cmd git commit -m "Sim core with economy, orders and rifle combat"
 ```
 
 ## Your final message
