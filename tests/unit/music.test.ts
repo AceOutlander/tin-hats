@@ -1,6 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAudio } from '../../src/audio';
-import { band, db, drumBeats, inKey, loopBeats, loopSeconds, loudestWindow, MusicPlayer, peakOf, rmsOf, scoreNotes, seamOf, sectionTimes } from '../../src/audio/music';
+import {
+  band,
+  db,
+  drumBeats,
+  inKey,
+  loopBeats,
+  loopSeconds,
+  loudestWindow,
+  loudnessOf,
+  MusicPlayer,
+  peakOf,
+  phoneSpeaker,
+  rmsOf,
+  scoreNotes,
+  seamOf,
+  sectionTimes,
+  sumLoudness,
+} from '../../src/audio/music';
 import type { RenderedTrack } from '../../src/audio/music';
 import { MINOR_SCALE, MUSIC, MUSIC_TRACKS, REQUIEM, type TrackDef } from '../../src/data/music';
 
@@ -252,6 +269,49 @@ describe('measuring audio', () => {
     for (let i = rate; i < 1.5 * rate; i++) s[i] *= 8;
     expect(loudestWindow(s, rate, 0.25)).toBeCloseTo(0.8 / Math.SQRT2, 1);
     expect(rmsOf(s)).toBeLessThan(0.3);
+  });
+
+  it('measures perceived loudness the BS.1770 way', () => {
+    const r = 48000;
+    const tone = (hz: number, seconds: number, amp: number): Float32Array => {
+      const out = new Float32Array(Math.round(seconds * r));
+      for (let i = 0; i < out.length; i++) out[i] = amp * Math.sin((2 * Math.PI * hz * i) / r);
+      return out;
+    };
+    // The standard's reference: a full-scale 997 Hz sine in one channel reads -3.01 LUFS.
+    expect(loudnessOf(tone(997, 5, 1), r).integrated).toBeCloseTo(-3.01, 0);
+    // Half the amplitude: 6 dB quieter.
+    expect(loudnessOf(tone(997, 5, 0.5), r).integrated).toBeCloseTo(-9.03, 0);
+    // The head's shelf: the same level at 4 kHz reads louder, at 60 Hz a little quieter.
+    expect(loudnessOf(tone(4000, 5, 0.5), r).integrated).toBeGreaterThan(loudnessOf(tone(997, 5, 0.5), r).integrated + 2.5);
+    expect(loudnessOf(tone(60, 5, 0.5), r).integrated).toBeLessThan(loudnessOf(tone(997, 5, 0.5), r).integrated);
+    // Gating: silence around a tone does not dilute it.
+    const gapped = new Float32Array(r * 10);
+    gapped.set(tone(997, 4, 0.5), r * 3);
+    expect(loudnessOf(gapped, r).integrated).toBeCloseTo(-9.03, 0);
+    // Momentary and short-term maxima find the loud part.
+    expect(loudnessOf(gapped, r).momentaryMax).toBeCloseTo(-9.03, 0);
+    // Two equal uncorrelated sounds together: 3 dB louder.
+    expect(sumLoudness(-20, -20)).toBeCloseTo(-16.99, 2);
+  });
+
+  it('models a phone speaker: no bass, the middle untouched', () => {
+    const phone = MUSIC.mix.phone;
+    expect(phone.highpassHz).toBeGreaterThanOrEqual(300);
+    expect(phone.highpassHz).toBeLessThanOrEqual(400);
+    expect(phone.highpassOrder).toBeGreaterThanOrEqual(2);
+    expect(phone.lowpassHz).toBeGreaterThanOrEqual(9000);
+    const r = 24000;
+    const tone = (hz: number): Float32Array => {
+      const out = new Float32Array(r * 2);
+      for (let i = 0; i < out.length; i++) out[i] = Math.sin((2 * Math.PI * hz * i) / r);
+      return out;
+    };
+    const through = (hz: number): number => db(rmsOf(phoneSpeaker(tone(hz), r, phone), r / 2)) - db(rmsOf(tone(hz)));
+    expect(through(80)).toBeLessThan(-40);
+    expect(through(150)).toBeLessThan(-25);
+    expect(through(2000)).toBeGreaterThan(-1);
+    expect(through(1000)).toBeGreaterThan(-1);
   });
 
   it('tells a seamless loop from one with a click', () => {

@@ -204,8 +204,8 @@ export function buildThunder(
     burst('white', 'bandpass', 2400, 650, k * 0.7, 0.03 + 0.03 * rng(), 0.005, 0.05, 0.38, false);
   }
   // The boom and the low body under it.
-  burst('pink', 'lowpass', cutoff * 1.2, cutoff * 0.18, level, 0.04, 0.02 + 0.03 * rng(), 0.08, Math.min(1.6, 0.35 * len), false);
-  burst('brown', 'lowpass', 520, 90, level * 0.75, 0.05, 0.03, 0.1, Math.min(2.2, 0.5 * len), false);
+  burst('pink', 'lowpass', cutoff * 1.2, cutoff * 0.18, level, 0.04, 0.02 + 0.03 * rng(), def.boomHold, Math.min(1.6, 0.35 * len), false);
+  burst('brown', 'lowpass', 520, 90, level * def.bodyGain, 0.05, 0.03, 0.1, Math.min(2.2, 0.5 * len), false);
   // A thump for headphones.
   const thump = ctx.createOscillator();
   thump.type = 'sine';
@@ -227,7 +227,7 @@ export function buildThunder(
     const fall = 1 - (0.65 * at) / len;
     const gain = level * between(rng, def.rollGain) * fall;
     const decay = between(rng, def.rollDecay);
-    burst('pink', 'lowpass', cutoff * (0.25 + 0.3 * rng()), cutoff * 0.15, gain, at, 0.18 + 0.3 * rng(), 0.1 + 0.25 * rng(), decay, true);
+    burst('pink', 'lowpass', cutoff * between(rng, def.rollCutoff), cutoff * 0.15, gain, at, 0.18 + 0.3 * rng(), 0.1 + 0.25 * rng(), decay, true);
   }
   return end;
 }

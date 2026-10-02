@@ -1,6 +1,7 @@
 /**
  * The menu theme in the built game: rendered once at load, two minutes or more, not silent, not clipping, looping with
- * no seam; sitting in the mix under the thunder with the rain still audible (measured, nobody listens); starting
+ * no seam; leading the mix a little above the rain with the thunder on top, full range and through a phone speaker
+ * model (measured, nobody listens); starting
  * with the first touch and fading in, following the Music slider and mute but not Ambience, carrying on behind
  * Settings and fading out when the menu is left.
  */
@@ -9,7 +10,7 @@ import type { MusicAnalysis } from '../../src/app/debug';
 import type { MusicStats } from '../../src/audio';
 import type { MixReport } from '../../src/audio/music';
 import { MUSIC } from '../../src/data/music';
-import { volumeGain } from '../../src/data/sounds';
+import { AUDIO, VOLUME, volumeGain } from '../../src/data/sounds';
 import { arrived, audioStats, expect, open, tap, tapIn, test, type Hooked } from './helpers';
 
 const stats = (page: Page): Promise<MusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.music.stats() as MusicStats);
@@ -65,22 +66,42 @@ test.describe('menu music', () => {
     expect((await stats(page)).playing).toBe(false);
   });
 
-  test('sits in the mix at default volumes: the rain audible under it, the thunder cutting through', async ({ page }) => {
+  // The owner changed this requirement on 2026-10-01: the music now leads (a little louder than the rain, in perceived
+  // loudness), full range and on a phone-sized speaker, with the thunder still on top (DECISIONS 229).
+  test('leads the mix at default slider levels, full range and on a phone speaker, with the thunder on top', async ({ page }) => {
     await open(page);
     await rendered(page);
     const r = await mix(page);
     expect(r).not.toBeNull();
     if (!r) return;
-    console.log(
-      `mix: rain ${r.rainOverMusicDb.toFixed(1)} dB over the music in its band, music ${r.musicOverRainDb.toFixed(1)} dB over the rain, ` +
-        `thunder ${r.thunderOverMusicDb.toFixed(1)} dB over the music's peak and ${r.thunderLowOverMusicDb.toFixed(1)} dB over its lows`,
-    );
     const T = MUSIC.mix;
-    expect(r.rainOverMusicDb).toBeGreaterThanOrEqual(T.rainOverMusicDb);
-    expect(r.musicOverRainDb).toBeGreaterThanOrEqual(T.musicOverRain[0]);
-    expect(r.musicOverRainDb).toBeLessThanOrEqual(T.musicOverRain[1]);
-    expect(r.thunderOverMusicDb).toBeGreaterThanOrEqual(T.thunderOverMusicDb);
-    expect(r.thunderLowOverMusicDb).toBeGreaterThanOrEqual(T.thunderLowOverMusicDb);
+    expect(r.sliders).toEqual({ music: VOLUME.defaults.music, ambience: VOLUME.defaults.ambience, sfx: VOLUME.defaults.sfx });
+    for (const [name, l] of [
+      ['full range', r.full],
+      ['phone speaker', r.phone],
+    ] as const) {
+      console.log(
+        `${name}: music ${l.musicLufs.toFixed(1)} LUFS, rain ${l.rainLufs.toFixed(1)} LUFS (music ${l.musicOverRain.toFixed(1)} LU over); thunder over music and rain: ` +
+          `momentary ${l.thunderMomentaryOverBed.toFixed(1)} LU, short-term ${l.thunderShortTermOverBed.toFixed(1)} LU, peak ${l.thunderPeakOverBed.toFixed(1)} dB`,
+      );
+      expect(l.musicOverRain, `${name}: music over rain`).toBeGreaterThanOrEqual(T.musicOverRain[0]);
+      expect(l.musicOverRain, `${name}: music over rain`).toBeLessThanOrEqual(T.musicOverRain[1]);
+      expect(l.thunderMomentaryOverBed, `${name}: thunder momentary`).toBeGreaterThanOrEqual(T.thunderMomentaryOverBed);
+      expect(l.thunderShortTermOverBed, `${name}: thunder short-term`).toBeGreaterThanOrEqual(T.thunderShortTermOverBed);
+      expect(l.thunderPeakOverBed, `${name}: thunder peak`).toBeGreaterThanOrEqual(T.thunderPeakOverBed);
+    }
+    // Through the engine's own master chain: no soft clipping at default levels, the compressor leaves the music alone
+    // and lets go of the thunder at once, and with every slider full there is still headroom.
+    const c = r.chain;
+    console.log(
+      `chain: output peak ${c.outputPeak.toFixed(2)}, compressor ${c.bedReductionDb.toFixed(1)} dB on music and rain, ${c.maxReductionDb.toFixed(1)} dB at most, ` +
+        `${c.pumpSeconds.toFixed(2)} s over ${T.pumpDb} dB; every slider full: output peak ${r.chainAtFull.outputPeak.toFixed(2)}, compressor ${r.chainAtFull.maxReductionDb.toFixed(1)} dB`,
+    );
+    expect(c.outputPeak).toBeLessThanOrEqual(AUDIO.clipKnee);
+    expect(c.bedReductionDb).toBeLessThanOrEqual(T.bedReductionDb);
+    expect(c.maxReductionDb).toBeLessThanOrEqual(T.maxReductionDb);
+    expect(c.pumpSeconds).toBeLessThanOrEqual(T.pumpSeconds);
+    expect(r.chainAtFull.outputPeak).toBeLessThanOrEqual(T.maxOutputPeakAtFull);
     expect(r.failures).toEqual([]);
   });
 
@@ -100,7 +121,7 @@ test.describe('menu music', () => {
     expect(Math.min(...fades), 'heard rising').toBeLessThan(0.6);
     expect(Math.max(...fades)).toBeGreaterThan(0.98);
     for (let i = 1; i < fades.length; i++) expect(fades[i]).toBeGreaterThanOrEqual(fades[i - 1] - 1e-6);
-    await expect.poll(async () => (await stats(page)).level).toBeCloseTo(MUSIC.player.level, 2);
+    await expect.poll(async () => (await stats(page)).level).toBeCloseTo(MUSIC.player.level * volumeGain(VOLUME.defaults.music), 2);
 
     // Settings from the title: the music carries on.
     await tap(page, 'settings');

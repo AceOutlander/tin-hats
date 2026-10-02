@@ -123,16 +123,28 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   1: (doc) => {
     doc.lastMission = 0;
   },
-  // 2 -> 3: three volume sliders and "Reduce flashing" join the settings, at their defaults.
+  // 2 -> 3: three volume sliders and "Reduce flashing" join the settings, at the defaults version 3 had.
   2: (doc) => {
     if (!isRecord(doc.settings)) return;
+    const v3 = META.v3DefaultVolumes;
     doc.settings = {
       ...doc.settings,
-      musicVolume: META.defaultMusicVolume,
-      ambienceVolume: META.defaultAmbienceVolume,
-      sfxVolume: META.defaultSfxVolume,
+      musicVolume: v3.music,
+      ambienceVolume: v3.ambience,
+      sfxVolume: v3.sfx,
       reduceFlash: META.defaultReduceFlash,
     };
+  },
+  // 3 -> 4: the default volumes changed (the menu mix). A slider still at version 3's default was never touched, so it
+  // moves to today's default; one the player set is left as it is.
+  3: (doc) => {
+    if (!isRecord(doc.settings)) return;
+    const s = { ...doc.settings };
+    const v3 = META.v3DefaultVolumes;
+    if (s.musicVolume === v3.music) s.musicVolume = META.defaultMusicVolume;
+    if (s.ambienceVolume === v3.ambience) s.ambienceVolume = META.defaultAmbienceVolume;
+    if (s.sfxVolume === v3.sfx) s.sfxVolume = META.defaultSfxVolume;
+    doc.settings = s;
   },
 };
 

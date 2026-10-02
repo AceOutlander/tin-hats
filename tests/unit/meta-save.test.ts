@@ -175,9 +175,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     settings: { muted: true, difficulty: 'hard', hints: false },
   };
 
-  it('is the current version', () => {
-    expect(META.saveVersion).toBe(3);
-    expect(defaultSave().version).toBe(3);
+  it('is behind the current version, 4 (the default volumes moved in version 4)', () => {
+    expect(META.saveVersion).toBe(4);
+    expect(defaultSave().version).toBe(4);
   });
 
   it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
@@ -197,11 +197,11 @@ describe('version 3: the volume sliders and reduce flashing', () => {
 
   it('migrates a version 2 save step by step and keeps what the player had set', () => {
     const migrated = migrateSave(v2);
-    expect(migrated?.version).toBe(3);
+    expect(migrated?.version).toBe(META.saveVersion);
     expect(migrated?.settings).toEqual({ ...v2.settings, musicVolume: META.defaultMusicVolume, ambienceVolume: META.defaultAmbienceVolume, sfxVolume: META.defaultSfxVolume, reduceFlash: false });
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v2) }));
     expect(loaded.status).toBe('ok');
-    expect(loaded.data.version).toBe(3);
+    expect(loaded.data.version).toBe(META.saveVersion);
     expect(loaded.data.lastMission).toBe(1);
     expect(loaded.data.settings).toEqual({ ...defaultSettings(), muted: true, difficulty: 'hard', hints: false });
     // A version 1 save goes through both steps.
@@ -258,6 +258,56 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     expect(cleanSetting('muted', true)).toBe(true);
     expect(cleanSetting('difficulty', 'nightmare')).toBe(META.defaultDifficulty);
     expect(cleanSetting('difficulty', 'hard')).toBe('hard');
+  });
+});
+
+describe('version 4: the menu mix moved the default volumes', () => {
+  const v3 = (volumes: { musicVolume: number; ambienceVolume: number; sfxVolume: number }) => ({
+    version: 3,
+    cleared: { '1': ['normal'] },
+    upgrades: {},
+    lastMission: 1,
+    settings: { muted: false, difficulty: 'normal', hints: true, reduceFlash: true, ...volumes },
+  });
+  const old = META.v3DefaultVolumes;
+
+  it('changed the defaults, and keeps them in data', () => {
+    expect([META.defaultMusicVolume, META.defaultAmbienceVolume, META.defaultSfxVolume]).not.toEqual([old.music, old.ambience, old.sfx]);
+    // Headroom: no default sits at the top of its slider.
+    for (const v of [META.defaultMusicVolume, META.defaultAmbienceVolume, META.defaultSfxVolume]) expect(v).toBeLessThan(100);
+  });
+
+  it('moves sliders a player never touched (still at the old defaults) to the new defaults', () => {
+    const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v3({ musicVolume: old.music, ambienceVolume: old.ambience, sfxVolume: old.sfx })) }));
+    expect(loaded.status).toBe('ok');
+    expect(loaded.data.version).toBe(4);
+    expect(loaded.data.settings).toEqual({ ...defaultSettings(), reduceFlash: true });
+    // Everything else in the save is untouched.
+    expect(loaded.data.cleared).toEqual({ '1': ['normal'] });
+    expect(loaded.data.lastMission).toBe(1);
+  });
+
+  it('keeps every slider the player moved, each on its own', () => {
+    const s = sanitizeSave(v3({ musicVolume: 35, ambienceVolume: old.ambience, sfxVolume: 61 }))?.settings;
+    expect(s?.musicVolume).toBe(35);
+    expect(s?.ambienceVolume).toBe(META.defaultAmbienceVolume);
+    expect(s?.sfxVolume).toBe(61);
+    // Damaged volumes in a version 3 save are still cleaned afterwards.
+    const bad = sanitizeSave(v3({ musicVolume: 400, ambienceVolume: -3, sfxVolume: Number.NaN }))?.settings;
+    expect([bad?.musicVolume, bad?.ambienceVolume, bad?.sfxVolume]).toEqual([100, 0, META.defaultSfxVolume]);
+  });
+
+  it('leaves a version 4 save alone, a slider at full included', () => {
+    const doc = { ...v3({ musicVolume: 100, ambienceVolume: 100, sfxVolume: 100 }), version: 4 };
+    const s = sanitizeSave(doc)?.settings;
+    expect([s?.musicVolume, s?.ambienceVolume, s?.sfxVolume]).toEqual([100, 100, 100]);
+  });
+
+  it('does not change the document it migrates', () => {
+    const doc = v3({ musicVolume: old.music, ambienceVolume: 20, sfxVolume: old.sfx });
+    const copy = structuredClone(doc);
+    migrateSave(doc);
+    expect(doc).toEqual(copy);
   });
 });
 

@@ -3,9 +3,14 @@
  * section (waveform and spectrogram), shows the mix against the rain and the thunder, and plays it, including an
  * audition of the loop point (the last 8 s running into the first 8 s).
  */
+import { makeClipCurve } from '../src/audio/dsp';
 import { band, db, drumBeats, measureMix, peakOf, renderTrack, rmsOf, seamOf, secondsPerBeat, sectionTimes, type RenderedTrack } from '../src/audio/music';
 import { findOfflineContext } from '../src/audio/render';
+import { buildThunder, RainBed } from '../src/audio/storm';
+import { createNoiseBank } from '../src/audio/synth';
+import { MENU_STORM } from '../src/data/menuStorm';
 import { MUSIC, MUSIC_TRACKS } from '../src/data/music';
+import { AUDIO, VOLUME, volumeGain } from '../src/data/sounds';
 
 const TRACK = MUSIC_TRACKS.menu;
 const ROW_H = 90;
@@ -148,44 +153,145 @@ function cell(row: HTMLTableRowElement, content: string | Node): void {
 }
 
 let live: AudioContext | null = null;
-let source: AudioBufferSourceNode | null = null;
+/** Stops whatever is playing. */
+let stopper: (() => void) | null = null;
+let phoneOn = false;
 
-function play(track: RenderedTrack, offset: number, seconds: number | null): void {
-  stop();
+function context(): AudioContext {
   live = live ?? new AudioContext();
   void live.resume();
-  const gain = live.createGain();
-  gain.gain.value = MUSIC.player.level;
-  gain.connect(live.destination);
-  const s = live.createBufferSource();
-  s.buffer = track.buffer;
-  s.loop = true;
-  s.loopStart = 0;
-  s.loopEnd = track.loopSeconds;
-  s.connect(gain);
-  s.start(live.currentTime, offset);
-  if (seconds !== null) s.stop(live.currentTime + seconds);
-  source = s;
-  const started = live.currentTime;
+  return live;
+}
+
+/** Where the sound goes: straight out, or first through the phone speaker model (mono, high-pass, top roll-off). */
+function output(ctx: AudioContext): AudioNode {
+  if (!phoneOn) return ctx.destination;
+  const P = MUSIC.mix.phone;
+  const stages: BiquadFilterNode[] = [];
+  const stage = (type: BiquadFilterType, hz: number): void => {
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = hz;
+    f.Q.value = Math.SQRT1_2;
+    stages.push(f);
+  };
+  for (let i = 0; i < P.highpassOrder / 2; i++) stage('highpass', P.highpassHz);
+  for (let i = 0; i < P.lowpassOrder / 2; i++) stage('lowpass', P.lowpassHz);
+  stages[0].channelCount = 1;
+  stages[0].channelCountMode = 'explicit';
+  for (let i = 1; i < stages.length; i++) stages[i - 1].connect(stages[i]);
+  stages[stages.length - 1].connect(ctx.destination);
+  return stages[0];
+}
+
+/** A copy of the engine's master chain (compressor, master gain, soft clipper) into `out`. */
+function masterChain(ctx: AudioContext, out: AudioNode): AudioNode {
+  const c = ctx.createDynamicsCompressor();
+  c.threshold.value = AUDIO.compressor.threshold;
+  c.knee.value = AUDIO.compressor.knee;
+  c.ratio.value = AUDIO.compressor.ratio;
+  c.attack.value = AUDIO.compressor.attack;
+  c.release.value = AUDIO.compressor.release;
+  const master = ctx.createGain();
+  master.gain.value = AUDIO.masterGain / AUDIO.clipRange;
+  const clip = ctx.createWaveShaper();
+  clip.curve = makeClipCurve();
+  c.connect(master);
+  master.connect(clip);
+  clip.connect(out);
+  return c;
+}
+
+function showTime(read: () => number): void {
   const tick = (): void => {
-    if (source !== s || !live) return;
-    const t = (offset + live.currentTime - started) % track.loopSeconds;
-    byId('now').textContent = `${t.toFixed(1)} s`;
+    if (!stopper) return;
+    byId('now').textContent = `${read().toFixed(1)} s`;
     requestAnimationFrame(tick);
   };
   tick();
 }
 
 function stop(): void {
-  if (source) {
+  const s = stopper;
+  stopper = null;
+  if (s) s();
+  byId('now').textContent = '';
+}
+
+/** The music alone at its default level, from `offset`, for `seconds` (null = until stopped). */
+function playMusic(track: RenderedTrack, offset: number, seconds: number | null): void {
+  stop();
+  const ctx = context();
+  const chain = masterChain(ctx, output(ctx));
+  const gain = ctx.createGain();
+  gain.gain.value = MUSIC.player.level * volumeGain(VOLUME.defaults.music);
+  gain.connect(chain);
+  const s = ctx.createBufferSource();
+  s.buffer = track.buffer;
+  s.loop = true;
+  s.loopStart = 0;
+  s.loopEnd = track.loopSeconds;
+  s.connect(gain);
+  s.start(ctx.currentTime, offset);
+  if (seconds !== null) s.stop(ctx.currentTime + seconds);
+  const started = ctx.currentTime;
+  stopper = () => {
     try {
-      source.stop();
+      s.stop();
     } catch {
       // Already stopped.
     }
-  }
-  source = null;
-  byId('now').textContent = '';
+    gain.disconnect();
+  };
+  showTime(() => (offset + ctx.currentTime - started) % track.loopSeconds);
+}
+
+/** Music, the title's rain bed and a thunder every storm interval, all at their default levels, as on the title. */
+function playMix(track: RenderedTrack): void {
+  stop();
+  const ctx = context();
+  const chain = masterChain(ctx, output(ctx));
+  const music = ctx.createGain();
+  music.gain.value = MUSIC.player.level * volumeGain(VOLUME.defaults.music);
+  music.connect(chain);
+  const ambience = ctx.createGain();
+  ambience.gain.value = volumeGain(VOLUME.defaults.ambience);
+  ambience.connect(chain);
+  const s = ctx.createBufferSource();
+  s.buffer = track.buffer;
+  s.loop = true;
+  s.loopStart = 0;
+  s.loopEnd = track.loopSeconds;
+  s.connect(music);
+  s.start();
+  const rng = Math.random;
+  const bank = createNoiseBank();
+  const bed = new RainBed(ctx, ambience, MENU_STORM.rainAudio.layers, rng, bank);
+  bed.fadeTo(MENU_STORM.rainAudio.volume, 0.5);
+  const T = MENU_STORM.thunder;
+  const strike = (): void => {
+    const loud = T.loudness[0] + (T.loudness[1] - T.loudness[0]) * rng();
+    const length = T.length[0] + (T.length[1] - T.length[0]) * rng();
+    buildThunder(ctx, ambience, ctx.currentTime + T.delay[0] + (T.delay[1] - T.delay[0]) * rng(), loud, length, T.synth, rng, bank);
+  };
+  const drift = window.setInterval(() => bed.drift(MENU_STORM.rainAudio.lookahead), 100);
+  const first = window.setTimeout(strike, 3000);
+  const every = window.setInterval(strike, MENU_STORM.thunderInterval * 1000);
+  const started = ctx.currentTime;
+  stopper = () => {
+    window.clearInterval(drift);
+    window.clearTimeout(first);
+    window.clearInterval(every);
+    try {
+      s.stop();
+    } catch {
+      // Already stopped.
+    }
+    bed.stop(0);
+    music.disconnect();
+    ambience.disconnect();
+  };
+  showTime(() => ctx.currentTime - started);
 }
 
 async function main(): Promise<void> {
@@ -240,33 +346,68 @@ async function main(): Promise<void> {
   }
 
   const playBtn = byId<HTMLButtonElement>('play');
+  const mixBtn = byId<HTMLButtonElement>('playmix');
   const stopBtn = byId<HTMLButtonElement>('stop');
   const seamBtn = byId<HTMLButtonElement>('seam');
-  playBtn.onclick = () => play(track, 0, null);
-  stopBtn.onclick = () => stop();
-  seamBtn.onclick = () => play(track, track.loopSeconds - SEAM_SECONDS, 2 * SEAM_SECONDS);
-  for (const b of [playBtn, stopBtn, seamBtn]) b.disabled = false;
+  const phoneBox = byId<HTMLInputElement>('phone');
+  let last: (() => void) | null = null;
+  const start = (fn: () => void): void => {
+    last = fn;
+    fn();
+  };
+  playBtn.onclick = () => start(() => playMusic(track, 0, null));
+  mixBtn.onclick = () => start(() => playMix(track));
+  stopBtn.onclick = () => {
+    last = null;
+    stop();
+  };
+  seamBtn.onclick = () => start(() => playMusic(track, track.loopSeconds - SEAM_SECONDS, 2 * SEAM_SECONDS));
+  phoneBox.onchange = () => {
+    phoneOn = phoneBox.checked;
+    // Switching the model restarts what was playing, through the new output.
+    if (stopper && last) last();
+  };
+  for (const b of [playBtn, mixBtn, stopBtn, seamBtn]) b.disabled = false;
+  phoneBox.disabled = false;
 
   const mix = await measureMix(Offline, track);
-  const rows: [string, number, string][] = [
-    ['rain over the music in its band (dB)', mix.rainOverMusicDb, `>= ${MUSIC.mix.rainOverMusicDb}`],
-    ['music loudest second over the rain (dB)', mix.musicOverRainDb, `${MUSIC.mix.musicOverRain[0]} to ${MUSIC.mix.musicOverRain[1]}`],
-    ['thunder peak over the music peak (dB)', mix.thunderOverMusicDb, `>= ${MUSIC.mix.thunderOverMusicDb}`],
-    ['thunder lows over the music lows (dB)', mix.thunderLowOverMusicDb, `>= ${MUSIC.mix.thunderLowOverMusicDb}`],
-  ];
+  const T = MUSIC.mix;
   const table = document.createElement('table');
-  for (const [name, value, target] of rows) {
+  const head = document.createElement('tr');
+  for (const h of ['measure', 'full range', 'phone speaker', 'target']) {
+    const th = document.createElement('th');
+    th.textContent = h;
+    head.append(th);
+  }
+  table.append(head);
+  const rows: [string, number, number, string][] = [
+    ['music integrated loudness (LUFS)', mix.full.musicLufs, mix.phone.musicLufs, ''],
+    ['rain bed integrated loudness (LUFS)', mix.full.rainLufs, mix.phone.rainLufs, ''],
+    ['music over rain (LU)', mix.full.musicOverRain, mix.phone.musicOverRain, `${T.musicOverRain[0]} to ${T.musicOverRain[1]}`],
+    ['thunder momentary over music + rain (LU)', mix.full.thunderMomentaryOverBed, mix.phone.thunderMomentaryOverBed, `>= ${T.thunderMomentaryOverBed}`],
+    ['thunder short-term over music + rain (LU)', mix.full.thunderShortTermOverBed, mix.phone.thunderShortTermOverBed, `>= ${T.thunderShortTermOverBed}`],
+    ['thunder peak over music + rain (dB)', mix.full.thunderPeakOverBed, mix.phone.thunderPeakOverBed, `>= ${T.thunderPeakOverBed}`],
+  ];
+  for (const [name, full, phone, target] of rows) {
     const row = document.createElement('tr');
     cell(row, name);
-    cell(row, value.toFixed(1));
+    cell(row, full.toFixed(1));
+    cell(row, phone.toFixed(1));
     cell(row, target);
     table.append(row);
   }
+  const chain = document.createElement('p');
+  chain.textContent =
+    `Master chain at default sliders (music ${mix.sliders.music}, ambience ${mix.sliders.ambience}, sfx ${mix.sliders.sfx}), thunder loudness ${mix.thunderLoudness.toFixed(2)}: ` +
+    `output peak ${mix.chain.outputPeak.toFixed(2)} (knee ${AUDIO.clipKnee}), compressor ${mix.chain.bedReductionDb.toFixed(1)} dB on music and rain alone, ` +
+    `${mix.chain.maxReductionDb.toFixed(1)} dB at most during the thunder, ${mix.chain.pumpSeconds.toFixed(2)} s deeper than ${T.pumpDb} dB. ` +
+    `Every slider full: output peak ${mix.chainAtFull.outputPeak.toFixed(2)}, compressor ${mix.chainAtFull.maxReductionDb.toFixed(1)} dB at most.`;
+  table.after(chain);
   const verdict = document.createElement('p');
   verdict.className = mix.pass ? 'pass' : 'fail';
   verdict.textContent = mix.pass ? 'All mix targets met.' : `Missed: ${mix.failures.join('; ')}`;
   const mixEl = byId('mix');
-  mixEl.replaceChildren(table, verdict);
+  mixEl.replaceChildren(table, chain, verdict);
   Reflect.set(window, '__music', { track: { seconds: track.loopSeconds, renderMs: track.renderMs, buildMs: track.buildMs, bytes: track.bytes, rawPeak: track.rawPeak }, seam, mix });
   Reflect.set(window, '__ready', true);
 }

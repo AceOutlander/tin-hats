@@ -21,11 +21,16 @@ export interface MetaTunables {
   defaultSfxVolume: number;
   /** "Reduce flashing" (lightning as a slow soft glow) of a fresh save. */
   defaultReduceFlash: boolean;
+  /**
+   * The volume defaults save version 3 was written with. A version 3 save still holding one of them was never moved
+   * by the player, so the step to version 4 brings it to today's default; a value the player chose is kept.
+   */
+  v3DefaultVolumes: { music: number; ambience: number; sfx: number };
 }
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 3,
+  saveVersion: 4,
   firstClearPoints: 2,
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',
@@ -35,4 +40,5 @@ export const META: MetaTunables = {
   defaultAmbienceVolume: VOLUME.defaults.ambience,
   defaultSfxVolume: VOLUME.defaults.sfx,
   defaultReduceFlash: false,
+  v3DefaultVolumes: { music: 100, ambience: 100, sfx: 100 },
 };

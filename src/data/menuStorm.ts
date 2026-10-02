@@ -1,4 +1,4 @@
-﻿/**
+/**
  * The title screen's storm: rain in three depths, a lightning flash every few seconds (now and then with a fork in the
  * distance behind the church spire), the thunder that follows each flash and the rain under it all. Every number the
  * owner may want to tune lives here. It is a separate, always-on thing: the battle weather (src/data/weather.ts, 40%
@@ -88,11 +88,17 @@ export interface ThunderSynthDef {
   rollsPerSecond: number;
   rollGain: readonly [number, number];
   rollDecay: readonly [number, number];
+  /** Each roll's low-pass starts at this share of `cutoff` (random in the range): higher keeps the rumble audible on a phone. */
+  rollCutoff: readonly [number, number];
   /** Random wobble of each roll's level: this many steps per second, each up to `wobble` of the level. */
   wobbleRate: number;
   wobble: number;
   /** Sub thump under the boom (headphones), as a share of the level. */
   subGain: number;
+  /** The low body under the boom (90 to 520 Hz), as a share of the level: weight, but mostly peak, and a phone cannot play it. */
+  bodyGain: number;
+  /** Seconds the opening boom holds before it decays: a longer hold is louder without a higher peak. */
+  boomHold: number;
 }
 
 export interface MenuStormDef {
@@ -368,17 +374,20 @@ export const MENU_STORM: MenuStormDef = {
     loudness: [0.45, 1],
     length: [2.4, 5.6],
     synth: {
-      level: 0.7,
-      crackFrom: 0.72,
-      crackGain: 1.4,
-      cutoff: 1500,
-      cutoffFar: 0.45,
-      rollsPerSecond: 1.1,
-      rollGain: [0.35, 0.8],
-      rollDecay: [0.8, 1.7],
+      level: 0.8,
+      crackFrom: 0.5,
+      crackGain: 0.9,
+      cutoff: 2600,
+      cutoffFar: 0.6,
+      rollsPerSecond: 1.8,
+      rollGain: [1, 1.4],
+      rollDecay: [1.4, 2.6],
+      rollCutoff: [0.45, 0.8],
       wobbleRate: 6,
-      wobble: 0.45,
-      subGain: 0.35,
+      wobble: 0.35,
+      subGain: 0.08,
+      bodyGain: 0.25,
+      boomHold: 0.35,
     },
   },
 
@@ -400,7 +409,7 @@ export const MENU_STORM: MenuStormDef = {
   },
 
   rainAudio: {
-    volume: 0.26,
+    volume: 0.14,
     fadeIn: 2.5,
     fadeOut: 0.6,
     lookahead: 0.3,
@@ -410,7 +419,7 @@ export const MENU_STORM: MenuStormDef = {
       // Bright patter close by.
       { color: 'white', rate: 1.13, filter: 'highpass', q: 0.3, freq: [4300, 6800], gain: [0.1, 0.3], segment: [0.5, 1.9] },
       // The low wash of heavy rain further off.
-      { color: 'brown', rate: 0.89, filter: 'lowpass', q: 0, freq: [260, 560], gain: [0.35, 0.75], segment: [2.6, 7] },
+      { color: 'brown', rate: 0.89, filter: 'lowpass', q: 0, freq: [260, 560], gain: [0.5, 0.9], segment: [2.6, 7] },
     ],
   },
 };

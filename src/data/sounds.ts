@@ -29,7 +29,7 @@ export const AUDIO_BUSES: readonly AudioBus[] = ['music', 'ambience', 'sfx'];
 
 /** The volume sliders: what a fresh save starts on (0..100), and how a slider position becomes a bus gain. */
 export const VOLUME = {
-  defaults: { music: 100, ambience: 100, sfx: 100 } as Readonly<Record<AudioBus, number>>,
+  defaults: { music: 80, ambience: 80, sfx: 80 } as Readonly<Record<AudioBus, number>>,
   /** Slider 0..100 to gain: (value / 100) ^ curve. 2 makes the middle of the slider about 12 dB down, close to half as loud. */
   curve: 2,
   /** Time constant (s) of the glide to a new bus gain, so dragging a slider never clicks. */

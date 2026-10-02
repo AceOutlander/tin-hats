@@ -187,12 +187,12 @@ export const REQUIEM: TrackDef = {
   humanize: { time: 0.018, velocity: 0.06 },
   seed: 1918,
   instruments: {
-    pad: { wave: 'sawtooth', voices: 3, detuneCents: 9, cutoff: 380, swellCutoff: 980, q: 0.6, rest: 0.45, attack: 2.8, release: 3.6, level: 0.2, range: [24, 64] },
+    pad: { wave: 'sawtooth', voices: 3, detuneCents: 9, cutoff: 750, swellCutoff: 2100, q: 0.6, rest: 0.55, attack: 2.8, release: 3.6, level: 0.2, range: [24, 64] },
     horn: {
-      cutoff: 520,
-      brightness: 650,
+      cutoff: 700,
+      brightness: 900,
       q: 0.9,
-      bodyMix: 0.45,
+      bodyMix: 0.35,
       attack: 0.42,
       release: 1.3,
       vibratoRate: 4.6,
@@ -201,7 +201,7 @@ export const REQUIEM: TrackDef = {
       vibratoRise: 1.1,
       breath: 0.05,
       breathHz: 850,
-      level: 0.42,
+      level: 0.36,
       range: [45, 70],
     },
     piano: {
@@ -223,13 +223,13 @@ export const REQUIEM: TrackDef = {
       level: 0.3,
       range: [57, 88],
     },
-    drum: { pitch: 66, pitchEnd: 39, drop: 0.38, overtone: 1.58, overtoneGain: 0.3, decay: 3.2, noise: 0.35, noiseCutoff: 320, noiseDecay: 0.45, level: 0.55 },
+    drum: { pitch: 66, pitchEnd: 39, drop: 0.38, overtone: 1.58, overtoneGain: 0.3, decay: 3.2, noise: 0.35, noiseCutoff: 320, noiseDecay: 0.45, level: 0.22 },
   },
   mix: {
     pad: { dry: 0.8, send: 0.45 },
     horn: { dry: 0.5, send: 0.75 },
     piano: { dry: 0.62, send: 0.6 },
-    drum: { dry: 0.28, send: 0.95 },
+    drum: { dry: 0.2, send: 0.95 },
     reverb: 0.6,
     lowpass: 3200,
   },
@@ -279,7 +279,7 @@ export const REQUIEM: TrackDef = {
         { at: 7.5, beats: 1, note: 64, vel: 0.5 },
         { at: 8.5, beats: 3.5, note: 60, vel: 0.55 },
         { at: 13, beats: 2, note: 57, vel: 0.5 },
-        { at: 16.5, beats: 3, note: 67, vel: 0.7 },
+        { at: 16.5, beats: 3, note: 67, vel: 0.62 },
         { at: 19.5, beats: 1.5, note: 65, vel: 0.6 },
         { at: 21, beats: 3, note: 64, vel: 0.55 },
         { at: 25, beats: 2, note: 62, vel: 0.5 },
@@ -328,7 +328,7 @@ export const REQUIEM: TrackDef = {
       // The lowest and heaviest: the pad goes down an octave, the horn sings low, one piano note is left hanging.
       name: 'Requiem',
       bars: 8,
-      padLevel: 1.1,
+      padLevel: 1,
       chords: [
         { at: 0, beats: 8, notes: [26, 38, 45, 50, 53] },
         { at: 8, beats: 8, notes: [34, 41, 50, 53] },
@@ -366,41 +366,62 @@ export const MUSIC_TRACKS: Record<MusicTrackName, TrackDef> = {
 };
 
 /**
- * The mix the music has to sit in at default volumes, checked by measurement (src/audio/music/mix.ts and the browser
- * test), because nobody here can listen: levels are RMS in dB of the signals as they reach their buses.
+ * A model of a phone's small speaker, for measuring what a player actually hears on one: the sound summed to mono,
+ * a steep high-pass (almost nothing comes out below it) and a gentle roll-off at the top.
+ */
+export interface PhoneSpeaker {
+  highpassHz: number;
+  /** Filter order: 2 = 12 dB an octave, 4 = 24 dB an octave. */
+  highpassOrder: 2 | 4;
+  lowpassHz: number;
+  lowpassOrder: 2 | 4;
+}
+
+/**
+ * The mix the menu music has to sit in at default slider levels, checked by measurement (src/audio/music/mix.ts and the
+ * browser test), because nobody here can listen. Loudness is K-weighted (ITU-R BS.1770); every target must hold both
+ * full range and through the phone speaker model.
  */
 export interface MusicMixTargets {
-  /** The rain's hiss band (Hz): in it the rain must stay at least rainOverMusicDb above the music's loudest second. */
-  rainBand: readonly [number, number];
-  rainOverMusicDb: number;
-  /** The music's loudest second, all bands, sits between these many dB above the rain's average (it leads, the rain stays under it). */
+  /** The music's integrated loudness minus the rain bed's (LU): the music leads, a little louder than the rain. */
   musicOverRain: readonly [number, number];
-  /** Thunder's loudest 50 ms must be this many dB above the music's loudest 50 ms... */
-  thunderOverMusicDb: number;
-  /** ...and in the low band (Hz) its loudest 100 ms this many dB above the music's. */
-  lowBand: readonly [number, number];
-  thunderLowOverMusicDb: number;
-  /** The thunder measured: loudness and length (the middle of the storm's ranges). */
-  thunderLoudness: number;
+  /** Thunder over the music and the rain together: its loudest momentary (400 ms) and short-term (3 s) loudness (LU) and its sample peak (dB). */
+  thunderMomentaryOverBed: number;
+  thunderShortTermOverBed: number;
+  thunderPeakOverBed: number;
+  /** The master compressor (the engine's own chain, music + rain + a thunder): the most gain reduction during the thunder (dB)... */
+  maxReductionDb: number;
+  /** ...what the music and rain alone may cause (dB)... */
+  bedReductionDb: number;
+  /** ...and how long the reduction may stay deeper than pumpDb (s): no pumping the music down for seconds afterwards. */
+  pumpDb: number;
+  pumpSeconds: number;
+  /** With every slider at full, the master output's peak stays under this (the soft clipper's ceiling is AUDIO.clipCeiling). */
+  maxOutputPeakAtFull: number;
+  /** Length (s) of the thunder measured; its loudness is the middle of the storm's range. */
   thunderLength: number;
+  phone: PhoneSpeaker;
 }
 
 export const MUSIC = {
   player: {
     /** Gain of the rendered track (peak `peak`) on the Music bus at full Music volume. */
-    level: 0.26,
+    level: 0.37,
     /** Seconds the music fades in once the sound starts (the first touch), and out when the menu is left. */
     fadeIn: 3,
     fadeOut: 1.6,
   },
   mix: {
-    rainBand: [1500, 6000],
-    rainOverMusicDb: 3,
-    musicOverRain: [0, 14],
-    thunderOverMusicDb: 6,
-    lowBand: [30, 150],
-    thunderLowOverMusicDb: 3,
-    thunderLoudness: 0.7,
+    musicOverRain: [1, 4],
+    thunderMomentaryOverBed: 3,
+    thunderShortTermOverBed: 3,
+    thunderPeakOverBed: 3,
+    maxReductionDb: 6,
+    bedReductionDb: 0.5,
+    pumpDb: 2,
+    pumpSeconds: 1,
+    maxOutputPeakAtFull: 0.92,
     thunderLength: 4,
+    phone: { highpassHz: 350, highpassOrder: 4, lowpassHz: 10000, lowpassOrder: 2 },
   } as MusicMixTargets,
 } as const;

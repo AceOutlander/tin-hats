@@ -7,5 +7,19 @@ export { makeImpulse, midiHz, playDrum, playHorn, playPad, playPiano } from './i
 export { MusicPlayer, type LoopedTrack } from './player';
 export { buildTrack, foldAndLevel, renderTrack, type RenderedTrack } from './render';
 export { drumBeats, inKey, loopBeats, loopSeconds, scoreNotes, sectionTimes, secondsPerBeat, type ScoreNote } from './score';
-export { band, db, loudestWindow, peakOf, rmsOf, seamOf, type SeamReport } from './analyse';
-export { measureMix, type MixReport } from './mix';
+export {
+  band,
+  db,
+  kWeight,
+  loudestStart,
+  loudestWindow,
+  loudnessOf,
+  peakOf,
+  phoneSpeaker,
+  rmsOf,
+  seamOf,
+  sumLoudness,
+  type Loudness,
+  type SeamReport,
+} from './analyse';
+export { measureMix, type ChainReport, type LoudnessReport, type MixReport } from './mix';

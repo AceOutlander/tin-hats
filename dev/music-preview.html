@@ -77,8 +77,15 @@
     </p>
     <p id="summary">Rendering...</p>
     <p>
-      <button id="play" type="button" disabled>Play</button><button id="stop" type="button" disabled>Stop</button
-      ><button id="seam" type="button" disabled>Loop seam (last 8 s into first 8 s)</button> <span id="now"></span>
+      <button id="play" type="button" disabled>Play music</button
+      ><button id="playmix" type="button" disabled>Play the title mix (music, rain, thunder)</button
+      ><button id="stop" type="button" disabled>Stop</button
+      ><button id="seam" type="button" disabled>Loop seam (last 8 s into first 8 s)</button>
+      <label><input id="phone" type="checkbox" disabled /> Phone speaker</label> <span id="now"></span>
+    </p>
+    <p>
+      Everything plays at the default slider levels through a copy of the game's master chain. "Phone speaker" sends it
+      through the same model the mix is measured with: mono, a steep high-pass and a gentle top roll-off.
     </p>
     <h2>Whole loop</h2>
     <div id="overview"></div>

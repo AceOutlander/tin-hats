@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../../src/app/app';
 import { MENU_STORM } from '../../src/data/menuStorm';
 import { createMemoryStorage, loadSave } from '../../src/meta';
+import { VOLUME } from '../../src/data/sounds';
+
+const DEFAULT_SLIDERS = { music: VOLUME.defaults.music / 100, ambience: VOLUME.defaults.ambience / 100, sfx: VOLUME.defaults.sfx / 100 };
 import { createFakeAudio, createFakeUi, createFakeView, quickMission } from './app-helpers';
 
 function makeApp() {
@@ -134,7 +137,8 @@ describe('the title storm in the app', () => {
 
   it('applies the three volumes, clamped and saved, and reduce flashing to the view and the storm', () => {
     const { app, view, audio, storage } = makeApp();
-    expect(audio.volumes).toEqual({ music: 1, ambience: 1, sfx: 1 });
+    // The saved defaults reach the engine at start (slider positions 0..1).
+    expect(audio.volumes).toEqual(DEFAULT_SLIDERS);
     app.setSetting('musicVolume', 40);
     app.setSetting('ambienceVolume', 250);
     app.setSetting('sfxVolume', -5);
@@ -152,7 +156,7 @@ describe('the title storm in the app', () => {
     expect(loadSave(storage).data.settings.reduceFlash).toBe(true);
     // A reset puts everything back.
     app.resetSave();
-    expect(audio.volumes).toEqual({ music: 1, ambience: 1, sfx: 1 });
+    expect(audio.volumes).toEqual(DEFAULT_SLIDERS);
     expect(view.reducedFlashing).toBe(false);
     expect(app.storm.logic.reduced).toBe(false);
   });
