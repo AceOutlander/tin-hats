@@ -29,7 +29,9 @@ import {
   type LoopDef,
   type SoundDef,
 } from '../data/sounds';
+import { MUSIC, MUSIC_TRACKS, type MusicTrackName } from '../data/music';
 import { makeClipCurve } from './dsp';
+import { MusicPlayer, renderTrack, type RenderedTrack } from './music';
 import { findOfflineContext, renderSound } from './render';
 import { buildThunder, RainBed } from './storm';
 import { buildLoop, buildOneShot, createNoiseBank, type NoiseBank } from './synth';
@@ -77,9 +79,32 @@ export interface MixStats {
   output: number;
 }
 
+/** A music track's state, for the debug hooks and the tests. */
+export interface MusicStats {
+  /** The track asked for, or null. */
+  wanted: string | null;
+  /** 'idle' (never asked), 'rendering', 'ready', 'failed' or 'unavailable' (no OfflineAudioContext). */
+  render: string;
+  /** True while a source is looping on the Music bus. */
+  playing: boolean;
+  /** The player's fade now, 0..1, and the level after the Music bus (fade x player level x bus gain). */
+  fade: number;
+  level: number;
+  /** The rendered loop: seconds, sample rate, channels, bytes held and render time (0 until it is ready). */
+  seconds: number;
+  sampleRate: number;
+  channels: number;
+  bytes: number;
+  renderMs: number;
+  /** Main-thread milliseconds spent building the score's graph (the render itself runs on the audio thread). */
+  buildMs: number;
+}
+
 export interface AudioOptions {
   /** Start muted (the app passes its saved setting). */
   muted?: boolean;
+  /** Renders a music track (tests inject one; default: renderTrack on the browser's OfflineAudioContext). */
+  renderMusic?: (name: MusicTrackName) => Promise<RenderedTrack>;
   /** Random source in 0..1 for pitch spread and variations. Default Math.random. */
   random?: () => number;
   /** Use this context instead of creating one on unlock(). For tests and offline rendering. */
@@ -116,6 +141,21 @@ export interface GameAudio {
   thunder(loudness: number, length: number): boolean;
   /** The buses, the rain bed and the output level (debug hooks and tests). The same object every time. */
   mixStats(): Readonly<MixStats>;
+  /**
+   * Render a music track (src/data/music.ts) in the background, once: OfflineAudioContext needs no gesture. When it
+   * cannot be rendered the game carries on in silence.
+   */
+  prepareMusic(name: MusicTrackName): void;
+  /**
+   * Loop a track on the Music bus with a fade in; asked for before it is rendered (see prepareMusic) or before the first
+   * gesture, it starts then.
+   */
+  startMusic(name: MusicTrackName): void;
+  /** Fade the music out and stop it. */
+  stopMusic(): void;
+  musicStats(): Readonly<MusicStats>;
+  /** A rendered track (debug hooks, the preview page and the tests), or null until it is ready. */
+  musicTrack(name: MusicTrackName): RenderedTrack | null;
   /** Freeze all sound (pause, tab hidden). One-shots requested while suspended are discarded. */
   suspend(): void;
   resume(): void;
@@ -205,6 +245,12 @@ class AudioEngine implements GameAudio {
   private analyser: AnalyserNode | null = null;
   private analysis: Float32Array<ArrayBuffer> | null = null;
   private readonly mix: MixStats = { music: 0, ambience: 0, sfx: 0, bedOn: false, bed: 0, rain: 0, thunders: 0, output: 0 };
+  private readonly music = new MusicPlayer(MUSIC.player.level, MUSIC.player.fadeIn, MUSIC.player.fadeOut);
+  private readonly tracks = new Map<MusicTrackName, RenderedTrack>();
+  private readonly renders = new Map<MusicTrackName, string>();
+  private readonly renderMusic: ((name: MusicTrackName) => Promise<RenderedTrack>) | null;
+  private musicWanted: MusicTrackName | null = null;
+  private readonly musicOut: MusicStats = { wanted: null, render: 'idle', playing: false, fade: 0, level: 0, seconds: 0, sampleRate: 0, channels: 0, bytes: 0, renderMs: 0, buildMs: 0 };
 
   private readonly rng: () => number;
   private readonly bank: NoiseBank = createNoiseBank();
@@ -233,6 +279,7 @@ class AudioEngine implements GameAudio {
   constructor(options: AudioOptions) {
     this.muted = options.muted === true;
     this.rng = options.random ?? Math.random;
+    this.renderMusic = options.renderMusic ?? null;
     this.contextCtor = options.context ? null : findContext();
     for (const name of ONE_SHOT_NAMES) {
       const def: SoundDef = SOUNDS[name];
@@ -434,6 +481,84 @@ class AudioEngine implements GameAudio {
     return m;
   }
 
+  prepareMusic(name: MusicTrackName): void {
+    if (this.renders.has(name)) return;
+    const Offline = findOfflineContext();
+    const render = this.renderMusic ?? (Offline ? (n: MusicTrackName) => renderTrack(MUSIC_TRACKS[n], Offline) : null);
+    if (!render) {
+      this.renders.set(name, 'unavailable');
+      return;
+    }
+    this.renders.set(name, 'rendering');
+    let pending: Promise<RenderedTrack>;
+    try {
+      pending = render(name);
+    } catch {
+      this.renders.set(name, 'failed');
+      return;
+    }
+    pending.then(
+      (track) => {
+        this.tracks.set(name, track);
+        this.renders.set(name, 'ready');
+        this.applyMusic();
+      },
+      () => {
+        // No music on this device: everything else carries on.
+        this.renders.set(name, 'failed');
+      },
+    );
+  }
+
+  startMusic(name: MusicTrackName): void {
+    // Rendering is started by prepareMusic (the app calls it once the first picture is up); until then this only
+    // remembers what to play.
+    this.musicWanted = name;
+    this.applyMusic();
+  }
+
+  stopMusic(): void {
+    this.musicWanted = null;
+    const ctx = this.ctx;
+    if (!ctx || !this.music.playing) return;
+    const live = this.live;
+    this.music.stop(ctx, live !== null && live.state !== 'running');
+  }
+
+  /** Start the wanted track once there is a context, a Music bus and a rendered buffer. */
+  private applyMusic(): void {
+    const ctx = this.ctx;
+    const bus = this.musicBus;
+    const name = this.musicWanted;
+    if (!ctx || !bus || !name) return;
+    const track = this.tracks.get(name);
+    if (!track) return;
+    const live = this.live;
+    this.music.start(ctx, bus, name, track, live !== null && live.state !== 'running');
+  }
+
+  musicStats(): Readonly<MusicStats> {
+    const m = this.musicOut;
+    const name = this.musicWanted ?? (this.music.current as MusicTrackName | null);
+    const track = name ? this.tracks.get(name) : undefined;
+    m.wanted = this.musicWanted;
+    m.render = name ? (this.renders.get(name) ?? 'idle') : 'idle';
+    m.playing = this.music.playing;
+    m.fade = this.music.fade();
+    m.level = m.fade * MUSIC.player.level * (this.musicBus ? this.musicBus.gain.value : 0);
+    m.seconds = track ? track.loopSeconds : 0;
+    m.sampleRate = track ? track.sampleRate : 0;
+    m.channels = track ? track.channels : 0;
+    m.bytes = track ? track.bytes : 0;
+    m.renderMs = track ? track.renderMs : 0;
+    m.buildMs = track ? track.buildMs : 0;
+    return m;
+  }
+
+  musicTrack(name: MusicTrackName): RenderedTrack | null {
+    return this.tracks.get(name) ?? null;
+  }
+
   /** RMS of the engine's output; the analyser is only made the first time something asks. */
   private outputLevel(): number {
     const ctx = this.ctx;
@@ -575,6 +700,7 @@ class AudioEngine implements GameAudio {
       if (this.loops[i].wanted >= 0) this.applyLoop(this.loops[i]);
     }
     if (this.bedWanted) this.makeBed();
+    this.applyMusic();
   }
 
   /** Renders every one-shot (and its variants) one after another, most-used sounds first as listed in the data. */

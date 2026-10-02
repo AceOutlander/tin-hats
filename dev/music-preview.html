@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin Hats music preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 10px 14px 24px;
+        background: #15170f;
+        color: #d8d6c4;
+        font: 12px/1.35 ui-monospace, Consolas, 'Courier New', monospace;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 16px;
+      }
+      h2 {
+        margin: 14px 0 4px;
+        font-size: 13px;
+      }
+      p {
+        margin: 2px 0 8px;
+      }
+      button {
+        min-width: 120px;
+        min-height: 30px;
+        margin-right: 6px;
+        padding: 2px 10px;
+        border: 1px solid #5d6240;
+        border-radius: 4px;
+        background: #2a2d1e;
+        color: #e8e6d0;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 2px 8px;
+        border-bottom: 1px solid #2c2f22;
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      th {
+        color: #9a987f;
+        font-weight: normal;
+      }
+      canvas {
+        display: block;
+        background: #000;
+      }
+      .pass {
+        color: #8fd16a;
+      }
+      .fail {
+        color: #ff6b5a;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="title">Tin Hats music preview</h1>
+    <p>
+      The menu theme rendered through OfflineAudioContext exactly as the game renders it, measured. Spectrograms run
+      40 Hz (bottom) to 6 kHz (top) on a log scale; the overview marks the sections and the drum hits (red).
+    </p>
+    <p id="summary">Rendering...</p>
+    <p>
+      <button id="play" type="button" disabled>Play</button><button id="stop" type="button" disabled>Stop</button
+      ><button id="seam" type="button" disabled>Loop seam (last 8 s into first 8 s)</button> <span id="now"></span>
+    </p>
+    <h2>Whole loop</h2>
+    <div id="overview"></div>
+    <h2>Sections</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>section</th>
+          <th>time</th>
+          <th>rms dB</th>
+          <th>peak dB</th>
+          <th>waveform</th>
+          <th>spectrogram</th>
+        </tr>
+      </thead>
+      <tbody id="sections"></tbody>
+    </table>
+    <h2>Mix at default volumes</h2>
+    <div id="mix">Measuring...</div>
+    <script type="module" src="./music-preview.ts"></script>
+  </body>
+</html>

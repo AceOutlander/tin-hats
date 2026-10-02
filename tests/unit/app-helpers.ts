@@ -142,6 +142,9 @@ export interface FakeAudio extends GameAudio {
   bedOn: boolean;
   /** Every thunder asked for: [loudness, length]. */
   thunders: [number, number][];
+  /** The music asked for (null = none), and the tracks asked to be rendered. */
+  music: string | null;
+  prepared: string[];
 }
 
 export function createFakeAudio(): FakeAudio {
@@ -173,6 +176,31 @@ export function createFakeAudio(): FakeAudio {
       mix.thunders = audio.thunders.length;
       return mix;
     },
+    music: null,
+    prepared: [],
+    prepareMusic(name) {
+      audio.prepared.push(name);
+    },
+    startMusic(name) {
+      audio.music = name;
+    },
+    stopMusic() {
+      audio.music = null;
+    },
+    musicStats: () => ({
+      wanted: audio.music,
+      render: 'idle',
+      playing: false,
+      fade: 0,
+      level: 0,
+      seconds: 0,
+      sampleRate: 0,
+      channels: 0,
+      bytes: 0,
+      renderMs: 0,
+      buildMs: 0,
+    }),
+    musicTrack: () => null,
     play(name) {
       audio.played.push(name);
     },

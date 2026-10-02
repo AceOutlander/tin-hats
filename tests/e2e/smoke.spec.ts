@@ -61,6 +61,7 @@ test.describe('debug hooks', () => {
         'lookAt',
         'menuStorm',
         'missions',
+        'music',
         'perf',
         'projectiles',
         'ready',

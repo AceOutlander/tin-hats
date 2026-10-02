@@ -1,6 +1,7 @@
 /**
  * Runs the title screen's storm: the timing (src/fx/menuStorm.ts), the picture (view.renderMenu), the rain bed and
- * the thunder (the audio engine) and the drops on the panel (the UI).
+ * the thunder (the audio engine) and the drops on the panel (the UI). The menu theme (src/data/music.ts) shares its
+ * life: it starts and stops with the storm.
  *
  * - It runs while the title is up, and keeps running behind Settings opened from the title, so the volume sliders
  *   can be heard against it. Anything else (campaign map, briefing, battle) stops it with a short fade.
@@ -10,12 +11,15 @@
  */
 import type { GameAudio } from '../audio';
 import { MENU_STORM } from '../data/menuStorm';
+import type { MusicTrackName } from '../data/music';
 import { MenuStorm, PanelDrops } from '../fx';
 import type { BattleView } from '../render/contracts';
 import type { UiApi } from '../ui/contracts';
 
 /** The storm's own random seed (the title is the same storm every time; only its time moves on). */
 const STORM_SEED = 0x7135;
+/** The track the title plays (src/data/music.ts). */
+export const MENU_MUSIC: MusicTrackName = 'menu';
 /** Longest real frame the storm advances by: a long stall does not unleash a burst of flashes. */
 const MAX_FRAME = 0.25;
 /** Step used when the debug hooks advance a frozen storm by hand. */
@@ -81,6 +85,8 @@ export class MenuStormDirector {
     this.fading = false;
     this.view.setMenuScene(true);
     this.audio.startRainBed();
+    // The menu theme shares the storm's life: on with the title (and behind Settings), off everywhere else.
+    this.audio.startMusic(MENU_MUSIC);
   }
 
   /** The player left the title: rain and sound fade out, then the scene comes down. */
@@ -89,6 +95,7 @@ export class MenuStormDirector {
     this.running = false;
     this.fading = true;
     this.audio.stopRainBed();
+    this.audio.stopMusic();
   }
 
   setAway(away: boolean): void {

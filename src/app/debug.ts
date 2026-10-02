@@ -3,8 +3,11 @@
  * nothing is exposed on window. The browser smoke tests drive the game
  * through window.__TH (start a mission, read a state summary, fast-forward).
  */
-import type { GameAudio } from '../audio';
+import type { GameAudio, MusicStats } from '../audio';
+import { db, measureMix, peakOf, rmsOf, seamOf, sectionTimes, type MixReport, type SeamReport } from '../audio/music';
+import { findOfflineContext } from '../audio/render';
 import { APP } from '../data/app';
+import { MUSIC_TRACKS } from '../data/music';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
@@ -15,7 +18,7 @@ import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
 import type { App } from './app';
-import type { MenuStormStats } from './menuStorm';
+import { MENU_MUSIC, type MenuStormStats } from './menuStorm';
 import { newTally, type EventTally } from './session';
 
 export interface ScreenPoint {
@@ -179,6 +182,32 @@ export interface DebugApi {
   perf(): { fps: number; stepMsAvg: number; renderMsAvg: number };
   /** The title screen's storm. */
   menuStorm: MenuStormHooks;
+  /** The menu music. */
+  music: MusicHooks;
+}
+
+/** The rendered menu theme, measured. */
+export interface MusicAnalysis {
+  seconds: number;
+  sampleRate: number;
+  channels: number;
+  bytes: number;
+  renderMs: number;
+  buildMs: number;
+  peak: number;
+  rms: number;
+  /** Share of 1 s windows quieter than -60 dB: the silences in the piece. */
+  silentShare: number;
+  seam: SeamReport;
+  sections: { name: string; start: number; rmsDb: number; peakDb: number }[];
+}
+
+export interface MusicHooks {
+  stats(): MusicStats;
+  /** Null until the track is rendered. */
+  analyse(): MusicAnalysis | null;
+  /** The music against the rain bed and a thunder at default volumes (renders those offline); null until ready. */
+  mix(): Promise<MixReport | null>;
 }
 
 export interface MenuStormHooks {
@@ -486,6 +515,46 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         app.storm.enabled = on;
         if (!on) app.storm.stop();
         else if (ui.current() === 'title') app.storm.start();
+      },
+    },
+
+    music: {
+      stats: () => ({ ...audio.musicStats() }),
+      analyse() {
+        const track = audio.musicTrack(MENU_MUSIC);
+        if (!track) return null;
+        const data = track.buffer.getChannelData(0);
+        const rate = track.sampleRate;
+        const frames = track.loopFrames;
+        let silent = 0;
+        let windows = 0;
+        for (let s = 0; s + rate <= frames; s += rate) {
+          windows++;
+          if (db(rmsOf(data, s, s + rate)) < -60) silent++;
+        }
+        return {
+          seconds: track.loopSeconds,
+          sampleRate: rate,
+          channels: track.channels,
+          bytes: track.bytes,
+          renderMs: track.renderMs,
+          buildMs: track.buildMs,
+          peak: peakOf(data, 0, frames),
+          rms: rmsOf(data, 0, frames),
+          silentShare: windows > 0 ? silent / windows : 0,
+          seam: seamOf(data, frames, rate),
+          sections: sectionTimes(MUSIC_TRACKS[MENU_MUSIC]).map((s) => {
+            const a = Math.round(s.start * rate);
+            const b = Math.min(frames, Math.round(s.end * rate));
+            return { name: s.name, start: s.start, rmsDb: db(rmsOf(data, a, b)), peakDb: db(peakOf(data, a, b)) };
+          }),
+        };
+      },
+      async mix() {
+        const track = audio.musicTrack(MENU_MUSIC);
+        const Offline = findOfflineContext();
+        if (!track || !Offline) return null;
+        return measureMix(Offline, track);
       },
     },
   };

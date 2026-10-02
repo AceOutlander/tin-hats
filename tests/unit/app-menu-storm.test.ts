@@ -69,6 +69,23 @@ describe('the title storm in the app', () => {
     expect(audio.bedOn).toBe(true);
   });
 
+  it('plays the menu theme with the storm: on the title and behind Settings from it, off anywhere else', () => {
+    const { app, audio } = makeApp();
+    expect(audio.music).toBe(null);
+    app.onScreen('title');
+    expect(audio.music).toBe('menu');
+    app.onScreen('settings');
+    expect(audio.music).toBe('menu');
+    app.onScreen('title');
+    app.onScreen('campaign');
+    expect(audio.music).toBe(null);
+    app.onScreen('title');
+    expect(audio.music).toBe('menu');
+    app.startMission(1, 'normal');
+    app.onScreen('battle');
+    expect(audio.music).toBe(null);
+  });
+
   it('does not run behind Settings opened from somewhere else, nor in a battle', () => {
     const { app, view, audio } = makeApp();
     app.onScreen('campaign');

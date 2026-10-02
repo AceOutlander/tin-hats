@@ -6,6 +6,7 @@ import './ui/theme.css';
 import { createAudio } from './audio';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
+import { MENU_MUSIC } from './app/menuStorm';
 import { browserStorage, createIconPainter, installPageGuards } from './app/page';
 import { registerServiceWorker } from './pwa';
 import { createBattleView } from './render';
@@ -40,6 +41,8 @@ async function boot(): Promise<void> {
   document.getElementById('boot')?.remove();
   await nextFrame();
   await nextFrame();
+  // The menu theme is rendered once in the background (OfflineAudioContext needs no gesture), after the first picture.
+  audio.prepareMusic(MENU_MUSIC);
   if (debug) debug.ready = true;
 }
 
