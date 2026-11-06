@@ -8,3 +8,6 @@ playwright-report/
 .DS_Store
 .vite/
 coverage/
+
+# Screenshots are test and review output: kept locally, never published.
+docs/screenshots/

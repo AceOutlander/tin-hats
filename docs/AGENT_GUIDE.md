@@ -11,7 +11,7 @@ alternative and note it under Known issues in `docs/PROGRESS.md`.
 
 ## Where things are
 
-- Project root: `this folder` (a git repo). Never touch anything outside it. An older copy in a cloud-synced folder (`an older folder`) is stale and must not be used.
+- Project root: the folder holding this repo. Never touch anything outside it. An older copy in a cloud-synced folder is stale and must not be used.
 - Node, npm and git are NOT installed on this machine. Project-local copies live in `.tools`. Run every command through the wrapper, which sets PATH and changes into the project root:
 
 ```powershell
@@ -22,7 +22,7 @@ alternative and note it under Known issues in `docs/PROGRESS.md`.
 
   From another folder use the full path: `.\x.cmd ...`. Use absolute paths with the file tools.
 - The shell is Windows PowerShell 5.1: no `&&`, no `||`. Chain with `;`.
-- Never install anything globally. Never push, deploy or publish. New npm packages only if truly needed (ask yourself twice).
+- Never install anything globally. Never push or publish unless the owner says "push to live" (see `CLAUDE.md`). New npm packages only if truly needed (ask yourself twice).
 
 ## Commands
 
