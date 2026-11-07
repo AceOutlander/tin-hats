@@ -3,7 +3,7 @@
  */
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
-import type { MissionDef, Side, SupportKind, UnitKind } from '../data/schema';
+import type { MissionDef, Order, Side, SupportKind, UnitKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
@@ -38,6 +38,9 @@ import { createMount, createUnit, resetMount } from './units';
 import {
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
+  CMD_FOLLOW,
+  CMD_FOLLOW_ALL,
+  CMD_KIND_ORDER,
   CMD_ORDER,
   CMD_SUPPORT,
   CMD_TRAIN,
@@ -144,6 +147,7 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     popCap: Math.round(CONFIG.popCap * mods.popCap),
     reservePop: 0,
     order: 'hold',
+    kindOrders: kindRecord<Order | null>(null),
     available,
     queue: kindRecord(0),
     progress: progressRecord(),
@@ -379,7 +383,17 @@ class BattleImpl implements Battle, World {
         q.push(side, CMD_TRAIN).kind = cmd.kind;
         break;
       case 'order':
-        q.push(side, CMD_ORDER).order = cmd.order;
+        if (cmd.kind === undefined) {
+          q.push(side, CMD_ORDER).order = cmd.order;
+        } else {
+          const c = q.push(side, CMD_KIND_ORDER);
+          c.kind = cmd.kind;
+          c.order = cmd.order;
+        }
+        break;
+      case 'followArmy':
+        if (cmd.kind === undefined) q.push(side, CMD_FOLLOW_ALL);
+        else q.push(side, CMD_FOLLOW).kind = cmd.kind;
         break;
       case 'support': {
         const c = q.push(side, CMD_SUPPORT);

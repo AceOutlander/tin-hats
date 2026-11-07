@@ -7,7 +7,7 @@ import { CONFIG } from '../data/config';
 import type { Side, UnitKind } from '../data/schema';
 import { KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER } from './tables';
 import { spawnUnit } from './units';
-import type { World } from './world';
+import { orderFor, type World } from './world';
 
 /** The value setProgress() stores (a typed array, so the fraction is not boxed on the way). */
 const PROGRESS = new Float64Array(1);
@@ -77,8 +77,8 @@ export function updateEconomy(w: World): void {
       const slot = si * KIND_COUNT + k;
       let left = w.trainLeft[slot] - dt;
       if (left <= 0) {
-        // Under Fall Back the new unit stays inside with the garrison.
-        const u = spawnUnit(w, si as Side, k, hq.doorX, 'army', side.order === 'fallBack', true);
+        // Under Fall Back (army-wide or for its kind) the new unit stays inside with the garrison.
+        const u = spawnUnit(w, si as Side, k, hq.doorX, 'army', orderFor(side, kind) === 'fallBack', true);
         if (u) {
           side.queue[kind]--;
           side.stats.trained++;
@@ -101,7 +101,7 @@ export function updateEconomy(w: World): void {
 
     // Income estimate: the trickle plus what the working sappers bring in over a full round trip.
     const sapper = KIND_DEFS[KIND_SAPPER];
-    const working = side.order === 'fallBack' ? 0 : side.alive.sapper;
+    const working = orderFor(side, 'sapper') === 'fallBack' ? 0 : side.alive.sapper;
     const trip = (2 * CONFIG.dumpDistance) / (sapper.speed * mods.sapperSpeed) + CONFIG.sapperLoadTime;
     side.income = passive + (working * CONFIG.sapperCarry * mods.sapperCarry * mods.income) / trip;
   }

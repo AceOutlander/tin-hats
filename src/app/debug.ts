@@ -45,6 +45,8 @@ export interface DebugState {
   pop: number;
   popCap: number;
   order: Order;
+  /** The player's per-kind order overrides (null = that kind follows the army order). */
+  kindOrders: Record<UnitKind, Order | null>;
   /** Player queue per kind. */
   queue: UnitCounts;
   /** Living units per kind for side 0 and side 1. */
@@ -234,6 +236,12 @@ function copyCounts(from: UnitCounts): UnitCounts {
   return out;
 }
 
+function noKindOrders(): Record<UnitKind, Order | null> {
+  const out = {} as Record<UnitKind, Order | null>;
+  for (const kind of UNIT_KINDS) out[kind] = null;
+  return out;
+}
+
 function noSupports(): DebugState['supports'] {
   const out = {} as DebugState['supports'];
   for (const kind of SUPPORT_KINDS) out[kind] = { available: false, cooldown: 0 };
@@ -382,6 +390,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           pop: 0,
           popCap: 0,
           order: 'hold',
+          kindOrders: noKindOrders(),
           queue: zeroCounts(),
           units: [zeroCounts(), zeroCounts()],
           hq: [null, null],
@@ -427,6 +436,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         pop: me.pop,
         popCap: me.popCap,
         order: me.order,
+        kindOrders: { ...me.kindOrders },
         queue: copyCounts(me.queue),
         units: [copyCounts(s.sides[0].alive), copyCounts(s.sides[1].alive)],
         hq: [hq(0), hq(1)],

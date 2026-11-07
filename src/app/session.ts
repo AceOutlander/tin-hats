@@ -271,7 +271,9 @@ export class BattleSession {
         this.battle.command(0, { type: 'train', kind: action.kind });
         return true;
       case 'order':
-        this.battle.command(0, { type: 'order', order: action.order });
+      case 'followArmy':
+        // Same shape as the sim's commands; battle.command copies the fields into its queue.
+        this.battle.command(0, action);
         return true;
       case 'support':
         this.beginTargeting(action.kind);

@@ -64,8 +64,13 @@ export interface BattleConfig {
 export type Command =
   /** Queue one unit. Cost and population are paid immediately. */
   | { type: 'train'; kind: UnitKind }
-  /** Change the army-wide order. Instant and free. */
-  | { type: 'order'; order: Order }
+  /**
+   * Change the army-wide order, or with `kind` give that unit kind its own order (an override that the
+   * army-wide order does not clear). Instant and free.
+   */
+  | { type: 'order'; order: Order; kind?: UnitKind }
+  /** Clear one kind's override so it follows the army order again, or every override when `kind` is left out. */
+  | { type: 'followArmy'; kind?: UnitKind }
   /**
    * Call a support at world x (clamped to the map). Dropped unless the mission offers it to this
    * side and its cooldown is 0. Starts the cooldown and emits supportCalled.
@@ -328,6 +333,8 @@ export interface SideState {
   reservePop: number;
   /** The current army-wide order. */
   order: Order;
+  /** Per-kind override of the army order, or null where that kind follows the army. See orderFor(). */
+  kindOrders: Record<UnitKind, Order | null>;
   /** Unit kinds this side may train in this mission. */
   available: Record<UnitKind, boolean>;
   /** Units waiting or in training, per kind. */
@@ -551,7 +558,8 @@ export type SimEventType =
  * supplyDelivered   A sapper reached the HQ door. side, unit, unitId, kind, x, row, value = supplies credited.
  * trainStarted      A unit was queued. side, kind, value = that kind's queue length afterwards.
  * trainDone         A unit finished training. side, kind, unit, unitId (a unitSpawned event follows).
- * orderChanged      side, order.
+ * orderChanged      side, order, kind = the unit kind given its own order (null = the army-wide order). When a
+ *                   kind goes back to following the army (followArmy), order is the army order it now obeys.
  * supportCalled     A call-in was accepted (its cooldown starts). side, support, x = target centre,
  *                   value = seconds until the first round (SUPPORTS[support].delay), dir = the caller's
  *                   facing (+1 for side 0): shells come from and the aircraft flies that way.

@@ -201,6 +201,11 @@ class TrainView {
   private readonly queued: FlagCell;
   private readonly fielded: FlagCell;
   private readonly short: FlagCell;
+  private readonly ownBadge: HTMLElement;
+  private readonly hasOwn: FlagCell;
+  /** This kind's own order as last shown (null = it follows the army). */
+  ownOrder: Order | null = null;
+  fullName = '';
   private rawName = '';
 
   constructor(parent: HTMLElement, kind: UnitKind) {
@@ -212,6 +217,9 @@ class TrainView {
     this.sweep = new FracCell(el('span', 'th-tbtn-sweep', win));
     this.queuedText = new TextCell(el('span', 'th-badge th-tbtn-q', win));
     this.fieldedText = new TextCell(el('span', 'th-badge th-tbtn-n', win));
+    // Who is on special orders: a tiny order glyph in the portrait's lower corner.
+    this.ownBadge = el('span', 'th-tbtn-o', win);
+    this.hasOwn = new FlagCell(b, 'has-order');
     this.name = new TextCell(el('span', 'th-tbtn-name', b));
     const price = el('span', 'th-tbtn-price', b);
     const cost = el('span', 'th-tbtn-cost', price);
@@ -233,6 +241,13 @@ class TrainView {
       this.name.set(shortName(s.name, NAME_CHARS));
       this.node.setAttribute('aria-label', `Train ${s.name}`);
     }
+    this.fullName = s.name;
+    if (s.ownOrder !== this.ownOrder) {
+      this.ownOrder = s.ownOrder;
+      this.hasOwn.set(s.ownOrder !== null);
+      this.ownBadge.innerHTML = s.ownOrder === null ? '' : ICONS[s.ownOrder];
+      this.ownBadge.dataset.order = s.ownOrder ?? '';
+    }
     this.cost.set(s.cost);
     this.pop.set(s.pop);
     this.queued.set(s.queued > 0);
@@ -244,6 +259,24 @@ class TrainView {
     if (training) this.sweep.set(s.progress);
     this.affordable = s.affordable;
     this.short.set(!s.affordable);
+  }
+}
+
+/** One unit kind in the order scope picker: its portrait and name. */
+class PickView {
+  readonly node: HTMLButtonElement;
+  readonly canvas: HTMLCanvasElement;
+  readonly kind: UnitKind;
+  readonly name: string;
+
+  constructor(parent: HTMLElement, kind: UnitKind, name: string) {
+    this.kind = kind;
+    this.name = name;
+    const b = button('th-hbtn th-pick', `scope-${kind}`, `Orders for ${name}`, parent);
+    this.node = b;
+    const win = el('span', 'th-pick-win', b);
+    this.canvas = el('canvas', 'th-pick-ico', win);
+    el('span', 'th-pick-name', b, name);
   }
 }
 
@@ -360,6 +393,20 @@ class HudView implements Hud {
   private readonly supportViews: SupportView[] = [];
   private readonly orderButtons: HTMLButtonElement[] = [];
   private lastOrder: Order | null = null;
+  private lastFollow = false;
+  private orderDirty = true;
+
+  // Order scope: the three order buttons command the whole army (scope null) or one unit kind.
+  private scope: UnitKind | null = null;
+  private readonly scopeButton: HTMLButtonElement;
+  private readonly scopeCanvas: HTMLCanvasElement;
+  private readonly scopeName: TextCell;
+  private readonly scopeFlag: FlagCell;
+  private readonly followButton: HTMLButtonElement;
+  private readonly picker: HTMLElement;
+  private readonly pickAll: HTMLButtonElement;
+  private readonly pickViews: PickView[] = [];
+  private pickerOpen = false;
 
   // Direct control.
   private readonly controlFlag: FlagCell;
@@ -538,6 +585,17 @@ class HudView implements Hud {
 
     const orders = el('div', 'th-hplate th-horders', bottom);
     this.ordersBox = orders;
+    // "Orders for": who the three order buttons speak to. Tapping it opens the picker of unit kinds.
+    const scopeButton = button('th-hbtn th-scope', 'order-scope', 'Orders for all units', orders);
+    this.scopeButton = scopeButton;
+    el('span', 'th-scope-cap', scopeButton, 'Orders for');
+    const scopeWin = el('span', 'th-scope-win', scopeButton);
+    icon('army', scopeWin, 'th-scope-all');
+    this.scopeCanvas = el('canvas', 'th-scope-ico', scopeWin);
+    this.scopeName = new TextCell(el('span', 'th-scope-name', scopeButton));
+    this.scopeName.set('All');
+    this.scopeFlag = new FlagCell(orders, 'is-scoped');
+    onTap(scopeButton, () => this.doScopeButton());
     for (let i = 0; i < ORDERS.length; i++) {
       const order = ORDERS[i];
       const b = button('th-hbtn th-obtn', `order-${order}`, ORDER_LABEL[order], orders);
@@ -546,6 +604,26 @@ class HudView implements Hud {
       onPress(b, () => this.doOrder(order));
       this.orderButtons.push(b);
     }
+    const follow = button('th-hbtn th-obtn th-follow', 'order-follow', 'Follow army', orders);
+    icon('follow', follow);
+    el('span', 'th-follow-text', follow, 'Follow army');
+    onPress(follow, () => this.doFollow());
+    follow.hidden = true;
+    this.followButton = follow;
+
+    // ----- Order scope picker: "All units" and every kind this mission allows -----
+    const picker = el('div', 'th-hplate th-picker', root);
+    picker.dataset.testid = 'scope-picker';
+    picker.dataset.interactive = '';
+    picker.hidden = true;
+    this.picker = picker;
+    el('div', 'th-picker-title', picker, 'Orders for');
+    const pickAll = button('th-hbtn th-pick', 'scope-all', 'All units', picker);
+    const allWin = el('span', 'th-pick-win', pickAll);
+    icon('army', allWin);
+    el('span', 'th-pick-name', pickAll, 'All units');
+    onTap(pickAll, () => this.doPick(null));
+    this.pickAll = pickAll;
 
     // ----- Tutorial tip: a bubble beside the control it explains, which pulses while the tip is up -----
     const tip = el('div', 'th-tip', root);
@@ -636,16 +714,28 @@ class HudView implements Hud {
     this.enemyHidden.set(enemyHp === null);
     if (enemyHp !== null) this.enemyHq.set(enemyHp, s.enemyHqMaxHp);
 
-    if (s.order !== this.lastOrder) {
-      this.lastOrder = s.order;
-      for (let i = 0; i < ORDERS.length; i++) {
-        this.orderButtons[i].classList.toggle('is-active', ORDERS[i] === s.order);
-      }
-    }
-
     const train = s.train;
     if (!this.trainMatches(train)) this.rebuildTrain(train);
     for (let i = 0; i < train.length; i++) this.trainViews[i].apply(train[i]);
+
+    // Army scope lights the army order. A kind scope lights the order that kind obeys: its own, or the
+    // army's together with Follow army while it has none.
+    let own: Order | null = null;
+    if (this.scope !== null) {
+      for (let i = 0; i < train.length; i++) if (train[i].kind === this.scope) own = train[i].ownOrder;
+    }
+    const lit: Order = own ?? s.order;
+    const follow = this.scope !== null && own === null;
+    if (this.orderDirty || lit !== this.lastOrder || follow !== this.lastFollow) {
+      this.orderDirty = false;
+      this.lastOrder = lit;
+      this.lastFollow = follow;
+      for (let i = 0; i < ORDERS.length; i++) {
+        this.orderButtons[i].classList.toggle('is-active', ORDERS[i] === lit);
+      }
+      this.followButton.classList.toggle('is-active', follow);
+    }
+    if (s.paused && this.pickerOpen) this.closePicker();
 
     const supports = s.supports;
     if (!this.supportsMatch(supports)) this.rebuildSupports(supports);
@@ -752,7 +842,94 @@ class HudView implements Hud {
       this.trainViews.push(view);
     }
     this.trainWrap.hidden = list.length === 0;
+    this.rebuildPicker(list);
     this.onLayout();
+  }
+
+  // ------------------------------------------------------------------ order scope
+
+  private rebuildPicker(list: TrainButtonState[]): void {
+    for (let i = 0; i < this.pickViews.length; i++) this.pickViews[i].node.remove();
+    this.pickViews.length = 0;
+    let keep = false;
+    for (let i = 0; i < list.length; i++) {
+      const view = new PickView(this.picker, list[i].kind, list[i].name);
+      onTap(view.node, () => this.doPick(view.kind));
+      this.pickViews.push(view);
+      if (list[i].kind === this.scope) keep = true;
+    }
+    this.scopeButton.hidden = list.length === 0;
+    if (!keep) this.setScope(null);
+    else this.setScope(this.scope);
+  }
+
+  /** Point the three order buttons at the whole army (null) or at one unit kind. */
+  private setScope(kind: UnitKind | null): void {
+    this.scope = kind;
+    this.orderDirty = true;
+    let name = 'All units';
+    for (let i = 0; i < this.trainViews.length; i++) if (this.trainViews[i].kind === kind) name = this.trainViews[i].fullName;
+    for (let i = 0; i < this.pickViews.length; i++) {
+      const v = this.pickViews[i];
+      if (v.kind === kind) name = v.name;
+      v.node.classList.toggle('is-active', v.kind === kind);
+    }
+    this.pickAll.classList.toggle('is-active', kind === null);
+    this.scopeName.set(kind === null ? 'All' : shortName(name, NAME_CHARS));
+    this.scopeButton.setAttribute('aria-label', `Orders for ${kind === null ? 'all units' : name}`);
+    this.scopeFlag.set(kind !== null);
+    this.followButton.hidden = kind === null;
+    if (kind !== null) {
+      // Repaint on the next layout pass too: the canvas has no size until the chip shows it.
+      this.scopeCanvas.dataset.kind = '';
+      this.paintIcon(this.scopeCanvas, kind);
+    }
+    this.onLayout();
+  }
+
+  private openPicker(): void {
+    this.pickerOpen = true;
+    this.picker.hidden = false;
+    this.scopeButton.classList.add('is-open');
+    for (let i = 0; i < this.pickViews.length; i++) this.paintIcon(this.pickViews[i].canvas, this.pickViews[i].kind);
+  }
+
+  private closePicker(): void {
+    if (!this.pickerOpen) return;
+    this.pickerOpen = false;
+    this.picker.hidden = true;
+    this.scopeButton.classList.remove('is-open');
+  }
+
+  private doScopeButton(): void {
+    if (!this.live()) return;
+    this.app.uiSound('click');
+    if (this.pickerOpen) this.closePicker();
+    else this.openPicker();
+  }
+
+  private doPick(kind: UnitKind | null): void {
+    if (!this.live()) return;
+    this.app.uiSound('click');
+    this.setScope(kind);
+    this.closePicker();
+  }
+
+  /** Keyboard: All, then each kind in training-bar order, then All again. */
+  private cycleScope(): void {
+    const views = this.trainViews;
+    let next: UnitKind | null = views.length > 0 ? views[0].kind : null;
+    for (let i = 0; i < views.length; i++) {
+      if (views[i].kind === this.scope) next = i + 1 < views.length ? views[i + 1].kind : null;
+    }
+    this.app.uiSound('click');
+    this.setScope(next);
+  }
+
+  private doFollow(): void {
+    if (!this.live() || this.scope === null) return;
+    this.app.uiSound('click');
+    this.app.dispatch({ type: 'followArmy', kind: this.scope });
   }
 
   private supportsMatch(list: SupportButtonState[]): boolean {
@@ -788,6 +965,10 @@ class HudView implements Hud {
       this.paintIcon(v.canvas, v.kind);
     }
     if (this.cardKind !== null) this.paintIcon(this.cardCanvas, this.cardKind);
+    if (this.scope !== null) this.paintIcon(this.scopeCanvas, this.scope);
+    if (this.pickerOpen) {
+      for (let i = 0; i < this.pickViews.length; i++) this.paintIcon(this.pickViews[i].canvas, this.pickViews[i].kind);
+    }
     this.onTrainScroll();
     if (this.tipSeq !== -1) this.placeTip();
   };
@@ -950,7 +1131,8 @@ class HudView implements Hud {
   private doOrder(order: Order): void {
     if (!this.live()) return;
     this.app.uiSound('click');
-    this.app.dispatch({ type: 'order', order });
+    const kind = this.scope;
+    this.app.dispatch(kind === null ? { type: 'order', order } : { type: 'order', order, kind });
   }
 
   private doSupport(view: SupportView): void {
@@ -1122,7 +1304,8 @@ class HudView implements Hud {
     const code = e.code;
     if (code === 'Escape') {
       if (!e.repeat) {
-        if (s.paused) this.doOverlay('resume');
+        if (this.pickerOpen) this.closePicker();
+        else if (s.paused) this.doOverlay('resume');
         else if (s.targeting !== null) this.doCancelTargeting();
         else this.doPause();
       }
@@ -1164,6 +1347,7 @@ class HudView implements Hud {
     if (code === 'KeyQ') this.doOrder('fallBack');
     else if (code === 'KeyW') this.doOrder('hold');
     else if (code === 'KeyE') this.doOrder('advance');
+    else if (code === 'KeyS') this.cycleScope();
     else if (code.length === 6 && code.startsWith('Digit')) {
       const index = code.charCodeAt(5) - 49;
       if (index < 0 || index >= this.trainViews.length) return;
@@ -1189,6 +1373,10 @@ class HudView implements Hud {
   private readonly onAnyDown = (e: PointerEvent): void => {
     this.lastDown.x = e.clientX;
     this.lastDown.y = e.clientY;
+    // A press anywhere outside the picker (and its chip, which toggles it) closes it.
+    if (this.pickerOpen && e.target instanceof Node && !this.picker.contains(e.target) && !this.scopeButton.contains(e.target)) {
+      this.closePicker();
+    }
   };
 
   private readonly onAnyUp = (e: PointerEvent): void => {
@@ -1207,6 +1395,9 @@ class HudView implements Hud {
     if (!v) {
       this.releaseInputs();
       this.hideTip();
+      // Every battle starts with orders for the whole army.
+      this.closePicker();
+      this.setScope(null);
     }
     this.visible = v;
     this.root.hidden = !v;

@@ -33,10 +33,13 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **Trenches redrawn as narrow end-on pits** (owner request, DECISIONS 237, view only): one pit per trench with revetment boards, firing step, sandbags on the enemy-facing lip over the occupants' legs, occupants packed in, owner's pennant fading in on capture. Typecheck, lint, 829 unit tests and the build pass; browser suites not run. Pictures `docs/screenshots/trench-after-*.png` (before: `trench-current-*.png`).
 
+- **Orders per unit kind** (owner request "only bren units: hold!", DECISIONS 238): each side keeps its army order plus an optional override per unit kind (`SideState.kindOrders`); commands `{ type: 'order', order, kind }` and `{ type: 'followArmy', kind? }`; the army order never clears overrides; Fall Back per kind sends only that kind inside (sappers included); controlled units ignore orders; the AI and test bot use army orders only. HUD: an "Orders for" chip left of the order buttons opens a picker (All units plus every kind of the mission); in a kind scope the buttons light that kind's order, a Follow army button clears it, and train buttons of kinds on their own orders carry a small order badge; S cycles the scope, Escape or a press outside closes the picker. Browser spec `tests/e2e/unit-orders.spec.ts`; pictures `docs/screenshots/unit-orders-*.png`.
+
 ## In progress
 - Nothing is mid-flight.
 
 ## Next
+- **Queue (owner, 2026-11-07), specs verbatim in `docs/QUEUE.md`:** 1. per-unit-type orders (done), 2. Quartermaster upgrade looks, 3. admin panel, 4. prep phase for defensive missions, 5. difficulty overhaul (levels, army size, performance), 6. Soviet campaign Part 1 then Part 2, 7. trench art pass (later job: the pit must be cut into the ground line, no blurry slab under it, sandbags along the front lip, the flag attached to the trench, plus climbing in and out, tanks bumping over, big positions split into several pits). Standing rule: push to live after each job whose checks pass, then go straight on.
 - A run on a real phone: touch feel, real GPU, audio output, frame rate and the quality governor (nothing has been measured on one).
 - Final verification pass, then `docs/MORNING_REPORT.md`.
 

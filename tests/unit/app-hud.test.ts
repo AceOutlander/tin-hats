@@ -88,6 +88,24 @@ describe('HudModel', () => {
     expect(s.control).toBeNull();
   });
 
+  it('shows each kind its own order, and null for the kinds that follow the army', () => {
+    const battle = battleOf(SANDBOX);
+    const model = new HudModel();
+    model.begin(battle);
+    model.refresh(battle, 500, 1000);
+    expect(model.state.train.every((t) => t.ownOrder === null)).toBe(true);
+    battle.command(0, { type: 'order', order: 'advance' });
+    battle.command(0, { type: 'order', order: 'hold', kind: 'lmg' });
+    run(battle, 1);
+    model.refresh(battle, 500, 1000);
+    expect(model.state.order).toBe('advance');
+    for (const t of model.state.train) expect(t.ownOrder).toBe(t.kind === 'lmg' ? 'hold' : null);
+    battle.command(0, { type: 'followArmy', kind: 'lmg' });
+    run(battle, 1);
+    model.refresh(battle, 500, 1000);
+    expect(model.state.train.every((t) => t.ownOrder === null)).toBe(true);
+  });
+
   it('fills the minimap from the battle', () => {
     const battle = battleOf();
     const model = new HudModel();

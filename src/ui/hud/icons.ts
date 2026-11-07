@@ -39,6 +39,13 @@ export const ICONS = {
       '<path fill="rgba(20,21,15,0.55)" d="M7 10.2h10v2.6H7z"/>',
   ),
   advance: svg(`<path ${STROKE} stroke-width="3.4" d="M4 5l7 7-7 7M12.5 5l7 7-7 7"/>`),
+  /** Order scope: three helmets for the whole army, and a company pennant for "follow the army order". */
+  army: svg(
+    '<path d="M7.4 12.4c0-3.400 2-5.800 4.6-5.800s4.6 2.400 4.6 5.800z"/>' +
+      '<path d="M1.4 18.8c0-3.400 2-5.800 4.6-5.800s4.6 2.400 4.6 5.800zM13.4 18.8c0-3.400 2-5.800 4.6-5.800s4.6 2.400 4.6 5.800z"/>' +
+      '<path d="M0.6 18.6h10.8v1.8H0.6zM12.6 18.6h10.8v1.8H12.6zM6.6 12.2h10.8v1.6H6.6z"/>',
+  ),
+  follow: svg('<path d="M5 2.5h2.2v19H5z"/><path d="M7.2 3.5L20.5 8 7.2 12.5z"/>'),
   /** Supports: shell burst, smoke cloud, aircraft. */
   artillery: svg(
     '<path d="M12 1.5l2.1 6.3 5.7-3.6-3.3 5.9 6 1.4-6 2.1 3.3 5.9-5.7-3.3L12 22.5l-2.1-6.300-5.7 3.3 3.3-5.9-6-2.1 6-1.4-3.3-5.9 5.7 3.6z"/>',

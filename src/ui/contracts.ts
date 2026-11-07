@@ -25,6 +25,8 @@ export interface TrainButtonState {
   fielded: number;
   /** False when supplies or population are short. */
   affordable: boolean;
+  /** This kind's own order, or null while it follows the army order. */
+  ownOrder: Order | null;
 }
 
 export interface SupportButtonState {
@@ -113,7 +115,10 @@ export interface HudState {
 
 export type HudAction =
   | { type: 'train'; kind: UnitKind }
-  | { type: 'order'; order: Order }
+  /** The army-wide order, or with `kind` that unit kind's own order. */
+  | { type: 'order'; order: Order; kind?: UnitKind }
+  /** That kind follows the army order again (every kind when `kind` is left out). */
+  | { type: 'followArmy'; kind?: UnitKind }
   | { type: 'support'; kind: SupportKind }
   | { type: 'cancelTargeting' }
   | { type: 'pause' }

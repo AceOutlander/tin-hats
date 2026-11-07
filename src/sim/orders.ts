@@ -15,7 +15,7 @@ import { senseControlled } from './control';
 import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
-import type { World } from './world';
+import { orderFor, type World } from './world';
 
 /*
  * Numbers travel between the passes in unit fields (goalX, moveSpeed, mount.x...) and not as
@@ -172,7 +172,7 @@ export function senseUnits(w: World): void {
     if (u.behaviour === 'garrison' && u.postTrench >= 0 && s.trenches[u.postTrench].owner === 1 - u.side) {
       joinArmy(w, u);
     }
-    const order = u.behaviour === 'army' ? side.order : u.behaviour === 'assault' ? 'advance' : 'hold';
+    const order = u.behaviour === 'army' ? orderFor(side, u.kind) : u.behaviour === 'assault' ? 'advance' : 'hold';
     const retarget = (s.tick + i) % retargetTicks === 0;
     const m = u.mount;
 
@@ -254,7 +254,7 @@ function deliver(w: World, u: UnitState): void {
   e.value = amount;
 }
 
-/** Sappers shuttle between the HQ door and the dump whatever the order, except Fall Back. */
+/** Sappers shuttle between the HQ door and the dump whatever the order, except Fall Back (army-wide or their own). */
 function moveSapper(w: World, u: UnitState, dir: number): void {
   const s = w.state;
   const side = s.sides[u.side];
@@ -265,7 +265,7 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
     return;
   }
   u.moveSpeed = u.def.speed * w.mods[u.side].sapperSpeed;
-  if (side.order === 'fallBack') {
+  if (orderFor(side, u.kind) === 'fallBack') {
     u.goalX = hq.doorX;
     u.moveSpeed *= CONFIG.fallBackSpeedMul;
     if (walk(w, u, dir)) {
@@ -322,9 +322,9 @@ export function moveUnits(w: World): void {
 
     if (u.inside) {
       u.velX = 0;
-      // Garrisoned units walk out one at a time once the order is no longer Fall Back.
+      // Garrisoned units walk out one at a time once their order is no longer Fall Back.
       const hq = side.hq;
-      if (hq && side.order !== 'fallBack' && w.doorTimer[u.side] <= 0) {
+      if (hq && orderFor(side, u.kind) !== 'fallBack' && w.doorTimer[u.side] <= 0) {
         w.doorTimer[u.side] = CONFIG.doorInterval;
         u.inside = false;
         hq.garrison--;
@@ -357,10 +357,10 @@ export function moveUnits(w: World): void {
     }
     if (u.velX === 0 && u.goalX !== u.x) {
       const gap = u.goalX > u.x ? u.goalX - u.x : u.x - u.goalX;
-      if (gap <= CONFIG.moveDeadband && u.slot < 0 && (side.order !== 'fallBack' || u.behaviour !== 'army')) continue;
+      if (gap <= CONFIG.moveDeadband && u.slot < 0 && (u.behaviour !== 'army' || orderFor(side, u.kind) !== 'fallBack')) continue;
     }
 
-    const retreating = u.behaviour === 'army' && side.order === 'fallBack';
+    const retreating = u.behaviour === 'army' && orderFor(side, u.kind) === 'fallBack';
     u.moveSpeed = retreating ? u.def.speed * CONFIG.fallBackSpeedMul : u.def.speed;
     if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     const arrived = walk(w, u, dir);
@@ -437,7 +437,7 @@ export function fireUnits(w: World): void {
     const ready = u.setup <= 0;
     const hasTarget = m.targetType !== TARGET_NONE;
     const ctrl = u.controlled;
-    const fleeing = !ctrl && u.behaviour === 'army' && s.sides[u.side].order === 'fallBack';
+    const fleeing = !ctrl && u.behaviour === 'army' && orderFor(s.sides[u.side], u.kind) === 'fallBack';
     const m2 = u.mount2;
     // A controlled unit keeps its aim on the target even on the move (crew weapons still set up)
     // and shoots only while the fire button is held.

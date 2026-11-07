@@ -105,6 +105,7 @@ export class HudModel {
           progress: 0,
           fielded: 0,
           affordable: false,
+          ownOrder: null,
         };
         st.train.push(btn);
       }
@@ -164,6 +165,7 @@ export class HudModel {
       t.queued = queued;
       t.progress = me.progress[t.kind];
       t.fielded = me.alive[t.kind];
+      t.ownOrder = me.kindOrders[t.kind];
       // Room kept for scripted reinforcements waiting at the HQ counts as taken (sim canTrain).
       const room = me.pop + me.reservePop + t.pop <= me.popCap;
       t.affordable = me.supplies >= t.cost && room && queued < CONFIG.maxQueue;

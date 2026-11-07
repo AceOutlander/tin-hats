@@ -8,8 +8,18 @@ import { SUPPORTS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { releaseControl, setControlInput, takeControl } from './control';
 import { callSupport, canCallSupport } from './supports';
-import { KIND_COUNT, KIND_INDEX } from './tables';
-import { CMD_CONTROL, CMD_CONTROL_INPUT, CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type World } from './world';
+import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
+import {
+  CMD_CONTROL,
+  CMD_CONTROL_INPUT,
+  CMD_FOLLOW,
+  CMD_FOLLOW_ALL,
+  CMD_KIND_ORDER,
+  CMD_ORDER,
+  CMD_SUPPORT,
+  CMD_TRAIN,
+  type World,
+} from './world';
 
 /**
  * True if the side could queue this kind right now. The AI uses it to avoid issuing commands that would be dropped.
@@ -44,14 +54,45 @@ function applyTrain(w: World, si: number, kind: UnitKind): void {
   e.value = side.queue[kind];
 }
 
-function applyOrder(w: World, si: number, order: Order): void {
-  if (order !== 'hold' && order !== 'advance' && order !== 'fallBack') return;
-  const side = w.state.sides[si];
-  if (side.order === order) return;
-  side.order = order;
+function isOrder(order: Order): boolean {
+  return order === 'hold' || order === 'advance' || order === 'fallBack';
+}
+
+function emitOrder(w: World, si: number, order: Order, kind: UnitKind | null): void {
   const e = w.events.emit('orderChanged');
   e.side = si;
   e.order = order;
+  e.kind = kind;
+}
+
+/** The army-wide order. Kinds with their own order keep it. */
+function applyOrder(w: World, si: number, order: Order): void {
+  if (!isOrder(order)) return;
+  const side = w.state.sides[si];
+  if (side.order === order) return;
+  side.order = order;
+  emitOrder(w, si, order, null);
+}
+
+/** One kind's own order, in force until followArmy. */
+function applyKindOrder(w: World, si: number, kind: UnitKind, order: Order): void {
+  if (!isOrder(order) || !(kind in UNITS)) return;
+  const own = w.state.sides[si].kindOrders;
+  if (own[kind] === order) return;
+  own[kind] = order;
+  emitOrder(w, si, order, kind);
+}
+
+function applyFollow(w: World, si: number, kind: UnitKind): void {
+  if (!(kind in UNITS)) return;
+  const side = w.state.sides[si];
+  if (side.kindOrders[kind] === null) return;
+  side.kindOrders[kind] = null;
+  emitOrder(w, si, side.order, kind);
+}
+
+function applyFollowAll(w: World, si: number): void {
+  for (let k = 0; k < KIND_COUNT; k++) applyFollow(w, si, KIND_LIST[k]);
 }
 
 function applySupport(w: World, si: number, kind: SupportKind, x: number): void {
@@ -71,6 +112,15 @@ export function applyCommands(w: World): void {
         break;
       case CMD_ORDER:
         applyOrder(w, c.side, c.order);
+        break;
+      case CMD_KIND_ORDER:
+        applyKindOrder(w, c.side, c.kind, c.order);
+        break;
+      case CMD_FOLLOW:
+        applyFollow(w, c.side, c.kind);
+        break;
+      case CMD_FOLLOW_ALL:
+        applyFollowAll(w, c.side);
         break;
       case CMD_SUPPORT:
         applySupport(w, c.side, c.support, c.x);

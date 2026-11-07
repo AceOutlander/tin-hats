@@ -87,6 +87,7 @@ const train: TrainButtonState[] = roster.map((r) => ({
   progress: 0,
   fielded: r.fielded,
   affordable: true,
+  ownOrder: null,
 }));
 if (train[1]) {
   train[1].queued = 2;
@@ -264,8 +265,14 @@ const app: AppApi = {
         }
         break;
       }
-      case 'order':
-        state.order = action.order;
+      case 'order': {
+        const t = action.kind === undefined ? undefined : train.find((b) => b.kind === action.kind);
+        if (t) t.ownOrder = action.order;
+        else state.order = action.order;
+        break;
+      }
+      case 'followArmy':
+        for (const t of train) if (action.kind === undefined || t.kind === action.kind) t.ownOrder = null;
         break;
       case 'support':
         state.targeting = action.kind;

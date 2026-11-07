@@ -62,6 +62,26 @@ describe('BattleSession', () => {
     ]);
   });
 
+  it('sends orders for one unit kind and Follow army, and the sim applies them to that kind only', () => {
+    const { session, sent, battle } = setup();
+    expect(session.dispatch({ type: 'order', order: 'advance' })).toBe(true);
+    expect(session.dispatch({ type: 'order', order: 'hold', kind: 'rifle' })).toBe(true);
+    session.step();
+    expect(battle.state.sides[0].order).toBe('advance');
+    expect(battle.state.sides[0].kindOrders.rifle).toBe('hold');
+    expect(battle.state.sides[0].kindOrders.sapper).toBeNull();
+    expect(session.dispatch({ type: 'followArmy', kind: 'rifle' })).toBe(true);
+    expect(session.dispatch({ type: 'followArmy' })).toBe(true);
+    session.step();
+    expect(battle.state.sides[0].kindOrders.rifle).toBeNull();
+    expect(sent).toEqual([
+      { type: 'order', order: 'advance' },
+      { type: 'order', order: 'hold', kind: 'rifle' },
+      { type: 'followArmy', kind: 'rifle' },
+      { type: 'followArmy' },
+    ]);
+  });
+
   it('leaves pause, restart, quit and mute to the app', () => {
     const { session } = setup();
     for (const type of ['pause', 'resume', 'restart', 'quit', 'toggleMute'] as const) {

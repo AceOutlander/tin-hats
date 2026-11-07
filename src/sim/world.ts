@@ -16,7 +16,13 @@ import type {
 import type { EventQueue } from './events';
 import type { Rng } from './rng';
 import { KIND_COUNT, KIND_INDEX } from './tables';
-import type { BattleConfig, BattleState, Behaviour } from './types';
+import type { BattleConfig, BattleState, Behaviour, SideState } from './types';
+
+/** The order a unit of this kind obeys: its kind's override if one is set, else the army order. */
+export function orderFor(side: SideState, kind: UnitKind): Order {
+  const own = side.kindOrders[kind];
+  return own === null ? side.order : own;
+}
 
 /** Multipliers applied to one side: Quartermaster upgrades, mission income and difficulty. All default to 1. */
 export interface SideMods {
@@ -107,6 +113,12 @@ export const CMD_ORDER = 1;
 export const CMD_SUPPORT = 2;
 export const CMD_CONTROL = 3;
 export const CMD_CONTROL_INPUT = 4;
+/** An order for one unit kind (`kind`, `order`). */
+export const CMD_KIND_ORDER = 5;
+/** One kind (`kind`) follows the army order again. */
+export const CMD_FOLLOW = 6;
+/** Every kind follows the army order again. */
+export const CMD_FOLLOW_ALL = 7;
 
 /** A queued command, flattened so the queue can be pooled. Only the fields of its `type` are meaningful. */
 export interface QueuedCommand {
