@@ -24,7 +24,7 @@ import {
   type FigurePart,
 } from '../art/figure';
 import { TANK_KEYS, createTankPose, layoutTank, type TankPose, type TankState } from '../art/vehicles';
-import { TANK_LAYOUT, TANK_MAX_WHEELS, type TankLook } from '../data/artLayout';
+import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, type TankLook } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_KEYS } from '../data/fx';
 import { RENDER } from '../data/render';
@@ -101,6 +101,8 @@ abstract class UnitViewBase {
   /** How far the unit is drawn below its row's ground line (wu), and how far it has stepped into a trench (0..1). */
   sink = 0;
   trenchW = 0;
+  /** How far an occupant has shuffled into his packed place in the narrow pit (0..1, view only). */
+  packW = 0;
   alpha = 1;
   appliedAlpha = -1;
   shown = false;
@@ -664,6 +666,7 @@ export class UnitViews {
     v.deadTime = 0;
     v.sink = 0;
     v.trenchW = 0;
+    v.packW = 0;
     v.alpha = 1;
     v.appliedAlpha = -1;
     v.fired = false;
@@ -830,7 +833,17 @@ export class UnitViews {
   private updateLive(v: UnitView, u: UnitState, state: BattleState, alpha: number, dt: number, camLeft: number, camRight: number, victory: boolean): void {
     const simX = u.prevX + (u.x - u.prevX) * alpha;
     const spread = doorSpreadAt(simX, u, state);
-    const x = simX + (v.jitter + v.crowd) * spread;
+    let x = simX + (v.jitter + v.crowd) * spread;
+    // A trench is drawn as one narrow pit seen end-on: its occupants are packed in toward its centre (view only).
+    const occupant = u.trenchId >= 0 && u.trench >= 0 && u.trench < state.trenches.length;
+    v.packW += ((occupant ? 1 : 0) - v.packW) * (dt > 0 ? 1 - Math.exp(-dt / TRENCH_LAYOUT.packTime) : 0);
+    if (v.packW > 1e-3 && u.trench >= 0 && u.trench < state.trenches.length) {
+      const tr = state.trenches[u.trench];
+      const room = TRENCH_LAYOUT.pitW / 2 - TRENCH_LAYOUT.packMargin;
+      const k = room / Math.max(room, tr.width / 2);
+      const packed = tr.x + Math.max(-room, Math.min(room, (simX - tr.x) * k + v.jitter * k));
+      x += (packed - x) * v.packW;
+    }
     const moved = x - v.lastX;
     v.lastX = x;
     v.x = x;
@@ -859,8 +872,8 @@ export class UnitViews {
       if (u.trenchId >= 0) into = 1;
       else {
         const tr = state.trenches;
+        const half = TRENCH_LAYOUT.pitW / 2;
         for (let t = 0; t < tr.length; t++) {
-          const half = tr[t].width / 2;
           if (x > tr[t].x - half && x < tr[t].x + half) {
             into = 1;
             break;

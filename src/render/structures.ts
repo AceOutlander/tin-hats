@@ -20,7 +20,7 @@ import {
 } from '../art/structures';
 import { SUPPLY_KEYS } from '../art/props';
 import type { SpriteSpec } from '../art/types';
-import { FLAG_LAYOUT, HQ_LAYOUT, PILLBOX_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
+import { FLAG_LAYOUT, HQ_LAYOUT, PILLBOX_LAYOUT, TRENCH_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_SPRITES } from '../data/fx';
 import { RENDER } from '../data/render';
@@ -29,6 +29,7 @@ import { VIEW } from '../data/view';
 import type { BattleState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
+import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 
 type Img = Phaser.GameObjects.Image;
 
@@ -152,6 +153,12 @@ export class StructureViews {
   private readonly dumps: Img[] = [];
   private readonly trenchBack: Img[] = [];
   private readonly trenchFront: Img[] = [];
+  /** Owner's pennant per trench (stake and cloth), the owner it shows and how far it has faded in. */
+  private readonly trenchStake: Img[] = [];
+  private readonly trenchPennant: Img[] = [];
+  private readonly trenchOwner: number[] = [];
+  private readonly trenchFade: number[] = [];
+  private whiteInv = 1;
   private readonly pillboxes: Img[] = [];
   private readonly pillboxFlash: Img[] = [];
   private readonly pillboxFlashTime: number[] = [];
@@ -169,6 +176,7 @@ export class StructureViews {
     private readonly reg: SpriteRegistry,
   ) {
     this.flashInv = 1 / reg.get(FX_SPRITES.muzzle[1]).scale;
+    this.whiteInv = 1 / (WHITE_SIZE * reg.get(RENDER_KEYS.whiteTL).scale);
   }
 
   /** One-piece trench sprites this battle needs, dug in its theatre's earth (built into a per-battle atlas by the view). */
@@ -188,7 +196,7 @@ export class StructureViews {
   clear(): void {
     for (const h of this.hqs) h?.destroy();
     this.hqs = [null, null];
-    const lists = [this.dumps, this.trenchBack, this.trenchFront, this.pillboxes, this.pillboxFlash];
+    const lists = [this.dumps, this.trenchBack, this.trenchFront, this.trenchStake, this.trenchPennant, this.pillboxes, this.pillboxFlash];
     for (const l of lists) {
       for (const img of l) img.destroy();
       l.length = 0;
@@ -199,6 +207,8 @@ export class StructureViews {
     }
     this.pillboxFlashTime.length = 0;
     this.pillboxState.length = 0;
+    this.trenchOwner.length = 0;
+    this.trenchFade.length = 0;
   }
 
   /** Create the views for a battle's structures (`palette`: the one battleSpecs built its trenches in). */
@@ -220,6 +230,15 @@ export class StructureViews {
       front.x = t.x;
       front.y = gy;
       this.trenchFront.push(front);
+      const stake = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
+      stake.setTint(TRENCH_LAYOUT.stakeColor);
+      stake.visible = false;
+      this.trenchStake.push(stake);
+      const pennant = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
+      pennant.visible = false;
+      this.trenchPennant.push(pennant);
+      this.trenchOwner.push(-2);
+      this.trenchFade.push(1);
     }
     for (let side = 0; side < 2; side++) {
       const d = state.dumps[side];
@@ -331,9 +350,52 @@ export class StructureViews {
     out.dir = d;
   }
 
+  /**
+   * Trenches: the pit faces the owner's enemy (the art is drawn facing right; an unowned trench faces right, as
+   * built by the attacker), and the owner's pennant stands on a stake at the friendly lip, fading in after a capture.
+   */
+  private updateTrenches(state: BattleState, dt: number): void {
+    const T = TRENCH_LAYOUT;
+    const trenches = state.trenches;
+    for (let i = 0; i < trenches.length && i < this.trenchBack.length; i++) {
+      const t = trenches[i];
+      if (t.owner !== this.trenchOwner[i]) {
+        this.trenchOwner[i] = t.owner;
+        this.trenchFade[i] = this.trenchFade.length > 0 && this.time > 0 ? 0 : 1;
+        const dir = t.owner === 1 ? -1 : 1;
+        this.trenchBack[i].scaleX = Math.abs(this.trenchBack[i].scaleX) * dir;
+        this.trenchFront[i].scaleX = Math.abs(this.trenchFront[i].scaleX) * dir;
+        const stake = this.trenchStake[i];
+        const pen = this.trenchPennant[i];
+        const on = t.owner === 0 || t.owner === 1;
+        stake.visible = on;
+        pen.visible = on;
+        if (on) {
+          const k = this.whiteInv;
+          const lipX = t.x - dir * (T.pitW / 2 + 4);
+          stake.x = lipX - T.stakeW / 2;
+          stake.y = VIEW.groundY + T.pitNearY - T.stakeH;
+          stake.scaleX = T.stakeW * k;
+          stake.scaleY = T.stakeH * k;
+          pen.x = lipX;
+          pen.y = stake.y;
+          pen.scaleX = -dir * T.pennantW * k;
+          pen.scaleY = T.pennantH * k;
+          pen.setTint(T.pennant[state.sides[t.owner].faction]);
+        }
+      }
+      if (this.trenchFade[i] < 1) {
+        this.trenchFade[i] = Math.min(1, this.trenchFade[i] + dt / T.pennantFade);
+        this.trenchPennant[i].alpha = this.trenchFade[i];
+        this.trenchStake[i].alpha = this.trenchFade[i];
+      }
+    }
+  }
+
   /** Per-frame update: damage states, flags, flashes. */
   update(state: BattleState, dt: number): void {
     this.time += dt * S.flagSpeed;
+    this.updateTrenches(state, dt);
     const reg = this.reg;
     for (let side = 0; side < 2; side++) {
       const hv = this.hqs[side];

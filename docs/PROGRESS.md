@@ -31,6 +31,8 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **Start-up hardened against saved data** (DECISIONS 233): a save whose upgrade or check throws is repaired (progress kept, settings to defaults) instead of stopping the game; unusable saves are copied aside; the app is rebuilt on an empty store as a last resort. Checked in a browser with 16 kinds of old, odd and damaged stored data and with nothing stored.
 
+- **Trenches redrawn as narrow end-on pits** (owner request, DECISIONS 237, view only): one pit per trench with revetment boards, firing step, sandbags on the enemy-facing lip over the occupants' legs, occupants packed in, owner's pennant fading in on capture. Typecheck, lint, 829 unit tests and the build pass; browser suites not run. Pictures `docs/screenshots/trench-after-*.png` (before: `trench-current-*.png`).
+
 ## In progress
 - Nothing is mid-flight.
 
@@ -39,6 +41,7 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 - Final verification pass, then `docs/MORNING_REPORT.md`.
 
 ## Known issues
+- Trenches (DECISIONS 237): no climb pose (men sink with the old ease), tanks keep the old lip bump at the sim width, big positions are not split into several pits, so 7 and 8 men are packed tightly into one pit; the pit interior is mostly hidden behind a full garrison. Browser specs not rerun after the change.
 - Menu mix: measured through a loudness weighting and a phone speaker model, never heard on a phone. The thunder margins are only 0.3 to 0.6 dB over their targets.
 - Battle loudness: measured through the engine offline, not heard. With every slider at full a heavy battle is 3.9 dB hotter than the old maximum going in: an army of 80 firing peaks at -0.28 dBFS against the soft clipper's ceiling, the compressor takes up to 5.2 dB (3.9 dB on average) and 6.9% of samples are in the soft clipper's bend. No hard clipping is possible, but it is driven hard.
 - Menu music: composed, rendered and measured (levels, spectrum, seam), never listened to. The render takes 5 to 11 s in headless Chromium on a desktop CPU and may take much longer on a phone; until it is done only the rain plays. No campaign or battle tracks yet.

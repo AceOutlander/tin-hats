@@ -203,6 +203,35 @@ export const TRENCH_LAYOUT = {
   frontOy: 14,
   bagW: 18,
   bagH: 10,
+  /**
+   * End-on pit (the battle look): the trench line runs into the screen, so each trench is drawn as one narrow pit
+   * this wide centred on the trench, whatever its sim width. Occupants are packed into it (view only).
+   */
+  pitW: 66,
+  /** Near lip (cover line, top of the near face) and far rim of the pit; the far corners are pitFar x the near width. */
+  pitNearY: 6,
+  pitFarY: -16,
+  pitFar: 0.62,
+  /** Firing step along the enemy-facing wall: its width at the near end and its top. */
+  stepW: 12,
+  stepY: 14,
+  /** Sandbags piled end-on on the enemy-facing lip: bag size and bags per course, bottom up. */
+  pileBagW: 11,
+  pileBagH: 6,
+  pileCourses: [3, 2] as readonly number[],
+  /** Occupants keep this margin from the pit walls when packed in (wu). */
+  packMargin: 9,
+  /** Seconds over which an occupant shuffles into or out of his packed place. */
+  packTime: 0.3,
+  /** Owner's pennant on a stake at the friendly lip: stake height and width, cloth size, colours per faction. */
+  stakeH: 30,
+  stakeW: 1.6,
+  pennantW: 12,
+  pennantH: 7,
+  stakeColor: 0x4a3a28,
+  pennant: { british: 0xb5a46e, german: 0x7c8475 } as Readonly<Record<FactionId, number>>,
+  /** Seconds the pennant takes to fade in after a capture. */
+  pennantFade: 0.6,
 } as const;
 
 // ---------------------------------------------------------------------------

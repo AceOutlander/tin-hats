@@ -56,9 +56,7 @@ export function trenchKey(layer: TrenchLayer, width: number, palette: TrenchPale
   return `st/trench/${layer}/${palette.id}/w${Math.round(width)}`;
 }
 
-const BACK_TOP = -T.backOy;
 const BACK_BOTTOM = T.backH - T.backOy;
-const FRONT_TOP = -T.frontOy;
 const FRONT_BOTTOM = T.frontH - T.frontOy;
 /** Pieces are painted this much wider than their box so neighbours never show a seam. */
 const BLEED = 0.75;
@@ -331,12 +329,6 @@ function paintFrontCapL(ctx: Ctx, P: TrenchPalette): void {
   looseBag(ctx, SLOT_END + 4, T.bagTopY + 5, -0.3, 0.1, 14, 9);
 }
 
-function clipBox(ctx: Ctx, w: number, top: number, bottom: number): void {
-  ctx.beginPath();
-  ctx.rect(0, top, w, bottom - top);
-  ctx.clip();
-}
-
 function mirrored(w: number, paint: (ctx: Ctx) => void): (ctx: Ctx) => void {
   return (ctx) => {
     ctx.translate(w, 0);
@@ -364,39 +356,134 @@ export function trenchKitSpecs(): SpriteSpec[] {
   ];
 }
 
+// --- end-on pit (the battle look) ----------------------------------------------------------------------
+
 /**
- * One-piece sprite of a whole trench layer `width` wu wide in `palette`, assembled from the kit exactly as
- * tileSpan() lays it out. Origin = centre, on the ground line. Key: trenchKey(layer, width, palette).
+ * Back of the end-on pit, centred on x = 0: spoil on the friendly lip, the far end of the bay (revetted with
+ * boards) and the two side walls converging toward it, the firing step along the enemy-facing (right) wall.
+ */
+function paintPitBack(ctx: Ctx, P: TrenchPalette): void {
+  const hn = T.pitW / 2;
+  const hf = hn * T.pitFar;
+  const ny = T.pitNearY;
+  const fy = T.pitFarY;
+  const bottom = Math.min(BACK_BOTTOM, ny + T.stepY * 2);
+  // Spoil heaped on the friendly (left) lip.
+  ctx.fillStyle = mix(P.ground, P.soil, 0.35);
+  ctx.beginPath();
+  ctx.moveTo(-hn - 18, ny);
+  ctx.quadraticCurveTo(-hn - 8, fy - 8, -hf, fy);
+  ctx.lineTo(-hn, ny);
+  ctx.closePath();
+  ctx.fill();
+  // Far end of the bay: a wall revetted with boards, lit at the top, falling into shadow.
+  ctx.fillStyle = mix(P.soil, P.soilDark, 0.35);
+  ctx.fillRect(-hf, fy, hf * 2, bottom - fy);
+  for (let y = fy + 2; y < bottom; y += 4.5) {
+    ctx.fillStyle = mix(C.timberDark, P.soilDark, 0.25);
+    ctx.fillRect(-hf, y, hf * 2, 3.4);
+    ctx.fillStyle = rgba(C.timberRim, 0.3);
+    ctx.fillRect(-hf, y, hf * 2, 0.6);
+  }
+  // Side walls: from the near corners back to the far ones, boards converging on the far end.
+  for (let s = -1; s <= 1; s += 2) {
+    ctx.fillStyle = mix(P.soil, P.soilDark, s < 0 ? 0.55 : 0.15);
+    ctx.beginPath();
+    ctx.moveTo(s * hn, ny);
+    ctx.lineTo(s * hf, fy);
+    ctx.lineTo(s * hf, bottom);
+    ctx.lineTo(s * hn, bottom);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = rgba(C.timberDark, 0.75);
+    ctx.lineWidth = 1.1;
+    for (let k = 0; k <= 5; k++) {
+      const d = k * 6;
+      ctx.beginPath();
+      ctx.moveTo(s * hn, ny + d);
+      ctx.lineTo(s * hf, fy + d * T.pitFar);
+      ctx.stroke();
+    }
+    ctx.fillStyle = C.timberDark;
+    ctx.fillRect(s * hf - 1.2, fy - 1, 2.4, bottom - fy);
+  }
+  // Firing step along the enemy-facing wall: a lit ledge receding with the wall.
+  const sw = T.stepW;
+  const farStep = fy + (T.stepY - fy) * T.pitFar;
+  ctx.fillStyle = mix(P.ground, P.soil, 0.45);
+  ctx.beginPath();
+  ctx.moveTo(hn - sw, T.stepY);
+  ctx.lineTo(hn, T.stepY);
+  ctx.lineTo(hf, farStep);
+  ctx.lineTo(hf - sw * T.pitFar, farStep);
+  ctx.closePath();
+  ctx.fill();
+  // Depth: the bottom of the pit is dark.
+  const g = ctx.createLinearGradient(0, fy, 0, bottom);
+  g.addColorStop(0, rgba(C.void, 0.05));
+  g.addColorStop(0.4, rgba(C.void, 0.3));
+  g.addColorStop(1, rgba(C.void, 0.85));
+  ctx.fillStyle = g;
+  ctx.fillRect(-hn, fy, hn * 2, bottom - fy);
+  // The far rim: a crisp lip of lit earth.
+  ctx.fillStyle = mix(P.ground, '#ffffff', 0.1);
+  ctx.fillRect(-hf - 2, fy - 1.2, hf * 2 + 4, 1.6);
+}
+
+/**
+ * Front of the end-on pit: the near face (the ground in front of the pit) over the occupants' legs, a timber sill
+ * on the near lip with corner posts, and sandbags piled end-on along the enemy-facing (right) lip.
+ */
+function paintPitFront(ctx: Ctx, P: TrenchPalette): void {
+  const hn = T.pitW / 2;
+  const ny = T.pitNearY;
+  const bottom = FRONT_BOTTOM;
+  const g = ctx.createLinearGradient(0, ny, 0, bottom);
+  g.addColorStop(0, mix(P.ground, P.soil, 0.4));
+  g.addColorStop(0.18, mix(P.ground, P.groundDark, 0.15));
+  g.addColorStop(0.62, rgba(P.ground, 1));
+  g.addColorStop(0.82, rgba(P.ground, 0));
+  g.addColorStop(1, rgba(P.ground, 0));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(-hn - 8, bottom);
+  ctx.quadraticCurveTo(-hn - 8, ny, -hn, ny);
+  ctx.lineTo(hn, ny);
+  ctx.quadraticCurveTo(hn + 8, ny, hn + 8, bottom);
+  ctx.closePath();
+  ctx.fill();
+  // Timber sill along the near lip and the near corner posts.
+  ctx.fillStyle = C.timberDark;
+  ctx.fillRect(-hn, ny - 1, hn * 2, 3.2);
+  ctx.fillStyle = rgba(C.timberRim, 0.55);
+  ctx.fillRect(-hn, ny - 1, hn * 2, 0.8);
+  for (let s = -1; s <= 1; s += 2) {
+    ctx.fillStyle = C.timberDark;
+    ctx.fillRect(s * hn - 1.6, ny - 3, 3.2, 16);
+  }
+  // Sandbags piled on the enemy-facing lip, seen end-on.
+  const bw = T.pileBagW;
+  const bh = T.pileBagH;
+  const courses = T.pileCourses;
+  for (let c = 0; c < courses.length; c++) {
+    const x0 = hn - 6 + c * bw * 0.5;
+    for (let i = 0; i < courses[c]; i++) sandbag(ctx, x0 + i * bw, ny - (c + 1) * bh + 1.5, bw + 0.4, bh + 0.6, ((i + c) % 2) * 0.12 - 0.06);
+  }
+}
+
+/**
+ * One-piece sprite of a whole trench layer `width` wu wide in `palette`. Origin = centre, on the ground line.
+ * Key: trenchKey(layer, width, palette). The box spans the trench's width; the art is one narrow pit seen end-on at
+ * its centre (the trench line runs into the screen), drawn for an owner facing right: mirror it for facing left.
  */
 export function trenchSpec(layer: TrenchLayer, width: number, palette: TrenchPalette = TRENCH_BASE_PALETTE): SpriteSpec {
   const back = layer === 'back';
   const h = back ? T.backH : T.frontH;
   const oy = back ? T.backOy : T.frontOy;
-  const top = back ? BACK_TOP : FRONT_TOP;
-  const bottom = back ? BACK_BOTTOM : FRONT_BOTTOM;
-  const cap = back ? paintBackCapL : paintFrontCapL;
-  const mid = back ? paintBackMid : paintFrontMid;
   const span = tileSpan(width, T.capW, T.tileW, createTileSpan());
   const total = span.capRightX + T.capW - span.capLeftX;
   return makeSpec(trenchKey(layer, width, palette), { w: total, h, ox: total / 2, oy }, (ctx) => {
-    for (let i = 0; i < span.count; i++) {
-      ctx.save();
-      ctx.translate(span.firstX + i * span.step, 0);
-      ctx.scale(span.scaleX, 1);
-      clipBox(ctx, T.tileW + (i < span.count - 1 ? BLEED : 0), top, bottom);
-      mid(ctx, palette);
-      ctx.restore();
-    }
-    ctx.save();
-    ctx.translate(span.capLeftX, 0);
-    clipBox(ctx, T.capW + BLEED * 0.5, top, bottom);
-    cap(ctx, palette);
-    ctx.restore();
-    ctx.save();
-    ctx.translate(span.capRightX + T.capW, 0);
-    ctx.scale(-1, 1);
-    clipBox(ctx, T.capW + BLEED * 0.5, top, bottom);
-    cap(ctx, palette);
-    ctx.restore();
+    if (back) paintPitBack(ctx, palette);
+    else paintPitFront(ctx, palette);
   });
 }
