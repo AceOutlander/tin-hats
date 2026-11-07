@@ -207,20 +207,29 @@ export const TRENCH_LAYOUT = {
    * End-on pit (the battle look): the trench line runs into the screen, so each trench is drawn as one narrow pit
    * this wide centred on the trench, whatever its sim width. Occupants are packed into it (view only).
    */
-  pitW: 66,
+  pitW: 96,
   /** Near lip (cover line, top of the near face) and far rim of the pit; the far corners are pitFar x the near width. */
   pitNearY: 6,
-  pitFarY: -16,
+  /** The near wall is solid down to here (below the occupants' feet), then fades into the ground band. */
+  pitNearFade: 50,
+  /** Width (wu) over which the near wall feathers into the ground beyond the pit walls. */
+  pitNearFeather: 16,
+  pitFarY: -26,
   pitFar: 0.62,
   /** Firing step along the enemy-facing wall: its width at the near end and its top. */
   stepW: 12,
   stepY: 14,
   /** Sandbags piled end-on on the enemy-facing lip: bag size and bags per course, bottom up. */
-  pileBagW: 11,
-  pileBagH: 6,
-  pileCourses: [3, 2] as readonly number[],
+  pileBagW: 12,
+  pileBagH: 7,
+  pileCourses: [4, 3, 2] as readonly number[],
+  /** How far the heap reaches in over the enemy-facing wall (wu). */
+  pileInset: 8,
+  /** Soft strata bands in the near wall (wu below the lip) and stones on it (x as a fraction of the half-width, y, radius). */
+  strata: [9, 17, 27] as readonly number[],
+  stones: [-0.7, 6, 1.6, -0.2, 13, 1.2, 0.35, 8, 1.4, 0.8, 21, 1.8, -0.5, 24, 1.3] as readonly number[],
   /** Occupants keep this margin from the pit walls when packed in (wu). */
-  packMargin: 9,
+  packMargin: 5,
   /** Seconds over which an occupant shuffles into or out of his packed place. */
   packTime: 0.3,
   /** Owner's pennant on a stake at the friendly lip: stake height and width, cloth size, colours per faction. */

@@ -841,7 +841,7 @@ export class UnitViews {
       const tr = state.trenches[u.trench];
       const room = TRENCH_LAYOUT.pitW / 2 - TRENCH_LAYOUT.packMargin;
       const k = room / Math.max(room, tr.width / 2);
-      const packed = tr.x + Math.max(-room, Math.min(room, (simX - tr.x) * k + v.jitter * k));
+      const packed = tr.x + Math.max(-room, Math.min(room, (simX - tr.x) * k + v.jitter));
       x += (packed - x) * v.packW;
     }
     const moved = x - v.lastX;

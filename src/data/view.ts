@@ -33,8 +33,8 @@ export const VIEW = {
    * just behind the front parapet, so head, shoulders and weapon show over the sandbags whatever the row. The rows
    * keep trenchRowSpread of their depth offset (a trench is narrow).
    */
-  trenchFeetY: 434,
-  trenchRowSpread: 0.25,
+  trenchFeetY: 446,
+  trenchRowSpread: 0.2,
   /** Art canvases are rasterised at this multiple of wu so they stay crisp on high-dpi phones. */
   textureScale: 2,
   maxDevicePixelRatio: 2,
