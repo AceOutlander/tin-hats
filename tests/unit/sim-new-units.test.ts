@@ -10,6 +10,9 @@ import { SUPPORTS, SUPPORT_COST } from '../../src/data/supports';
 import { UNITS } from '../../src/data/units';
 import { WEAPONS } from '../../src/data/weapons';
 import type { Battle } from '../../src/sim';
+import { KIND_COUNT, KIND_INDEX } from '../../src/sim/tables';
+import { killUnit } from '../../src/sim/units';
+import type { World } from '../../src/sim/world';
 import { checkInvariants, collect, eventsOf, makeBattle, run, runUntil, testMission, unitsOf } from './sim-helpers';
 
 const NEW_KINDS: UnitKind[] = ['apc', 'flame', 'commander', 'aa'];
@@ -292,6 +295,20 @@ describe('aircraft and anti-aircraft guns', () => {
 });
 
 describe('veterans and the King Tiger squad', () => {
+  it('counts the living escort per side and kind, so the AI plans its army without it', () => {
+    const b = makeBattle({ mission: field([], [{ kind: 'rifle', count: 3, x: 5000, behaviour: 'guard', veteran: true }, { kind: 'rifle', count: 2, x: 4800, behaviour: 'guard' }]) });
+    const w = b as unknown as World;
+    const slot = KIND_COUNT + KIND_INDEX.rifle;
+    expect(w.escorts[slot]).toBe(3);
+    expect(w.escorts[KIND_INDEX.rifle]).toBe(0);
+    const [vet, , , plain] = unitsOf(b, 1, 'rifle');
+    killUnit(w, plain, 0, 1, 0);
+    expect(w.escorts[slot]).toBe(3);
+    killUnit(w, vet, 0, 1, 0);
+    expect(w.escorts[slot]).toBe(2);
+    expect(b.state.sides[1].alive.rifle - w.escorts[slot]).toBe(1);
+  });
+
   it('veteran escorts get config.veteran health and hit chance', () => {
     const b = makeBattle({ mission: field([], [{ kind: 'rifle', count: 2, x: 5000, behaviour: 'guard', veteran: true }, { kind: 'rifle', count: 1, x: 4800, behaviour: 'guard' }]) });
     const [vet1, vet2, plain] = unitsOf(b, 1, 'rifle');

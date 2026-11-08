@@ -37,7 +37,10 @@ function effectiveTables(b: Battle): string {
   for (let i = 0; i < s.unitCount; i++) {
     const u = s.units[i];
     if (!u.alive) continue;
-    units.push([u.side, u.kind, u.def === UNITS[u.kind], u.maxHp, u.mount.damageMul, u.mount2.damageMul]);
+    // Veterans (the King Tiger's escort, placed by mission data) carry config.veteran on every difficulty alike: the
+    // flag is compared, and the health without the veteran bonus must be the kind's plain health.
+    const maxHp = u.veteran ? u.maxHp / CONFIG.veteran.hpMul : u.maxHp;
+    units.push([u.side, u.kind, u.def === UNITS[u.kind], maxHp, u.mount.damageMul, u.mount2.damageMul, u.veteran]);
   }
   units.sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y)));
   return JSON.stringify({ sides, pillboxes, units });
@@ -84,7 +87,7 @@ describe('difficulty never alters unit or weapon stats', () => {
         // After 90 s the armies differ (that is the point of the AI's extra income), but every unit
         // still fights with the plain stats of its kind.
         for (const [d, [, later]] of tables.map((t, i) => [DIFFICULTY_LIST[i], t] as const)) {
-          const parsed = JSON.parse(later) as { units: [number, UnitKind, boolean, number, number, number][] };
+          const parsed = JSON.parse(later) as { units: [number, UnitKind, boolean, number, number, number, boolean][] };
           for (const [side, kind, sameDef, maxHp, damage, damage2] of parsed.units) {
             const where = `mission ${mission.id} ${d} side ${side} ${kind}`;
             expect(sameDef, where).toBe(true);

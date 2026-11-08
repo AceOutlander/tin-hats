@@ -311,6 +311,7 @@ class BattleImpl implements Battle, World {
   readonly planePassed = new Uint8Array(2 * SUPPORT_COUNT);
   readonly planesUp = new Int32Array(2);
   readonly planesSeen = new Int32Array(2);
+  readonly escorts = new Int32Array(2 * KIND_COUNT);
   readonly auraUnit = new Int32Array(2).fill(-1);
   readonly speechCount = new Int32Array(2);
   readonly aaEngaged = new Uint8Array(CONFIG.maxUnits);

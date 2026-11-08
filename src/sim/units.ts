@@ -4,7 +4,7 @@
 import { CONFIG, SPECIALS } from '../data/config';
 import type { Side } from '../data/schema';
 import { WEAPONS } from '../data/weapons';
-import { DAMAGE_TYPES, KIND_BOSS, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
+import { DAMAGE_TYPES, KIND_BOSS, KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
 import { releaseSlot } from './trenches';
 import { TARGET_NONE, type Behaviour, type MountState, type SimEvent, type SimEventType, type UnitState } from './types';
 import type { World } from './world';
@@ -284,6 +284,7 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
   u.hp = 0;
   side.pop -= u.def.pop;
   side.alive[u.kind]--;
+  if (u.veteran) w.escorts[u.side * KIND_COUNT + u.kindIndex]--;
   side.stats.lost++;
   if (killerSide >= 0) s.sides[killerSide].stats.kills++;
   if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
@@ -344,9 +345,10 @@ export function emitUnitEvent(w: World, type: SimEventType, u: UnitState): SimEv
   return e;
 }
 
-/** Make a freshly spawned unit a veteran (config.veteran): more health, a steadier aim. */
-export function makeVeteran(u: UnitState): void {
+/** Make a freshly spawned unit a veteran (config.veteran): more health, a steadier aim. Counted in w.escorts. */
+export function makeVeteran(w: World, u: UnitState): void {
   u.veteran = true;
+  w.escorts[u.side * KIND_COUNT + u.kindIndex]++;
   u.maxHp *= CONFIG.veteran.hpMul;
   u.hp = u.maxHp;
   u.accuracy = CONFIG.veteran.accuracyMul;

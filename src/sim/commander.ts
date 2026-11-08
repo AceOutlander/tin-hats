@@ -200,7 +200,8 @@ function build(w: World, si: number, ai: AiState): void {
     if (desired[k] <= 0) continue;
     const kind = KIND_LIST[k];
     if (side.available[kind] !== true) continue;
-    const short = (desired[k] - side.alive[kind] - side.queue[kind]) / desired[k];
+    // The King Tiger's veteran escort stays with its tank: it is not part of the army the plan asks for.
+    const short = (desired[k] - (side.alive[kind] - w.escorts[si * KIND_COUNT + k]) - side.queue[kind]) / desired[k];
     if (short > worst) {
       worst = short;
       pick = k;
@@ -216,7 +217,7 @@ function build(w: World, si: number, ai: AiState): void {
       if (desired[k] <= 0) continue;
       const kind = KIND_LIST[k];
       if (side.available[kind] !== true) continue;
-      const ratio = (side.alive[kind] + side.queue[kind]) / desired[k];
+      const ratio = (side.alive[kind] - w.escorts[si * KIND_COUNT + k] + side.queue[kind]) / desired[k];
       if (ratio < lowest) {
         lowest = ratio;
         pick = k;

@@ -385,6 +385,11 @@ export interface World {
   planesUp: Int32Array;
   /** Per side: enemy aircraft call-ins it has seen (the AI answers with anti-aircraft guns). */
   planesSeen: Int32Array;
+  /**
+   * Per side and kind (side * KIND_COUNT + kind index): veterans alive, the King Tiger's escort. They stay with their
+   * tank, so the AI does not count them as part of the army its build plan asks for.
+   */
+  escorts: Int32Array;
   /** Per side: pool index of the commander whose aura applies this tick, -1 for none. */
   auraUnit: Int32Array;
   /** Per unit pool index: 1 while an anti-aircraft gun has a plane in reach (it holds its fire at the ground). */
