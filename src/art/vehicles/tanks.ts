@@ -7,7 +7,7 @@
  * Dark silhouette bodies, faction-tint panels and a lighter rim. German
  * turrets carry a small Balkenkreuz, British ones a plain white-red-white flash.
  */
-import { ART_COLORS as C, TANK_LAYOUT, TANK_LOOKS, type ArtBox, type TankLook, type TankWheelKind } from '../../data/artLayout';
+import { ART_COLORS as C, ELITE_TANK_LOOK, TANK_LAYOUT, VEHICLE_LOOKS, type ArtBox, type VehicleLook, type TankWheelKind } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import {
   type Ctx,
@@ -31,6 +31,25 @@ import {
 } from '../props/kit';
 import type { SpriteSpec } from '../types';
 import { type BeltPoint, beltPath, beltPoint, makeBelt } from './belt';
+import {
+  brenOnMount,
+  carrierGunner,
+  carrierHull,
+  carrierSide,
+  cruiserTurret,
+  eliteBarrelBand,
+  eliteCamo,
+  halftrackGunner,
+  halftrackHull,
+  halftrackSide,
+  mg34OnMount,
+  paintPassengers,
+  panzer3Turret,
+  smallTankBarrel,
+  smallTankHull,
+  smallTankSide,
+  tacticalNumber,
+} from './lightVehicles';
 import { TANK_KEYS, TANK_TRACK_PITCH } from './tankLayout';
 
 export interface TankPalette {
@@ -41,7 +60,7 @@ export interface TankPalette {
   rim: string;
 }
 
-export function palette(look: TankLook): TankPalette {
+export function palette(look: VehicleLook): TankPalette {
   const f = FACTIONS[TANK_LAYOUT[look].faction].look;
   return {
     body: mix(C.ink, f.tintDark, 0.45),
@@ -174,13 +193,17 @@ function kingTigerSide(ctx: Ctx, P: TankPalette): void {
   fillPoly(ctx, [-106, -37, 108, -37, 102, -22, -102, -22], P.bodyDark);
 }
 
-const SIDE_DETAIL: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
+const SIDE_DETAIL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillSide,
   panzer4: panzer4Side,
   kingTiger: kingTigerSide,
+  panzer3: smallTankSide,
+  cruiser: smallTankSide,
+  carrier: carrierSide,
+  halftrack: halftrackSide,
 };
 
-function paintTrack(ctx: Ctx, look: TankLook, frame: number): void {
+function paintTrack(ctx: Ctx, look: VehicleLook, frame: number): void {
   const L = TANK_LAYOUT[look];
   const P = palette(look);
   const T = L.trackThickness;
@@ -305,12 +328,18 @@ function kingTigerHull(ctx: Ctx, P: TankPalette): void {
   strokeLine(ctx, [106, -50, 112.5, -50], C.ink, 1.5);
   disc(ctx, 105, -50, 3.3, P.rim);
   disc(ctx, 105.3, -49.6, 2.6, P.bodyDark);
+  // Elite look: its own ambush camouflage.
+  eliteCamo(ctx, ELITE_TANK_LOOK.hullBlotches);
 }
 
-export const HULL: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
+export const HULL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillHull,
   panzer4: panzer4Hull,
   kingTiger: kingTigerHull,
+  panzer3: smallTankHull,
+  cruiser: smallTankHull,
+  carrier: carrierHull,
+  halftrack: halftrackHull,
 };
 
 // ---------------------------------------------------------------------------
@@ -368,7 +397,9 @@ function kingTigerTurret(ctx: Ctx, P: TankPalette): void {
   for (let i = 0; i < 4; i++) ctx.fillRect(-36 + i * 5.6, -24, 4.6, 7);
   ctx.fillStyle = rgba(P.rim, 0.4);
   for (let i = 0; i < 4; i++) ctx.fillRect(-36 + i * 5.6, -24, 4.6, 0.9);
+  eliteCamo(ctx, ELITE_TANK_LOOK.turretBlotches);
   balkenkreuz(ctx, 6, -15.5, 10.5);
+  tacticalNumber(ctx);
   // Cupola, ventilator dome.
   rimRect(ctx, -31, -40.5, 20, 9.5, 2.2, P.bodyDark, P.rim, 1.1);
   ctx.fillStyle = C.void;
@@ -392,10 +423,14 @@ function kingTigerTurret(ctx: Ctx, P: TankPalette): void {
   );
 }
 
-export const TURRET: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
+export const TURRET: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillTurret,
   panzer4: panzer4Turret,
   kingTiger: kingTigerTurret,
+  panzer3: panzer3Turret,
+  cruiser: cruiserTurret,
+  carrier: (ctx) => carrierGunner(ctx),
+  halftrack: halftrackGunner,
 };
 
 // ---------------------------------------------------------------------------
@@ -413,15 +448,24 @@ export function tube(ctx: Ctx, sections: readonly number[], P: TankPalette): voi
 }
 
 /** The gun tube; `len` defaults to the look's barrel (the long-gun upgrade passes a longer one). */
-export function paintBarrel(ctx: Ctx, look: TankLook, P: TankPalette, len = TANK_LAYOUT[look].barrelLength): void {
+export function paintBarrel(ctx: Ctx, look: VehicleLook, P: TankPalette, len = TANK_LAYOUT[look].barrelLength): void {
   if (look === 'churchill') {
     tube(ctx, [-7, len, 2.4, -2, 12, 3.3, len - 8, len, 3.3], P);
   } else if (look === 'panzer4') {
     tube(ctx, [-9, len, 3.2, -3, 13, 4.3, len - 3.5, len, 3.9], P);
+  } else if (look === 'panzer3' || look === 'cruiser') {
+    smallTankBarrel(ctx, P, len);
+  } else if (look === 'carrier') {
+    brenOnMount(ctx, P, len);
+    return;
+  } else if (look === 'halftrack') {
+    mg34OnMount(ctx, P, len);
+    return;
   } else {
     tube(ctx, [-9, len - 2, 2.8, -3, 46, 3.9, len - 15, len - 9.5, 5, len - 6.5, len - 0.5, 4.6], P);
     ctx.fillStyle = C.void;
     ctx.fillRect(len - 9.5, -2, 3, 4);
+    eliteBarrelBand(ctx);
   }
   ctx.fillStyle = C.void;
   ctx.fillRect(len - 1, -1.2, 1, 2.4);
@@ -431,7 +475,7 @@ export function paintBarrel(ctx: Ctx, look: TankLook, P: TankPalette, len = TANK
 // Husk: the whole tank, burnt out, in one sprite (origin = tank origin)
 // ---------------------------------------------------------------------------
 
-function paintHusk(ctx: Ctx, look: TankLook): void {
+function paintHusk(ctx: Ctx, look: VehicleLook): void {
   const L = TANK_LAYOUT[look];
   const P = palette(look);
   paintTrack(ctx, look, 0);
@@ -494,7 +538,7 @@ function paintHusk(ctx: Ctx, look: TankLook): void {
 
 // ---------------------------------------------------------------------------
 
-function tankPartSpecs(look: TankLook): SpriteSpec[] {
+function tankPartSpecs(look: VehicleLook): SpriteSpec[] {
   const L = TANK_LAYOUT[look];
   const K = TANK_KEYS[look];
   const P = palette(look);
@@ -519,12 +563,14 @@ function tankPartSpecs(look: TankLook): SpriteSpec[] {
   specs.push(makeSpec(K.barrel, L.barrelBox, (ctx) => paintBarrel(ctx, look, P)));
   specs.push(makeSpec(K.turret, L.turretBox, (ctx) => TURRET[look](ctx, P)));
   specs.push(makeSpec(K.husk, L.huskBox, (ctx) => paintHusk(ctx, look)));
+  const pass = L.passengers;
+  if (K.passengers && pass) specs.push(makeSpec(K.passengers, pass.box, (ctx) => paintPassengers(ctx, look)));
   return specs;
 }
 
 /** Every tank sprite for every look: track frames, wheels, hull, barrel, turret, husk. */
 export function tankSpecs(): SpriteSpec[] {
   const specs: SpriteSpec[] = [];
-  for (const look of TANK_LOOKS) specs.push(...tankPartSpecs(look));
+  for (const look of VEHICLE_LOOKS) specs.push(...tankPartSpecs(look));
   return specs;
 }

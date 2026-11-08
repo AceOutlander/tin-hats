@@ -84,6 +84,15 @@ const EXPECT: Record<OneShotName, Expectation> = {
   suppliesDelivered: { dur: [0.35, 0.75], trend: 'rising' },
   airdrop: { dur: [1.22, 1.4], slowStart: true },
   planeFlyby: { dur: [2.2, 2.65], centroid: [60, 900], slowStart: true },
+  bomberDrone: { dur: [3.2, 4.2], centroid: [60, 1200], slowStart: true },
+  fighterFlyby: { dur: [1.3, 1.9], centroid: [100, 2000], slowStart: true },
+  reconFlyby: { dur: [2.8, 3.6], centroid: [100, 1600], slowStart: true },
+  flameBurst: { dur: [0.3, 0.7], centroid: [300, 3000] },
+  fuelIgnite: { dur: [0.5, 1.2], trend: 'falling', centroid: [100, 2500] },
+  aaGun: { dur: [0.1, 0.4], trend: 'falling', centroid: [300, 3500] },
+  pistolShot: { dur: [0.05, 0.3], trend: 'falling', centroid: [600, 4500] },
+  speechCue: { dur: [0.15, 0.35], centroid: [800, 2500] },
+  bossWarning: { dur: [1.4, 2.2], centroid: [150, 2500] },
   victorySting: { dur: [1.9, 2.15], trend: 'rising' },
   defeatSting: { dur: [2.4, 2.65], trend: 'falling' },
   thunder: { dur: [3.2, 5.5], trend: 'falling' },
@@ -128,6 +137,15 @@ const LEVEL: Record<OneShotName, [number, number]> = {
   timerTick: [-4, 0],
   airdrop: [0, 5],
   planeFlyby: [6, 10],
+  bomberDrone: [4, 9],
+  fighterFlyby: [4, 9],
+  reconFlyby: [1, 6],
+  flameBurst: [-3, 2],
+  fuelIgnite: [3, 8],
+  aaGun: [-3, 1],
+  pistolShot: [-6, -2],
+  speechCue: [-8, -3],
+  bossWarning: [0, 5],
   victorySting: [9, 13],
   defeatSting: [9, 13],
   thunder: [9, 12.5],
@@ -135,7 +153,6 @@ const LEVEL: Record<OneShotName, [number, number]> = {
 
 /** Loops sit this far under a rifle shot's punch: beds, not events. */
 const LOOP_LEVEL: [number, number] = [-9, -2];
-
 /** Loops are background beds: their peak must sit well under a single rifle shot (0.32). */
 const LOOP_EXPECT: Record<LoopName, { peak: [number, number]; centroid: [number, number] }> = {
   rain: { peak: [0.05, 0.2], centroid: [1200, 7000] },

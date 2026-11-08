@@ -12,7 +12,7 @@ import type { Battle, UnitState } from '../sim';
 import type { BattleCamera } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel, type HpShownQuery } from './hudModel';
-import { playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
+import { playBossWarning, playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
 import type { Tutorial } from './tutorial';
 
 /** The part of the battle view the session drives. */
@@ -86,6 +86,8 @@ export class BattleSession {
   private sentX = 0;
   private sentFire = false;
   private bannerUntil = 0;
+  /** A King Tiger placed at the start: its spawn event comes before the first step, so it is warned of on that step. */
+  private bossAtStart = false;
   private hintUntil = 0;
   /** The whole second of the mission clock that last ticked (-1 = none yet). */
   private lastTick = -1;
@@ -100,6 +102,8 @@ export class BattleSession {
     private readonly opts: SessionOptions,
   ) {
     this.hud.begin(battle);
+    const events = battle.events;
+    for (let i = 0; i < events.count; i++) if (events.items[i].type === 'bossArrived' && events.items[i].side === 1) this.bossAtStart = true;
   }
 
   get mission(): MissionDef {
@@ -127,6 +131,10 @@ export class BattleSession {
     const events = battle.events;
     const sound = events.count > 0 && this.opts.sound();
     const tutorial = this.opts.tutorial ?? null;
+    if (this.bossAtStart) {
+      this.bossAtStart = false;
+      this.bossWarning();
+    }
     for (let i = 0; i < events.count; i++) {
       const e = events.items[i];
       if (sound) playEventSound(this.audio, e, 0);
@@ -141,6 +149,9 @@ export class BattleSession {
           }
           // The enemy wave that the player is told about is also sounded.
           if (sound && e.type === 'wave' && e.side === 1 && (e.text !== null || battle.state.mode === 'survival')) playWaveWarning(this.audio);
+          break;
+        case 'bossArrived':
+          if (e.side === 1) this.bossWarning();
           break;
         case 'airdrop':
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
@@ -199,6 +210,12 @@ export class BattleSession {
   /** True while a banner is still on screen (the HUD clears an old one only on its next frame). */
   private bannerUp(): boolean {
     return this.hud.state.banner !== null && this.battle.state.time < this.bannerUntil;
+  }
+
+  /** The enemy's King Tiger squad is on the field: a warning banner and horn, like a boss. */
+  private bossWarning(): void {
+    this.showBanner(APP.notices.boss);
+    if (this.opts.sound()) playBossWarning(this.audio);
   }
 
   private showBanner(text: string): void {

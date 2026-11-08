@@ -798,6 +798,109 @@ export const SOUNDS = {
     { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0, bus: 'music' },
   ),
 
+  /** Bomber pass: two big engines beating against each other, a long low drone that swells and fades. */
+  bomberDrone: sound(
+    [
+      tone('sawtooth', 92, 0.8, 1.2, 0.8, 1.8, { freqEnd: 70, sweepDelay: 1.6, sweep: 1, detune: -10, decayShape: 'lin', filter: lp(1100, 500), tremolo: { rate: 19, depth: 0.3 } }),
+      tone('sawtooth', 96, 0.7, 1.2, 0.8, 1.8, { freqEnd: 73, sweepDelay: 1.6, sweep: 1, detune: 12, decayShape: 'lin', filter: lp(1100, 500), tremolo: { rate: 21, depth: 0.3 } }),
+      tone('sawtooth', 188, 0.45, 1.2, 0.8, 1.8, { freqEnd: 144, sweepDelay: 1.6, sweep: 1, decayShape: 'lin', filter: bp(560, 1.2) }),
+      noise('pink', 0.7, 1.2, 0.8, 1.8, { decayShape: 'lin', filter: bp(700, 0.8, 300) }),
+    ],
+    0.4,
+    { minInterval: 3, maxVoices: 2, priority: 1, pitchJitter: 0.04, reach: 2.4 },
+  ),
+
+  /** Fighter pass: a fast high snarl with a sharp Doppler drop. */
+  fighterFlyby: sound(
+    [
+      tone('sawtooth', 210, 0.8, 0.5, 0.15, 0.9, { freqEnd: 120, sweepDelay: 0.5, sweep: 0.35, detune: -6, decayShape: 'lin', filter: lp(2600, 900), tremolo: { rate: 38, depth: 0.3 } }),
+      tone('sawtooth', 420, 0.4, 0.5, 0.15, 0.9, { freqEnd: 240, sweepDelay: 0.5, sweep: 0.35, decayShape: 'lin', filter: bp(900, 1.1) }),
+      noise('pink', 0.9, 0.5, 0.15, 0.9, { decayShape: 'lin', filter: bp(1400, 0.7, 500) }),
+    ],
+    0.42,
+    { minInterval: 1.2, maxVoices: 2, priority: 1, pitchJitter: 0.05, reach: 2.4 },
+  ),
+
+  /** Recon plane: a light buzzing single engine, unhurried. */
+  reconFlyby: sound(
+    [
+      tone('square', 160, 0.6, 1, 0.8, 1.4, { freqEnd: 128, sweepDelay: 1.4, sweep: 0.8, decayShape: 'lin', filter: lp(1500, 700), tremolo: { rate: 24, depth: 0.45 } }),
+      tone('sawtooth', 320, 0.35, 1, 0.8, 1.4, { freqEnd: 256, sweepDelay: 1.4, sweep: 0.8, decayShape: 'lin', filter: bp(800, 1.3) }),
+      noise('pink', 0.4, 1, 0.8, 1.4, { decayShape: 'lin', filter: bp(1100, 0.8) }),
+    ],
+    0.3,
+    { minInterval: 2, maxVoices: 1, priority: 1, pitchJitter: 0.04, reach: 2.2 },
+  ),
+
+  /** Flamethrower burst: a roaring hiss with a soft pop of ignition. */
+  flameBurst: sound(
+    [
+      noise('white', 1.2, 0.03, 0.18, 0.3, { filter: bp(1500, 0.5, 700) }),
+      noise('brown', 1, 0.02, 0.2, 0.35, { filter: lp(700, 300) }),
+      tone('sine', 120, 0.4, 0.005, 0.02, 0.12, { freqEnd: 60, sweep: 0.1 }),
+    ],
+    0.32,
+    { minInterval: 0.18, maxVoices: 3, pitchJitter: 0.08, reach: 1.2, bed: true },
+  ),
+
+  /** A flamethrower's fuel tank goes up: a deep whoomph and a crackling roar. */
+  fuelIgnite: sound(
+    [
+      tone('sine', 90, 0.9, 0.005, 0.05, 0.6, { freqEnd: 34, sweep: 0.4 }),
+      noise('brown', 1.4, 0.01, 0.12, 0.9, { filter: lp(900, 200) }),
+      noise('white', 0.6, 0.02, 0.3, 0.8, { filter: bp(2200, 0.7, 900) }),
+    ],
+    0.55,
+    { minInterval: 0.3, maxVoices: 2, pitchJitter: 0.06, reach: 1.6, duck: { depth: 0.3, seconds: 0.3 } },
+  ),
+
+  /** Light anti-aircraft gun: a hard double thump per shot. */
+  aaGun: sound(
+    [
+      noise('white', 1.6, 0.0008, 0.006, 0.07, { filter: bp(1200, 0.6, 600) }),
+      tone('triangle', 130, 0.5, 0.001, 0.01, 0.12, { freqEnd: 50, sweep: 0.09 }),
+      noise('pink', 0.8, 0.004, 0.02, 0.22, { filter: lp(1200, 300) }),
+      noise('white', 0.5, 0.001, 0.004, 0.05, { at: 0.06, filter: bp(1600, 0.7) }),
+    ],
+    0.3,
+    { minInterval: 0.08, maxVoices: 4, pitchJitter: 0.05, reach: 1.6, bed: true },
+  ),
+
+  /** Officer's pistol or revolver: a small flat crack. */
+  pistolShot: sound(
+    [
+      noise('white', 1.4, 0.0006, 0.004, 0.05, { filter: bp(2400, 0.6, 1200) }),
+      noise('pink', 0.7, 0.001, 0.006, 0.12, { filter: lp(2000, 600) }),
+      tone('triangle', 220, 0.2, 0.0008, 0.004, 0.05, { freqEnd: 110, sweep: 0.04 }),
+    ],
+    0.18,
+    { minInterval: 0.06, maxVoices: 3, pitchJitter: 0.07, bed: true },
+  ),
+
+  /** The commander's shout, as a cue only: two quick rising notes of a bosun-style call (no voice). */
+  speechCue: sound(
+    [
+      tone('triangle', 880, 0.6, 0.006, 0.05, 0.06, { freqEnd: 1040, sweep: 0.05 }),
+      tone('triangle', 1170, 0.6, 0.006, 0.07, 0.09, { at: 0.11, freqEnd: 1320, sweep: 0.06 }),
+      tone('sine', 1760, 0.15, 0.006, 0.05, 0.08, { at: 0.11 }),
+    ],
+    0.2,
+    { minInterval: 0.4, maxVoices: 1, priority: 1, pitchJitter: 0.03 },
+  ),
+
+  /** King Tiger warning: three low klaxon blasts over a drum roll. */
+  bossWarning: sound(
+    [
+      ...klaxon(0),
+      ...klaxon(0.5),
+      ...klaxon(1),
+      noise('brown', 0.6, 0.05, 1.1, 0.4, { filter: lp(400, 200) }),
+      tone('sine', 62, 0.4, 0.05, 1.1, 0.4, { decayShape: 'lin' }),
+    ],
+    0.3,
+    { minInterval: 4, maxVoices: 1, priority: 1, pitchJitter: 0 },
+  ),
+
   /** Defeat: an original slow falling phrase in D minor on darker, muted brass. */
   defeatSting: sound(
     [
@@ -911,6 +1014,7 @@ export const EVENT_SOUND = {
   grenadeThrown: 'grenadeThrow',
   pillboxDestroyed: 'pillboxCollapse',
   waveWarning: 'waveHorn',
+  bossWarning: 'bossWarning',
   timerTick: 'timerTick',
 } as const satisfies Record<string, OneShotName>;
 

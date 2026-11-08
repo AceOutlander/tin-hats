@@ -207,13 +207,15 @@ describe('HudModel', () => {
       throw new Error(`no ${kind}`);
     }
 
-    it('lists all nine trainable units and the three call-ins, and never the King Tiger', () => {
+    it('lists all thirteen trainable units and the call-ins, and never the King Tiger or the Panzer III', () => {
       const model = new HudModel();
       model.begin(ground());
-      expect(model.state.train.map((t) => t.kind)).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank']);
+      expect(model.state.train.map((t) => t.kind)).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'commander', 'aa']);
+      expect(model.state.train.map((t) => t.kind)).not.toContain('heavyTank');
+      expect(model.state.train.map((t) => t.kind)).not.toContain('lightTank');
       expect(model.state.train.map((t) => t.name)).toContain('Churchill');
-      expect(model.state.supports.map((s) => s.kind)).toEqual(['artillery', 'smoke', 'airStrike']);
-      expect(model.state.supports.map((s) => s.name)).toEqual(['Artillery Barrage', 'Smoke Screen', 'Typhoon Air Strike']);
+      expect(model.state.supports.map((s) => s.kind)).toEqual(['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon']);
+      expect(model.state.supports.map((s) => s.name)).toEqual(['Artillery Barrage', 'Smoke Screen', 'Typhoon Air Strike', 'Bomber', 'Fighter', 'Recon Plane']);
     });
 
     it('sweeps a support button while it cools down and has it ready again afterwards', () => {

@@ -443,7 +443,7 @@ describe('audio engine on a context', () => {
     expect(lastOutput()).toBe(main);
     audio.play('bunkerMg');
     expect(lastOutput()).toBe(bed);
-    for (const name of ONE_SHOT_NAMES) expect(SOUNDS[name].bed === true, name).toBe(['rifleShot', 'mgShot', 'smgShot', 'bunkerMg', 'ricochet', 'dirtHit'].includes(name));
+    for (const name of ONE_SHOT_NAMES) expect(SOUNDS[name].bed === true, name).toBe(['rifleShot', 'mgShot', 'smgShot', 'bunkerMg', 'ricochet', 'dirtHit', 'flameBurst', 'aaGun', 'pistolShot'].includes(name));
   });
 
   it('dips the gunfire bed under a blast, and a smaller blast does not cut a big one short', () => {

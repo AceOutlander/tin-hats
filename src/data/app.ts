@@ -46,7 +46,8 @@ export interface AppTunables {
    */
   reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw', { win: string; lose: string }>;
   /** Short banners for scripted events that carry no text of their own. `{n}` = the supplies delivered. */
-  notices: { airdrop: string; wave: string };
+  /** HUD banners: an airdrop, a survival wave, the King Tiger's arrival (bossArrived). */
+  notices: { airdrop: string; wave: string; boss: string };
   /** One line per support for the briefing's "new support" card. */
   supportBlurbs: Record<SupportKind, string>;
   /** Quartermaster level text: "+X% label" per stat. */
@@ -88,7 +89,7 @@ export const APP: AppTunables = {
     timerExpired: { win: 'Time ran out for the enemy', lose: '{label} came before the enemy HQ was destroyed' },
     draw: { win: 'Both headquarters fell together', lose: 'Both headquarters fell together' },
   },
-  notices: { airdrop: 'Airdrop: +{n} supplies', wave: 'Enemy wave incoming' },
+  notices: { airdrop: 'Airdrop: +{n} supplies', wave: 'Enemy wave incoming', boss: 'Warning: King Tiger sighted' },
   supportBlurbs: {
     artillery: 'Calls a barrage of shells down on a spot you choose. Hurts everything caught in the open.',
     smoke: 'Lays a screen that blocks direct fire for a few seconds. Cover an advance with it.',

@@ -24,6 +24,7 @@ import {
   FIGURE_LOADOUT,
   FIGURE_STANCES,
   FIGURE_UPPERS,
+  FIGURE_POINT,
   FIGURE_WIRE,
   type DeathVariant,
   type FigureKindDef,
@@ -437,6 +438,15 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
     }
   }
   if (a.kind === 'mortar') tg[C_PLATE] = tg[C_GND];
+  if (a.kind === 'commander' && a.point > 0 && !trench && act !== 'reload') {
+    // Pointing the way with his free (near) arm while he shouts the order.
+    const P = FIGURE_POINT;
+    tg[C_NPIN] = 0;
+    tg[C_NSH] = P.nearSh;
+    tg[C_NEL] = P.nearEl;
+    tg[C_HEADX] = P.head;
+    tau[C_NSH] = tau[C_NEL] = F.spring.hand;
+  }
 }
 
 /** A medic standing by checks his satchel or shades his eyes to scan for wounded, in turn (seeded). */
@@ -966,6 +976,7 @@ function springSatchel(a: FigureAnim, target: number, dt: number): void {
 export function updateFigure(a: FigureAnim, inp: FigureInput, dtIn: number): void {
   if (!isFigureKind(inp.kind)) return;
   const dt = clamp(dtIn, 0, F.maxDt);
+  if (a.point > 0) a.point = Math.max(0, a.point - dt);
   if (inp.kind !== a.kind) {
     a.kind = inp.kind;
     a.started = false;

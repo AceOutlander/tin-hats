@@ -53,6 +53,11 @@ export function playWaveWarning(audio: SfxAudio): void {
   audio.play(EVENT_SOUND.waveWarning);
 }
 
+/** The King Tiger's arrival: a warning horn heard wherever the camera is. */
+export function playBossWarning(audio: SfxAudio): void {
+  audio.play(EVENT_SOUND.bossWarning);
+}
+
 /**
  * One tick of the clock for a mission timer with `secondsLeft` to go, louder in the last few seconds.
  * `lastTicked` is the whole second ticked last (-1 at the start); a second is ticked once. Returns the whole second

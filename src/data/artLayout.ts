@@ -384,8 +384,63 @@ export const DECAL_LAYOUT = {
 // Tanks
 // ---------------------------------------------------------------------------
 
+/** Call-in aircraft drawn by src/art/vehicles/planes.ts. */
+export type PlaneKind = 'bomber' | 'fighter' | 'recon';
+
+/** Plane sprites facing +x, origin = centre of the fuselage; shadows centred. */
+export const PLANE_LAYOUT: Record<PlaneKind, { box: ArtBox; shadowBox: ArtBox; bombBay: ArtPoint; guns: ArtPoint; camera: ArtPoint; tail: ArtPoint }> = {
+  bomber: { box: { w: 284, h: 80, ox: 142, oy: 50 }, shadowBox: { w: 280, h: 40, ox: 140, oy: 20 }, bombBay: { x: -10, y: 12 }, guns: { x: 114, y: -2 }, camera: { x: 0, y: 12 }, tail: { x: -130, y: -10 } },
+  fighter: { box: { w: 180, h: 62, ox: 90, oy: 32 }, shadowBox: { w: 176, h: 30, ox: 88, oy: 15 }, bombBay: { x: 0, y: 8 }, guns: { x: 50, y: 5 }, camera: { x: 0, y: 8 }, tail: { x: -80, y: -6 } },
+  recon: { box: { w: 132, h: 54, ox: 70, oy: 30 }, shadowBox: { w: 120, h: 24, ox: 60, oy: 12 }, bombBay: { x: 0, y: 6 }, guns: { x: 40, y: 0 }, camera: { x: -18, y: 6 }, tail: { x: -58, y: -6 } },
+};
+
+/** The tank looks that carry Quartermaster upgrade gear (src/data/looksGear.ts). */
 export type TankLook = FactionLook['tank'] | FactionLook['heavyTank'];
 export const TANK_LOOKS: readonly TankLook[] = ['churchill', 'panzer4', 'kingTiger'];
+
+/**
+ * Every vehicle rig: the gear-carrying tanks plus the light tanks (Panzer III Ausf. E, and a British cruiser on the
+ * same small hull) and the APCs (Universal Carrier, SdKfz 251 half-track). An APC's "turret" is its gunner behind the
+ * machine gun and its "barrel" is that gun, so every vehicle draws with the same rig.
+ */
+export type VehicleLook = TankLook | 'panzer3' | 'cruiser' | 'carrier' | 'halftrack';
+export const VEHICLE_LOOKS: readonly VehicleLook[] = [...TANK_LOOKS, 'panzer3', 'cruiser', 'carrier', 'halftrack'];
+
+/** Looks of the vehicle kinds a FactionLook does not name (tank and heavyTank come from FACTIONS[f].look). */
+export const VEHICLE_LOOK_EXTRA: Record<FactionId, Record<'apc' | 'lightTank', VehicleLook>> = {
+  british: { apc: 'carrier', lightTank: 'cruiser' },
+  german: { apc: 'halftrack', lightTank: 'panzer3' },
+};
+
+/**
+ * The King Tiger's elite look: a three-tone ambush camouflage over the hull and turret, and a tactical number on the
+ * turret side (no unit or party symbols). Blotches are [x, y, rx, ry, colour index] in hull or turret space.
+ */
+export const ELITE_TANK_LOOK = {
+  camo: ['#9a8744', '#6a4026', '#46552f'] as readonly string[],
+  camoAlpha: 0.7,
+  hullBlotches: [
+    [-100, -54, 16, 7, 1], [-70, -48, 14, 6, 2], [-40, -57, 18, 6, 1], [-10, -47, 12, 6, 2], [18, -55, 16, 6, 1],
+    [46, -49, 14, 5, 2], [76, -56, 12, 5, 1], [-112, -40, 12, 5, 2], [-56, -38, 16, 5, 1], [8, -38, 14, 5, 2], [64, -40, 14, 5, 1],
+  ] as readonly (readonly number[])[],
+  turretBlotches: [
+    [-42, -20, 9, 6, 1], [-24, -8, 10, 5, 2], [-2, -26, 9, 5, 1], [24, -14, 10, 6, 2], [38, -26, 7, 4, 1], [30, -5, 8, 4, 1],
+  ] as readonly (readonly number[])[],
+  /** Tactical number painted on the turret side: text, centre and height (wu). */
+  number: { text: '312', x: -25, y: -9.5, h: 10 },
+  /** Elite marker: a white band painted round the gun barrel, [x0, x1] along the barrel. */
+  barrelBand: [62, 70] as readonly number[],
+} as const;
+
+/** APC passengers: the helmets of the carried squad over the side while it rides (hidden once it unloads). */
+export interface PassengerDef {
+  /** Sprite box; its origin sits at `at` (tank space, hull level) and rides the hull. */
+  box: ArtBox;
+  at: ArtPoint;
+  /** Helmet x positions in sprite space; helmets sit on y = headY. */
+  heads: readonly number[];
+  headY: number;
+}
 
 export type TankWheelKind = 'road' | 'sprocket' | 'idler' | 'return';
 
@@ -400,6 +455,8 @@ export interface TankWheelDef {
 
 export interface TankLayoutDef {
   faction: FactionId;
+  /** APCs: the carried squad's helmets showing over the side. */
+  passengers?: PassengerDef;
   /** Footprint and overall height of the hull and turret, without the gun overhang (wu). */
   length: number;
   height: number;
@@ -457,7 +514,7 @@ function interleaved(wheels: TankWheelDef[]): TankWheelDef[] {
 
 const DEG = Math.PI / 180;
 
-export const TANK_LAYOUT: Record<TankLook, TankLayoutDef> = {
+export const TANK_LAYOUT: Record<VehicleLook, TankLayoutDef> = {
   churchill: {
     faction: 'british',
     length: 216,
@@ -573,7 +630,143 @@ export const TANK_LAYOUT: Record<TankLook, TankLayoutDef> = {
     trackPitch: 9,
     trackFrames: 4,
   },
+  panzer3: {
+    faction: 'german',
+    length: 160,
+    height: 72,
+    trackBox: { w: 170, h: 42, ox: 85, oy: 38 },
+    hullBox: { w: 180, h: 40, ox: 90, oy: 24 },
+    turretBox: { w: 72, h: 32, ox: 38, oy: 29 },
+    barrelBox: { w: 40, h: 8, ox: 6, oy: 4 },
+    huskBox: { w: 200, h: 92, ox: 100, oy: 86 },
+    rockPivot: { x: 0, y: -30 },
+    turretRing: { x: 0, y: -48 },
+    trunnion: { x: 25, y: -57 },
+    exhaust: { x: -86, y: -30 },
+    hullMg: { x: 52, y: -42 },
+    barrelLength: 30,
+    recoilDist: 4,
+    elevMin: -8 * DEG,
+    elevMax: 18 * DEG,
+    rockMax: 2.1 * DEG,
+    wheels: [
+      { kind: 'return', x: -36, y: -25, r: 3 },
+      { kind: 'return', x: 0, y: -25, r: 3 },
+      { kind: 'return', x: 36, y: -25, r: 3 },
+      ...roadWheels(6, -50, 50, -10, 8.5),
+      { kind: 'idler', x: -68, y: -16, r: 8 },
+      { kind: 'sprocket', x: 70, y: -18, r: 9.5 },
+    ],
+    belt: [
+      { x: -68, y: -16, r: 8 },
+      { x: -36, y: -25, r: 3 },
+      { x: 36, y: -25, r: 3 },
+      { x: 70, y: -18, r: 9.5 },
+      { x: 50, y: -10, r: 8.5 },
+      { x: -50, y: -10, r: 8.5 },
+    ],
+    trackThickness: 3.6,
+    trackPitch: 6,
+    trackFrames: 4,
+  },
+  cruiser: {
+    faction: 'british',
+    length: 160,
+    height: 72,
+    trackBox: { w: 170, h: 42, ox: 85, oy: 38 },
+    hullBox: { w: 180, h: 40, ox: 90, oy: 24 },
+    turretBox: { w: 72, h: 32, ox: 38, oy: 29 },
+    barrelBox: { w: 40, h: 8, ox: 6, oy: 4 },
+    huskBox: { w: 200, h: 92, ox: 100, oy: 86 },
+    rockPivot: { x: 0, y: -30 },
+    turretRing: { x: 0, y: -48 },
+    trunnion: { x: 25, y: -57 },
+    exhaust: { x: -86, y: -30 },
+    hullMg: { x: 52, y: -42 },
+    barrelLength: 30,
+    recoilDist: 4,
+    elevMin: -8 * DEG,
+    elevMax: 18 * DEG,
+    rockMax: 2.1 * DEG,
+    wheels: [...roadWheels(5, -52, 52, -12, 11), { kind: 'idler', x: -70, y: -17, r: 8 }, { kind: 'sprocket', x: 71, y: -19, r: 9.5 }],
+    belt: [
+      { x: -70, y: -17, r: 8 },
+      { x: 71, y: -19, r: 9.5 },
+      { x: 52, y: -12, r: 11 },
+      { x: -52, y: -12, r: 11 },
+    ],
+    trackThickness: 3.6,
+    trackPitch: 6,
+    trackFrames: 4,
+  },
+  carrier: {
+    faction: 'british',
+    length: 124,
+    height: 44,
+    trackBox: { w: 128, h: 34, ox: 64, oy: 30 },
+    hullBox: { w: 136, h: 30, ox: 68, oy: 16 },
+    turretBox: { w: 24, h: 28, ox: 12, oy: 24 },
+    barrelBox: { w: 30, h: 8, ox: 8, oy: 4 },
+    huskBox: { w: 150, h: 64, ox: 75, oy: 58 },
+    rockPivot: { x: 0, y: -22 },
+    turretRing: { x: 32, y: -34 },
+    trunnion: { x: 44, y: -38 },
+    exhaust: { x: -62, y: -24 },
+    hullMg: { x: 64, y: -38 },
+    barrelLength: 20,
+    recoilDist: 1.5,
+    elevMin: -6 * DEG,
+    elevMax: 14 * DEG,
+    rockMax: 2.6 * DEG,
+    wheels: [...roadWheels(3, -26, 26, -8, 7.5), { kind: 'idler', x: -48, y: -12, r: 7.5 }, { kind: 'sprocket', x: 50, y: -13, r: 8.5 }],
+    belt: [
+      { x: -48, y: -12, r: 7.5 },
+      { x: 50, y: -13, r: 8.5 },
+      { x: 26, y: -8, r: 7.5 },
+      { x: -26, y: -8, r: 7.5 },
+    ],
+    trackThickness: 3,
+    trackPitch: 5,
+    trackFrames: 4,
+    passengers: { box: { w: 60, h: 14, ox: 30, oy: 10 }, at: { x: -18, y: -34 }, heads: [-20, -6, 8, 22], headY: 0 },
+  },
+  halftrack: {
+    faction: 'german',
+    length: 196,
+    height: 62,
+    trackBox: { w: 136, h: 38, ox: 104, oy: 34 },
+    hullBox: { w: 204, h: 42, ox: 102, oy: 32 },
+    turretBox: { w: 26, h: 28, ox: 12, oy: 24 },
+    barrelBox: { w: 34, h: 8, ox: 8, oy: 4 },
+    huskBox: { w: 220, h: 80, ox: 110, oy: 74 },
+    rockPivot: { x: 0, y: -24 },
+    turretRing: { x: 26, y: -52 },
+    trunnion: { x: 36, y: -58 },
+    exhaust: { x: -96, y: -24 },
+    hullMg: { x: 56, y: -56 },
+    barrelLength: 22,
+    recoilDist: 1.5,
+    elevMin: -6 * DEG,
+    elevMax: 14 * DEG,
+    rockMax: 2 * DEG,
+    wheels: [
+      ...interleaved(roadWheels(4, -66, 6, -10, 9)),
+      { kind: 'idler', x: -86, y: -15, r: 8 },
+      { kind: 'sprocket', x: 24, y: -17, r: 9 },
+      { kind: 'road', x: 74, y: -11, r: 11 },
+    ],
+    belt: [
+      { x: -86, y: -15, r: 8 },
+      { x: 24, y: -17, r: 9 },
+      { x: 6, y: -10, r: 9 },
+      { x: -66, y: -10, r: 9 },
+    ],
+    trackThickness: 3.4,
+    trackPitch: 5.5,
+    trackFrames: 4,
+    passengers: { box: { w: 76, h: 14, ox: 38, oy: 10 }, at: { x: -34, y: -52 }, heads: [-27, -10, 7, 24], headY: 0 },
+  },
 };
 
 /** Most wheels on any tank: size of the preallocated wheel array in a TankPose. */
-export const TANK_MAX_WHEELS = Math.max(...TANK_LOOKS.map((look) => TANK_LAYOUT[look].wheels.length));
+export const TANK_MAX_WHEELS = Math.max(...VEHICLE_LOOKS.map((look) => TANK_LAYOUT[look].wheels.length));

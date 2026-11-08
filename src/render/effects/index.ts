@@ -27,6 +27,8 @@ import { EFFECT_HANDLERS, explodeAt } from './handlers';
 import { Floaters, OrderMarkers, TargetMarkers } from './markers';
 import { ParticleDrawer } from './particles';
 import { PRESET_DEFS, type PresetId } from './presets';
+import { FlameJets, SpeechBubbles } from './callins';
+import { PlanePool } from './planes';
 import { SkyPool } from './sky';
 import { SoundDirector } from './sound';
 import { TracerPool } from './tracers';
@@ -69,6 +71,10 @@ export class EffectContext {
   readonly decals: DecalPool;
   readonly flights: FlightPool;
   readonly sky: SkyPool;
+  /** Call-in planes, flak and the recon glint; the flame jet; speech bubbles. */
+  readonly planes: PlanePool;
+  readonly flame: FlameJets;
+  readonly speech: SpeechBubbles;
   readonly orderMarkers: OrderMarkers;
   readonly targetMarkers: TargetMarkers;
   readonly floaters: Floaters;
@@ -117,6 +123,9 @@ export class EffectContext {
     this.decals = new DecalPool(scene, layers.byName.groundDecals, reg);
     this.flights = new FlightPool(scene, layers.byName.projectiles, reg);
     this.sky = new SkyPool(scene, layers, reg);
+    this.planes = new PlanePool(scene, layers, reg);
+    this.flame = new FlameJets(scene, layers, reg);
+    this.speech = new SpeechBubbles(scene, layers, reg);
     this.orderMarkers = new OrderMarkers(scene, layers, reg);
     this.targetMarkers = new TargetMarkers(scene, layers, reg);
     this.floaters = new Floaters(scene, layers, reg);
@@ -294,6 +303,9 @@ export class EffectsSystem {
       ctx.tracers.update(dt);
       ctx.flights.update(dt, this.trailCb, this.landCb);
       ctx.sky.update(dt, ctx);
+      ctx.planes.update(dt, ctx);
+      ctx.flame.update(dt);
+      ctx.speech.update(dt, ctx);
       ctx.decals.update(dt);
       ctx.orderMarkers.update(dt);
       ctx.targetMarkers.update(dt, VIEW.groundY);
@@ -311,6 +323,9 @@ export class EffectsSystem {
     ctx.decals.clear();
     ctx.flights.clear();
     ctx.sky.clear();
+    ctx.planes.clear();
+    ctx.flame.clear();
+    ctx.speech.clear();
     ctx.orderMarkers.clear();
     ctx.targetMarkers.clear();
     ctx.floaters.clear();

@@ -52,7 +52,9 @@ export type WeaponModel =
   | 'mp40'
   | 'mortar'
   | 'piat'
-  | 'panzerschreck';
+  | 'panzerschreck'
+  | 'flamer'
+  | 'pistol';
 
 /** Small item drawn in a hand: grenades, a mortar bomb, an anti-tank round. */
 export type HandItem = 'none' | 'mills' | 'stick' | 'shell' | 'rocket';
@@ -783,7 +785,8 @@ const CORE_FIGURE_KINDS: Record<CoreFigureKind, FigureKindDef> = {
   },
 };
 
-// TODO(units engineer): placeholder poses for the new infantry kinds (contract commit).
+// The new infantry share the poses of the closest core kind: the flamethrower moves like the assault trooper, the
+// commander like a rifleman (with his pointing arm, FIGURE_POINT), the AA crew like the machine gunner.
 export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
   ...CORE_FIGURE_KINDS,
   flame: CORE_FIGURE_KINDS.assault,
@@ -835,6 +838,10 @@ export const WEAPON_GEOM: Record<WeaponModel, WeaponGeom> = {
   mortar: geom({ muzzleX: 21.5, muzzleY: 0, bipodX: 14, bipodY: 0, bipodLen: 15.6, bipodFold: Math.PI - 0.14, baseplate: true, restY: 2 }),
   piat: geom({ muzzleX: 21, muzzleY: -3.1, restY: 2.6 }),
   panzerschreck: geom({ muzzleX: 26.5, muzzleY: -3.3, restY: 2.2 }),
+  /** The flamethrower's wand: the jet leaves its nozzle (the fuel tanks ride on his back, fig/flamePack). */
+  flamer: geom({ muzzleX: 19.4, muzzleY: -0.4 }),
+  /** The commander's revolver or pistol. */
+  pistol: geom({ muzzleX: 7.6, muzzleY: -1.0, restY: 1.0 }),
 };
 
 export interface FigureLoadout {
@@ -853,9 +860,9 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
       sniper: 'enfieldScoped',
       medic: 'none',
       at: 'piat',
-      // TODO(units engineer): placeholder weapons for the new kinds.
-      flame: 'sten',
-      commander: 'enfield',
+      flame: 'flamer',
+      commander: 'pistol',
+      // The AA crew works a light quick-firing gun (the bren pose; the shots climb at the planes).
       aa: 'bren',
     },
     grenade: 'mills',
@@ -870,9 +877,8 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
       sniper: 'kar98Scoped',
       medic: 'none',
       at: 'panzerschreck',
-      // TODO(units engineer): placeholder weapons for the new kinds.
-      flame: 'mp40',
-      commander: 'kar98',
+      flame: 'flamer',
+      commander: 'pistol',
       aa: 'mg34',
     },
     grenade: 'stick',
@@ -1339,3 +1345,6 @@ export const DEATH_CHOICE: Record<DamageType, { front: readonly [DeathVariant, n
   explosive: { front: [['blast', 1]], back: [['blast', 1]] },
   antiTank: { front: [['blast', 1]], back: [['blast', 1]] },
 };
+
+/** The commander points the way with his free arm for a moment after an order (RENDER.speech.pointTime). */
+export const FIGURE_POINT = { nearSh: 1.62, nearEl: 0.05, head: 0.12 } as const;

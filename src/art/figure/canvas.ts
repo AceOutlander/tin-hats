@@ -2,7 +2,7 @@
  * Canvas 2D reference renderer: draws the same parts with the same layout the
  * Phaser renderer uses (for the dev page, HUD icons and portraits).
  */
-import { FIGURE } from '../../data/figure';
+import { FIGURE, type FigureKind } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
 import type { GearLevels } from '../../data/upgradeLooks';
 import { updateFigure } from './animate';
@@ -71,7 +71,7 @@ export function figureBounds(parts: readonly FigurePart[], out: Float64Array): v
 }
 
 /** Portrait pose per kind: the action that shows off the unit best. */
-const ICON_POSE: Record<string, { action: UnitAction; carrying: boolean; time: number }> = {
+const ICON_POSE: Record<FigureKind, { action: UnitAction; carrying: boolean; time: number }> = {
   sapper: { action: 'idle', carrying: true, time: 1.6 },
   rifle: { action: 'aim', carrying: false, time: 1.4 },
   lmg: { action: 'idle', carrying: false, time: 1.4 },
@@ -80,6 +80,9 @@ const ICON_POSE: Record<string, { action: UnitAction; carrying: boolean; time: n
   sniper: { action: 'aim', carrying: false, time: 1.6 },
   medic: { action: 'idle', carrying: false, time: 1.4 },
   at: { action: 'aim', carrying: false, time: 1.6 },
+  flame: { action: 'aim', carrying: false, time: 1.4 },
+  commander: { action: 'idle', carrying: false, time: 1.4 },
+  aa: { action: 'idle', carrying: false, time: 1.4 },
 };
 
 const BOUNDS = new Float64Array(4);

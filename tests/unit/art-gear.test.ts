@@ -15,6 +15,7 @@ import {
   type FigureAnim,
   type FigurePart,
 } from '../../src/art/figure';
+import { flamePackKey } from '../../src/art/figure/parts';
 import { J_NHAND, J_FHAND } from '../../src/art/figure/pose';
 import { TANK_KEYS, TANK_LOOKS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs } from '../../src/art/vehicles';
 import { TANK_LAYOUT } from '../../src/data/artLayout';
@@ -87,7 +88,9 @@ describe('figure upgrade gear', () => {
           return ks;
         };
         const g = (style: string): string => `fig/${f}/gear/${style}`;
-        expect(keysAt(1, 0)).toContain(g(FIGURE_KINDS[kind].pack ? 'fullPack' : 'haversack'));
+        // The flamethrower wears his fuel tanks in the pack slot at every level.
+        expect(keysAt(1, 0)).toContain(kind === 'flame' ? flamePackKey(f) : g(FIGURE_KINDS[kind].pack ? 'fullPack' : 'haversack'));
+        if (kind === 'flame') expect(keysAt(0, 0)).toContain(flamePackKey(f));
         expect(keysAt(1, 0)).toContain(K.helmet);
         expect(keysAt(2, 0)).toContain(g('helmetNet'));
         expect(keysAt(2, 0)).not.toContain(K.helmet);

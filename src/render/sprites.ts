@@ -4,6 +4,8 @@
  */
 import type { SpriteSpec } from '../art/types';
 import { RENDER } from '../data/render';
+import type { FactionId, Order } from '../data/schema';
+import { SPEECH } from '../data/speech';
 
 export const RENDER_KEYS = {
   /** Soft black ellipse, 64 x 16 wu, origin at its centre. */
@@ -145,6 +147,7 @@ export function renderSprites(): SpriteSpec[] {
       },
     },
     bloodSprite(),
+    ...callinSprites(),
   ];
 }
 
@@ -174,4 +177,168 @@ function bloodSprite(): SpriteSpec {
       }
     },
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* New units and call-ins: flak puffs, the flame jet, speech bubbles, the boss banner */
+/* ------------------------------------------------------------------ */
+
+export const CALLIN_KEYS = {
+  /** Dark flak burst, FLAK_SIZE wu across, origin at its centre. */
+  flak: 'rd/flak',
+} as const;
+
+export const FLAK_SIZE = 40;
+/** Flame tongue: FLAME_W long along +x from its origin at the nozzle, FLAME_H thick. */
+export const FLAME_W = 64;
+export const FLAME_H = 22;
+
+export function flameKey(frame: number): string {
+  return `rd/flame/${frame}`;
+}
+
+export function speechKey(faction: FactionId, order: Order, i: number): string {
+  return `rd/speech/${faction}/${order}/${i}`;
+}
+
+/** Bubble width (wu) for a line: estimated from its length so no canvas is needed to lay it out. */
+export function speechWidth(line: string): number {
+  const S = RENDER.speech;
+  return Math.ceil(line.length * S.charW + S.padX * 2);
+}
+
+/** Bubble height (wu) including its tail. */
+export function speechHeight(): number {
+  const S = RENDER.speech;
+  return Math.ceil(S.font + S.padY * 2 + S.tail);
+}
+
+const SPEECH_ORDERS: readonly Order[] = ['fallBack', 'hold', 'advance'];
+
+function speechSpecs(): SpriteSpec[] {
+  const S = RENDER.speech;
+  const out: SpriteSpec[] = [];
+  for (const f of Object.keys(SPEECH) as FactionId[]) {
+    for (const order of SPEECH_ORDERS) {
+      const lines = SPEECH[f][order];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const w = speechWidth(line);
+        const h = speechHeight();
+        out.push({
+          key: speechKey(f, order, i),
+          w,
+          h,
+          // Origin at the tip of the tail (placed just above the speaker's head).
+          ax: 0.5,
+          ay: 1,
+          draw(ctx) {
+            const bh = h - S.tail;
+            ctx.save();
+            ctx.beginPath();
+            const r = 6;
+            ctx.moveTo(r + 1, 1);
+            ctx.lineTo(w - r - 1, 1);
+            ctx.quadraticCurveTo(w - 1, 1, w - 1, r + 1);
+            ctx.lineTo(w - 1, bh - r);
+            ctx.quadraticCurveTo(w - 1, bh, w - r - 1, bh);
+            ctx.lineTo(w / 2 + 6, bh);
+            ctx.lineTo(w / 2, h - 1);
+            ctx.lineTo(w / 2 - 3, bh);
+            ctx.lineTo(r + 1, bh);
+            ctx.quadraticCurveTo(1, bh, 1, bh - r);
+            ctx.lineTo(1, r + 1);
+            ctx.quadraticCurveTo(1, 1, r + 1, 1);
+            ctx.closePath();
+            ctx.fillStyle = '#f2ead2';
+            ctx.fill();
+            ctx.lineWidth = 1.6;
+            ctx.strokeStyle = '#2a2418';
+            ctx.stroke();
+            ctx.font = `bold ${S.font}px "Trebuchet MS", "Segoe UI", Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#1d1a12';
+            ctx.fillText(line, w / 2, bh / 2 + 0.5, w - S.padX * 2 + 4);
+            ctx.restore();
+          },
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function flakSpec(): SpriteSpec {
+  return {
+    key: CALLIN_KEYS.flak,
+    w: FLAK_SIZE,
+    h: FLAK_SIZE,
+    ax: 0.5,
+    ay: 0.5,
+    draw(ctx) {
+      const r = FLAK_SIZE / 2;
+      // A few overlapping dark lobes with a hot core.
+      const lobes: readonly [number, number, number][] = [
+        [0, 0, 0.62],
+        [-0.3, -0.18, 0.42],
+        [0.32, -0.1, 0.4],
+        [0.05, 0.3, 0.38],
+      ];
+      for (const [dx, dy, k] of lobes) {
+        const g = ctx.createRadialGradient(r + dx * r, r + dy * r, 0, r + dx * r, r + dy * r, k * r);
+        g.addColorStop(0, 'rgba(40,36,32,0.95)');
+        g.addColorStop(0.7, 'rgba(48,44,40,0.75)');
+        g.addColorStop(1, 'rgba(48,44,40,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, FLAK_SIZE, FLAK_SIZE);
+      }
+      ctx.fillStyle = 'rgba(255,190,90,0.55)';
+      ctx.beginPath();
+      ctx.arc(r, r, r * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  };
+}
+
+function flameSpecs(): SpriteSpec[] {
+  const out: SpriteSpec[] = [];
+  for (let f = 0; f < RENDER.flame.frames; f++) {
+    out.push({
+      key: flameKey(f),
+      w: FLAME_W,
+      h: FLAME_H,
+      ax: 0,
+      ay: 0.5,
+      draw(ctx) {
+        const cy = FLAME_H / 2;
+        // A tongue that billows out from the nozzle and rolls into a ball of fire at the far end; each frame wobbles.
+        const wob = [0, 1.4, -1.2][f % 3];
+        const r = cy - 1;
+        const layers: readonly [string, number, number][] = [
+          ['rgba(120,34,12,0.8)', 1, 1],
+          ['rgba(236,104,22,0.95)', 0.74, 0.97],
+          ['rgba(255,220,120,1)', 0.4, 0.9],
+        ];
+        for (const [color, k, len] of layers) {
+          const end = FLAME_W * len;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(0, cy - 1.2 * k);
+          ctx.bezierCurveTo(end * 0.35, cy - 2.5 * k + wob, end * 0.6, cy - r * k - wob, end - r * k * 0.6, cy - r * k + wob);
+          ctx.quadraticCurveTo(end, cy - r * k * 0.5, end, cy + wob * 0.5);
+          ctx.quadraticCurveTo(end, cy + r * k * 0.6, end - r * k * 0.6, cy + r * k * 0.9 - wob);
+          ctx.bezierCurveTo(end * 0.6, cy + r * k * 0.8 + wob, end * 0.35, cy + 2.5 * k, 0, cy + 1.2 * k);
+          ctx.closePath();
+          ctx.fill();
+        }
+      },
+    });
+  }
+  return out;
+}
+
+/** Every sprite of the new units' and call-ins' effects. */
+export function callinSprites(): SpriteSpec[] {
+  return [flakSpec(), ...flameSpecs(), ...speechSpecs()];
 }

@@ -51,14 +51,13 @@ export interface Hud {
 
 const ORDERS: readonly Order[] = ['fallBack', 'hold', 'advance'];
 const ORDER_LABEL: Record<Order, string> = { fallBack: 'Fall Back', hold: 'Hold', advance: 'Advance' };
-// TODO(planes engineer): the planes borrow the air-strike icon until they have their own.
 const SUPPORT_ICON: Record<SupportKind, IconName> = {
   artillery: 'artillery',
   smoke: 'smoke',
   airStrike: 'airStrike',
-  bomber: 'airStrike',
-  fighter: 'airStrike',
-  recon: 'airStrike',
+  bomber: 'bomber',
+  fighter: 'fighter',
+  recon: 'recon',
 };
 const LEVEL: readonly string[] = ['0', '1', '2'];
 

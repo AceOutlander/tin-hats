@@ -16,7 +16,7 @@ import {
 import { VIEW } from '../../src/data/view';
 import { DECAL_KEYS, RUBBLE_KEYS, SUPPLY_KEYS, propSpecs } from '../../src/art/props';
 import { FLAG_KEYS, TRENCH_KEYS, WIRE_KEYS, hqKey, pillboxKey, structureSpecs, trenchSpec } from '../../src/art/structures';
-import { AIR_KEYS, TANK_KEYS, TANK_LOOKS, vehicleSpecs } from '../../src/art/vehicles';
+import { AIR_KEYS, PLANE_KINDS, TANK_KEYS, VEHICLE_LOOKS, planeKey, planeShadowKey, vehicleSpecs } from '../../src/art/vehicles';
 import type { SpriteSpec } from '../../src/art/types';
 
 const structures = structureSpecs();
@@ -144,9 +144,14 @@ describe('structure, vehicle and prop sprite specs', () => {
     Object.values(TRENCH_KEYS).forEach((k) => named.add(k));
     Object.values(WIRE_KEYS).forEach((k) => named.add(k));
     Object.values(AIR_KEYS).forEach((k) => named.add(k));
-    for (const look of TANK_LOOKS) {
+    for (const kind of PLANE_KINDS) {
+      named.add(planeShadowKey(kind));
+      for (const faction of ['british', 'german'] as const) named.add(planeKey(kind, faction));
+    }
+    for (const look of VEHICLE_LOOKS) {
       const t = TANK_KEYS[look];
       [t.hull, t.turret, t.barrel, t.husk, ...t.track, ...t.wheels].forEach((k) => named.add(k));
+      if (t.passengers !== null) named.add(t.passengers);
     }
     Object.values(SUPPLY_KEYS).forEach((k) => named.add(k));
     Object.values(DECAL_KEYS).forEach((k) => named.add(k));
@@ -197,7 +202,7 @@ describe('structure, vehicle and prop sprite specs', () => {
     expectBox(DECAL_KEYS.crater, DECAL_LAYOUT.craterBox);
     expectBox(DECAL_KEYS.scorch, DECAL_LAYOUT.scorchBox);
     RUBBLE_KEYS.forEach((k) => expectBox(k, DECAL_LAYOUT.rubbleBox));
-    for (const look of TANK_LOOKS) {
+    for (const look of VEHICLE_LOOKS) {
       const L = TANK_LAYOUT[look];
       const K = TANK_KEYS[look];
       expectBox(K.hull, L.hullBox);
@@ -270,29 +275,40 @@ describe('anchor points', () => {
   });
 
   it('lie inside the right parts for every tank', () => {
-    for (const look of TANK_LOOKS) {
+    for (const look of VEHICLE_LOOKS) {
       const L = TANK_LAYOUT[look];
       const rel = (p: ArtPoint, from: ArtPoint): ArtPoint => ({ x: p.x - from.x, y: p.y - from.y });
       expectInside(L.hullBox, rel(L.turretRing, L.rockPivot), `${look} turret ring on hull`);
       expectInside(L.hullBox, rel(L.exhaust, L.rockPivot), `${look} exhaust on hull`);
       expectInside(L.hullBox, rel(L.hullMg, L.rockPivot), `${look} hull MG on hull`);
       expectInside(L.turretBox, rel(L.trunnion, L.turretRing), `${look} trunnion in turret`);
-      for (const w of L.wheels) expectInside(L.trackBox, { x: w.x, y: w.y }, `${look} ${w.kind} wheel hub`);
+      // The half-track's last wheel is its front steering wheel, ahead of the track run.
+      const onTrack = look === 'halftrack' ? L.wheels.slice(0, -1) : L.wheels;
+      for (const w of onTrack) expectInside(L.trackBox, { x: w.x, y: w.y }, `${look} ${w.kind} wheel hub`);
+      if (look === 'halftrack') expect(L.wheels[L.wheels.length - 1].x).toBeGreaterThan(Math.max(...L.belt.map((q) => q.x + q.r)));
       for (const p of L.belt) expectInside(L.trackBox, { x: p.x, y: p.y }, `${look} track pulley`);
-      // The gun sticks out well past the front of the turret, and is shortest on the Panzer IV.
-      expect(L.trunnion.x + L.barrelLength).toBeGreaterThan(L.turretRing.x + (L.turretBox.w - L.turretBox.ox) + 20);
+      // The gun sticks out well past the front of the turret (the APCs carry only a machine gun), and is shortest on the Panzer IV.
+      if (TANK_KEYS[look].passengers === null) expect(L.trunnion.x + L.barrelLength).toBeGreaterThan(L.turretRing.x + (L.turretBox.w - L.turretBox.ox) + 20);
     }
-    const len = (look: (typeof TANK_LOOKS)[number]): number => TANK_LAYOUT[look].barrelLength;
+    const len = (look: (typeof VEHICLE_LOOKS)[number]): number => TANK_LAYOUT[look].barrelLength;
     expect(len('panzer4')).toBeLessThan(len('churchill'));
     expect(len('churchill')).toBeLessThan(len('kingTiger'));
   });
 
   it('keep every tank a believable size next to a 58 wu figure', () => {
-    for (const look of TANK_LOOKS) {
+    for (const look of VEHICLE_LOOKS.filter((l) => TANK_KEYS[l].passengers === null)) {
       const L = TANK_LAYOUT[look];
       expect(L.height).toBeGreaterThan(VIEW.figureHeight);
       expect(L.height).toBeLessThan(VIEW.figureHeight * 2.2);
-      expect(L.length).toBeGreaterThan(VIEW.figureHeight * 3);
+      // The light early-war tanks (Panzer III, cruiser) are a little under three men long; every other tank is longer.
+      const light = look === 'panzer3' || look === 'cruiser';
+      expect(L.length).toBeGreaterThan(VIEW.figureHeight * (light ? 2.6 : 3));
+      if (light) expect(L.length).toBeLessThan(TANK_LAYOUT.panzer4.length);
+    }
+    // The APCs are lower and shorter than the tanks, and still taller than half a man.
+    for (const look of ['carrier', 'halftrack'] as const) {
+      expect(TANK_LAYOUT[look].height).toBeLessThan(TANK_LAYOUT.panzer4.height);
+      expect(TANK_LAYOUT[look].height).toBeGreaterThan(VIEW.figureHeight / 2);
     }
     expect(TANK_LAYOUT.kingTiger.length).toBeGreaterThan(TANK_LAYOUT.churchill.length);
     expect(TANK_LAYOUT.kingTiger.height).toBeGreaterThan(TANK_LAYOUT.panzer4.height);

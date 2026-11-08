@@ -21,6 +21,7 @@ import {
   resetFigureAnim,
   setFigureCrateKey,
   setFigureGear,
+  setFigurePointing,
   setFigurePushing,
   updateFigure,
   type FigureAnim,
@@ -29,8 +30,8 @@ import {
   type FigurePart,
 } from '../art/figure';
 import { bigLoadKey, cartKey, truckKey } from '../art/props/supplyLooks';
-import { TANK_KEYS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs, type TankGearKeys, type TankPose, type TankState } from '../art/vehicles';
-import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type TankLook } from '../data/artLayout';
+import { TANK_KEYS, createTankPose, isGearLook, layoutTank, tankGearKeys, tankGearSpecs, vehicleLookOf, type TankPose, type TankState } from '../art/vehicles';
+import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type VehicleLook } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_KEYS } from '../data/fx';
 import { GEAR_NONE } from '../data/looksGear';
@@ -44,6 +45,7 @@ import { lookStyle } from '../meta/looks';
 import type { BattleState, UnitState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { BloodPools, type PoolImage } from './blood';
+import { apcHopLift } from './apcHop';
 import { HpReveal } from './hpReveal';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE } from './sprites';
@@ -259,6 +261,9 @@ class FigureView extends UnitViewBase {
   /** Index of this body's blood pool in UnitViews.blood, or -1 (see ./blood.ts). */
   blood = -1;
   appliedShade = 1;
+  /** Seconds into a hop out of an APC (negative = still waiting aboard; >= RENDER.apc.hopTime = done) and its deck height (wu). */
+  hopAge: number = RENDER.apc.hopTime;
+  hopDeck = 0;
   /** How this sapper moves supplies (upgrade looks); 'crate' for everyone else. */
   haul: SapperStyle = 'crate';
   /** The handcart or the supply truck of a sapper's haul (made the first time a view needs one). */
@@ -441,12 +446,36 @@ class FigureView extends UnitViewBase {
 
 /** Number of tank part images: track, wheels, hull, barrel, turret, husk. */
 const TANK_IMAGES = TANK_MAX_WHEELS + 5;
+/** One more image after those: an APC's passengers over the side. */
+const PASSENGER_IMAGE = TANK_IMAGES;
+
+/** The hull, turret and gun keys a vehicle draws (its upgrade gear, or the plain parts). */
+interface PartKeys {
+  readonly hull: string;
+  readonly turret: string;
+  readonly barrel: string;
+  readonly gunExtra: number;
+}
+
+/** Plain part keys of the looks without upgrade gear (built once). */
+const PLAIN_KEYS = new Map<VehicleLook, PartKeys>();
+function plainKeys(look: VehicleLook): PartKeys {
+  let k = PLAIN_KEYS.get(look);
+  if (!k) {
+    const K = TANK_KEYS[look];
+    k = { hull: K.hull, turret: K.turret, barrel: K.barrel, gunExtra: 0 };
+    PLAIN_KEYS.set(look, k);
+  }
+  return k;
+}
 
 class TankView extends UnitViewBase {
   readonly keys: string[] = [];
-  look: TankLook = 'churchill';
+  look: VehicleLook = 'churchill';
   /** Hull, turret and gun keys of this tank's upgrade gear (the look's normal keys at level 0). */
-  gear: TankGearKeys = tankGearKeys('churchill', GEAR_NONE);
+  gear: PartKeys = tankGearKeys('churchill', GEAR_NONE);
+  /** APC: its squad is still aboard (helmets over the side); cleared by the apcUnload event. */
+  loaded = false;
   readonly tank: TankState = { look: 'churchill', distance: 0, turretAim: 0, recoil: 0, hullRock: 0 };
   readonly pose: TankPose = createTankPose();
   inv = 1;
@@ -506,7 +535,7 @@ class TankView extends UnitViewBase {
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
     const first = reg.get(RENDER_KEYS.white);
-    for (let i = 0; i < TANK_IMAGES; i++) {
+    for (let i = 0; i <= PASSENGER_IMAGE; i++) {
       const img = addImage(scene, this.layer, first.frame);
       img.visible = false;
       this.images.push(img);
@@ -515,7 +544,7 @@ class TankView extends UnitViewBase {
   }
 
   reset(kind: UnitKind, faction: FactionId): void {
-    const look = kind === 'heavyTank' ? FACTIONS[faction].look.heavyTank : FACTIONS[faction].look.tank;
+    const look = vehicleLookOf(kind, faction);
     this.look = look;
     this.tank.look = look;
     this.tank.distance = 0;
@@ -526,6 +555,7 @@ class TankView extends UnitViewBase {
     this.rock = 0;
     this.rockV = 0;
     this.speed = 0;
+    this.loaded = TANK_KEYS[look].passengers !== null;
     this.bodyH = TANK_LAYOUT[look].height;
     this.inv = 1 / this.reg.get(TANK_KEYS[look].hull).scale;
     this.setGear(GEAR_NONE);
@@ -535,9 +565,14 @@ class TankView extends UnitViewBase {
 
   /** Draw with these gear levels; variants missing from the atlas (setLooks not called for them) fall back to level 0. */
   setGear(gear: GearLevels): void {
-    const g = tankGearKeys(this.look, gear);
-    const ok = this.reg.has(g.hull) && this.reg.has(g.turret) && this.reg.has(g.barrel);
-    this.gear = ok ? g : tankGearKeys(this.look, GEAR_NONE);
+    const look = this.look;
+    if (!isGearLook(look)) {
+      this.gear = plainKeys(look);
+    } else {
+      const g = tankGearKeys(look, gear);
+      const ok = this.reg.has(g.hull) && this.reg.has(g.turret) && this.reg.has(g.barrel);
+      this.gear = ok ? g : tankGearKeys(look, GEAR_NONE);
+    }
     this.tank.gunExtra = this.gear.gunExtra;
   }
 
@@ -601,6 +636,7 @@ class TankView extends UnitViewBase {
     const img = this.images;
     if (dead) {
       for (let i = 0; i < TANK_IMAGES - 1; i++) img[i].visible = false;
+      img[PASSENGER_IMAGE].visible = false;
       this.put(TANK_IMAGES - 1, keys.husk, 0, 0, 0, false);
       this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
       return;
@@ -621,6 +657,9 @@ class TankView extends UnitViewBase {
     this.put(i++, g.hull, pose.hull.x, pose.hull.y, pose.hull.rot, true);
     this.put(i++, g.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
     this.put(i, g.turret, pose.turret.x, pose.turret.y, pose.turret.rot, true);
+    const pk = TANK_KEYS[this.look].passengers;
+    if (pk !== null && this.loaded) this.put(PASSENGER_IMAGE, pk, pose.passengers.x, pose.passengers.y, pose.passengers.rot, true);
+    else img[PASSENGER_IMAGE].visible = false;
     this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
   }
 
@@ -683,6 +722,11 @@ export class UnitViews {
   hpReveal = new HpReveal();
   /** Health pips drawn last frame, per side. */
   readonly pipsDrawn: [number, number] = [0, 0];
+  /** The last APC unload per side: where, when (battle time), its deck height and how many men have hopped out since. */
+  private readonly unloadX: [number, number] = [0, 0];
+  private readonly unloadAt: [number, number] = [-1e9, -1e9];
+  private readonly unloadDeck: [number, number] = [0, 0];
+  private readonly unloadCount: [number, number] = [0, 0];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -792,6 +836,15 @@ export class UnitViews {
       if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);
       // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.
       fv.anim.altAim = mixSeed(this.seed ^ U.kneelSalt, u.id) / 4294967296 < U.kneelByRow[row];
+      // Climbing out of an APC that just unloaded here: a hop down from its deck, one man after another.
+      const k = u.side === 1 ? 1 : 0;
+      const A = RENDER.apc;
+      if (state.time - this.unloadAt[k] <= A.window && Math.abs(u.x - this.unloadX[k]) <= A.radius) {
+        fv.hopAge = -A.stagger * this.unloadCount[k]++;
+        fv.hopDeck = this.unloadDeck[k];
+      } else {
+        fv.hopAge = A.hopTime;
+      }
       v = fv;
     }
     v.state = STATE_LIVE;
@@ -848,6 +901,28 @@ export class UnitViews {
       this.tankPool[v.row].push(v);
     }
     else this.figurePool[v.row].push(v);
+  }
+
+  /** The commander gave an order: he points the way while his bubble shows. */
+  onSpeech(slot: number, unitId: number): void {
+    const v = this.liveView(slot, unitId);
+    if (v instanceof FigureView) setFigurePointing(v.anim, RENDER.speech.pointTime);
+  }
+
+  /** An APC unloaded at x: it shows empty, and the men who appear next to it hop down from its deck (view only). */
+  onApcUnload(slot: number, unitId: number, side: number, x: number, time: number): void {
+    const v = this.liveView(slot, unitId);
+    let deck: number = RENDER.apc.jump;
+    if (v instanceof TankView) {
+      v.loaded = false;
+      const pass = TANK_LAYOUT[v.look].passengers;
+      if (pass) deck = -pass.at.y;
+    }
+    const k = side === 1 ? 1 : 0;
+    this.unloadX[k] = x;
+    this.unloadAt[k] = time;
+    this.unloadDeck[k] = deck;
+    this.unloadCount[k] = 0;
   }
 
   /** A unit died: its view leaves the slot and plays the fall. */
@@ -1007,6 +1082,10 @@ export class UnitViews {
     v.x = x;
     v.simX = simX;
     v.y = VIEW.groundY + VIEW.rowDy[v.row] * spread;
+    if (v instanceof FigureView && v.hopAge < RENDER.apc.hopTime) {
+      v.hopAge += dt;
+      v.y -= apcHopLift(v.hopAge, v.hopDeck) * v.s;
+    }
     v.facing = u.facing >= 0 ? 1 : -1;
     const tank = v instanceof TankView;
     v.stepTurn(dt, tank ? U.tankTurnTime : U.turnTime);
@@ -1085,6 +1164,7 @@ export class UnitViews {
       const tk = v.tank;
       v.setOver(v.groundOver(state.trenches, state.wires), this.layers.byName.vehicleOver);
       tk.distance += (moved * v.facing) / v.s;
+      if (u.kind === 'apc') v.loaded = u.passengers > 0;
       if (v.fired) tk.recoil = 1;
       else tk.recoil = Math.max(0, tk.recoil - dt / U.tankRecoilTime);
       v.stepSuspension(state.over ? 0 : u.velX, dt);

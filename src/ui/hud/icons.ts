@@ -9,6 +9,34 @@ function svg(body: string): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
 }
 
+/**
+ * The plane call-ins, seen from above with the nose up, on the 24 x 24 grid (straight segments and curves only, no arcs,
+ * so the Armoury can scale them to its 48 x 48 grid). Each is a list of filled paths; `cut` paths are knocked out.
+ */
+export const PLANE_GLYPHS: Record<'bomber' | 'fighter' | 'recon', readonly { d: string; cut?: boolean }[]> = {
+  /** Twin-engined bomber with a bomb falling below each wing. */
+  bomber: [
+    { d: 'M11 1.5h2l0.6 5.5H23v3.4l-9.4 1.1-0.4 4.5 3.3 1.6v1.6H7.5v-1.6l3.3-1.6-0.4-4.5L1 10.4V7h9.4z' },
+    { d: 'M4.6 4.6h2.6v5H4.6zM16.8 4.6h2.6v5h-2.6z' },
+    { d: 'M5 19.5h2l0.5 2.5L6 23.5 4.5 22zM17 19.5h2l0.5 2.5L18 23.5 16.5 22z' },
+  ],
+  /** A fighter diving in with its guns streaking ahead. */
+  fighter: [
+    { d: 'M12 8c0.8 0 1.2 0.9 1.3 2l0.2 3 7 3.4v2l-7.1-1.6-0.4 3.2 2.4 1.4v1.4L12 22l-3.4 0.8v-1.4l2.4-1.4-0.4-3.2-7.1 1.6v-2l7-3.4 0.2-3C10.8 8.9 11.2 8 12 8z' },
+    { d: 'M7.6 1h1.6v5H7.6zM14.8 1h1.6v5h-1.6z' },
+  ],
+  /** A high-winged spotter plane over an eye. */
+  recon: [
+    { d: 'M11.2 1.5h1.6l0.4 3H22v2.4l-8.8 0.4-0.4 4.2 2.6 1V14H8.6v-1.5l2.6-1-0.4-4.2L2 6.9V4.5h8.8z' },
+    { d: 'M1.5 19.5C4.3 16.5 7.8 15 12 15s7.7 1.5 10.5 4.5C19.7 22.5 16.2 24 12 24s-7.7-1.5-10.5-4.5z' },
+    { d: 'M12 16.8l2.7 2.7L12 22.2l-2.7-2.7z', cut: true },
+  ],
+};
+
+function planeSvg(kind: keyof typeof PLANE_GLYPHS): string {
+  return svg(PLANE_GLYPHS[kind].map((p) => `<path${p.cut ? ' fill="rgba(20,21,15,0.75)"' : ''} d="${p.d}"/>`).join(''));
+}
+
 export const ICONS = {
   /** Supply crate. */
   crate: svg(
@@ -58,6 +86,9 @@ export const ICONS = {
     '<path d="M12 1.5c1 0 1.6 1.2 1.7 2.8l0.3 4.5 8.5 4.7v2.3L14 13.5l-0.5 5 2.8 2v1.7L12 21l-4.3 1.2v-1.7l2.8-2-0.5-5' +
       '-8.5 2.3v-2.3L10 8.8l0.3-4.5c0.1-1.6 0.7-2.8 1.7-2.8z"/>',
   ),
+  bomber: planeSvg('bomber'),
+  fighter: planeSvg('fighter'),
+  recon: planeSvg('recon'),
   /** Direct control. */
   fire: svg(
     `<circle ${STROKE} stroke-width="2.2" cx="12" cy="12" r="6.5"/>` +

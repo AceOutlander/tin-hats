@@ -1,5 +1,6 @@
 /** Inline SVG icons for the menus. Everything is drawn here: no image files. */
 import type { Side, SupportKind, UnitKind } from '../../data/schema';
+import { PLANE_GLYPHS } from '../hud/icons';
 import { iconCanvas } from './dom';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -99,7 +100,11 @@ const AIRCRAFT: readonly PathSpec[] = [
   { d: 'M4 25.5 L3 18 L7 18 L11 24.3 Z M4 25.5 L3 33 L7 33 L11 26.7 Z' },
 ];
 
-// TODO(planes engineer): the planes borrow the air-strike aircraft until they have their own icons.
+/** The HUD's plane glyphs (24 x 24, no arcs) doubled onto the 48 x 48 grid. */
+function planeIcon(kind: keyof typeof PLANE_GLYPHS): readonly PathSpec[] {
+  return PLANE_GLYPHS[kind].map((p) => ({ d: p.d.replace(/-?\d*\.?\d+/g, (n) => String(Math.round(Number(n) * 200) / 100)), ...(p.cut ? { cls: 'th-cut' } : {}) }));
+}
+
 const SUPPORT_ICONS: Record<SupportKind, readonly PathSpec[]> = {
   artillery: [
     { d: starburst(24, 22, 19, 8, 9) },
@@ -114,9 +119,9 @@ const SUPPORT_ICONS: Record<SupportKind, readonly PathSpec[]> = {
     { d: 'M8 41h32v3H8Z' },
   ],
   airStrike: AIRCRAFT,
-  bomber: AIRCRAFT,
-  fighter: AIRCRAFT,
-  recon: AIRCRAFT,
+  bomber: planeIcon('bomber'),
+  fighter: planeIcon('fighter'),
+  recon: planeIcon('recon'),
 };
 
 export function supportIcon(kind: SupportKind, className = 'th-support-icon'): SVGSVGElement {

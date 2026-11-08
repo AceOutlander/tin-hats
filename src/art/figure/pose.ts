@@ -303,6 +303,8 @@ export class FigureAnim {
   crateKey: string | null = null;
   /** Sapper pushing the handcart (setFigurePushing). */
   pushing = false;
+  /** Commander: seconds left of pointing forward with his free arm after an order (setFigurePointing). */
+  point = 0;
 
   // Death.
   dead = false;
@@ -394,6 +396,7 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.satchel = a.satchelV = 0;
   a.sinceFire = 1e9;
   a.secY = a.secV = a.pack = a.packV = a.helm = a.helmV = 0;
+  a.point = 0;
   a.item = 'none';
   a.itemFar = false;
   a.weaponVisible = a.model !== 'none' && a.model !== 'crate';

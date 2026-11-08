@@ -659,6 +659,10 @@
   bottom: calc(var(--sb) + var(--bar-h) + 6px);
   display: flex;
   flex-direction: column-reverse;
+  /* With the plane call-ins there can be six: they wrap into a second column instead of running under the top bar. */
+  flex-wrap: wrap;
+  align-content: flex-start;
+  max-height: calc(100% - var(--top-h) - var(--th-safe-top) - var(--bar-h) - var(--sb) - 12px);
   gap: 4px;
 }
 

@@ -558,6 +558,43 @@ function paintShell(ctx: Ctx): void {
   line(ctx, '#c9b46a', 0.35, [0.6, -1.3, 0.6, 1.3]);
 }
 
+/** Flamethrower wand: rear grip, fuel valve, long tube and the nozzle with its igniter underneath. */
+function paintFlamer(ctx: Ctx): void {
+  solid(ctx, STEEL, () => rrect(ctx, -7.0, -1.1, 25.0, 1.9, 0.8));
+  line(ctx, STEEL_L, 0.4, [-5.6, -0.7, 16.0, -0.7]);
+  // Rear pistol grip and the front grip with its valve wheel.
+  solid(ctx, WOOD, () => poly(ctx, [-1.4, 0.6, 0.8, 0.6, 0.2, 4.4, -1.8, 4.0]));
+  solid(ctx, WOOD, () => poly(ctx, [7.4, 0.6, 9.2, 0.6, 9.0, 3.6, 7.2, 3.6]));
+  solid(ctx, BLACK, () => rrect(ctx, 3.6, -2.4, 1.6, 4.0, 0.6));
+  // Nozzle flare and the igniter cartridge below it.
+  solid(ctx, BLACK, () => poly(ctx, [17.6, -1.5, 19.6, -1.9, 19.6, 1.1, 17.6, 0.9]));
+  solid(ctx, STEEL, () => rrect(ctx, 14.0, 0.9, 4.0, 1.6, 0.6));
+  dot(ctx, '#d0632a', 18.4, 1.7, 0.45);
+}
+
+/** Commander's revolver (or pistol): barrel and slide, cylinder, grip. */
+function paintPistol(ctx: Ctx): void {
+  solid(ctx, STEEL, () => rrect(ctx, -1.2, -1.9, 9.0, 1.7, 0.5));
+  solid(ctx, STEEL, () => rrect(ctx, 0.0, -2.3, 3.0, 2.6, 0.7));
+  solid(ctx, WOOD, () => poly(ctx, [-1.2, -0.4, 0.8, -0.4, 0.2, 3.4, -1.9, 3.0]));
+  line(ctx, STEEL_L, 0.3, [0.8, 0.2, 2.0, 1.2, 0.8, 1.4]);
+}
+
+/** Flamethrower fuel and gas tanks on his back, anchored at the chest joint like the pack. */
+function flamePackSpec(key: string, tint: string, dark: string): SpriteSpec {
+  return makeSpec(key, -10.6, -10.6, 0.8, 5.4, (ctx) => {
+    // Far tank, the gas bottle between, the near tank (side on they overlap).
+    solid(ctx, dark, () => rrect(ctx, -9.8, -9.6, 4.2, 14.2, 2.0));
+    solid(ctx, STEEL, () => rrect(ctx, -6.4, -8.0, 2.4, 9.6, 1.2));
+    solid(ctx, tint, () => rrect(ctx, -8.4, -9.0, 4.4, 14.0, 2.1), 'rgba(20, 21, 15, 0.6)', 0.4);
+    line(ctx, dark, 0.5, [-8.0, -5.6, -4.4, -5.6]);
+    line(ctx, dark, 0.5, [-8.0, 1.6, -4.4, 1.6]);
+    // Harness strap over the shoulder and the hose stub at the bottom.
+    line(ctx, dark, 0.7, [-4.2, -7.4, -1.2, -7.0, 0.2, -5.0]);
+    line(ctx, BLACK, 0.9, [-6.2, 5.0, -4.2, 5.0]);
+  });
+}
+
 function paintPiatBomb(ctx: Ctx): void {
   line(ctx, STEEL, 1.1, [-5.0, 0, 0.6, 0]);
   solid(ctx, STEEL, () => rrect(ctx, -5.4, -1.0, 1.2, 2.0, 0.3));
@@ -660,6 +697,11 @@ function buildKeys(f: FactionId): FactionFigureKeys {
   };
 }
 
+/** The flamethrower's tanks, worn in the pack slot (FigureGearKeys.pack). */
+export function flamePackKey(f: FactionId): string {
+  return `fig/${f}/flamePack`;
+}
+
 export const FACTION_FIGURE_KEYS: Record<FactionId, FactionFigureKeys> = {
   british: buildKeys('british'),
   german: buildKeys('german'),
@@ -681,6 +723,8 @@ function weaponSpecs(): SpriteSpec[] {
   add('mortar', -1.8, -5.2, 22.2, 2.2, paintMortarTube);
   add('piat', -11.6, -8.2, 21.8, 3.8, paintPiat);
   add('panzerschreck', -13.2, -12.6, 27.2, 4.0, paintPanzerschreck);
+  add('flamer', -7.6, -2.8, 20.2, 4.8, paintFlamer);
+  add('pistol', -2.4, -2.8, 8.2, 3.8, paintPistol);
   const bren = WEAPON_GEOM.bren.bipodLen;
   out.push(makeSpec('fig/weapon/brenBipod', -1.2, -1.6, bren + 1.0, 1.4, (c) => paintBipod(c, bren)));
   const mg = WEAPON_GEOM.mg34.bipodLen;
@@ -733,6 +777,7 @@ function factionSpecs(f: FactionId): SpriteSpec[] {
   return [
     helmetSpec(k.helmet, look.helmet, look.tint, look.tintDark, false),
     packSpec(k.pack, look.tint, look.tintDark),
+    flamePackSpec(flamePackKey(f), look.tint, look.tintDark),
     pouchesSpec(k.pouches, look.tint, look.tintDark),
     satchelSpec(k.satchel, look.tint),
     crateSpec(k.crate, look.tint, look.tintDark),

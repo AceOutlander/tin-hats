@@ -361,7 +361,7 @@ export const RENDER = {
   /** Sound hookup (src/render/effects/sound.ts). */
   audio: {
     /** Smallest real-time gap (s) between plays of one sound, and a ceiling on all plays per second. */
-    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, mortarLaunch: 0.12, shellWhistle: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
+    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, mortarLaunch: 0.12, shellWhistle: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
     defaultGap: 0.05,
     maxPerSecond: 70,
     /** Shots further off screen than this many view widths are not played at all. */
@@ -381,6 +381,119 @@ export const RENDER = {
     /** Impact sounds: chance per miss/wall hit. */
     impactChance: 0.18,
   },
+
+  /**
+   * Call-in aircraft (src/render/effects/planes.ts): one pooled plane per pass event. Altitude (wu above the ground)
+   * by type plus rowStep per altitude row; speed (wu/s) is used only when the event gives no pass time. A shot-down
+   * plane noses over, trails smoke and fire, shrinks as it falls away beyond the battle, and crashes at the horizon.
+   */
+  planes: {
+    max: 4,
+    // Low enough to fly below the HUD's top bar on a landscape phone (the Typhoon flies at 195).
+    altitude: { bomber: 160, fighter: 128, recon: 172 } as Readonly<Record<string, number>>,
+    rowStep: 24,
+    speed: { bomber: 420, fighter: 760, recon: 340 } as Readonly<Record<string, number>>,
+    scale: { bomber: 1, fighter: 1, recon: 1 } as Readonly<Record<string, number>>,
+    /** Seconds past the end of the pass the plane keeps flying (out of sight), and how far off screen it is still drawn. */
+    overrun: 1.5,
+    cullMargin: 340,
+    shadowAlpha: 0.7,
+    /** Ground shadow: it lies this far below the ground line (wu). */
+    shadowDy: 10,
+    bob: 3,
+    bobRate: 3.1,
+    exhaustInterval: 0.06,
+    sound: { bomber: 'bomberDrone', fighter: 'fighterFlyby', recon: 'reconFlyby' } as Readonly<Record<string, string>>,
+    /** Fighter strafing: a tracer from its guns to each strafe round's impact, and a dirt kick there. */
+    strafeDirt: 1.3,
+    /** Recon camera glint: a flash at the camera port every `interval` s while over the field. */
+    glint: { interval: 0.55, life: 0.32, scale: 1.6, tint: 0xfff4c8 },
+    fall: {
+      /** Downward acceleration (wu/s^2), the steepest dive (rad), how fast it rolls into it, and the extra spin. */
+      gravity: 70,
+      maxDive: 0.85,
+      diveRate: 0.6,
+      spin: 0.12,
+      smokeInterval: 0.045,
+      fireSize: 0.55,
+      /** It shrinks toward this scale as it falls away into the distance over `time` s, then crashes at the horizon. */
+      endScale: 0.4,
+      time: 3.2,
+      /** Crash: blast size, and the smoke column left at the horizon (wu above the ground) for `smokeTime` s. */
+      crashSize: 0.55,
+      horizonLift: 120,
+      smokeTime: 9,
+      crashVolume: 0.6,
+    },
+  },
+
+  /** Anti-aircraft fire: tracer bursts upward at the plane (or up the gun's line), and dark flak puffs where they burst. */
+  antiAir: {
+    /** Aim point with no plane in the sky: this far ahead and up of the muzzle (wu). */
+    blindAhead: 140,
+    blindUp: 300,
+    tracers: 2,
+    tracerJitter: 26,
+    flakMax: 24,
+    flakLife: 1.4,
+    flakScale: 1.1,
+    flakGrow: 1.8,
+    flakSpread: 40,
+    flakAlpha: 0.85,
+  },
+
+  /** Flamethrower jet: a stretched flickering flame tongue from the nozzle, fire and smoke where it lands. */
+  flame: {
+    max: 16,
+    life: 0.42,
+    frames: 3,
+    flickerRate: 22,
+    alpha: 0.95,
+    /** Scale of the jet's thickness and of the fire and smoke at its end. */
+    thickness: 1.8,
+    fireSize: 0.55,
+    smokeSize: 0.8,
+    /** Ignite: the fuel tank bursts into a fireball and the body burns for this long (s), at this size. */
+    igniteBurn: 3.5,
+    igniteSize: 0.8,
+    igniteBlast: 0.5,
+    /** The fuel tank on his back: height (wu, figure space) and how far behind the hip. */
+    packY: 34,
+    packBack: 7,
+  },
+
+  /** Infantry climbing out of an APC (apcUnload): each man hops down from the deck, one after another. */
+  apc: {
+    /** A man who appears within `radius` wu and `window` s of an unload hops out; the next one `stagger` s later. */
+    window: 0.6,
+    radius: 140,
+    stagger: 0.16,
+    hopTime: 0.42,
+    /** Extra height (wu) of the jump above the deck. */
+    jump: 9,
+  },
+
+  /** Commander speech bubbles: how long one stays (s) and fades, its lift above the head (wu), size and the pool. */
+  speech: {
+    max: 3,
+    time: 2.6,
+    fade: 0.4,
+    pop: 0.12,
+    lift: 14,
+    scale: 1,
+    /** Bubble sprite: font size and padding (wu), and the estimated advance per character for its width. */
+    font: 13,
+    padX: 9,
+    padY: 6,
+    charW: 6.9,
+    tail: 7,
+    /** The commander points forward for this long after an order (s). */
+    pointTime: 1.8,
+  },
+
+
+  /** Shot sounds for the new weapons, where the weapon table still names a placeholder. */
+  shotSound: { flamer: 'flameBurst', aaGun: 'aaGun', pistol: 'pistolShot' } as Readonly<Record<string, string>>,
 
   /** Stats smoothing: weight of the newest sample. */
   statsSmoothing: 0.1,

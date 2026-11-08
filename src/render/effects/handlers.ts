@@ -9,7 +9,6 @@
  * context.
  */
 import { HQ_LAYOUT, TANK_LAYOUT } from '../../data/artLayout';
-import { FACTIONS } from '../../data/factions';
 import { FX_TRACERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
 import { ORDER_WHISTLE } from '../../data/sounds';
@@ -19,7 +18,10 @@ import { WEAPONS } from '../../data/weapons';
 import { shakeStrength } from '../../fx';
 import type { SimEvent, SimEventType } from '../../sim';
 import type { FlightArc } from './flights';
-import type { EffectContext } from './index';
+import { vehicleLookOf } from '../../art/vehicles';
+import type { FactionId } from '../../data/schema';
+import { isPlaneKind, speechLine, speechOrder } from './callinMath';
+import type { EffectContext, Point } from './index';
 import { PRESET_DEFS } from './presets';
 
 export type EffectHandler = (fx: EffectContext, e: SimEvent) => void;
@@ -123,12 +125,20 @@ function collapseHq(fx: EffectContext, side: number): void {
 /** A round fired: muzzle flash, tracer, ejected case, and the hit or dirt that lands when the tracer does. */
 function onShot(fx: EffectContext, e: SimEvent): void {
   const weapon = e.weapon ? (WEAPONS[e.weapon] as (typeof WEAPONS)[string] | undefined) : undefined;
-  if (weapon) fx.sound.at(weapon.sound, e.x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
+  if (weapon) fx.sound.at(RENDER.shotSound[weapon.id] ?? weapon.sound, e.x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
+  if (e.weapon === 'aaGun') {
+    antiAirBurst(fx, e);
+    return;
+  }
   if (!fx.onScreen(e.x, e.x2)) return;
   const from = fx.p0;
   const to = fx.p1;
   fx.shotOrigin(e, from);
   fx.shotTarget(e, to);
+  if (e.weapon === 'flamer') {
+    flameBurst(fx, e, from, to);
+    return;
+  }
   const dir = e.dir === 0 ? (to.x >= from.x ? 1 : -1) : e.dir;
   const gy = fx.groundY(e.row);
   const gy2 = fx.groundY(e.row2);
@@ -174,7 +184,7 @@ function onShot(fx: EffectContext, e: SimEvent): void {
   if (e.hit) {
     if (e.target === 'unit') {
       const v = fx.units.viewAtSlot(e.targetIndex);
-      const armoured = v !== null && (v.kind === 'tank' || v.kind === 'heavyTank');
+      const armoured = v !== null && (v.kind === 'tank' || v.kind === 'heavyTank' || v.kind === 'apc' || v.kind === 'lightTank');
       if (armoured) {
         fx.ambient.delayed.add('armourSparks', delay, to.x, to.y, -dir, -0.2, gy2, 1);
         if (fx.rng() < AU.impactChance) fx.sound.at('ricochet', to.x, AU.impactVolume);
@@ -225,7 +235,100 @@ function onProjectile(fx: EffectContext, e: SimEvent): void {
 }
 
 function onExplosion(fx: EffectContext, e: SimEvent): void {
+  if (e.weapon === 'strafeMg') {
+    strafeHit(fx, e);
+    return;
+  }
   blast(fx, e.x, e.value > 0 ? e.value : X.smallMax, fx.groundY(e.row >= 0 ? e.row : -1) + (fx.rng() - 0.5) * 12);
+}
+
+/* ------------------------------------------------------------------ */
+/* New units and call-ins                                              */
+/* ------------------------------------------------------------------ */
+
+function factionOf(fx: EffectContext, side: number): FactionId {
+  return fx.state ? fx.state.sides[side === 1 ? 1 : 0].faction : side === 1 ? 'german' : 'british';
+}
+
+/** The flamethrower's jet from the nozzle to the target, with fire and smoke where it lands. */
+function flameBurst(fx: EffectContext, e: SimEvent, from: Point, to: Point): void {
+  const F = RENDER.flame;
+  const s = VIEW.rowScale[Math.max(0, Math.min(VIEW.rows - 1, e.row))];
+  const gy = fx.groundY(e.row2);
+  fx.flame.spray(from.x, from.y, to.x, to.y, s);
+  fx.play('tankFire', to.x, to.y, 0, -1, gy, F.fireSize * s);
+  if (fx.lowOk()) fx.play('hqSmoke', to.x, to.y - 6, 0, -1, gy, F.smokeSize * s);
+}
+
+/** An AA gun fires: tracers up at the nearest enemy plane (or up its line with none in the sky), flak where they burst. */
+function antiAirBurst(fx: EffectContext, e: SimEvent): void {
+  const AA = RENDER.antiAir;
+  const from = fx.p0;
+  const to = fx.p1;
+  fx.shotOrigin(e, from);
+  const dir = e.dir === 0 ? (e.side === 0 ? 1 : -1) : e.dir;
+  if (!fx.planes.targetFor(e.side, from.x, to)) {
+    to.x = from.x + dir * AA.blindAhead;
+    to.y = from.y - AA.blindUp;
+  }
+  if (!fx.onScreen(from.x, to.x)) return;
+  fx.play('muzzleFlash', from.x, from.y, to.x - from.x, to.y - from.y, fx.groundY(e.row), 1.2);
+  for (let i = 0; i < AA.tracers; i++) {
+    const jx = (fx.rng() - 0.5) * 2 * AA.tracerJitter;
+    const jy = (fx.rng() - 0.5) * 2 * AA.tracerJitter;
+    if (fx.keepTracer()) fx.tracers.spawn('mg', from.x, from.y, to.x + jx, to.y + jy);
+  }
+  const fly = Math.hypot(to.x - from.x, to.y - from.y) / FX_TRACERS.mg.speed;
+  fx.planes.flakAt(to.x + (fx.rng() - 0.5) * 2 * AA.flakSpread, to.y + (fx.rng() - 0.5) * AA.flakSpread, fly);
+}
+
+/** A fighter's strafing round lands: a tracer from its guns and a kick of dirt (not a blast). */
+function strafeHit(fx: EffectContext, e: SimEvent): void {
+  const g = fx.groundY(e.row >= 0 ? e.row : -1);
+  fx.sound.at('dirtHit', e.x, AU.impactVolume);
+  if (!fx.onScreen(e.x, e.x)) return;
+  const gun = fx.p2;
+  if (fx.planes.gunAt('fighter', e.side, e.x, gun) && fx.keepTracer()) fx.tracers.spawn('mg', gun.x, gun.y, e.x, g - 2);
+  fx.play('bulletDirt', e.x, g, 0, -1, g, RENDER.planes.strafeDirt);
+  if (fx.lowOk()) fx.play('bulletDirt', e.x + (fx.rng() - 0.5) * 18, g, 0, -1, g, RENDER.planes.strafeDirt * 0.8);
+}
+
+function onPlanePass(fx: EffectContext, e: SimEvent): void {
+  if (!isPlaneKind(e.support)) return;
+  fx.planes.pass(e.support, factionOf(fx, e.side), e.side, e.x, e.x2, e.row, e.value);
+}
+
+function onPlaneDown(fx: EffectContext, e: SimEvent): void {
+  if (isPlaneKind(e.support)) fx.planes.down(e.support, e.side, e.x);
+}
+
+/** The commander's speech bubble: a line by faction, order and seed, with a short cue (no voice). */
+function onSpeech(fx: EffectContext, e: SimEvent): void {
+  const faction = factionOf(fx, e.side);
+  const order = speechOrder(e.order);
+  const line = speechLine(faction, order, e.value);
+  const v = fx.units.findById(e.unitId);
+  const x = v ? v.x : e.x;
+  const y = v ? v.y - v.bodyH * v.s : fx.groundY(e.row) - VIEW.figureHeight;
+  fx.speech.say(e.unitId, faction, order, line.index, x, y);
+  fx.sound.at('speechCue', x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
+}
+
+/** A flamethrower's tank went up: a fireball at his back and the body burning (the death and blast follow). */
+function onIgnite(fx: EffectContext, e: SimEvent): void {
+  const F = RENDER.flame;
+  fx.sound.at('fuelIgnite', e.x);
+  if (!fx.onScreen(e.x, e.x)) return;
+  const row = e.row >= 0 ? e.row : 1;
+  const s = VIEW.rowScale[row];
+  const gy = fx.groundY(row);
+  const v = fx.units.findById(e.unitId);
+  const facing = v ? v.facing : e.side === 0 ? 1 : -1;
+  const x = (v ? v.x : e.x) - facing * F.packBack * s;
+  const y = gy - F.packY * s;
+  fx.play('grenadeBurst', x, y, 0, -1, gy, F.igniteBlast * s);
+  fx.play('tankFire', x, y, 0, -1, gy, F.igniteSize * s);
+  fx.ambient.burners.add('tankFire', x, gy - F.packY * 0.5 * s, F.igniteSize * s, F.igniteBurn);
 }
 
 /* ------------------------------------------------------------------ */
@@ -238,13 +341,13 @@ function onUnitDied(fx: EffectContext, e: SimEvent): void {
   const row = e.row >= 0 ? e.row : 1;
   const gy = fx.groundY(row);
   const dir = e.dir === 0 ? 1 : e.dir;
-  if (e.kind === 'tank' || e.kind === 'heavyTank') {
+  if (e.kind === 'tank' || e.kind === 'heavyTank' || e.kind === 'apc' || e.kind === 'lightTank') {
     const v = fx.units.findById(e.unitId);
     const faction = e.side === 1 ? 'german' : 'british';
-    const look = e.kind === 'heavyTank' ? FACTIONS[v ? v.faction : faction].look.heavyTank : FACTIONS[v ? v.faction : faction].look.tank;
+    const look = vehicleLookOf(e.kind, v ? v.faction : faction);
     const L = TANK_LAYOUT[look];
     const x = v ? v.x : e.x;
-    blast(fx, x, e.kind === 'heavyTank' ? 120 : 88, gy);
+    blast(fx, x, e.kind === 'heavyTank' ? 120 : e.kind === 'apc' ? 70 : 88, gy);
     const s = VIEW.rowScale[row];
     fx.ambient.burners.add('tankFire', x - dir * 8 * s, gy - L.height * 0.55 * s, s * R.husk.fireSize, R.husk.fireTime);
     fx.ambient.burners.add('hqSmoke', x - dir * 10 * s, gy - L.height * 0.6 * s, s, R.husk.smokeTime);
@@ -359,4 +462,8 @@ export const EFFECT_HANDLERS: Partial<Record<SimEventType, EffectHandler>> = {
   supportCalled: onSupport,
   supportIncoming: onSupport,
   battleEnded: onBattleEnded,
+  planePass: onPlanePass,
+  planeDown: onPlaneDown,
+  speech: onSpeech,
+  ignite: onIgnite,
 };

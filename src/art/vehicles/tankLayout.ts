@@ -8,11 +8,13 @@
  *
  * Draw order, back to front: track, wheels (in array order), hull, barrel, turret.
  */
-import { TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, type ArtPoint, type TankLook } from '../../data/artLayout';
+import { TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, VEHICLE_LOOK_EXTRA, VEHICLE_LOOKS, type ArtPoint, type TankLook, type VehicleLook } from '../../data/artLayout';
+import { FACTIONS } from '../../data/factions';
+import type { FactionId, UnitKind } from '../../data/schema';
 import { makeBelt } from './belt';
 
 export interface TankState {
-  look: TankLook;
+  look: VehicleLook;
   /** Distance travelled along the ground in wu (signed: forward is positive). */
   distance: number;
   /** Gun elevation in radians, positive = up. Clamped to the look's limits. */
@@ -42,6 +44,8 @@ export interface TankPose {
   hull: PartXf;
   barrel: PartXf;
   turret: PartXf;
+  /** APC passengers sprite (rides the hull; unused for tanks). */
+  passengers: PartXf;
   /** Muzzle tip (flash, shell spawn), exhaust outlet (smoke puffs) and hull machine gun. */
   muzzle: ArtPoint;
   exhaust: ArtPoint;
@@ -57,9 +61,19 @@ export interface TankKeys {
   /** One key per wheel, parallel to TankPose.wheels. */
   wheels: string[];
   husk: string;
+  /** APC passengers over the side (null for tanks). */
+  passengers: string | null;
 }
 
-function buildKeys(look: TankLook): TankKeys {
+/** Wheel sprite key: one per kind, plus one per extra radius of that kind (the half-track's big front wheel). */
+function wheelKey(look: VehicleLook, i: number): string {
+  const wheels = TANK_LAYOUT[look].wheels;
+  const w = wheels[i];
+  const first = wheels.find((o) => o.kind === w.kind);
+  return first && first.r !== w.r ? `veh/${look}/wheel/${w.kind}/${w.r}` : `veh/${look}/wheel/${w.kind}`;
+}
+
+function buildKeys(look: VehicleLook): TankKeys {
   const L = TANK_LAYOUT[look];
   const track: string[] = [];
   for (let i = 0; i < L.trackFrames; i++) track.push(`veh/${look}/track/${i}`);
@@ -68,30 +82,29 @@ function buildKeys(look: TankLook): TankKeys {
     turret: `veh/${look}/turret`,
     barrel: `veh/${look}/barrel`,
     track,
-    wheels: L.wheels.map((w) => `veh/${look}/wheel/${w.kind}`),
+    wheels: L.wheels.map((_, i) => wheelKey(look, i)),
     husk: `veh/${look}/husk`,
+    passengers: L.passengers ? `veh/${look}/passengers` : null,
   };
 }
 
-function buildPitch(look: TankLook): number {
+function buildPitch(look: VehicleLook): number {
   const L = TANK_LAYOUT[look];
   const length = makeBelt(L.belt, L.trackThickness / 2).length;
   return length / Math.max(1, Math.round(length / L.trackPitch));
 }
 
-/** Sprite keys of every part of each tank look. */
-export const TANK_KEYS: Record<TankLook, TankKeys> = {
-  churchill: buildKeys('churchill'),
-  panzer4: buildKeys('panzer4'),
-  kingTiger: buildKeys('kingTiger'),
-};
+function perLook<T>(make: (look: VehicleLook) => T): Record<VehicleLook, T> {
+  const out = {} as Record<VehicleLook, T>;
+  for (const look of VEHICLE_LOOKS) out[look] = make(look);
+  return out;
+}
+
+/** Sprite keys of every part of each vehicle look. */
+export const TANK_KEYS: Record<VehicleLook, TankKeys> = perLook(buildKeys);
 
 /** Real distance between tread lugs: the nominal pitch adjusted so a whole number fits round the loop. */
-export const TANK_TRACK_PITCH: Record<TankLook, number> = {
-  churchill: buildPitch('churchill'),
-  panzer4: buildPitch('panzer4'),
-  kingTiger: buildPitch('kingTiger'),
-};
+export const TANK_TRACK_PITCH: Record<VehicleLook, number> = perLook(buildPitch);
 
 const TAU = Math.PI * 2;
 
@@ -107,6 +120,7 @@ export function createTankPose(): TankPose {
     hull: { x: 0, y: 0, rot: 0 },
     barrel: { x: 0, y: 0, rot: 0 },
     turret: { x: 0, y: 0, rot: 0 },
+    passengers: { x: 0, y: 0, rot: 0 },
     muzzle: { x: 0, y: 0 },
     exhaust: { x: 0, y: 0 },
     hullMg: { x: 0, y: 0 },
@@ -159,6 +173,15 @@ export function layoutTank(state: TankState, out: TankPose): TankPose {
   out.turret.y = py + vx * sin + vy * cos;
   out.turret.rot = rot;
 
+  const pass = L.passengers;
+  if (pass) {
+    vx = pass.at.x - px;
+    vy = pass.at.y - py;
+    out.passengers.x = px + vx * cos - vy * sin;
+    out.passengers.y = py + vx * sin + vy * cos;
+    out.passengers.rot = rot;
+  }
+
   vx = L.exhaust.x - px;
   vy = L.exhaust.y - py;
   out.exhaust.x = px + vx * cos - vy * sin;
@@ -189,4 +212,16 @@ export function layoutTank(state: TankState, out: TankPose): TankPose {
 }
 
 /** Every tank look, for iterating. */
-export { TANK_LOOKS };
+export { TANK_LOOKS, VEHICLE_LOOKS };
+
+/** The look a vehicle kind of a faction draws with. */
+export function vehicleLookOf(kind: UnitKind, faction: FactionId): VehicleLook {
+  if (kind === 'heavyTank') return FACTIONS[faction].look.heavyTank;
+  if (kind === 'apc' || kind === 'lightTank') return VEHICLE_LOOK_EXTRA[faction][kind];
+  return FACTIONS[faction].look.tank;
+}
+
+/** True for the looks that carry Quartermaster upgrade gear (tankGearKeys / tankGearSpecs take only these). */
+export function isGearLook(look: VehicleLook): look is TankLook {
+  return (TANK_LOOKS as readonly string[]).includes(look);
+}

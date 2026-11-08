@@ -415,6 +415,16 @@ export class BattleViewImpl implements BattleView {
         case 'wireDestroyed':
           structures.onWireDestroyed(e.targetIndex, e.side, e.cause);
           break;
+        case 'apcUnload':
+          units.onApcUnload(e.unit, e.unitId, e.side, e.x, state.time);
+          break;
+        case 'reconReveal':
+          // The recon plane shows the enemy's health around x for a while (kept even while fast-forwarding).
+          if (e.side === this.hpReveal.player) this.hpReveal.revealEnemy(e.x, e.value, e.x2);
+          break;
+        case 'speech':
+          units.onSpeech(e.unit, e.unitId);
+          break;
         case 'battleEnded':
           // The losing headquarters ends as a ruin even when the battle was lost on a timer.
           if (e.side >= 0 && state.sides[e.side === 0 ? 1 : 0].hq) structures.forceRuin(e.side === 0 ? 1 : 0);

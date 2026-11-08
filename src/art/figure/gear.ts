@@ -26,6 +26,7 @@ import {
   FACTION_FIGURE_KEYS,
   brodiePath,
   fillPath,
+  flamePackKey,
   helmetSpec,
   line,
   makeSpec,
@@ -103,8 +104,9 @@ function resolve(f: FactionId, kind: FigureKind, health: number, damage: number)
     damage,
     helmet: helmet ? gearSpriteKey(f, helmet) : base.helmet,
     helmetRim: helmet === 'helmetScrim' ? scrimRimKey(shape) : base.helmetRim,
-    pack: pack ? gearSpriteKey(f, pack) : base.pack,
-    packShow: pack !== undefined || K.pack,
+    // The flamethrower always wears his fuel tanks in the pack slot.
+    pack: kind === 'flame' ? flamePackKey(f) : pack ? gearSpriteKey(f, pack) : base.pack,
+    packShow: kind === 'flame' || pack !== undefined || K.pack,
     pouches: pouches ? gearSpriteKey(f, pouches) : base.pouches,
     pouchesShow: pouches !== undefined || K.pouches,
     satchel: satchel ? gearSpriteKey(f, satchel) : base.satchel,
@@ -492,3 +494,8 @@ export function gearFigureSprites(): SpriteSpec[] {
   return out;
 }
 
+
+/** The commander points forward with his free arm for `seconds` (after an order). */
+export function setFigurePointing(anim: FigureAnim, seconds: number): void {
+  anim.point = Math.max(anim.point, seconds);
+}
