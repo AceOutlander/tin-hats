@@ -357,6 +357,12 @@ use it later.
 - The admin panel can give and remove medals.
 - Balance tests: the "reasonable player" bot must be able to afford a sensible army progression across a campaign on Normal without replaying."
 
+Confirmed by the owner on 2026-11-08: medals are part of the campaign foundations and are built before any campaign.
+The Armoury covers the new units too (job 7): the APC, flamethrower, commander and anti-aircraft gun are bought with
+medals like the core roles, and the bomber, fighter and recon plane call-ins are bought with medals in the same screen
+(each call-in still costs money and has a cooldown in battle). Enemy-only units (Panzer III Ausf. E, the King Tiger
+squad) are not for sale. Riflemen and sappers stay free.
+
 ### Music for the new campaigns (owner, 2026-11-08)
 
 "the new music is tied to the old British missions that are being scrapped. When building the new campaigns, reuse tracks where they fit (Sword Beach and Hill 112 for D-Day, the desert tracks for the African campaign) and compose new ones for every other new mission, so each mission still has its own. Russian battles should sound cold"
