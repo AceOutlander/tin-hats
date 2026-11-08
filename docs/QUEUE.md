@@ -149,7 +149,7 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 - Recruit (new, easiest): plays like the current Normal, for new players.
 - Normal: as hard as the current Insane.
 - Hard: close to realistic. Weapons are much deadlier for both sides, accuracy and cover matter more, and attacking in the open is costly.
-- ~~Insane: near one-shot lethality. Almost any hit kills infantry for both sides, and the enemy fields armies the size of a real invasion.~~ (superseded 2026-11-08, see "Insane: same income" below)
+- Insane: near one-shot lethality. Almost any hit kills infantry for both sides~~, and the enemy fields armies the size of a real invasion~~. (The invasion-sized armies are superseded 2026-11-08; the lethality stays. See "Insane: same income" below.)
 - Lethality changes apply equally to both sides, so the harder modes stay fair. ~~Hard and Insane add more enemy troops and better setups on top of that.~~ (For Insane, superseded 2026-11-08: same income and cap as the player, smarter AI instead.)
 ## Army size
 - ~~The population cap becomes 150 on Recruit, Normal and Hard, and 175 on Insane, for both sides.~~ **Superseded by the owner (2026-11-08): the population cap is 100 for both sides on every difficulty, permanently.** Insane gets its difficulty from a smarter AI (see "Insane: same income" below).
