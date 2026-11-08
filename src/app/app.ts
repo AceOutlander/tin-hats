@@ -17,17 +17,23 @@ import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/
 import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import {
+  addMedals,
+  applyRoster,
+  buyItem,
   buyUpgrade,
   cleanSetting,
   clearSave,
   defaultSave,
   loadSave,
   maxLevel,
+  missionRoster,
   nextMissionId,
   recordClear,
+  recordWin,
   refundAll,
   refundUpgrade,
   writeSave,
+  type MedalBreakdown,
   type SaveData,
   type StorageLike,
 } from '../meta';
@@ -43,7 +49,7 @@ import { TipMemory, Tutorial } from './tutorial';
 
 /** The campaign map track, and the screens it plays on (and behind Settings opened from one of them). */
 export const MAP_MUSIC: MusicTrackName = 'map';
-const MAP_SCREENS: readonly ScreenId[] = ['campaign', 'briefing', 'quartermaster'];
+const MAP_SCREENS: readonly ScreenId[] = ['campaign', 'briefing', 'quartermaster', 'armoury'];
 
 export interface AppDeps {
   view: BattleView;
@@ -75,6 +81,13 @@ export class App implements AppApi {
   darkness = 0;
   /** Set by the debug hook: every mission is open on the map. Never saved. */
   private unlockedAll = false;
+  /**
+   * The mission of the current battle as the data defines it (the battle itself plays a copy cut to the player's
+   * Armoury, with loans), and whether the Armoury applied: a restart starts the same mission the same way.
+   */
+  private launched: { mission: MissionDef; armoury: boolean } | null = null;
+  /** The medals of the last campaign win (for the result screen and the debug hooks). */
+  lastMedals: MedalBreakdown | null = null;
   /** Debug only: battles started from now on are played for the player by the sim's test bot. */
   autopilot = false;
   private pendingResult: ResultView | null = null;
@@ -179,11 +192,15 @@ export class App implements AppApi {
 
   // --- battle lifecycle ----------------------------------------------------
 
-  /** Start a campaign battle and show the battle screen. Returns false if the mission does not exist. */
-  beginMission(id: number, difficulty: Difficulty, seed: number = this.newSeed()): boolean {
+  /**
+   * Start a campaign battle and show the battle screen. Returns false if the mission does not exist. With `armoury`
+   * the player fields what the Armoury owns (cut to what the mission allows, plus loans), as a player starting it from
+   * the briefing does; without it the mission's own roster is used (the debug hooks and tests drive missions that way).
+   */
+  beginMission(id: number, difficulty: Difficulty, seed: number = this.newSeed(), armoury = false): boolean {
     const mission = this.missions.find((m) => m.id === id);
     if (!mission) return false;
-    this.launch(mission, difficulty, seed);
+    this.launch(mission, difficulty, seed, armoury);
     return true;
   }
 
@@ -195,7 +212,7 @@ export class App implements AppApi {
     this.launch(mission, difficulty, seed);
   }
 
-  private launch(mission: MissionDef, difficulty: Difficulty, seed: number): void {
+  private launch(mission: MissionDef, difficulty: Difficulty, seed: number, armoury = false): void {
     // A restart of the same mission keeps its rendered music and starts it again from the top.
     const sameMusic = this.session !== null && this.session.mission.music === mission.music;
     this.endSession(sameMusic);
@@ -205,8 +222,11 @@ export class App implements AppApi {
       this.save.lastMission = mission.id;
       this.persist();
     }
+    const played = armoury && campaign ? applyRoster(mission, missionRoster(this.save, mission)) : mission;
+    this.launched = { mission, armoury };
+    this.lastMedals = null;
     const battle = createBattle({
-      mission,
+      mission: played,
       difficulty,
       seed,
       upgrades: { ...this.save.upgrades },
@@ -267,15 +287,25 @@ export class App implements AppApi {
     if (!session) return;
     const mission = session.mission;
     let points = 0;
+    let medals: MedalBreakdown | null = null;
     // Only campaign missions count: a win on the sandbox grounds must leave the save alone.
     if (session.battle.state.winner === 0 && this.missions.some((m) => m.id === mission.id)) {
-      points = recordClear(this.save, mission.id, session.difficulty).pointsAwarded;
+      recordClear(this.save, mission.id, session.difficulty);
+      const s = session.battle.state;
+      const hq = s.sides[0].hq;
+      medals = recordWin(this.save, mission, session.difficulty, {
+        seconds: s.time,
+        lost: s.sides[0].stats.lost,
+        hqFrac: hq && hq.maxHp > 0 ? Math.max(0, hq.hp) / hq.maxHp : 0,
+      });
+      points = medals.medals;
+      this.lastMedals = medals;
       this.persist();
     }
     // The sting was played with the battleEnded event if sound was on; either way the layers fade out now.
     this.audio.endBattleMusic(session.battle.state.winner === 0, false);
     const ids = this.missions.map((m) => m.id);
-    this.pendingResult = buildResult(session.battle, session.difficulty, points, nextMissionId(ids, mission.id));
+    this.pendingResult = buildResult(session.battle, session.difficulty, points, nextMissionId(ids, mission.id), medals);
     this.lastResult = this.pendingResult;
   }
 
@@ -389,7 +419,7 @@ export class App implements AppApi {
       this.save.settings.difficulty = chosen;
       this.persist();
     }
-    this.beginMission(id, chosen);
+    this.beginMission(id, chosen, this.newSeed(), true);
   }
 
   // --- debug hooks (src/app/debug.ts) -----------------------------------------
@@ -419,13 +449,26 @@ export class App implements AppApi {
     if (buyUpgrade(this.save, this.upgradeDefs, id)) this.persist();
   }
 
+  /** Buy a unit type or plane call-in in the Armoury with medals. */
+  buyArmoury(id: string): void {
+    if (buyItem(this.save, id)) this.persist();
+  }
+
   refundUpgrade(id: string): void {
-    if (refundUpgrade(this.save, id)) this.persist();
+    if (refundUpgrade(this.save, id, this.upgradeDefs)) this.persist();
   }
 
   refundAll(): void {
-    refundAll(this.save);
+    refundAll(this.save, this.upgradeDefs);
     this.persist();
+  }
+
+  /** Debug: give medals (a negative number takes them, never below zero). Returns the new balance. */
+  giveMedals(n: number): number {
+    const balance = addMedals(this.save, n);
+    this.persist();
+    this.ui?.refresh();
+    return balance;
   }
 
   /** Change one setting: checked and clamped like a stored one (volumes are whole numbers 0..100), applied at once and saved. */
@@ -483,7 +526,10 @@ export class App implements AppApi {
         this.setPaused(false);
         return;
       case 'restart':
-        if (this.session) this.launch(this.session.mission, this.session.difficulty, this.newSeed());
+        if (this.session) {
+          const again = this.launched ?? { mission: this.session.mission, armoury: false };
+          this.launch(again.mission, this.session.difficulty, this.newSeed(), again.armoury);
+        }
         return;
       case 'quit':
         this.endSession();

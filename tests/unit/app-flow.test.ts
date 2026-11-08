@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../../src/app/app';
 import { buildCampaignView, describeEffect, describeLevel } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
+import { MEDALS } from '../../src/data/medals';
 import { M01 } from '../../src/data/missions/m01';
 import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { UpgradeDef } from '../../src/data/schema';
-import { createMemoryStorage, defaultSave, defaultSettings, loadSave, recordClear, writeSave } from '../../src/meta';
+import { createMemoryStorage, defaultSave, defaultSettings, loadSave, writeSave } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView, quickMission } from './app-helpers';
 
 function makeApp(missions = [quickMission(1, true), quickMission(2, false)], upgradeDefs: UpgradeDef[] = []) {
@@ -193,7 +194,12 @@ describe('app flow', () => {
     const result = ui.results[0];
     expect(result.won).toBe(true);
     expect(result.missionId).toBe(1);
-    expect(result.pointsAwarded).toBe(2);
+    // Medals for the win, with the score breakdown (a first win: full medals).
+    expect(result.pointsAwarded).toBeGreaterThanOrEqual(MEDALS.rough);
+    expect(result.pointsAwarded).toBeLessThanOrEqual(MEDALS.perfect);
+    expect(result.medals?.medals).toBe(result.pointsAwarded);
+    expect(result.medals?.replayPercent).toBe(100);
+    expect(result.medals?.time?.value).toBeCloseTo(result.timeSec, 5);
     expect(result.nextMissionId).toBe(2);
     expect(result.reason).toBe(APP.reasons.hqDestroyed.win);
     expect(result.enemiesKilled).toBeGreaterThanOrEqual(0);
@@ -202,11 +208,13 @@ describe('app flow', () => {
     expect(saved.cleared['1']).toEqual(['normal']);
     const view2 = app.campaign();
     expect(view2.missions.map((m) => m.unlocked)).toEqual([true, true]);
-    expect(view2.pointsEarned).toBe(2);
+    expect(view2.medals).toBe(result.pointsAwarded);
+    expect(saved.medals).toBe(result.pointsAwarded);
+    expect(saved.wins['1']).toEqual({ normal: 1 });
     expect(audio.played).toContain('victorySting');
   });
 
-  it('awards the points only on the first clear', () => {
+  it('halves the medals of every replay of the same mission on the same difficulty', () => {
     const { app, view, ui } = makeApp();
     for (let round = 0; round < 2; round++) {
       app.startMission(1, 'normal');
@@ -214,8 +222,11 @@ describe('app flow', () => {
       app.loop.timeScale = 60;
       for (let i = 0; i < 400 && ui.results.length <= round; i++) view.frame?.(100);
     }
-    expect(ui.results.map((r) => r.pointsAwarded)).toEqual([2, 0]);
-    expect(app.campaign().pointsEarned).toBe(2);
+    expect(ui.results.map((r) => r.medals?.replayPercent)).toEqual([100, 50]);
+    const [first, second] = ui.results;
+    expect(second.pointsAwarded).toBe(Math.floor((second.medals?.base ?? 0) * 0.5));
+    expect(app.campaign().medals).toBe(first.pointsAwarded + second.pointsAwarded);
+    expect(app.save.wins['1']).toEqual({ normal: 2 });
   });
 
   it('shows the defeat result and records nothing when the HQ falls', () => {
@@ -259,14 +270,16 @@ describe('app flow', () => {
     expect(app.campaign().settings).toEqual({ ...defaultSettings(), muted: true, difficulty: 'insane', hints: false });
 
     expect(app.campaign().upgrades[0].canBuy).toBe(false);
-    recordClear(app.save, 1, 'normal');
-    expect(app.campaign().pointsAvailable).toBe(2);
+    const price = upgrades[0].costPerLevel;
+    app.save.medals = 2 * price;
+    expect(app.campaign().pointsAvailable).toBe(2 * price);
     app.buyUpgrade('hqIncome');
     expect(app.campaign().upgrades[0].level).toBe(1);
-    expect(app.campaign().pointsAvailable).toBe(1);
+    expect(app.campaign().pointsAvailable).toBe(price);
     expect(loadSave(storage).data.upgrades).toEqual({ hqIncome: 1 });
+    expect(loadSave(storage).data.medals).toBe(price);
     app.refundAll();
-    expect(app.campaign().pointsAvailable).toBe(2);
+    expect(app.campaign().pointsAvailable).toBe(2 * price);
 
     app.resetSave();
     expect(loadSave(storage).status).toBe('fresh');

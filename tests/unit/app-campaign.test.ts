@@ -10,9 +10,13 @@ import { APP } from '../../src/data/app';
 import { mapX, mapY } from '../../src/data/campaignMap';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
+import { MEDALS } from '../../src/data/medals';
 import { UPGRADES } from '../../src/data/upgrades';
 import { createMemoryStorage, loadSave, recordClear } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView } from './app-helpers';
+
+/** Medals per Quartermaster level. */
+const PRICE = UPGRADES[0].costPerLevel;
 
 function makeApp(storage = createMemoryStorage()) {
   const view = createFakeView();
@@ -122,45 +126,42 @@ describe('upgrades in the campaign', () => {
     expect(view.pointsAvailable).toBe(0);
   });
 
-  it('gives two points for the first clear of a mission and never again, whatever the difficulty', () => {
+  // Since medals, a clear pays nothing by itself: wins pay medals (meta-medals.test.ts), and the Quartermaster spends them.
+  it('pays nothing for a clear alone: the Quartermaster spends medals', () => {
     const { app } = makeApp();
     recordClear(app.save, 1, 'normal');
-    expect(app.campaign().pointsAvailable).toBe(2);
-    recordClear(app.save, 1, 'hard');
-    recordClear(app.save, 1, 'insane');
-    recordClear(app.save, 1, 'normal');
-    expect(app.campaign().pointsEarned).toBe(2);
-    recordClear(app.save, 2, 'hard');
-    expect(app.campaign().pointsEarned).toBe(4);
+    expect(app.campaign().pointsAvailable).toBe(0);
+    app.save.medals = 35;
+    expect(app.campaign().pointsAvailable).toBe(35);
+    expect(app.campaign().medals).toBe(35);
   });
 
   it('buys one level at a time, refunds one level at a time or all at once, and never overspends', () => {
     const { app, storage } = makeApp();
     app.buyUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({});
-    recordClear(app.save, 1, 'normal');
-    recordClear(app.save, 2, 'normal');
+    app.save.medals = 4 * PRICE;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqIncome');
     expect(app.save.upgrades).toEqual({ hqHealth: 2, hqIncome: 1 });
-    expect(app.campaign().pointsAvailable).toBe(1);
+    expect(app.campaign().pointsAvailable).toBe(PRICE);
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({ hqHealth: 3, hqIncome: 1 });
     expect(app.campaign().pointsAvailable).toBe(0);
     app.refundUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({ hqHealth: 2, hqIncome: 1 });
-    expect(app.campaign().pointsAvailable).toBe(1);
+    expect(app.campaign().pointsAvailable).toBe(PRICE);
     expect(loadSave(storage, { upgradeDefs: UPGRADES }).data.upgrades).toEqual({ hqHealth: 2, hqIncome: 1 });
     app.refundAll();
     expect(app.save.upgrades).toEqual({});
-    expect(app.campaign().pointsAvailable).toBe(4);
+    expect(app.campaign().pointsAvailable).toBe(4 * PRICE);
   });
 
   it('builds the battle with the upgrade levels of the save', () => {
     const { app } = makeApp();
-    recordClear(app.save, 1, 'normal');
+    app.save.medals = 2 * PRICE;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     app.startMission(1, 'normal');
@@ -178,20 +179,21 @@ describe('upgrades in the campaign', () => {
 
   it('keeps upgrades off the enemy and out of the next battle once refunded', () => {
     const { app } = makeApp();
-    recordClear(app.save, 1, 'normal');
+    app.save.medals = PRICE;
     app.buyUpgrade('hqHealth');
     app.startMission(1, 'normal');
     const sides = app.session?.battle.state.sides;
     expect(sides && sides[0].hq && sides[1].hq ? sides[0].hq.maxHp / sides[1].hq.maxHp : 0).toBeGreaterThan(1.1);
   });
 
-  it('sets levels for the tests: unknown upgrades dropped, levels capped, no points needed', () => {
+  it('sets levels for the tests: unknown upgrades dropped, levels capped, no medals needed', () => {
     const { app, storage } = makeApp();
     app.setUpgrades({ rifleHealth: 9, tankDamage: 2, nonsense: 1, hqIncome: 0 });
     expect(app.save.upgrades).toEqual({ rifleHealth: 3, tankDamage: 2 });
     expect(app.campaign().upgrades.find((u) => u.id === 'rifleHealth')?.level).toBe(3);
-    // The next load clamps what no points have paid for.
-    expect(loadSave(storage, { upgradeDefs: UPGRADES }).data.upgrades).toEqual({});
+    // Since medals, levels are paid for when bought, so the next load keeps them (capped) as they are.
+    expect(loadSave(storage, { upgradeDefs: UPGRADES }).data.upgrades).toEqual({ rifleHealth: 3, tankDamage: 2 });
+    expect(app.save.medals).toBe(0);
   });
 });
 
@@ -226,7 +228,10 @@ describe('choices that are remembered', () => {
       const { app } = makeApp(createMemoryStorage({ 'tinhats.save': text }));
       const view = app.campaign();
       expect(view.missions.map((m) => m.unlocked)).toEqual([true, false, false, false, false, false, false, false, false, false]);
+      // The version 2 save claims a clear of mission 5 alone: progress stops at the gap, so no point was earned
+      // and its upgrade is cut (the old rule, for saves from before medals).
       expect(view.pointsEarned).toBe(0);
+      expect(view.medals).toBe(0);
       expect(view.upgrades.every((u) => u.level === 0)).toBe(true);
     }
   });
@@ -317,30 +322,41 @@ describe('what the HUD shows of a mission', () => {
 
   it('offers exactly the units the mission allows (no sapper button at Arnhem)', () => {
     const { app } = makeApp();
+    // Everything bought: what the mission allows is all that is left to cut the buttons down.
+    app.save.armoury = MEDALS.armoury.map((a) => a.id);
     app.startMission(1, 'normal');
-    expect(app.session?.hud.state.train.map((b) => b.kind)).toContain('sapper');
+    expect(app.session?.hud.state.train.map((b) => b.kind)).toEqual(['sapper', 'rifle']);
     app.startMission(9, 'normal');
     const kinds = app.session?.hud.state.train.map((b) => b.kind) ?? [];
     expect(kinds.length).toBeGreaterThan(0);
     expect(kinds).not.toContain('sapper');
     expect(kinds).not.toContain('tank');
-    expect(kinds).toEqual(mission(9).units[0].filter((k) => k !== 'sapper'));
+    for (const k of mission(9).units[0]) expect(kinds).toContain(k);
   });
 
-  it('adds the mission news to the buttons as the campaign goes on', () => {
+  // Since medals, the buttons come from the Armoury (cut to what each mission allows), not from reaching a mission.
+  it('offers the types the Armoury owns, and lends the ones a mission needs', () => {
     const { app } = makeApp();
     const trained = (id: number) => {
       app.startMission(id, 'normal');
       return app.session?.hud.state.train.map((b) => b.kind) ?? [];
     };
-    expect(trained(1)).not.toContain('lmg');
+    const ownLmg = mission(2)
+      .start[0].forces.filter((f) => f.kind === 'lmg')
+      .reduce((n, f) => n + f.count, 0);
+    const loan = MEDALS.missions[2].loans.find((l) => l.kind === 'lmg')?.count ?? 0;
+    expect(loan).toBeGreaterThan(0);
+    expect(trained(2)).toEqual(['sapper', 'rifle']);
+    // Not bought: Bren gunners on loan stand at the HQ from the start, beside the ones the mission places itself.
+    expect(app.session?.battle.state.sides[0].alive.lmg).toBe(ownLmg + loan);
+    app.save.medals = 1000;
+    app.buyArmoury('lmg');
+    app.buyArmoury('tank');
     expect(trained(2)).toContain('lmg');
-    expect(trained(3)).toContain('assault');
-    expect(trained(4)).toContain('mortar');
-    expect(trained(5)).toContain('sniper');
-    expect(trained(6)).toContain('medic');
-    expect(trained(7)).toContain('at');
-    expect(trained(8)).toContain('tank');
+    expect(app.session?.battle.state.sides[0].alive.lmg).toBe(ownLmg);
+    // Bought types field in any mission that does not rule them out; the tutorial keeps to riflemen.
+    expect(trained(3)).toEqual(['sapper', 'rifle', 'lmg', 'tank']);
+    expect(trained(1)).toEqual(['sapper', 'rifle']);
   });
 
   it('lists the supports the mission gives the player', () => {
@@ -399,7 +415,11 @@ describe('the end of a timed mission', () => {
     expect(win.won).toBe(true);
     expect(won.app.session?.battle.state.endReason).toBe('timerSurvived');
     expect(win.reason).toBe(APP.reasons.timerSurvived.win);
-    expect(win.pointsAwarded).toBe(2);
+    // A survival win scores on casualties and HQ health: no time part.
+    expect(win.pointsAwarded).toBeGreaterThan(0);
+    expect(win.medals?.time).toBeNull();
+    expect(win.medals?.hq).not.toBeNull();
+    expect(won.app.save.medals).toBe(win.pointsAwarded);
     expect(won.app.campaign().missions[0].cleared.normal).toBe(true);
   });
 

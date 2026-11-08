@@ -72,7 +72,7 @@ function starburst(cx: number, cy: number, rOuter: number, rInner: number, spike
 
 const COG = `${ringOfTeeth(12, 12, 10.5, 7.6, 8)}M12 8.4a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2Z`;
 
-export type GlyphName = 'back' | 'cog' | 'lock' | 'tick' | 'sound' | 'muted' | 'chevron' | 'cross';
+export type GlyphName = 'back' | 'cog' | 'lock' | 'tick' | 'sound' | 'muted' | 'chevron' | 'cross' | 'medal';
 
 const GLYPHS: Record<GlyphName, readonly PathSpec[]> = {
   back: [{ cls: 'th-line', d: 'M14.5 4.5 L7 12 L14.5 19.5' }],
@@ -83,6 +83,11 @@ const GLYPHS: Record<GlyphName, readonly PathSpec[]> = {
   muted: [{ d: 'M3.5 9h4l5.5-4.5v15L7.5 15h-4Z' }, { cls: 'th-line', d: 'M16.5 9.5l5 5M21.5 9.5l-5 5' }],
   chevron: [{ d: 'M3 6.5l9 6.2 9-6.2v4.6l-9 6.2-9-6.2Z' }],
   cross: [{ cls: 'th-line', d: 'M6 6l12 12M18 6L6 18' }],
+  // A medal: the ribbon above, the round disc below with a star cut out of it.
+  medal: [
+    { d: 'M7.5 2h3.4l2.2 6.2-2.6 1.6ZM16.5 2h-3.4l-1 2.8 1.6 4.4 1.4.8Z' },
+    { cls: 'th-evenodd', d: 'M12 8.6a6.7 6.7 0 1 0 .01 0ZM12 11.2l1.15 2.35 2.6.38-1.88 1.83.44 2.58L12 17.12l-2.31 1.22.44-2.58-1.88-1.83 2.6-.38Z' },
+  ],
 };
 
 export function glyph(name: GlyphName, className = 'th-icon'): SVGSVGElement {

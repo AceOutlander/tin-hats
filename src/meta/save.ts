@@ -2,14 +2,17 @@
  * Save data: one versioned JSON document in a key-value store that is injected
  * (localStorage in the browser, a Map in tests). Loading migrates older versions,
  * validates every field, clamps values that cannot be true (levels above the
- * maximum, more points spent than earned, progress with a gap) and never throws:
+ * maximum, negative medals, progress with a gap) and never throws:
  * missing or damaged data gives a fresh save.
  */
 import { DIFFICULTY_LIST } from '../data/difficulty';
+import { MEDALS } from '../data/medals';
 import { META } from '../data/meta';
-import type { Difficulty, UpgradeDef, UpgradeLevels } from '../data/schema';
+import { MISSIONS } from '../data/missions';
+import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { clampVolume } from '../data/sounds';
-import { maxLevel, pointsEarned } from './campaign';
+import { UPGRADES } from '../data/upgrades';
+import { maxLevel } from './campaign';
 
 /** The part of Storage the game uses. */
 export interface StorageLike {
@@ -73,8 +76,14 @@ export interface SaveData {
   version: number;
   /** Mission id (as text) to the difficulties it has been cleared on. */
   cleared: Record<string, Difficulty[]>;
-  /** Upgrade id to level. Absent = level 0. */
+  /** Upgrade id to level. Absent = level 0. Levels are paid for in medals when bought, so they are not checked again. */
   upgrades: UpgradeLevels;
+  /** Medals to spend (the Armoury and the Quartermaster). */
+  medals: number;
+  /** Armoury items bought (unit kinds and plane call-ins), in the order bought. Free types are never listed. */
+  armoury: string[];
+  /** Mission id (as text) to wins per difficulty: the replay decay of the medals. */
+  wins: Record<string, Partial<Record<Difficulty, number>>>;
   /** The mission last started from the campaign, or 0 when none (the map opens on it). */
   lastMission: number;
   settings: SaveSettings;
@@ -95,7 +104,7 @@ export interface LoadResult {
 export interface SaveRules {
   /** Missions that exist, in campaign order. Progress on any other mission, or beyond the first mission not cleared, is dropped. */
   missionIds?: readonly number[];
-  /** The Quartermaster table. Unknown upgrades are dropped, levels are capped, and no more points may be spent than were earned. */
+  /** The Quartermaster table. Unknown upgrades are dropped and levels are capped. */
   upgradeDefs?: readonly UpgradeDef[];
 }
 
@@ -108,9 +117,70 @@ export function defaultSave(): SaveData {
     version: META.saveVersion,
     cleared: {},
     upgrades: {},
+    medals: 0,
+    armoury: [],
+    wins: {},
     lastMission: 0,
     settings: defaultSettings(),
   };
+}
+
+/**
+ * Cleared missions of a version 5 (or older) document, as that version counted them: mission key to the valid
+ * difficulties, in campaign order, stopping at the first mission not cleared.
+ */
+function legacyCleared(raw: unknown, missions: readonly MissionDef[]): Map<string, Difficulty[]> {
+  const out = new Map<string, Difficulty[]>();
+  if (!isRecord(raw)) return out;
+  for (const m of missions) {
+    const list = raw[String(m.id)];
+    const ds = Array.isArray(list) ? DIFFICULTY_LIST.filter((d) => list.includes(d)) : [];
+    if (ds.length === 0) break;
+    out.set(String(m.id), ds);
+  }
+  return out;
+}
+
+/**
+ * Medals replace upgrade points and per-mission unit unlocks (version 5 to 6). The old rule still holds for the old
+ * points: each cleared mission earned META.firstClearPoints, one point bought one level, and levels the points never
+ * paid for are cut (in the Quartermaster's order). Upgrades bought stay; the points left unspent become medals at
+ * META.legacyPointMedals each; every unit type the player could field in a mission they cleared counts as bought; and
+ * each cleared mission and difficulty counts as one win, so a replay pays half.
+ */
+export function migrateToMedals(
+  doc: Record<string, unknown>,
+  missions: readonly MissionDef[] = MISSIONS,
+  defs: readonly UpgradeDef[] = UPGRADES,
+): void {
+  const cleared = legacyCleared(doc.cleared, missions);
+  let budget = cleared.size * META.firstClearPoints;
+  const oldLevels = isRecord(doc.upgrades) ? doc.upgrades : {};
+  // Upgrades this table does not know are left for sanitizeSave to keep or drop by its own rules.
+  const upgrades: Record<string, unknown> = {};
+  for (const key of Object.keys(oldLevels)) if (!defs.some((d) => d.id === key)) upgrades[key] = oldLevels[key];
+  for (const def of defs) {
+    const level = oldLevels[def.id];
+    if (typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
+    const kept = Math.min(level, maxLevel(def), budget);
+    if (kept <= 0) continue;
+    upgrades[def.id] = kept;
+    budget -= kept;
+  }
+  doc.upgrades = upgrades;
+  doc.medals = budget * META.legacyPointMedals;
+  const sold = new Set<string>(MEDALS.armoury.map((a) => a.id));
+  const owned: string[] = [];
+  const wins: Record<string, Partial<Record<Difficulty, number>>> = {};
+  for (const [key, ds] of cleared) {
+    const mission = missions.find((m) => String(m.id) === key);
+    if (mission) for (const kind of mission.units[0]) if (sold.has(kind) && !owned.includes(kind)) owned.push(kind);
+    const w: Partial<Record<Difficulty, number>> = {};
+    for (const d of ds) w[d] = 1;
+    wins[key] = w;
+  }
+  doc.armoury = owned;
+  doc.wins = wins;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,6 +228,8 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
     if (!isRecord(doc.settings)) return;
     doc.settings = { ...doc.settings, showBlood: META.defaultShowBlood };
   },
+  // 5 -> 6: medals and the Armoury (see migrateToMedals).
+  5: (doc) => migrateToMedals(doc),
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -209,17 +281,32 @@ function sanitizeUpgrades(raw: unknown, out: SaveData, defs: readonly UpgradeDef
     if (defs !== undefined && def === undefined) continue;
     out.upgrades[key] = Math.min(level, def ? maxLevel(def) : META.maxUpgradeLevel);
   }
-  if (defs === undefined) return;
-  // Never more spent than earned: keep levels in the table's order while the points last, cut the rest.
-  let budget = pointsEarned(out);
-  for (const def of defs) {
-    const level = out.upgrades[def.id];
-    if (level === undefined) continue;
-    const affordable = def.costPerLevel > 0 ? Math.floor(budget / def.costPerLevel) : level;
-    const kept = Math.min(level, affordable);
-    if (kept <= 0) delete out.upgrades[def.id];
-    else out.upgrades[def.id] = kept;
-    budget -= Math.max(0, kept) * def.costPerLevel;
+}
+
+function sanitizeMedals(doc: Record<string, unknown>, out: SaveData, missionIds: readonly number[] | undefined): void {
+  const medals = doc.medals;
+  if (typeof medals === 'number' && Number.isFinite(medals) && medals > 0) out.medals = Math.min(MEDALS.maxMedals, Math.floor(medals));
+  if (Array.isArray(doc.armoury)) {
+    for (const id of doc.armoury) {
+      if (typeof id === 'string' && MEDALS.armoury.some((a) => a.id === id) && !out.armoury.includes(id)) out.armoury.push(id);
+    }
+  }
+  if (!isRecord(doc.wins)) return;
+  for (const key of Object.keys(doc.wins)) {
+    if (!MISSION_KEY.test(key)) continue;
+    if (missionIds !== undefined && !missionIds.includes(Number(key))) continue;
+    const per = doc.wins[key];
+    if (!isRecord(per)) continue;
+    const kept: Partial<Record<Difficulty, number>> = {};
+    let any = false;
+    for (const d of DIFFICULTY_LIST) {
+      const n = per[d];
+      if (typeof n === 'number' && Number.isInteger(n) && n >= 1) {
+        kept[d] = Math.min(MEDALS.maxWins, n);
+        any = true;
+      }
+    }
+    if (any) out.wins[key] = kept;
   }
 }
 
@@ -234,6 +321,7 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
   const out = defaultSave();
   sanitizeCleared(doc.cleared, out, rules.missionIds);
   sanitizeUpgrades(doc.upgrades, out, rules.upgradeDefs);
+  sanitizeMedals(doc, out, rules.missionIds);
 
   const last = doc.lastMission;
   if (typeof last === 'number' && Number.isInteger(last) && last >= 1 && last <= MAX_MISSION_ID) {

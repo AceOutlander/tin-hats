@@ -1,7 +1,33 @@
-/** Result screen: victory or defeat, why, the tally, points awarded, and where to go next. */
+/** Result screen: victory or defeat, why, the tally, the medals a win earned with their score breakdown, and where to go next. */
+import type { MedalResultView } from '../contracts';
 import { add, button, el, formatCount, formatTime, stencil } from '../shell/dom';
 import { glyph, helmetIcon } from '../shell/icons';
 import type { ScreenFactory } from '../shell/types';
+
+/** "1:30 / 2:00" style figures of one score line, and the marks it earned. */
+function scoreRow(label: string, value: string, target: string, score: number): HTMLElement {
+  const row = el('div', 'th-score-row');
+  add(row, el('dt', undefined, label), el('dd', 'th-type', `${value} (target ${target})`), el('dd', 'th-type th-score-mark', `${Math.round(score * 100)}%`));
+  return row;
+}
+
+/** The score breakdown of a win: time or HQ health, casualties, then the difficulty and replay factors. */
+export function breakdown(m: MedalResultView): HTMLElement {
+  const box = el('dl', 'th-score');
+  box.dataset.testid = 'result-score';
+  if (m.time) box.append(scoreRow('Time', formatTime(m.time.value), formatTime(m.time.target), m.time.score));
+  box.append(scoreRow('Casualties', formatCount(m.casualties.value), formatCount(m.casualties.target), m.casualties.score));
+  if (m.hq) box.append(scoreRow('HQ health', `${Math.round(m.hq.value * 100)}%`, `${Math.round(m.hq.target * 100)}%`, m.hq.score));
+  const factors = el('div', 'th-score-row th-score-total');
+  add(
+    factors,
+    el('dt', undefined, 'Medals'),
+    el('dd', 'th-type', `${m.base} × ${m.difficultyMul} difficulty × ${m.replayPercent}% replay`),
+    el('dd', 'th-type th-score-mark', String(m.medals)),
+  );
+  box.append(factors);
+  return box;
+}
 
 export const resultScreen: ScreenFactory = (ctx) => {
   const result = ctx.session.result;
@@ -30,12 +56,13 @@ export const resultScreen: ScreenFactory = (ctx) => {
     award.dataset.testid = 'result-points';
     add(
       award,
-      glyph('chevron', 'th-icon'),
+      glyph('medal', 'th-icon'),
       el('span', 'th-award-num', `+${result.pointsAwarded}`),
-      el('span', 'th-award-text', result.pointsAwarded === 1 ? 'upgrade point' : 'upgrade points'),
+      el('span', 'th-award-text', result.pointsAwarded === 1 ? 'medal' : 'medals'),
     );
     main.append(award);
   }
+  if (result && result.won && result.medals) main.append(breakdown(result.medals));
 
   const stats = el('dl', 'th-stats');
   const rows: [string, string][] = result

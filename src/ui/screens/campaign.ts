@@ -85,7 +85,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
   const qmPoints = el('span', 'th-points-num');
   qmPoints.dataset.testid = 'points-available';
   const qmSub = el('span', 'th-btn-sub');
-  add(qmSub, glyph('chevron', 'th-icon th-icon-small'), qmPoints, el('span', undefined, ' to spend'));
+  add(qmSub, glyph('medal', 'th-icon th-icon-small'), qmPoints, el('span', undefined, ' to spend'));
   const quartermaster = button({
     testid: 'quartermaster',
     className: 'th-btn-stack th-side-qm',
@@ -106,7 +106,20 @@ export const campaignScreen: ScreenFactory = (ctx) => {
       ctx.go('settings');
     },
   });
-  add(foot, quartermaster, settings);
+  const armouryMedals = el('span', 'th-points-num');
+  armouryMedals.dataset.testid = 'medals-available';
+  const armourySub = el('span', 'th-btn-sub');
+  add(armourySub, glyph('medal', 'th-icon th-icon-small'), armouryMedals, el('span', undefined, ' medals'));
+  const armoury = button({
+    testid: 'armoury',
+    className: 'th-btn-stack th-side-qm',
+    content: [el('span', 'th-btn-label', 'Armoury'), armourySub],
+    onTap: () => {
+      ctx.app.uiSound('click');
+      ctx.go('armoury');
+    },
+  });
+  add(foot, armoury, quartermaster, settings);
   add(side, card, foot);
   add(root, map, side);
 
@@ -247,6 +260,8 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     const m = selected();
     qmPoints.textContent = String(view.pointsAvailable);
     quartermaster.classList.toggle('has-points', view.pointsAvailable > 0);
+    armouryMedals.textContent = String(view.medals ?? view.pointsAvailable);
+    armoury.classList.toggle('has-points', (view.armoury ?? []).some((a) => a.canBuy));
     if (!m) return;
     const state = pinState(m);
     card.dataset.state = state;

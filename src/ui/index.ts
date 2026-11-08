@@ -8,6 +8,7 @@
  */
 import { version as packageVersion } from '../../package.json';
 import type { AppApi, CampaignView, HudState, PanelDropsState, ScreenId, UiApi } from './contracts';
+import { armouryScreen } from './screens/armoury';
 import { briefingScreen } from './screens/briefing';
 import { campaignScreen } from './screens/campaign';
 import { quartermasterScreen } from './screens/quartermaster';
@@ -51,6 +52,7 @@ const SCREENS: Record<Exclude<ScreenId, 'battle'>, ScreenFactory> = {
   campaign: campaignScreen,
   briefing: briefingScreen,
   quartermaster: quartermasterScreen,
+  armoury: armouryScreen,
   result: resultScreen,
   settings: settingsScreen,
 };

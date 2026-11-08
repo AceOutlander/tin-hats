@@ -58,7 +58,7 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
   const pointsNum = el('span', 'th-points-num');
   pointsNum.dataset.testid = 'points-available';
   const pointsSub = el('span', 'th-points-sub');
-  add(points, glyph('chevron', 'th-icon th-points-icon'), pointsNum, pointsSub);
+  add(points, glyph('medal', 'th-icon th-points-icon'), pointsNum, pointsSub);
   const refundAll = button({
     testid: 'refund-all',
     label: 'Refund all',
@@ -110,11 +110,11 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
     const maxed = up.level >= up.maxLevel;
     const cost = el('span', 'th-btn-sub');
     if (maxed) cost.textContent = 'Full';
-    else add(cost, glyph('chevron', 'th-icon th-icon-small'), String(up.cost));
+    else add(cost, glyph('medal', 'th-icon th-icon-small'), String(up.cost));
     const buy = button({
       testid: `upgrade-buy-${up.id}`,
       className: 'th-btn-small th-btn-primary th-btn-stack th-up-buy',
-      aria: maxed ? `${up.name} is at full level` : `Buy ${up.name} level ${up.level + 1} for ${up.cost} ${up.cost === 1 ? 'point' : 'points'}`,
+      aria: maxed ? `${up.name} is at full level` : `Buy ${up.name} level ${up.level + 1} for ${up.cost} ${up.cost === 1 ? 'medal' : 'medals'}`,
       content: [el('span', 'th-btn-label', maxed ? 'Max' : 'Buy'), cost],
       onTap: () => {
         ctx.app.uiSound('confirm');
@@ -161,7 +161,7 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
   function render(): void {
     const view = ctx.view();
     pointsNum.textContent = String(view.pointsAvailable);
-    pointsSub.textContent = `to spend · ${view.pointsSpent} of ${view.pointsEarned} issued`;
+    pointsSub.textContent = `medals to spend · ${view.pointsSpent} in upgrades`;
     refundAll.disabled = view.pointsSpent <= 0;
 
     // Rebuild the list but keep the player's place and focus.

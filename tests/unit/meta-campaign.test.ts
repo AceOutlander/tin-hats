@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { META } from '../../src/data/meta';
 import type { UpgradeDef } from '../../src/data/schema';
 import {
   buyUpgrade,
@@ -77,14 +76,15 @@ describe('mission unlocks', () => {
   });
 });
 
-describe('clearing and points', () => {
-  it('awards the points once, on the first clear on any difficulty', () => {
+// Since medals, a clear only marks the mission cleared; the medals of a win are paid by recordWin (meta-medals.test.ts).
+describe('clearing', () => {
+  it('says whether it was the first clear on any difficulty, and pays nothing itself', () => {
     const save = defaultSave();
-    expect(recordClear(save, 1, 'normal')).toEqual({ firstClear: true, pointsAwarded: META.firstClearPoints });
-    expect(recordClear(save, 1, 'hard')).toEqual({ firstClear: false, pointsAwarded: 0 });
-    expect(recordClear(save, 1, 'normal')).toEqual({ firstClear: false, pointsAwarded: 0 });
-    expect(pointsEarned(save)).toBe(META.firstClearPoints);
-    expect(META.firstClearPoints).toBe(2);
+    expect(recordClear(save, 1, 'normal')).toEqual({ firstClear: true });
+    expect(recordClear(save, 1, 'hard')).toEqual({ firstClear: false });
+    expect(recordClear(save, 1, 'normal')).toEqual({ firstClear: false });
+    expect(save.medals).toBe(0);
+    expect(pointsEarned(save, DEFS)).toBe(0);
   });
 
   it('remembers each difficulty separately and without duplicates', () => {
@@ -100,57 +100,50 @@ describe('clearing and points', () => {
     expect(save.cleared['1']).toEqual(['normal', 'insane']);
   });
 
-  it('earns points for each mission cleared', () => {
-    const save = defaultSave();
-    recordClear(save, 1, 'normal');
-    recordClear(save, 2, 'hard');
-    expect(pointsEarned(save)).toBe(4);
-  });
 });
 
 describe('upgrades', () => {
   function richSave() {
     const save = defaultSave();
-    recordClear(save, 1, 'normal');
-    recordClear(save, 2, 'normal');
-    recordClear(save, 3, 'normal');
-    return save; // 6 points
+    save.medals = 6;
+    return save;
   }
 
-  it('cannot buy without points', () => {
+  it('cannot buy without medals', () => {
     const save = defaultSave();
     expect(canBuy(save, DEFS, 'hqIncome')).toBe(false);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(false);
     expect(save.upgrades).toEqual({});
   });
 
-  it('spends points per level and stops at the top level', () => {
+  it('spends medals per level and stops at the top level', () => {
     const save = richSave();
     expect(buyUpgrade(save, DEFS, 'rifleHealth')).toBe(true);
     expect(buyUpgrade(save, DEFS, 'rifleHealth')).toBe(true);
     expect(upgradeLevel(save, 'rifleHealth')).toBe(2);
     expect(pointsSpent(save, DEFS)).toBe(4);
-    expect(pointsAvailable(save, DEFS)).toBe(2);
+    expect(pointsAvailable(save)).toBe(2);
+    expect(save.medals).toBe(2);
     expect(buyUpgrade(save, DEFS, 'rifleHealth')).toBe(false);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(true);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(true);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(false);
-    expect(pointsAvailable(save, DEFS)).toBe(0);
+    expect(pointsAvailable(save)).toBe(0);
   });
 
-  it('refunds the top level for free, one at a time or all at once', () => {
+  it('refunds the top level for its full price, one at a time or all at once', () => {
     const save = richSave();
     buyUpgrade(save, DEFS, 'hqIncome');
     buyUpgrade(save, DEFS, 'hqIncome');
     buyUpgrade(save, DEFS, 'rifleHealth');
-    expect(pointsAvailable(save, DEFS)).toBe(2);
-    expect(refundUpgrade(save, 'hqIncome')).toBe(true);
+    expect(pointsAvailable(save)).toBe(2);
+    expect(refundUpgrade(save, 'hqIncome', DEFS)).toBe(true);
     expect(upgradeLevel(save, 'hqIncome')).toBe(1);
-    expect(pointsAvailable(save, DEFS)).toBe(3);
-    expect(refundUpgrade(save, 'nothing')).toBe(false);
-    refundAll(save);
+    expect(pointsAvailable(save)).toBe(3);
+    expect(refundUpgrade(save, 'nothing', DEFS)).toBe(false);
+    refundAll(save, DEFS);
     expect(save.upgrades).toEqual({});
-    expect(pointsAvailable(save, DEFS)).toBe(pointsEarned(save));
+    expect(pointsAvailable(save)).toBe(6);
   });
 
   it('ignores levels of upgrades that no longer exist when counting spent points', () => {
@@ -159,9 +152,10 @@ describe('upgrades', () => {
     expect(pointsSpent(save, DEFS)).toBe(1);
   });
 
-  it('never reports negative points, even for a tampered save', () => {
+  it('never reports negative medals, even for a tampered save', () => {
     const save = defaultSave();
+    save.medals = -5;
     save.upgrades = { hqIncome: 3, rifleHealth: 2 };
-    expect(pointsAvailable(save, DEFS)).toBe(0);
+    expect(pointsAvailable(save)).toBe(0);
   });
 });

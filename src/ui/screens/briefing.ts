@@ -133,12 +133,18 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const view = ctx.view();
   let difficulty: Difficulty = ctx.session.difficulty ?? view.settings.difficulty;
   const diffButtons = new Map<Difficulty, HTMLButtonElement>();
+  // The replay decay of the chosen difficulty ("Replay: 50% medals"), shown under the selector.
+  const replay = el('p', 'th-type th-brief-replay');
+  replay.dataset.testid = 'briefing-replay';
   const paintDifficulty = (): void => {
     for (const [id, node] of diffButtons) {
       const on = id === difficulty;
       node.classList.toggle('is-on', on);
       node.setAttribute('aria-pressed', on ? 'true' : 'false');
     }
+    const percent = mission && mission.replayPercent ? mission.replayPercent[difficulty] : 100;
+    replay.textContent = percent < 100 ? `Replay: ${percent}% medals` : 'First win: full medals';
+    replay.classList.toggle('is-replay', percent < 100);
   };
   for (const d of view.difficulties) {
     const cleared = mission ? mission.cleared[d.id] : false;
@@ -162,7 +168,14 @@ export const briefingScreen: ScreenFactory = (ctx) => {
     seg.append(node);
   }
   paintDifficulty();
-  diffBox.append(seg);
+  diffBox.append(seg, replay);
+  // What is lent for this mission only, because the Armoury does not own it yet.
+  if (mission && mission.loans && mission.loans.length > 0) {
+    const names = mission.loans.map((l) => `${l.count} ${l.name}`).join(', ');
+    const loan = el('p', 'th-type th-brief-loan', `On loan for this mission: ${names}`);
+    loan.dataset.testid = 'briefing-loans';
+    diffBox.append(loan);
+  }
 
   const actions = el('div', 'th-brief-actions');
   const back = button({

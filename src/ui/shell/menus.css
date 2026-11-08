@@ -1914,3 +1914,71 @@ svg.th-group-icon {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------- armoury */
+.th-arm-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.th-arm-plane {
+  width: 36px;
+  height: 36px;
+}
+
+.th-arm.is-max .th-up-buy {
+  opacity: 0.75;
+}
+
+/* The map's footer holds the Armoury, the Quartermaster and Settings side by side. */
+.th-side-foot .th-side-qm {
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------- medals: briefing */
+.th-brief-replay,
+.th-brief-loan {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--th-paper-dim);
+}
+
+.th-brief-replay.is-replay {
+  color: #f0d488;
+}
+
+/* -------------------------------------------------- medals: result screen */
+.th-score {
+  display: grid;
+  gap: 1px;
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+
+.th-score-row {
+  display: grid;
+  grid-template-columns: 6.5em 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.th-score-row dd {
+  margin: 0;
+}
+
+.th-score-total {
+  margin-top: 2px;
+  padding-top: 2px;
+  font-weight: 700;
+  border-top: 1px solid rgba(200, 162, 74, 0.4);
+}
+
+.th-score-mark {
+  text-align: right;
+}

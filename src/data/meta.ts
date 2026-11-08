@@ -1,6 +1,7 @@
 /** Rules and keys of the save data and campaign progress (src/meta). */
 import type { Difficulty } from './schema';
 import { VOLUME } from './sounds';
+import { UPGRADE_MEDALS_PER_LEVEL } from './upgrades';
 
 export interface MetaTunables {
   /** Storage key of the save. */
@@ -14,8 +15,16 @@ export interface MetaTunables {
    */
   unreadableKey: string;
   unreadableMaxChars: number;
-  /** Upgrade points for the first clear of a mission (on any difficulty). */
+  /**
+   * Upgrade points a save from before medals (version 5 and older) earned for the first clear of a mission. Only the
+   * step to version 6 uses it, to work out the points the player had left.
+   */
   firstClearPoints: number;
+  /**
+   * Medals for each unspent upgrade point of an old save: one point bought one upgrade level, so it converts to the
+   * medal price of one level (src/data/upgrades.ts), and the player can buy exactly what the points would have bought.
+   */
+  legacyPointMedals: number;
   /** Upgrade levels per upgrade (an upgrade definition may have fewer). */
   maxUpgradeLevel: number;
   /** Settings of a fresh save. */
@@ -39,10 +48,11 @@ export interface MetaTunables {
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 5,
+  saveVersion: 6,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
   firstClearPoints: 2,
+  legacyPointMedals: UPGRADE_MEDALS_PER_LEVEL,
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',
   defaultMuted: false,

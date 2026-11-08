@@ -1,7 +1,7 @@
 import type { UnitKind, UpgradeDef, UpgradeEffect } from './schema';
 
 /**
- * Quartermaster upgrades. Three levels each, one point per level, applied to the player's side
+ * Quartermaster upgrades. Three levels each, bought with medals, applied to the player's side
  * only when a battle is created. Each level lists its cumulative effect (level 2 replaces level 1),
  * so the multipliers below are totals: roughly +10% per level.
  */
@@ -17,7 +17,9 @@ const HQ_HEALTH: readonly number[] = [1.12, 1.24, 1.36];
 const HQ_GUN_DAMAGE: readonly number[] = [1.08, 1.16, 1.25];
 const HQ_GUN_RATE: readonly number[] = [1.05, 1.1, 1.15];
 
-const POINTS_PER_LEVEL = 1;
+/** Price of every upgrade level in medals (the Quartermaster's currency since medals replaced upgrade points). */
+export const UPGRADE_MEDALS_PER_LEVEL = 20;
+const POINTS_PER_LEVEL = UPGRADE_MEDALS_PER_LEVEL;
 
 function levels(build: (i: number) => UpgradeEffect[]): UpgradeEffect[][] {
   return [build(0), build(1), build(2)];

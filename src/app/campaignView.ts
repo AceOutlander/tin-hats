@@ -6,21 +6,27 @@
 import { APP } from '../data/app';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
-import type { Difficulty, MissionDef, UpgradeDef, UpgradeEffect } from '../data/schema';
+import { MEDALS } from '../data/medals';
+import type { Difficulty, FactionDef, MissionDef, SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
 import {
   canBuy,
+  canBuyItem,
   canRefund,
   isCleared,
   isUnlocked,
   maxLevel,
+  missionRoster,
+  ownsItem,
   pointsAvailable,
-  pointsEarned,
   pointsSpent,
+  replayPercent,
   upgradeLevel,
+  winsOn,
+  type MedalBreakdown,
   type SaveData,
 } from '../meta';
 import type { Battle, EndReason } from '../sim';
-import type { CampaignView, MissionCard, ResultView, UpgradeView } from '../ui/contracts';
+import type { ArmouryItemView, CampaignView, MedalResultView, MissionCard, ResultView, UpgradeView } from '../ui/contracts';
 
 /** "+10% health" for one effect; an empty string for an effect that changes nothing. */
 export function describeEffect(effect: UpgradeEffect): string {
@@ -42,8 +48,15 @@ export function describeLevel(effects: readonly UpgradeEffect[]): string {
 function missionCard(save: SaveData, ids: readonly number[], m: MissionDef, unlockAll: boolean): MissionCard {
   const faction = FACTIONS[m.start[0].faction];
   const cleared = {} as Record<Difficulty, boolean>;
-  for (const d of DIFFICULTY_LIST) cleared[d] = isCleared(save, m.id, d);
+  const replay = {} as Record<Difficulty, number>;
+  for (const d of DIFFICULTY_LIST) {
+    cleared[d] = isCleared(save, m.id, d);
+    replay[d] = replayPercent(winsOn(save, m.id, d));
+  }
+  const loans = missionRoster(save, m).loans.map((l) => ({ kind: l.kind, name: faction.unitNames[l.kind], count: l.count }));
   return {
+    replayPercent: replay,
+    loans,
     id: m.id,
     title: m.title,
     location: m.location,
@@ -86,12 +99,73 @@ export function buildCampaignView(save: SaveData, missions: readonly MissionDef[
   return {
     missions: missions.map((m) => missionCard(save, ids, m, unlockAll)),
     lastMission: ids.includes(save.lastMission) ? save.lastMission : 0,
-    pointsEarned: pointsEarned(save),
+    pointsEarned: pointsAvailable(save) + pointsSpent(save, defs),
     pointsSpent: pointsSpent(save, defs),
-    pointsAvailable: pointsAvailable(save, defs),
+    pointsAvailable: pointsAvailable(save),
     upgrades: defs.map((d) => upgradeView(save, defs, d)),
     settings: { ...save.settings },
     difficulties: DIFFICULTY_LIST.map((id) => ({ id, name: DIFFICULTIES[id].name })),
+    medals: save.medals,
+    armoury: buildArmoury(save),
+  };
+}
+
+/** "Bren Gunner / MG34 Gunner": every nation's name for a type, each once. */
+function nationNames(pick: (f: FactionDef) => string): string {
+  const names: string[] = [];
+  for (const f of Object.values(FACTIONS)) {
+    const name = pick(f);
+    if (!names.includes(name)) names.push(name);
+  }
+  return names.join(' / ');
+}
+
+/** The Armoury: the free types first, then everything for sale in the data's order. */
+export function buildArmoury(save: SaveData): ArmouryItemView[] {
+  const british = FACTIONS.british;
+  const out: ArmouryItemView[] = [];
+  for (const kind of MEDALS.free) {
+    out.push({
+      id: kind,
+      type: 'unit',
+      kind,
+      name: nationNames((f) => f.unitNames[kind]),
+      blurb: british.unitBlurbs[kind],
+      price: 0,
+      isNew: false,
+      free: true,
+      owned: true,
+      canBuy: false,
+    });
+  }
+  for (const item of MEDALS.armoury) {
+    const unit = item.type === 'unit';
+    out.push({
+      id: item.id,
+      type: item.type,
+      kind: item.id,
+      name: unit ? nationNames((f) => f.unitNames[item.id as UnitKind]) : nationNames((f) => f.supportNames[item.id as SupportKind]),
+      blurb: unit ? british.unitBlurbs[item.id as UnitKind] : APP.supportBlurbs[item.id as SupportKind],
+      price: item.price,
+      isNew: item.isNew,
+      free: false,
+      owned: ownsItem(save, item.id),
+      canBuy: canBuyItem(save, item.id),
+    });
+  }
+  return out;
+}
+
+/** The victory screen's score breakdown. */
+export function medalView(b: MedalBreakdown): MedalResultView {
+  return {
+    medals: b.medals,
+    time: b.time ? { ...b.time } : null,
+    casualties: { ...b.casualties },
+    hq: b.hq ? { ...b.hq } : null,
+    base: b.base,
+    difficultyMul: b.difficultyMul,
+    replayPercent: Math.floor(b.replayFactor * 100 + 1e-9),
   };
 }
 
@@ -102,7 +176,13 @@ export function describeEnd(endReason: EndReason, won: boolean, label: string | 
 }
 
 /** The result screen's figures for a battle that has ended. */
-export function buildResult(battle: Battle, difficulty: Difficulty, pointsAwarded: number, nextMissionId: number | null): ResultView {
+export function buildResult(
+  battle: Battle,
+  difficulty: Difficulty,
+  pointsAwarded: number,
+  nextMissionId: number | null,
+  medals: MedalBreakdown | null = null,
+): ResultView {
   const s = battle.state;
   const mission = battle.config.mission;
   const won = s.winner === 0;
@@ -120,5 +200,6 @@ export function buildResult(battle: Battle, difficulty: Difficulty, pointsAwarde
     suppliesGathered: Math.floor(stats.suppliesGathered),
     pointsAwarded,
     nextMissionId,
+    medals: medals ? medalView(medals) : null,
   };
 }

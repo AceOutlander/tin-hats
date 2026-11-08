@@ -154,6 +154,12 @@ export interface DebugApi {
   setUpgrades(levels: UpgradeLevels): void;
   /** A copy of the save as it is in memory. */
   save(): SaveData;
+  /** Medals to spend. */
+  medals(): number;
+  /** Give medals (whole numbers; saved). Returns the new balance. */
+  giveMedals(n: number): number;
+  /** Take medals, never below zero (saved). Returns the new balance. */
+  takeMedals(n: number): number;
   /** The result of the last finished battle, or null. */
   result(): ResultView | null;
   /** Every living unit (empty outside a battle). */
@@ -165,7 +171,11 @@ export interface DebugApi {
   /** Centre the camera on world x. */
   lookAt(x: number): void;
   field(): FieldInfo | null;
-  startMission(id: number, difficulty?: Difficulty, seed?: number): boolean;
+  /**
+   * Start a campaign mission. By default the player gets the mission's own roster (as the data lists it); with
+   * `armoury` true, what the Armoury owns cut to what the mission allows, plus loans, as when started from the briefing.
+   */
+  startMission(id: number, difficulty?: Difficulty, seed?: number, armoury?: boolean): boolean;
   /** Battles started after this are played for the player by the sim's test bot (real mid-battle scenes for captures). */
   autopilot(on: boolean): void;
   /**
@@ -335,6 +345,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     unlockAll: () => app.unlockAll(),
     setUpgrades: (levels) => app.setUpgrades(levels),
     save: () => structuredClone(app.save),
+    medals: () => app.save.medals,
+    giveMedals: (n) => app.giveMedals(Math.max(0, Math.floor(Number(n) || 0))),
+    takeMedals: (n) => app.giveMedals(-Math.max(0, Math.floor(Number(n) || 0))),
     result: () => (app.lastResult ? { ...app.lastResult } : null),
 
     audio() {
@@ -413,8 +426,8 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       };
     },
 
-    startMission(id, difficulty, seed) {
-      return app.beginMission(id, difficulty ?? app.save.settings.difficulty, seed);
+    startMission(id, difficulty, seed, armoury) {
+      return app.beginMission(id, difficulty ?? app.save.settings.difficulty, seed, armoury === true);
     },
 
     autopilot(on) {

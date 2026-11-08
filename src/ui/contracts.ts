@@ -10,7 +10,7 @@ import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
 
-export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'battle' | 'result' | 'settings';
+export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
 
 export interface TrainButtonState {
   kind: UnitKind;
@@ -151,6 +151,52 @@ export interface MissionCard {
   cleared: Record<Difficulty, boolean>;
   newUnit: { kind: UnitKind; name: string; blurb: string } | null;
   newSupport: { kind: SupportKind; name: string; blurb: string } | null;
+  /** Share of the medals a win pays on each difficulty: 100 for the first win there, then 50, 25, ... */
+  replayPercent?: Record<Difficulty, number>;
+  /** Types lent for this mission only because the player has not bought them. */
+  loans?: { kind: UnitKind; name: string; count: number }[];
+}
+
+/** One unit type or plane call-in in the Armoury. */
+export interface ArmouryItemView {
+  id: string;
+  type: 'unit' | 'support';
+  /** For drawing its icon: a UnitKind when type is 'unit', a SupportKind when 'support'. */
+  kind: UnitKind | SupportKind;
+  /** Per-nation names, e.g. "Bren Gunner / MG34 Gunner". */
+  name: string;
+  blurb: string;
+  /** In medals; 0 for the free types. */
+  price: number;
+  /** Shown under "New units" rather than the core roles. */
+  isNew: boolean;
+  free: boolean;
+  owned: boolean;
+  canBuy: boolean;
+}
+
+/** One part of a win's score on the victory screen. */
+export interface ScorePartView {
+  value: number;
+  target: number;
+  /** 0..1. */
+  score: number;
+}
+
+/** The medals a win earned, and how. */
+export interface MedalResultView {
+  medals: number;
+  /** Assault missions only: battle seconds against the target. */
+  time: ScorePartView | null;
+  /** Own units lost against the target. */
+  casualties: ScorePartView;
+  /** Survival missions only: HQ health 0..1 against the target. */
+  hq: ScorePartView | null;
+  /** Medals before the difficulty and replay factors. */
+  base: number;
+  difficultyMul: number;
+  /** 100, 50, 25, ... */
+  replayPercent: number;
 }
 
 export interface UpgradeView {
@@ -211,6 +257,10 @@ export interface CampaignView {
   upgrades: UpgradeView[];
   settings: SettingsView;
   difficulties: { id: Difficulty; name: string }[];
+  /** Medals to spend (the Quartermaster's pointsAvailable is the same number). */
+  medals?: number;
+  /** The Armoury, in its order: core roles, new units, plane call-ins. */
+  armoury?: ArmouryItemView[];
 }
 
 export interface ResultView {
@@ -225,9 +275,11 @@ export interface ResultView {
   unitsLost: number;
   enemiesKilled: number;
   suppliesGathered: number;
-  /** Upgrade points awarded by this result (2 on first clear, otherwise 0). */
+  /** Medals awarded by this result (0 for a defeat). */
   pointsAwarded: number;
   nextMissionId: number | null;
+  /** The score breakdown of a campaign win; absent for a defeat or a battle outside the campaign. */
+  medals?: MedalResultView | null;
 }
 
 /** Implemented by src/app, called by the UI. */
@@ -235,6 +287,8 @@ export interface AppApi {
   campaign(): CampaignView;
   startMission(id: number, difficulty: Difficulty): void;
   buyUpgrade(id: string): void;
+  /** Buy a unit type or plane call-in in the Armoury (optional so older stand-ins of the app still fit). */
+  buyArmoury?(id: string): void;
   refundUpgrade(id: string): void;
   refundAll(): void;
   setSetting<K extends keyof SettingsView>(key: K, value: SettingsView[K]): void;

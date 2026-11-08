@@ -1,10 +1,10 @@
 /**
- * Campaign rules over a SaveData: which missions are unlocked or cleared, how
- * many upgrade points exist, and buying and refunding Quartermaster upgrades.
- * Pure functions; the functions that change a save change it in place.
+ * Campaign rules over a SaveData: which missions are unlocked or cleared, and buying and refunding Quartermaster
+ * upgrades with medals (src/meta/medals.ts earns them). Pure functions; the functions that change a save change it in place.
  */
 import { META } from '../data/meta';
 import type { Difficulty, UpgradeDef } from '../data/schema';
+import { UPGRADES } from '../data/upgrades';
 import type { SaveData } from './save';
 
 /** Difficulties a mission has been cleared on (empty if never). */
@@ -38,23 +38,16 @@ export function nextMissionId(missionIds: readonly number[], missionId: number):
 export interface ClearResult {
   /** True the first time the mission was cleared on any difficulty. */
   firstClear: boolean;
-  /** Upgrade points this clear is worth (firstClearPoints on a first clear, else 0). */
-  pointsAwarded: number;
 }
 
-/** Record a victory. Marks the mission cleared on this difficulty. */
+/** Record a victory. Marks the mission cleared on this difficulty (the medals are paid by recordWin in medals.ts). */
 export function recordClear(save: SaveData, missionId: number, difficulty: Difficulty): ClearResult {
   const key = String(missionId);
   const list = save.cleared[key] ?? [];
   const firstClear = list.length === 0;
   if (!list.includes(difficulty)) list.push(difficulty);
   save.cleared[key] = list;
-  return { firstClear, pointsAwarded: firstClear ? META.firstClearPoints : 0 };
-}
-
-/** Upgrade points earned so far: a fixed award for each mission cleared at least once. */
-export function pointsEarned(save: SaveData): number {
-  return Object.keys(save.cleared).length * META.firstClearPoints;
+  return { firstClear };
 }
 
 export function upgradeLevel(save: SaveData, id: string): number {
@@ -66,43 +59,54 @@ export function maxLevel(def: UpgradeDef): number {
   return Math.min(META.maxUpgradeLevel, def.levels.length);
 }
 
-/** Points tied up in upgrades the definitions know about. */
+/** Medals tied up in upgrades the definitions know about (what Refund all would give back). */
 export function pointsSpent(save: SaveData, defs: readonly UpgradeDef[]): number {
   let spent = 0;
   for (const def of defs) spent += Math.min(upgradeLevel(save, def.id), maxLevel(def)) * def.costPerLevel;
   return spent;
 }
 
-/** Points left to spend; never negative. */
-export function pointsAvailable(save: SaveData, defs: readonly UpgradeDef[]): number {
-  return Math.max(0, pointsEarned(save) - pointsSpent(save, defs));
+/** Medals left to spend; never negative. */
+export function pointsAvailable(save: SaveData): number {
+  return Math.max(0, save.medals);
+}
+
+/** Medals to spend plus those in upgrades. */
+export function pointsEarned(save: SaveData, defs: readonly UpgradeDef[] = UPGRADES): number {
+  return pointsAvailable(save) + pointsSpent(save, defs);
 }
 
 export function canBuy(save: SaveData, defs: readonly UpgradeDef[], id: string): boolean {
   const def = defs.find((d) => d.id === id);
-  return def !== undefined && upgradeLevel(save, id) < maxLevel(def) && pointsAvailable(save, defs) >= def.costPerLevel;
+  return def !== undefined && upgradeLevel(save, id) < maxLevel(def) && save.medals >= def.costPerLevel;
 }
 
 export function canRefund(save: SaveData, id: string): boolean {
   return upgradeLevel(save, id) > 0;
 }
 
-/** Buy the next level. Returns false (and changes nothing) if it is not allowed. */
+/** Buy the next level for its price in medals. Returns false (and changes nothing) if it is not allowed. */
 export function buyUpgrade(save: SaveData, defs: readonly UpgradeDef[], id: string): boolean {
   if (!canBuy(save, defs, id)) return false;
+  const def = defs.find((d) => d.id === id) as UpgradeDef;
+  save.medals -= def.costPerLevel;
   save.upgrades[id] = upgradeLevel(save, id) + 1;
   return true;
 }
 
-/** Give back the top level. Refunds are free and complete. */
-export function refundUpgrade(save: SaveData, id: string): boolean {
+/** Give back the top level. Refunds are free and complete: its medals come back. */
+export function refundUpgrade(save: SaveData, id: string, defs: readonly UpgradeDef[] = UPGRADES): boolean {
   const level = upgradeLevel(save, id);
   if (level <= 0) return false;
+  const def = defs.find((d) => d.id === id);
+  if (def) save.medals += def.costPerLevel;
   if (level === 1) delete save.upgrades[id];
   else save.upgrades[id] = level - 1;
   return true;
 }
 
-export function refundAll(save: SaveData): void {
+/** Give back every upgrade level, and its medals. */
+export function refundAll(save: SaveData, defs: readonly UpgradeDef[] = UPGRADES): void {
+  save.medals += pointsSpent(save, defs);
   save.upgrades = {};
 }
