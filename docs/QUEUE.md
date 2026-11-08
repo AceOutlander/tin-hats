@@ -10,7 +10,7 @@ schedule a resume just after the reset.
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
 Now: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08).
-Next, right after the music: job 1 onward. (The iPhone rendering bug moved to after all the campaigns, owner
+Next, right after the music: the small **minor blood** job (spec below), then job 1 onward. (The iPhone rendering bug moved to after all the campaigns, owner
 2026-11-08.)
 
 1. **Hide enemy unit HP** (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
@@ -53,6 +53,16 @@ How these decisions fit together (for the implementers):
   the African campaign.
 
 The owner's specs follow, verbatim.
+
+## Minor blood (small job, right after the music is live)
+
+"Small job, do it right after the music is live: add minor, non-graphic blood.
+- When a soldier dies from gunfire, a small dark-red pool slowly spreads under the body over about a second. It stays small and simple, with no splatter, gore or dismemberment.
+- The pool fades out together with the body when the body disappears.
+- No blood for vehicles or buildings.
+- Pool the blood decals and cap how many exist at once, so big battles stay smooth.
+- Add a "Show blood" toggle in Settings, on by default. When it's off, no blood appears at all.
+- Run the related checks and push to live."
 
 ## iPhone rendering bug (after all the campaigns, before the Google Play publishing work)
 
