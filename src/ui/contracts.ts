@@ -14,7 +14,10 @@ export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'ar
 
 export interface TrainButtonState {
   kind: UnitKind;
+  /** Full name, for the details and the screen reader. */
   name: string;
+  /** Short label that fits the button ("Flamer" for "Flamethrower"). */
+  label: string;
   cost: number;
   pop: number;
   /** Units of this kind waiting or in training. */

@@ -27,6 +27,7 @@ import {
   shot,
   state,
   tap,
+  tapCallIn,
   tapIfThere,
   tapWorld,
   test,
@@ -174,10 +175,11 @@ for (const m of MISSIONS) {
       await setTimeScale(page, 8);
       await expect.poll(async () => (await state(page)).supports[support].cooldown, { timeout: 60_000 }).toBeLessThanOrEqual(0);
       await setTimeScale(page, 1);
-      await tap(page, `support-${support}`);
+      await tapCallIn(page, support);
       await expect.poll(async () => (await state(page)).targeting, { timeout: 5000 }).toBe(support);
       await tapWorld(page, (await camera(page)).centerX);
       await expect.poll(async () => (await state(page)).tally.supportCalled[support], { timeout: 10_000 }).toBe(1);
+      await expect(page.getByTestId('callins-column'), 'the call folds the call-ins away').toBeHidden();
     }
 
     // --- Watch the first minute at a speed the HUD can follow: hints, notices, the dusk ---------------------------------

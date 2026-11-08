@@ -5,7 +5,7 @@
  */
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
-import { SHOT_DIR, buttonRects, expect, grantPopulation, grantSupplies, open, setTimeScale, startSandbox, state, tap, test, units } from './helpers';
+import { SHOT_DIR, buttonRects, expect, grantPopulation, grantSupplies, open, openCallIns, setTimeScale, startSandbox, state, tap, test, units } from './helpers';
 
 const SIZES = [
   { w: 568, h: 320 },
@@ -58,7 +58,8 @@ async function checkLayout(page: Page, size: { w: number; h: number }, pickerOpe
   expect(picker.y + picker.h, 'the picker sits above the bottom bar').toBeLessThanOrEqual(rects['order-hold'].y);
   expect(picker.y).toBeGreaterThanOrEqual(0);
   expect(picker.x).toBeGreaterThanOrEqual(0);
-  for (const k of ['support-artillery', 'support-smoke', 'support-airStrike']) {
+  // The call-ins (opened before the picker) stay clear of it: the toggle and every button of the open column.
+  for (const k of ['callins', 'support-artillery', 'support-smoke', 'support-airStrike']) {
     expect(rects[k], `${k} shown`).toBeTruthy();
     expect(apart(picker, rects[k]), `the picker leaves ${k} clear`).toBe(true);
   }
@@ -120,6 +121,7 @@ test('Bren gunners hold on their own orders while the riflemen advance, then fol
   for (const size of [SIZES[2], SIZES[0]]) {
     await page.setViewportSize({ width: size.w, height: size.h });
     await snap(page, `bren-${size.w}x${size.h}`);
+    await openCallIns(page);
     await tap(page, 'order-scope');
     await expect(page.getByTestId('scope-picker')).toBeVisible();
     await snap(page, `picker-${size.w}x${size.h}`);
@@ -138,6 +140,7 @@ test('Bren gunners hold on their own orders while the riflemen advance, then fol
     await page.setViewportSize({ width: size.w, height: size.h });
     await page.waitForTimeout(250);
     await checkLayout(page, size, false);
+    await openCallIns(page);
     await tap(page, 'order-scope');
     await checkLayout(page, size, true);
     await page.keyboard.press('Escape');

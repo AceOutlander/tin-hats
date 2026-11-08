@@ -189,9 +189,9 @@ export const CALLIN_KEYS = {
 } as const;
 
 export const FLAK_SIZE = 40;
-/** Flame tongue: FLAME_W long along +x from its origin at the nozzle, FLAME_H thick. */
-export const FLAME_W = 64;
-export const FLAME_H = 22;
+/** Flame jet: FLAME_W long along +x from its origin at the nozzle (half way up), FLAME_H tall. */
+export const FLAME_W = 120;
+export const FLAME_H = 44;
 
 export function flameKey(frame: number): string {
   return `rd/flame/${frame}`;
@@ -301,6 +301,91 @@ function flakSpec(): SpriteSpec {
   };
 }
 
+/** Small repeatable noise for the flame frames (same picture every run). */
+function flameRng(seed: number): () => number {
+  let s = (seed * 2654435761 + 1013904223) >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+/** A soft blob of colour (radial fade to clear). */
+function fireDab(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, rgb: string, a: number): void {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${rgb},${a})`);
+  g.addColorStop(0.55, `rgba(${rgb},${a * 0.8})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** A flat round puff of flame. */
+function firePuff(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** A flat tongue of flame licking up and back from (x, y). */
+function fireTongue(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, lean: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x - w, y);
+  ctx.bezierCurveTo(x - w, y - h * 0.5, x + lean - w * 0.3, y - h * 0.75, x + lean, y - h);
+  ctx.bezierCurveTo(x + lean * 0.5 + w * 0.4, y - h * 0.6, x + w, y - h * 0.35, x + w, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+const FIRE_LAYERS: readonly { color: string; size: number; reach: number; tongues: number }[] = [
+  { color: '#c33a17', size: 1, reach: 1, tongues: 7 },
+  { color: '#ec6f1c', size: 0.74, reach: 0.95, tongues: 5 },
+  { color: '#ffae34', size: 0.48, reach: 0.86, tongues: 3 },
+  { color: '#fff0b2', size: 0.3, reach: 0.6, tongues: 0 },
+];
+
+/**
+ * One frame of the flamethrower's jet, in the game's flat style: a narrow white-hot stream leaving the nozzle that
+ * swells into ragged rolling fire (dark red outside, orange, yellow, a pale core), tongues of flame licking up and back
+ * off its top, the far end curling upward, a soft glow and smoke over it. Each frame is reshuffled so the jet flickers.
+ */
+function paintFlameJet(ctx: CanvasRenderingContext2D, frame: number): void {
+  const rng = flameRng(frame + 7);
+  const W = FLAME_W;
+  const cy = FLAME_H * 0.66;
+  const rise = FLAME_H * 0.14;
+  const at = (t: number): number => cy - rise * t * t;
+  const rad = (t: number): number => FLAME_H * (0.035 + 0.2 * Math.pow(t, 0.8));
+  // Glow under the fire.
+  for (const t of [0.35, 0.65, 0.92]) fireDab(ctx, W * t * 0.95, at(t), rad(t) * 2.1, '255,150,50', 0.22);
+  for (const L of FIRE_LAYERS) {
+    const steps = L.size < 0.4 ? 40 : 26;
+    for (let i = 0; i < steps; i++) {
+      const t = Math.min(L.reach, ((i + rng() * 0.7) / steps) * L.reach + 0.015);
+      const r = Math.max(1.1, rad(t) * L.size * (0.85 + 0.4 * rng()));
+      const x = Math.min(W - r - 1, W * t);
+      firePuff(ctx, x, at(t) + (rng() - 0.5) * rad(t) * 0.5 * L.size, r, L.color);
+    }
+    for (let i = 0; i < L.tongues; i++) {
+      const t = (0.3 + 0.68 * rng()) * L.reach;
+      const r = rad(t) * L.size;
+      const x = Math.min(W - r - 1, W * t);
+      fireTongue(ctx, x, at(t) - r * 0.4, r * 0.55, r * (1.0 + 0.7 * rng()), -r * (0.4 + 0.6 * rng()), L.color);
+    }
+  }
+  fireDab(ctx, 2.5, cy, 3.4, '255,252,230', 1);
+  // Smoke rolling off the top of the far end.
+  for (let i = 0; i < 5; i++) {
+    const t = 0.7 + 0.3 * rng();
+    const r = rad(t) * (0.8 + 0.5 * rng());
+    fireDab(ctx, Math.min(W - r, W * t), at(t) - rad(t) * (1.5 + 0.6 * rng()), r, '52,46,42', 0.5);
+  }
+}
+
 function flameSpecs(): SpriteSpec[] {
   const out: SpriteSpec[] = [];
   for (let f = 0; f < RENDER.flame.frames; f++) {
@@ -311,27 +396,7 @@ function flameSpecs(): SpriteSpec[] {
       ax: 0,
       ay: 0.5,
       draw(ctx) {
-        const cy = FLAME_H / 2;
-        // A tongue that billows out from the nozzle and rolls into a ball of fire at the far end; each frame wobbles.
-        const wob = [0, 1.4, -1.2][f % 3];
-        const r = cy - 1;
-        const layers: readonly [string, number, number][] = [
-          ['rgba(120,34,12,0.8)', 1, 1],
-          ['rgba(236,104,22,0.95)', 0.74, 0.97],
-          ['rgba(255,220,120,1)', 0.4, 0.9],
-        ];
-        for (const [color, k, len] of layers) {
-          const end = FLAME_W * len;
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.moveTo(0, cy - 1.2 * k);
-          ctx.bezierCurveTo(end * 0.35, cy - 2.5 * k + wob, end * 0.6, cy - r * k - wob, end - r * k * 0.6, cy - r * k + wob);
-          ctx.quadraticCurveTo(end, cy - r * k * 0.5, end, cy + wob * 0.5);
-          ctx.quadraticCurveTo(end, cy + r * k * 0.6, end - r * k * 0.6, cy + r * k * 0.9 - wob);
-          ctx.bezierCurveTo(end * 0.6, cy + r * k * 0.8 + wob, end * 0.35, cy + 2.5 * k, 0, cy + 1.2 * k);
-          ctx.closePath();
-          ctx.fill();
-        }
+        paintFlameJet(ctx, f);
       },
     });
   }

@@ -156,6 +156,66 @@ function headSpec(key: string, color: string, grow: number): SpriteSpec {
   );
 }
 
+const MASK_RUBBER = '#5a5541';
+const MASK_SNOUT = '#47432f';
+const MASK_STRAP = '#2c2a21';
+const MASK_CAN = '#6e6750';
+const MASK_CAN_DARK = '#38342a';
+const MASK_RING = '#a39a80';
+
+/**
+ * The flamethrower's head: the plain head wearing a gas mask (rubber face piece, one round lens glowing with the fire
+ * in front of him, the snout and its filter canister hanging below the chin, straps round the back of the head).
+ */
+function headMaskSpec(key: string): SpriteSpec {
+  const hr = FIGURE.headRadius;
+  const L = B.neck;
+  const k = hr / 5;
+  return makeSpec(key, Math.min(-NECK_R, L - 9.2 * k), -hr - 0.6, L + hr + 0.4, 8.6 * k, (ctx) => {
+    fillPath(ctx, C.body, () => {
+      capsule(ctx, L * 0.6, NECK_R, NECK_R);
+      ctx.moveTo(L + hr, 0);
+      ctx.arc(L, 0, hr, 0, TAU);
+    });
+    // Mask paths are drawn upright (x toward the face, y down, origin at the head centre) for a head of radius 5.
+    ctx.translate(L, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.scale(k, k);
+    line(ctx, MASK_STRAP, 0.7, [0.6, -2.7, -4.3, -3.3]);
+    line(ctx, MASK_STRAP, 0.7, [-0.2, 2.8, -4.5, 1.6]);
+    solid(ctx, MASK_RUBBER, () => {
+      ctx.moveTo(0.6, -3.3);
+      ctx.quadraticCurveTo(3.8, -3.6, 4.9, -2.2);
+      ctx.quadraticCurveTo(5.7, -0.2, 5.3, 1.6);
+      ctx.quadraticCurveTo(4.6, 4.2, 2.6, 4.6);
+      ctx.quadraticCurveTo(0.4, 4.6, -0.6, 3.4);
+      ctx.quadraticCurveTo(-1.5, 0.2, 0.6, -3.3);
+      ctx.closePath();
+    });
+    // Snout and the filter canister hanging from it.
+    solid(ctx, MASK_SNOUT, () => poly(ctx, [3.9, 0.9, 5.9, 1.7, 6.7, 3.3, 5.1, 4.1, 3.6, 3.0]));
+    ctx.save();
+    ctx.translate(6.1, 5.6);
+    ctx.rotate(-0.28);
+    solid(ctx, MASK_CAN, () => rrect(ctx, -1.7, -2.0, 3.4, 4.2, 0.9));
+    line(ctx, MASK_CAN_DARK, 0.45, [-1.6, -0.6, 1.6, -0.6]);
+    line(ctx, MASK_CAN_DARK, 0.45, [-1.6, 0.8, 1.6, 0.8]);
+    solid(ctx, MASK_CAN_DARK, () => rrect(ctx, -1.5, 1.7, 3.0, 0.8, 0.3));
+    ctx.restore();
+    // The lens: a steel ring round glass that glows orange with the flames.
+    dot(ctx, MASK_RING, 3.4, -1.0, 1.75);
+    const g = ctx.createRadialGradient(3.6, -1.2, 0.1, 3.4, -1.0, 1.35);
+    g.addColorStop(0, '#fff3b8');
+    g.addColorStop(0.45, '#f7a438');
+    g.addColorStop(1, '#9c3e16');
+    ctx.beginPath();
+    ctx.arc(3.4, -1.0, 1.3, 0, TAU);
+    ctx.fillStyle = g;
+    ctx.fill();
+    dot(ctx, 'rgba(255, 255, 255, 0.75)', 3.9, -1.5, 0.3);
+  });
+}
+
 function bootPath(ctx: Ctx): void {
   const h = FIGURE.ankle;
   const L = FIGURE.footLength;
@@ -631,6 +691,8 @@ export const BODY_KEYS = {
   torsoLower: 'fig/body/torsoLower',
   torsoUpper: 'fig/body/torsoUpper',
   head: 'fig/body/head',
+  /** The flamethrower's head, wearing a gas mask. */
+  headMask: 'fig/body/headMask',
   armband: 'fig/kit/armband',
 } as const;
 
@@ -757,6 +819,7 @@ function bodySpecs(): SpriteSpec[] {
     limbSpec(K.torsoLower, B.spineLower, RAD.torsoLower, C.body, 0),
     limbSpec(K.torsoUpper, B.spineUpper, RAD.torsoUpper, C.body, 0),
     headSpec(K.head, C.body, 0),
+    headMaskSpec(K.headMask),
     armbandSpec(),
     limbSpec(R.upperArm, B.upperArm, RAD.upperArm, C.rim, RIM),
     limbSpec(R.forearm, B.forearm, RAD.forearm, C.rim, RIM),

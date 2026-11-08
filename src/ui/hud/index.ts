@@ -9,6 +9,7 @@
 import type { Order, SupportKind, UnitKind } from '../../data/schema';
 import { VIEW } from '../../data/view';
 import type { AppApi, ControlState, HudState, SupportButtonState, TipState, TipTarget, TrainButtonState } from '../contracts';
+import { CallInFold, callInRows } from './callins';
 import {
   FRAC,
   clockSeconds,
@@ -245,7 +246,7 @@ class TrainView {
   apply(s: TrainButtonState): void {
     if (s.name !== this.rawName) {
       this.rawName = s.name;
-      this.name.set(shortName(s.name, NAME_CHARS));
+      this.name.set(shortName(s.label, NAME_CHARS));
       this.node.setAttribute('aria-label', `Train ${s.name}`);
     }
     this.fullName = s.name;
@@ -287,8 +288,10 @@ class PickView {
   }
 }
 
+/** One call-in: its button in the call-ins column, and its mini pip on the folded "Call-ins" toggle. */
 class SupportView {
   readonly node: HTMLButtonElement;
+  readonly pip: HTMLElement;
   readonly kind: SupportKind;
   ready = false;
   private readonly name: TextCell;
@@ -296,9 +299,12 @@ class SupportView {
   private readonly sweep: FracCell;
   private readonly readyFlag: FlagCell;
   private readonly active: FlagCell;
+  private readonly pipSweep: FracCell;
+  private readonly pipReady: FlagCell;
+  private readonly pipActive: FlagCell;
   private rawName = '';
 
-  constructor(parent: HTMLElement, kind: SupportKind) {
+  constructor(parent: HTMLElement, pipParent: HTMLElement, kind: SupportKind) {
     this.kind = kind;
     const b = button('th-hbtn th-sbtn', `support-${kind}`, kind, parent);
     this.node = b;
@@ -309,6 +315,13 @@ class SupportView {
     this.readyFlag = new FlagCell(b, 'is-ready');
     this.active = new FlagCell(b, 'is-active');
     b.addEventListener('animationend', () => b.classList.remove('is-deny'));
+    const pip = el('span', 'th-pip', pipParent);
+    pip.dataset.kind = kind;
+    this.pip = pip;
+    this.pipSweep = new FracCell(el('span', 'th-sweep', pip));
+    icon(SUPPORT_ICON[kind], pip);
+    this.pipReady = new FlagCell(pip, 'is-ready');
+    this.pipActive = new FlagCell(pip, 'is-active');
   }
 
   apply(s: SupportButtonState, targeting: SupportKind | null): void {
@@ -319,11 +332,14 @@ class SupportView {
     }
     this.ready = s.charge >= 1;
     this.readyFlag.set(this.ready);
+    this.pipReady.set(this.ready);
     if (!this.ready) {
       this.sweep.set(s.charge);
+      this.pipSweep.set(s.charge);
       this.seconds.set(clockSeconds(s.secondsLeft));
     }
     this.active.set(targeting === s.kind);
+    this.pipActive.set(targeting === s.kind);
   }
 }
 
@@ -396,8 +412,17 @@ class HudView implements Hud {
   private readonly trainWrap: HTMLElement;
   private readonly trainBar: HTMLElement;
   private readonly trainViews: TrainView[] = [];
-  private readonly supportBox: HTMLElement;
   private readonly supportViews: SupportView[] = [];
+  // Call-ins: a "Call-ins" toggle with a mini pip per call-in, which opens the column of call-in buttons above it.
+  private readonly callIns: HTMLElement;
+  private readonly callInToggle: HTMLButtonElement;
+  private readonly pipBox: HTMLElement;
+  private readonly supportBox: HTMLElement;
+  private readonly callInReady: FlagCell;
+  private readonly fold = new CallInFold();
+  private callInMax = -1;
+  private readonly topBar: HTMLElement;
+  private readonly cardBox: HTMLElement;
   private readonly orderButtons: HTMLButtonElement[] = [];
   private lastOrder: Order | null = null;
   private lastFollow = false;
@@ -457,6 +482,7 @@ class HudView implements Hud {
 
     // ----- Top bar -----
     const top = el('div', 'th-top', root);
+    this.topBar = top;
 
     const supplies = el('div', 'th-res th-supplies', top);
     supplies.dataset.tip = 'supplies';
@@ -523,8 +549,23 @@ class HudView implements Hud {
     this.hintText = new TextCell(hint);
     this.hintOn = new FlagCell(hint, 'is-on');
 
-    // ----- Left edge: supports -----
-    this.supportBox = el('div', 'th-supports', root);
+    // ----- Left edge: call-ins, folded into one toggle until it is tapped -----
+    const callIns = el('div', 'th-callins', root);
+    callIns.hidden = true;
+    this.callIns = callIns;
+    const toggle = button('th-hbtn th-cbtn', 'callins', 'Call-ins', callIns);
+    toggle.setAttribute('aria-expanded', 'false');
+    const head = el('span', 'th-cbtn-head', toggle);
+    el('span', 'th-cbtn-label', head, 'Call-ins');
+    icon('chevRight', head, 'th-cbtn-chev');
+    this.pipBox = el('span', 'th-pips', toggle);
+    this.callInToggle = toggle;
+    this.callInReady = new FlagCell(toggle, 'has-ready');
+    onTap(toggle, () => this.doCallIns());
+    const supportBox = el('div', 'th-supports', callIns);
+    supportBox.dataset.testid = 'callins-column';
+    supportBox.hidden = true;
+    this.supportBox = supportBox;
 
     // ----- Right edge: direct-control buttons -----
     const fireRow = el('div', 'th-firerow', root);
@@ -568,6 +609,7 @@ class HudView implements Hud {
     this.bindStick();
 
     const card = el('div', 'th-hplate th-ctrl-card', root);
+    this.cardBox = card;
     this.cardCanvas = el('canvas', 'th-card-ico', card);
     const cardCol = el('div', 'th-card-col', card);
     this.cardName = new TextCell(el('span', 'th-card-name', cardCol));
@@ -749,7 +791,15 @@ class HudView implements Hud {
 
     const supports = s.supports;
     if (!this.supportsMatch(supports)) this.rebuildSupports(supports);
-    for (let i = 0; i < supports.length; i++) this.supportViews[i].apply(supports[i], s.targeting);
+    let anyReady = false;
+    for (let i = 0; i < supports.length; i++) {
+      const view = this.supportViews[i];
+      view.apply(supports[i], s.targeting);
+      if (view.ready) anyReady = true;
+    }
+    this.callInReady.set(anyReady);
+    // The call went out (the aim ended with a tap on the battlefield): fold the column away.
+    if (this.fold.track(s.targeting, s.paused)) this.showFold();
 
     if (s.targeting !== this.lastTargeting) {
       this.lastTargeting = s.targeting;
@@ -953,12 +1003,61 @@ class HudView implements Hud {
 
   private rebuildSupports(list: SupportButtonState[]): void {
     this.supportBox.textContent = '';
+    this.pipBox.textContent = '';
     this.supportViews.length = 0;
     for (let i = 0; i < list.length; i++) {
-      const view = new SupportView(this.supportBox, list[i].kind);
+      const view = new SupportView(this.supportBox, this.pipBox, list[i].kind);
       onTap(view.node, () => this.doSupport(view));
       this.supportViews.push(view);
     }
+    this.pipBox.dataset.n = String(list.length);
+    this.callIns.hidden = list.length === 0;
+    this.callInMax = -1;
+    if (list.length === 0) this.fold.reset();
+    this.showFold();
+  }
+
+  // ------------------------------------------------------------------ call-ins column
+
+  /** Show the column open or folded, as the fold says, and move a tip that points at a call-in to what is now shown. */
+  private showFold(): void {
+    const open = this.fold.open;
+    this.supportBox.hidden = !open;
+    this.callInToggle.classList.toggle('is-open', open);
+    this.callInToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) this.layoutCallIns();
+    if (this.tipSeq !== -1 && this.state !== null && this.state.tip !== null) {
+      this.retargetTip(this.state.tip.target);
+      this.placeTip();
+    }
+  }
+
+  /**
+   * Spread the open column's buttons over as few columns as fit between the top bar (or the unit card while
+   * controlling) and the toggle, balanced so six read 3 + 3. Runs on open and on layout changes, not per frame.
+   */
+  private layoutCallIns(): void {
+    const box = this.supportBox;
+    const first = this.supportViews.length > 0 ? this.supportViews[0].node : null;
+    if (!this.fold.open || first === null) return;
+    const size = first.offsetHeight;
+    if (size <= 0) return;
+    const gap = parseFloat(getComputedStyle(box).rowGap) || 0;
+    const ceiling = this.controlOn ? this.cardBox.getBoundingClientRect().bottom : this.topBar.getBoundingClientRect().bottom;
+    const room = this.callInToggle.getBoundingClientRect().top - gap * 2 - ceiling;
+    const rows = callInRows(this.supportViews.length, size, gap, room);
+    const max = Math.ceil(rows * size + (rows - 1) * gap);
+    if (max !== this.callInMax) {
+      this.callInMax = max;
+      box.style.maxHeight = `${max}px`;
+    }
+  }
+
+  private doCallIns(): void {
+    if (!this.live()) return;
+    this.app.uiSound('click');
+    this.fold.toggle();
+    this.showFold();
   }
 
   // ------------------------------------------------------------------ layout
@@ -981,6 +1080,7 @@ class HudView implements Hud {
       for (let i = 0; i < this.pickViews.length; i++) this.paintIcon(this.pickViews[i].canvas, this.pickViews[i].kind);
     }
     this.onTrainScroll();
+    this.layoutCallIns();
     if (this.tipSeq !== -1) this.placeTip();
   };
 
@@ -989,20 +1089,28 @@ class HudView implements Hud {
   private tipElement(target: TipTarget): HTMLElement | null {
     if (target === 'field') return null;
     const selector = target === 'supplies' ? '[data-tip="supplies"]' : `[data-testid="${target}"]`;
-    return this.root.querySelector<HTMLElement>(selector);
+    const node = this.root.querySelector<HTMLElement>(selector);
+    // A call-in in the folded column: point at the toggle that opens it.
+    if (node !== null && !this.fold.open && this.supportBox.contains(node)) return this.callInToggle;
+    return node;
+  }
+
+  /** Light the control a tip explains (and scroll the training bar to it). */
+  private retargetTip(target: TipTarget): void {
+    this.clearTipTarget();
+    const node = this.tipElement(target);
+    this.tipTarget = node;
+    if (node !== null) {
+      node.classList.add('th-glow');
+      if (this.trainBar.contains(node)) this.scrollTrainTo(node);
+    }
   }
 
   private showTip(tip: TipState): void {
-    this.clearTipTarget();
     this.tipSeq = tip.seq;
     this.tipText.textContent = tip.text;
     this.tipSide = tipSideOf(tip.target);
-    const target = this.tipElement(tip.target);
-    this.tipTarget = target;
-    if (target !== null) {
-      target.classList.add('th-glow');
-      if (this.trainBar.contains(target)) this.scrollTrainTo(target);
-    }
+    this.retargetTip(tip.target);
     // Two identical animations: swapping between them replays the pop-in for the next tip.
     this.tipAlt = !this.tipAlt;
     this.tipBox.className = this.tipAlt ? 'th-tip show-a' : 'th-tip show-b';
@@ -1052,7 +1160,12 @@ class HudView implements Hud {
       y = this.ordersBox.getBoundingClientRect().top - root.top - bh - TIP_GAP;
       arrowOn = false;
     } else if (this.tipSide === 'right') {
-      x = t.right - root.left + TIP_GAP;
+      // Beside the whole call-ins column, so a bubble for a button in its first column does not cover the second.
+      let right = t.right;
+      if (this.tipTarget !== null && this.supportBox.contains(this.tipTarget)) {
+        for (let i = 0; i < this.supportViews.length; i++) right = Math.max(right, this.supportViews[i].node.getBoundingClientRect().right);
+      }
+      x = right - root.left + TIP_GAP;
       y = t.top + t.height / 2 - root.top - bh / 2;
       arrow = clampTo(t.top + t.height / 2 - root.top - y, TIP_ARROW_INSET, bh - TIP_ARROW_INSET);
     } else {
@@ -1162,6 +1275,7 @@ class HudView implements Hud {
 
   private doCancelTargeting(): void {
     if (!this.live()) return;
+    this.fold.noteCancel();
     this.app.uiSound('click');
     this.app.dispatch({ type: 'cancelTargeting' });
   }
@@ -1318,6 +1432,7 @@ class HudView implements Hud {
         if (this.pickerOpen) this.closePicker();
         else if (s.paused) this.doOverlay('resume');
         else if (s.targeting !== null) this.doCancelTargeting();
+        else if (this.fold.open) this.doCallIns();
         else this.doPause();
       }
       e.preventDefault();
@@ -1409,6 +1524,9 @@ class HudView implements Hud {
       // Every battle starts with orders for the whole army.
       this.closePicker();
       this.setScope(null);
+      // ... and with the call-ins folded away.
+      this.fold.reset();
+      this.showFold();
     }
     this.visible = v;
     this.root.hidden = !v;

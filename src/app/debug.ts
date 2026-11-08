@@ -10,6 +10,7 @@ import { BattleMusicPlayer } from '../audio/music/battlePlayer';
 import { seededRandom } from '../audio/dsp';
 import { findOfflineContext, startRendering } from '../audio/render';
 import { APP } from '../data/app';
+import { CONFIG } from '../data/config';
 import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { RENDER } from '../data/render';
@@ -187,7 +188,7 @@ export interface DebugApi {
   setTimeScale(n: number): void;
   getTimeScale(): number;
   grantSupplies(n: number): void;
-  /** Raise the player's population cap by n (a full army leaves no room to train one of every kind). */
+  /** Raise the player's population cap by n, never above CONFIG.popCap (100 everywhere, even in test battles). */
   grantPopulation(n: number): void;
   forceWeather(w: WeatherMode): void;
   forceThunder(): void;
@@ -542,7 +543,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     grantPopulation(n) {
       const session = app.session;
-      if (session) session.battle.state.sides[0].popCap += n;
+      if (session) {
+        const side = session.battle.state.sides[0];
+        side.popCap = Math.min(CONFIG.popCap, side.popCap + n);
+      }
     },
 
     forceWeather(w) {
