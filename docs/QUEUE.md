@@ -15,9 +15,11 @@ audio and smoke browser specs 18/18 (after adding the battleMusic hook to the sm
 
 Done and live: **minor blood** with a Show blood setting (commit c737d59, live 2026-11-08 10:58).
 Done and live: job 1, **hide enemy unit HP** (commit eac9581, live 2026-11-08).
-Next: the small **barbed wire end-on** job (spec below), then the remaining foundation jobs
-in order (2 admin panel, 3 Money, 5 passives, 6 prep phase, 7 new units, 9 difficulty overhaul, 10 medals; 4 is done),
-which go live as they finish. Then **Stalingrad** (owner, 2026-11-08): the Part 1 foundations plus the Soviet Stalingrad
+Next: the small **barbed wire end-on** job (spec below), then (owner, 2026-11-08) **job 7, new units** (APC,
+flamethrower, commander with text speech bubbles, bomber, fighter and recon planes, anti-aircraft gun, Panzer III
+Ausf. E, King Tiger elite squad), then **job 10, medals and the Armoury** (with the 50%-per-replay rule and Quartermaster
+points folded into medals; the Armoury sells the new units). Then the rest in order: 2 admin panel, 3 Money, 5 passives,
+6 prep phase, 9 difficulty overhaul (4 is done). Each goes live as it finishes. Then **Stalingrad** (owner, 2026-11-08): the Part 1 foundations plus the Soviet Stalingrad
 campaign, built on the git branch `stalingrad` (or kept fully hidden) so other updates can still be published. It stays
 off the live site until it is 100% done: all 10 missions, briefings, music, balance tests and checks passing. Then tell
 the owner it is ready and **wait for the owner to say when to push it live**. (The iPhone rendering bug moved to after all the campaigns, owner
