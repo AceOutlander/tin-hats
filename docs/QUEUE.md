@@ -10,9 +10,11 @@ schedule a resume just after the reset.
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
 Done and live: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08;
-commit 771aaf2, live 2026-11-08 10:14). Still to run for it: test:balance and the menu, audio and smoke browser specs
-(skipped to publish fast at the owner's request).
-Next: the small **minor blood** job (spec below), then job 1 (hide enemy unit HP), then the remaining foundation jobs
+commit 771aaf2, live 2026-11-08 10:14). Its skipped checks were run with the blood job: test:balance 191/191 and the menu,
+audio and smoke browser specs 18/18 (after adding the battleMusic hook to the smoke test's list of debug hooks).
+
+Done and live: **minor blood** with a Show blood setting (commit c737d59, live 2026-11-08 10:58).
+Next: job 1 (hide enemy unit HP), then the remaining foundation jobs
 in order (2 admin panel, 3 Money, 5 passives, 6 prep phase, 7 new units, 9 difficulty overhaul, 10 medals; 4 is done),
 which go live as they finish. Then **Stalingrad** (owner, 2026-11-08): the Part 1 foundations plus the Soviet Stalingrad
 campaign, built on the git branch `stalingrad` (or kept fully hidden) so other updates can still be published. It stays
@@ -61,7 +63,7 @@ How these decisions fit together (for the implementers):
 
 The owner's specs follow, verbatim.
 
-## Minor blood (small job, right after the music is live)
+## Minor blood (done and live, commit c737d59)
 
 "Small job, do it right after the music is live: add minor, non-graphic blood.
 - When a soldier dies from gunfire, a small dark-red pool slowly spreads under the body over about a second. It stays small and simple, with no splatter, gore or dismemberment.
