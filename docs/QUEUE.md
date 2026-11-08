@@ -2,29 +2,65 @@
 
 Standing rule (owner, 2026-11-07): push to live yourself whenever a job's checks pass, without waiting, then go
 straight on to the next job. Keep working until the usage limit; keep `docs/PROGRESS.md` updated so nothing is lost.
-Publishing steps: `CLAUDE.md`, "Push to live".
+Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
+schedule a resume just after the reset.
 
-Order:
-1. Per-unit-type orders (in progress 2026-11-07).
-2. Quartermaster upgrade looks.
-2b. Battle music and campaign map music (spec below).
-3. Admin panel (spec below).
-4. Prep phase for defensive missions.
-5. Difficulty overhaul (difficulty levels, army size, performance).
-6. Soviet campaign, Part 1 then Part 2.
-7. Trench art pass (later job; spec below).
+## Build order (owner, 2026-11-08; replaces every earlier order)
 
-Deferred trench items (from the trench rebuild): climbing in and out, tanks bumping over the pit, splitting big
-positions into two or three pits, a coloured band on the sandbags, unit tests for the trench layout, shots of other
-theatres.
+Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
+
+1. **Hide enemy unit HP** (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
+   battle; only the Recon plane (job 7) reveals it, in a radius, for a while. No earlier written spec exists; see
+   "Hide enemy unit HP" below.
+2. **Admin panel** (spec below), so the rest is easier to test.
+3. **Rename the resource to Money**: sappers still carry boxes, but every supply label, icon and text becomes money.
+4. **Quartermaster upgrade looks**: done and live. The owner's note for any follow-up: "HQ changes are big; all other
+   upgrade visuals are small but noticeable."
+5. **Unlockable passives** (spec below).
+6. **Prep phase for defensive missions** (spec below).
+7. **New units** (spec below): APC, flamethrower, commander, bomber, fighter and recon call-ins, anti-aircraft gun.
+8. **Music for every mission and the campaign map** (spec below). Owner's additions: "The combat layer kicks in
+   during a big battle, meaning 20 or more soldiers per side fighting close together. Not too grim, not too happy,
+   exciting."
+9. **Difficulty overhaul** (spec below), with a population cap of 100 on every difficulty.
+10. **Medals and the Armoury** (spec below).
+11. **Campaigns**, in this order: the Part 1 foundations from the Soviet spec first, then Soviet Stalingrad, British
+    D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
+12. **Trench art pass** (spec below).
+
+Later: a French campaign, and a German campaign as DLC.
+
+Deferred trench items (from the trench rebuild), folded into job 12: climbing in and out, tanks bumping over the pit,
+splitting big positions into two or three pits, a coloured band on the sandbags, unit tests for the trench layout,
+shots of other theatres.
+
+How these decisions fit together (for the implementers):
+- Medals (job 10) replace Quartermaster upgrade points and per-mission unit unlocks. Jobs before it keep today's
+  upgrade points and unlocks; job 10 migrates saves (points to medals fairly, unlocked units stay unlocked).
+- The resource is called Money from job 3 on, in every later job's text and UI.
+- Every new unit and nation follows "nations as data" (Soviet Part 1 foundations). Jobs before job 11 build new units
+  for Britain and Germany with per-nation names and looks in data, so the Soviet, Italian and other versions are only
+  data later.
+- The current British campaign is scrapped in job 11 and replaced by British D-Day; its desert and Italy art goes to
+  the African campaign.
 
 The owner's specs follow, verbatim.
 
-## 1. Per-unit-type orders
+## Hide enemy unit HP
+
+The owner's only words on it: "Hide enemy unit HP (already requested)" and, under the Recon plane, "reveals enemy unit
+health in a large radius for a while (enemy HP is hidden otherwise)". No earlier written spec was found in the docs.
+Working reading: in battle, the player never sees enemy units' health (no health pips or bars on German units, tanks,
+the boss tank or wave units), while the player's own units keep theirs. The enemy HQ's health bar in the HUD and on
+the minimap stays, since it is the mission objective. Pillboxes and other structures are not units and keep their
+damage states. The view reads one data flag per side, so the Recon plane and the admin panel can reveal enemy health
+later.
+
+## Per-unit-type orders (done)
 
 "give an option to make certain unit type either Fall back, hold, or advance. EX: only bren units: hodl!"
 
-## 2. Quartermaster upgrade looks
+## Quartermaster upgrade looks (done)
 
 "every Quartermaster upgrade should change how things look in battle, not just the numbers.
 - HQ health: it starts as a small tent with a low sandbag wall and one machine gunner. Level 1: a bigger tent with more sandbags. Level 2: a fortified HQ with a timber-and-sandbag dugout. Level 3: a full concrete bunker or pillbox HQ.
@@ -40,7 +76,7 @@ Run the checks, push to live, and send me screenshots of the HQ at all four stag
 Note: nations as data arrive with the Soviet campaign, so build per-nation looks as data now, filled in for Britain
 and Germany; add the Soviet looks (log dugout and so on) in Soviet Part 1.
 
-## 2b. Battle music and campaign map music (after job 2, before the admin panel)
+## Music for every mission and the campaign map (job 8)
 
 "## Mood
 - Exciting and driving, cool-sounding, with a grim edge. Not as dark or slow as the menu theme. Think marching snare, low brass, driving strings and timpani, minor keys, a strong rhythm.
@@ -64,7 +100,7 @@ and Germany; add the Soviet looks (log dugout and so on) in Soviet Part 1.
 Notes: the prep-phase layer can only be wired once the prep phase exists (job 4); build the layer and its trigger
 hook now and connect it then. Music is measured, never heard: report mix levels against gunfire and explosions.
 
-## 3. Admin panel
+## Admin panel (job 2)
 
 "## Access
 - Hidden entry: tapping the helmet on the title screen 7 times quickly opens a passcode prompt. On a computer, a secret key combination does the same.
@@ -90,7 +126,7 @@ panel only changes the player's own game in their own browser. Features that dep
 campaigns and nations, mission phases, scripted events by phase) get wired as those jobs land; build the panel so a tab
 can add entries from data. Unlocking must be per session (not saved), and no admin action may write an invalid save.
 
-## 4. Prep phase for defensive missions
+## Prep phase for defensive missions (job 6)
 
 "- Missions where you have to hold out (survival and hold missions, such as Dunkirk, Arnhem, Brest Fortress, Volokolamsk, the house on the square and the factory district) start with a 1-minute prep phase before the enemy attacks, with a visible countdown. A "Ready" button skips the rest of it.
 - During prep, players can place fortifications in their own half of the field, behind the front line:
@@ -105,7 +141,7 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 - Placing should work well with thumbs: pick the item, drag a ghost preview onto the ground, see whether the spot is valid, and confirm. It must also be easy to cancel.
 - The enemy attacks in waves that test the defences, and the "reasonable player" bot must be able to use the prep phase in balance tests."
 
-## 5. Difficulty overhaul
+## Difficulty overhaul (job 9)
 
 "## New difficulty levels
 - Recruit (new, easiest): plays like the current Normal, for new players.
@@ -125,7 +161,7 @@ Decisions already announced to the owner: lethality is a per-difficulty multipli
 (unit stats unchanged; this replaces the old "difficulty never changes unit stats" rule); a mission cleared on the old
 Normal counts as cleared on Recruit.
 
-## 6. Soviet campaign
+## Soviet campaign (job 11: Part 1 foundations, then Stalingrad)
 
 "Next big job: the second campaign, the Soviet campaign from Operation Barbarossa to Stalingrad. Build it in two parts, and run the full checks after each part.
 
@@ -164,7 +200,7 @@ Each mission gets a short briefing and a campaign map location. Check the histor
 - Update the balance tests for the new nations and missions. Every Soviet mission must be winnable by the "reasonable player" bot on Normal.
 - Run the full checks after each part, then push to live and send me screenshots of the campaign select screen and one Stalingrad mission."
 
-## 7. Trench art pass (later job)
+## Trench art pass (job 12)
 
 "the new trenches look crude and need a proper art pass. Problems I see in mission 4:
 - The trench looks like an open box floating on the ground instead of a pit cut down into it. The top edge doesn't connect to the ground line.
@@ -172,3 +208,70 @@ Each mission gets a short briefing and a campaign map location. Check the histor
 - The sandbags sit beside the trench instead of along its front lip.
 - The flag floats off to the left on its own.
 - It still needs the skipped extras: climbing in and out, tanks bumping over, and big positions split into several pits."
+
+## Rename the resource to Money
+
+"Rename the resource to Money: sappers still carry boxes, but every supply label, icon and text becomes money."
+
+## Unlockable passives
+
+"- Unlockable badges that give a small, always-on bonus and have no visuals in battle. They show as badges in the Quartermaster screen.
+- Unlocked through milestones: finishing missions or campaigns, or challenges like winning without losing your HQ's health.
+- Only a few can be equipped at once (start with 3 slots), so they don't break balance. All values live in data.
+- Examples: Motorized (faster training), Supply Lines (more money income), Entrenching Tools (faster building in the prep phase), Field Kitchens (faster healing near HQ), Radio Net (shorter call-in cooldowns)."
+
+## New units
+
+"(all nations, with their own names and looks; every one needs a clear counter in the balance tests)
+- APC: machine gun only, faster than tanks, armoured against bullets, and carries one squad of infantry to the front.
+- Flamethrower: short range, deadly against trenches and pillboxes and flushes out the troops inside. If hit from behind, the fuel tank ignites and he dies instantly. Countered by machine guns and snipers at range.
+- Commander: pistol or revolver, fragile. Nearby friendly soldiers deal 5% more damage. One per army at a time, and the bonus doesn't stack. When I give Attack, Hold or Fall Back, he shows a short text speech bubble with a fitting line (several lines per order, per nation) with a short sound cue, no voice audio.
+- Planes, as paid call-ins with cooldowns that fly across the battle:
+  - Bomber: a bombing run over a large area.
+  - Fighter: strafes a chosen area.
+  - Recon plane: reveals enemy unit health in a large radius for a while (enemy HP is hidden otherwise).
+- Anti-aircraft gun: both sides, so planes can be shot down or driven off."
+
+## Medals and the Armoury
+
+"## Medals: buy troops instead of unlocking them per mission
+- Units are no longer unlocked by reaching a mission. Players buy them with medals in a new Armoury screen. Riflemen and sappers are free from the start.
+- Medals are earned by beating missions, based on score: completion time and my own casualties, compared against each mission's own target time and casualty count (in data). A rough clear earns about 10 medals, a perfect one about 100.
+- Survival missions have a fixed length, so they score on casualties and HQ health instead of time.
+- Harder difficulties pay more medals (multipliers in data).
+- Each time I beat the same mission again, it pays 50% fewer medals than the previous win: the score-based amount × 100% on the first win, 50% on the second, 25% on the third, and so on, rounded down. Track wins per mission and difficulty, so beating it on a harder difficulty for the first time pays in full. Show "Replay: 50% medals" or similar on the mission screen before I start.
+- Buying a unit type unlocks it for every nation, each with its own version.
+- No mission can become impossible: if a mission needs a unit type I haven't bought (for example anti-tank against tanks), I get a few of them on loan for that mission only, and the briefing says so.
+- Quartermaster upgrade points are replaced by medals, so medals buy both troops and upgrades. Existing saves convert their upgrade points to medals fairly, and units already unlocked stay unlocked.
+- Show medals earned and the score breakdown on the victory screen.
+- The admin panel can give and remove medals.
+- Balance tests: the "reasonable player" bot must be able to afford a sensible army progression across a campaign on Normal without replaying."
+
+## Campaigns (2026-11-08 list)
+
+"## Campaigns (10 missions each; the last few generally feature tanks; era-correct units and equipment; check the history before writing briefings)
+- Every side gets its own period-accurate uniforms, helmets and headgear, defined in data.
+- Soviet, Stalingrad: as already specced.
+- British, D-Day: replaces the current British campaign, whose 10 missions are scrapped. Reuse their backdrops and features where useful (the desert and Italy art can go to the African campaign). Migrate saves cleanly: earned medals and passives stay. Update the Tin Hats card text on hunteracedev.com to match.
+  1. Pegasus Bridge, night of 5–6 June 1944: a glider assault to seize the bridges. Shorter, and teaches the basics as the new tutorial.
+  2. Merville Battery: paratroopers knock out the coastal guns before the landings.
+  3. Gold Beach: land under fire and break through the beach defences.
+  4. Sword Beach: push inland from the beach.
+  5. The Hillman strongpoint: a heavily fortified bunker complex.
+  6. Villers-Bocage, 13 June: a fight against Tiger tanks in a Norman town.
+  7. Operation Epsom and Hill 112, late June.
+  8. Operation Charnwood: the assault on Caen, July.
+  9. Operation Goodwood: a huge armoured attack, July.
+  10. Closing the Falaise Pocket, August: the final push.
+- Soviet, Road to Berlin, 1943–45 (Soviet heavy tanks like the IS-2 appear late; the Germans field Tigers, Panthers and King Tigers where historically accurate):
+  1. Kursk, the northern shoulder, July 1943: hold deep defensive lines against a massive tank attack. A defensive mission with prep phase.
+  2. Prokhorovka, 12 July 1943: a huge tank battle.
+  3. Crossing the Dnieper, autumn 1943: a river assault under fire.
+  4. Operation Bagration, June 1944: break through and race forward.
+  5. The Vistula–Oder offensive, January 1945: a fast winter advance.
+  6. The Oder bridgehead, early 1945: hold a bridgehead across the river.
+  7. The Seelow Heights, April 1945: storm fortified heights at night under searchlights.
+  8. Into Berlin: the outer districts and the Spree.
+  9. The Moltke Bridge, late April: cross into the government quarter.
+  10. The Reichstag, 30 April to 2 May 1945: the final assault, ending with the red flag raised.
+- African: you play African units of the time, including the King's African Rifles, the Royal West African Frontier Force (Nigeria, Gold Coast), South African forces, Ethiopian patriot fighters and the Belgian Congo's Force Publique. The main enemy is the Italian army, a new enemy faction with the Kingdom of Italy's flag and no fascist symbols. Add Vichy French for Madagascar and Germans only where historically accurate (North Africa). Pick 10 battles from the East African campaign (such as Keren, Saïo, Gondar and the liberation of Ethiopia), Madagascar and North Africa (such as El Alamein), and check the history first."
