@@ -184,7 +184,8 @@ describe('structure, vehicle and prop sprite specs', () => {
     for (const state of DAMAGE_STATES) expectBox(pillboxKey(state), PILLBOX_LAYOUT.box);
     expectBox(WIRE_KEYS.back, WIRE_LAYOUT.backBox);
     expectBox(WIRE_KEYS.front, WIRE_LAYOUT.frontBox);
-    expectBox(WIRE_KEYS.flat, WIRE_LAYOUT.flatBox);
+    expectBox(WIRE_KEYS.crushed, WIRE_LAYOUT.crushedBox);
+    expectBox(WIRE_KEYS.cut, WIRE_LAYOUT.cutBox);
     expectBox(SUPPLY_KEYS.dump, SUPPLY_LAYOUT.dumpBox);
     expectBox(SUPPLY_KEYS.crate, SUPPLY_LAYOUT.crateBox);
     expectBox(SUPPLY_KEYS.dropCrate, SUPPLY_LAYOUT.dropCrateBox);

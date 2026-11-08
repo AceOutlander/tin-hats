@@ -1,8 +1,8 @@
 /**
- * Germany: dense dark pine forest, misty ridges, and rows of dragon's teeth
+ * Germany: dense dark pine forest, misty ridges, and the dragon's teeth of the Westwall drawn end-on
  * (concrete tank traps) in the mid layer.
  *   far:  three misty forested ridges, each paler than the next
- *   mid:  a forest wall in three rows of pines over a floor, with dragon's teeth in front
+ *   mid:  a forest wall in three rows of pines over a floor, with end-on crossings of dragon's teeth in front
  *   near: a few tall pines on a mossy bank, boulders and young firs
  */
 import { SCENES } from '../../../data/theatres';
@@ -126,24 +126,27 @@ const mid: LayerPainter = (ctx, sc, rng, box) => {
     }
   }
 
-  // Dragon's teeth: staggered rows, broken where a track passes through.
-  const pitch = w / S.teethPerRow;
-  const gaps = [w * 0.28, w * 0.74];
-  const lit = sc.tone(P.stoneShade, haze - 0.25);
-  const shade = sc.tone(P.metal, haze - 0.25);
-  const cap = sc.tone(P.stone, haze - 0.2);
+  // Dragon's teeth, end-on: where the Westwall crosses the field, its cross-section (a few teeth side by side, taller
+  // toward the German side) with each row receding into the screen, farthest first so the near teeth overlap them.
   const shadow = sc.tone(P.soilDark, haze, 0.32);
-  for (let r = 0; r < S.teethRows; r++) {
-    const base = S.teethY + r * 5;
-    const s = S.toothSize * (0.8 + r * 0.07);
-    for (let i = 0; i < S.teethPerRow; i++) {
-      const x = (i + (r % 2) * 0.5 + range(rng, -0.06, 0.06)) * pitch;
-      if (gaps.some((g) => Math.abs(x - g) < 48)) continue;
-      wrapped(w, x, s, (cx) => {
-        ctx.fillStyle = shadow;
-        oval(ctx, cx - sc.light * s * 0.55, base + 0.5, s * 0.8, s * 0.12);
-        tooth(ctx, cx, base, s * range(rng, 0.94, 1.06), sc.light, lit, shade, cap);
-      });
+  for (const at of S.teethAt) {
+    const x0 = (at + range(rng, -0.02, 0.02)) * w;
+    for (let d = S.teethDeep - 1; d >= 0; d--) {
+      const k = Math.pow(S.teethRecedeScale, d);
+      const base = S.teethY - d * S.teethRecedeY;
+      const fade = haze + d * 0.05;
+      const lit = sc.tone(P.stoneShade, fade - 0.25);
+      const shade = sc.tone(P.metal, fade - 0.25);
+      const cap = sc.tone(P.stone, fade - 0.2);
+      for (let c = 0; c < S.teethAcross; c++) {
+        const s = S.toothSize * (1 + c * S.toothGrow) * k;
+        const x = x0 + (c - (S.teethAcross - 1) / 2) * S.toothSize * 1.25 * k + d * 1.5;
+        wrapped(w, x, s, (cx) => {
+          ctx.fillStyle = shadow;
+          oval(ctx, cx - sc.light * s * 0.55, base + 0.5, s * 0.8, s * 0.12);
+          tooth(ctx, cx, base, s * range(rng, 0.96, 1.04), sc.light, lit, shade, cap);
+        });
+      }
     }
   }
 };

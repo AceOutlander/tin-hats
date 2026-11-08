@@ -843,10 +843,21 @@ export const SCENES = {
     midForestY: 316,
     midPines: 70,
     midPineHeight: 52,
-    teethY: 326,
-    teethRows: 4,
-    teethPerRow: 58,
-    toothSize: 13,
+    /**
+     * Dragon's teeth: the Westwall crosses the battlefield, so it is drawn end-on (docs/AGENT_GUIDE.md, art rule) as a
+     * few narrow clusters, never a band along the ground. Each crossing (at these shares of the layer width) shows the
+     * line's cross-section, teethAcross teeth side by side growing taller toward the German side, each row receding
+     * into the screen as teethDeep teeth that step up by teethRecedeY and shrink by teethRecedeScale.
+     */
+    teethY: 340,
+    teethAt: [0.16, 0.6] as readonly number[],
+    teethAcross: 4,
+    teethDeep: 4,
+    teethRecedeY: 4,
+    teethRecedeScale: 0.86,
+    /** Height of the smallest tooth of a cross-section, and the growth per tooth toward the German side. */
+    toothSize: 11,
+    toothGrow: 0.14,
     bankY: 344,
     pineClumps: 5,
     pinesPerClump: 4,

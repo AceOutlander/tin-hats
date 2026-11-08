@@ -30,7 +30,7 @@ import {
 } from '../art/figure';
 import { bigLoadKey, cartKey, truckKey } from '../art/props/supplyLooks';
 import { TANK_KEYS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs, type TankGearKeys, type TankPose, type TankState } from '../art/vehicles';
-import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, type TankLook } from '../data/artLayout';
+import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type TankLook } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_KEYS } from '../data/fx';
 import { GEAR_NONE } from '../data/looksGear';
@@ -47,6 +47,7 @@ import { BloodPools, type PoolImage } from './blood';
 import { HpReveal } from './hpReveal';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE } from './sprites';
+import { inStandingWire, wireStruggle } from './wireRules';
 
 type Img = Phaser.GameObjects.Image;
 
@@ -115,6 +116,8 @@ abstract class UnitViewBase {
   /** How far the unit is drawn below its row's ground line (wu), and how far it has stepped into a trench (0..1). */
   sink = 0;
   trenchW = 0;
+  /** How far an infantryman has stepped onto the feet line of a wire belt he is inside (0..1, view only). */
+  wireW = 0;
   /** How far an occupant has shuffled into his packed place in the narrow pit (0..1, view only). */
   packW = 0;
   alpha = 1;
@@ -293,6 +296,7 @@ class FigureView extends UnitViewBase {
     inp.controlled = false;
     inp.stepping = false;
     inp.victory = false;
+    inp.struggling = false;
     inp.fired = false;
     inp.hit = false;
     inp.death = null;
@@ -808,6 +812,7 @@ export class UnitViews {
     v.deadTime = 0;
     v.sink = 0;
     v.trenchW = 0;
+    v.wireW = 0;
     v.packW = 0;
     v.alpha = 1;
     v.appliedAlpha = -1;
@@ -1035,6 +1040,11 @@ export class UnitViews {
     }
     v.trenchW += (into - v.trenchW) * (dt > 0 ? 1 - Math.exp(-dt / U.trenchSinkTime) : 0);
     v.sink = v.trenchW * Math.max(0, VIEW.trenchFeetY + VIEW.rowDy[v.row] * VIEW.trenchRowSpread - v.y);
+    // Wire is drawn end-on on one ground line: infantry inside a standing belt step onto its feet line (keeping a little
+    // of their row's depth), so the far half of the coil is behind every man passing through and the near half over his legs.
+    const wired = into === 0 && !isVehicle(u.kind) && inStandingWire(state.wires, x) ? 1 : 0;
+    v.wireW += (wired - v.wireW) * (dt > 0 ? 1 - Math.exp(-dt / WIRE_LAYOUT.squeezeTime) : 0);
+    if (v.wireW > 1e-4) v.sink += v.wireW * (VIEW.groundY + WIRE_LAYOUT.feetDy + VIEW.rowDy[v.row] * WIRE_LAYOUT.rowSpread - v.y);
 
     const visible = a > 0.01 && x > camLeft - U.cullMargin && x < camRight + U.cullMargin;
     if (!visible) {
@@ -1064,6 +1074,8 @@ export class UnitViews {
       inp.carrying = u.carrying > 0;
       inp.controlled = u.controlled;
       inp.victory = victory;
+      // Inside a standing enemy belt (where the sim slows him): high-kneed short steps with the arms up.
+      inp.struggling = !state.over && u.trenchId < 0 && wireStruggle(state.wires, u.side, simX);
       inp.fired = v.fired;
       inp.hit = v.hit;
       inp.death = null;

@@ -487,6 +487,57 @@ const GAIT_SNIPER: GaitProfile = { walkSpeed: 30, runSpeed: 62, slow: WALK, fast
 /** Used instead of the kind's own profile while a crate is carried. */
 export const FIGURE_GAIT_CARRY: GaitProfile = { walkSpeed: 28, runSpeed: 66, slow: HAUL_SLOW, fast: HAUL };
 
+/**
+ * Struggling through enemy barbed wire (view only: the sim already slows him). The gait blends toward this style by a
+ * springed weight, so stepping into and out of the coil never pops: short high-kneed steps, the body pitched into the
+ * wire and rocking with every heave, no arm swing.
+ */
+const WIRE_WADE = gait({
+  stride: 21,
+  duty: 0.62,
+  lift: 9.5,
+  liftSkew: 0.35,
+  kick: 0.05,
+  toeOff: 0.35,
+  strike: 0.12,
+  center: 1.0,
+  hipHeight: 26.2,
+  bob: 1.5,
+  bobLag: 0.05,
+  surge: 0.9,
+  hipX: -0.8,
+  lean: 0.2,
+  chest: 0.1,
+  headLevel: 0.75,
+  pitch: 0.06,
+  armSwing: 0,
+  elbow: 0.6,
+  elbowSwing: 0,
+  twist: 1.1,
+  weaponBob: 1.6,
+  weaponRock: 0.11,
+});
+
+/** A man inside enemy wire (FigureInput.struggling): high-kneed short steps with his arms up, pushing through. */
+export const FIGURE_WIRE = {
+  /** Spring time constant (s) of easing into and out of the struggle (about 5x this to settle). */
+  blend: 0.12,
+  /** The gait blended in at full struggle. */
+  gait: WIRE_WADE,
+  /** A carried weapon is held up out of the coil: grip offset from the near shoulder (wu, y up negative) and barrel pitch. */
+  holdX: 2.5,
+  holdY: -12.5,
+  holdAngle: 0.12,
+  /** Kinds that keep their own carry (a shoulder-borne tube or launcher) and lift it by liftY instead, as does a sapper with a crate. */
+  keepCarry: ['mortar', 'at'] as readonly FigureKind[],
+  liftY: -6.5,
+  /** Free arms (no weapon in the hands) go up and forward, parting the wire: shoulder swing and elbow flex. */
+  nearSh: 2.0,
+  nearEl: 0.75,
+  farSh: 1.75,
+  farEl: 0.9,
+} as const;
+
 // ---------------------------------------------------------------------------
 // Recoil
 // ---------------------------------------------------------------------------

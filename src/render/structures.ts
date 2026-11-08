@@ -8,13 +8,13 @@ import Phaser from 'phaser';
 import {
   FLAG_KEYS,
   WIRE_KEYS,
-  createTileSpan,
+  createWirePieces,
   flagStripTint,
   flagWave,
   pillboxKey,
-  tileSpan,
   trenchKey,
   trenchSpec,
+  wirePieceLayout,
   type TrenchPalette,
 } from '../art/structures';
 import { bigLoadSpec, cartSpecs, dumpStyleKey, dumpStyleSpecs, truckSpecs } from '../art/props/supplyLooks';
@@ -27,7 +27,7 @@ import { FX_SPRITES } from '../data/fx';
 import { HQ_GUN_LAYOUT } from '../data/looksGun';
 import { HQ_STYLE_LAYOUT } from '../data/looksHq';
 import { RENDER } from '../data/render';
-import type { FactionId, Side } from '../data/schema';
+import type { DamageType, FactionId, Side } from '../data/schema';
 import type { HqGunStyle, HqStyle, SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { lookStyle } from '../meta/looks';
@@ -35,6 +35,7 @@ import type { BattleState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
+import { WireWreck, pieceLag } from './wireRules';
 
 type Img = Phaser.GameObjects.Image;
 
@@ -182,10 +183,16 @@ export class StructureViews {
   private readonly pillboxFlash: Img[] = [];
   private readonly pillboxFlashTime: number[] = [];
   private readonly pillboxState: (DamageState | '')[] = [];
+  /** Per wire belt (state.wires order), per end-on piece: back half, front half, and the two debris sprites. */
   private readonly wireBack: Img[][] = [];
   private readonly wireFront: Img[][] = [];
-  private readonly wireFlat: Img[][] = [];
-  private readonly span = createTileSpan();
+  private readonly wireCrushed: Img[][] = [];
+  private readonly wireCut: Img[][] = [];
+  private readonly wireIds: number[] = [];
+  /** Offset of each piece from its belt's centre (wu). */
+  private readonly wireOffsets: number[][] = [];
+  private readonly wireWrecks: WireWreck[] = [];
+  private readonly pieces = createWirePieces();
   private time = 0;
   private flashInv = 1;
 
@@ -244,10 +251,13 @@ export class StructureViews {
       for (const img of l) img.destroy();
       l.length = 0;
     }
-    for (const group of [this.wireBack, this.wireFront, this.wireFlat]) {
+    for (const group of [this.wireBack, this.wireFront, this.wireCrushed, this.wireCut]) {
       for (const l of group) for (const img of l) img.destroy();
       group.length = 0;
     }
+    this.wireIds.length = 0;
+    this.wireOffsets.length = 0;
+    this.wireWrecks.length = 0;
     this.pillboxFlashTime.length = 0;
     this.pillboxState.length = 0;
     this.trenchOwner.length = 0;
@@ -307,33 +317,41 @@ export class StructureViews {
       this.pillboxFlashTime.push(0);
       this.pillboxState.push('');
     }
+    // Wire: one or a few end-on pieces per belt, centred in its width (the far half behind every unit row, the near
+    // half over them), with the debris each piece leaves on the ground once the belt is destroyed.
+    const wy = gy + WIRE_LAYOUT.dy;
+    const piece = (key: string, layer: Phaser.GameObjects.Layer, x: number, sx: number): Img => {
+      const fr = reg.get(key);
+      const img = addImage(this.scene, layer, fr.frame);
+      img.x = x;
+      img.y = wy;
+      img.setScale(sx / fr.scale, 1 / fr.scale);
+      return img;
+    };
     for (const w of state.wires) {
       const back: Img[] = [];
       const front: Img[] = [];
-      const flat: Img[] = [];
-      tileSpan(w.width, 0, WIRE_LAYOUT.tileW, this.span);
-      for (let i = 0; i < this.span.count; i++) {
-        const x = w.x + this.span.firstX + i * this.span.step;
-        const b = addImage(this.scene, this.layers.byName.structures, reg.get(WIRE_KEYS.back).frame);
-        b.x = x;
-        b.y = gy + WIRE_LAYOUT.backDy;
-        b.setScale(this.span.scaleX / reg.get(WIRE_KEYS.back).scale, 1 / reg.get(WIRE_KEYS.back).scale);
-        back.push(b);
-        const f = addImage(this.scene, this.layers.byName.wireFront, reg.get(WIRE_KEYS.front).frame);
-        f.x = x;
-        f.y = gy + WIRE_LAYOUT.frontDy;
-        f.setScale(this.span.scaleX / reg.get(WIRE_KEYS.front).scale, 1 / reg.get(WIRE_KEYS.front).scale);
-        front.push(f);
-        const fl = addImage(this.scene, this.layers.byName.groundDecals, reg.get(WIRE_KEYS.flat).frame);
-        fl.x = x;
-        fl.y = gy;
-        fl.setScale(this.span.scaleX / reg.get(WIRE_KEYS.flat).scale, 1 / reg.get(WIRE_KEYS.flat).scale);
-        fl.visible = false;
-        flat.push(fl);
+      const crushed: Img[] = [];
+      const cut: Img[] = [];
+      const p = wirePieceLayout(w.width, this.pieces);
+      for (let i = 0; i < p.count; i++) {
+        const x = w.x + p.x[i];
+        back.push(piece(WIRE_KEYS.back, this.layers.byName.structures, x, p.scaleX));
+        front.push(piece(WIRE_KEYS.front, this.layers.byName.wireFront, x, p.scaleX));
+        const c = piece(WIRE_KEYS.crushed, this.layers.byName.groundDecals, x, p.scaleX);
+        c.visible = false;
+        crushed.push(c);
+        const k = piece(WIRE_KEYS.cut, this.layers.byName.groundDecals, x, p.scaleX);
+        k.visible = false;
+        cut.push(k);
       }
       this.wireBack.push(back);
       this.wireFront.push(front);
-      this.wireFlat.push(flat);
+      this.wireCrushed.push(crushed);
+      this.wireCut.push(cut);
+      this.wireIds.push(w.id);
+      this.wireOffsets.push(Array.from(p.x.subarray(0, p.count)));
+      this.wireWrecks.push(new WireWreck());
     }
     for (let side = 0; side < 2; side++) {
       const s = state.sides[side];
@@ -348,6 +366,19 @@ export class StructureViews {
       hv.gun.y = gy;
       setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, 'intact'), hv.dir);
       this.hqs[side] = hv;
+    }
+  }
+
+  /**
+   * A wire belt was destroyed (sim event wireDestroyed: `id` = wire id, `owner` = its side). Crushed (cause null, a
+   * tank): the coil folds over flat the way the enemy's tank drives (toward the owner); blown apart: debris at once.
+   */
+  onWireDestroyed(id: number, owner: number, cause: DamageType | null): void {
+    for (let i = 0; i < this.wireIds.length; i++) {
+      if (this.wireIds[i] !== id) continue;
+      const dir = owner === 1 ? 1 : -1;
+      const n = this.wireOffsets[i].length;
+      this.wireWrecks[i].destroy(cause, dir, pieceLag(dir * ((n - 1) / 2) * WIRE_LAYOUT.pitch, n, dir));
     }
   }
 
@@ -497,14 +528,46 @@ export class StructureViews {
         fl.scaleY = S.slitFlashScale * this.flashInv;
       }
     }
+    this.updateWires(state, dt);
+  }
+
+  /** Wire belts: standing, folding flat under a tank, or lying as debris. */
+  private updateWires(state: BattleState, dt: number): void {
     const wires = state.wires;
+    const inv = 1 / this.reg.get(WIRE_KEYS.front).scale;
     for (let i = 0; i < wires.length && i < this.wireBack.length; i++) {
-      const alive = wires[i].alive;
+      const wr = this.wireWrecks[i];
+      // Gone without an event we saw (a view attached after the fact): show it blown apart.
+      if (!wires[i].alive && wr.look === 'standing') wr.destroy('explosive', 1);
+      if (wr.look === 'standing') continue;
+      wr.step(dt);
       const back = this.wireBack[i];
+      const front = this.wireFront[i];
+      const crushed = this.wireCrushed[i];
+      const cut = this.wireCut[i];
+      const offs = this.wireOffsets[i];
       for (let k = 0; k < back.length; k++) {
-        back[k].visible = alive;
-        this.wireFront[i][k].visible = alive;
-        this.wireFlat[i][k].visible = !alive;
+        const lag = pieceLag(offs[k], offs.length, wr.dir);
+        const standing = wr.standingShown(lag);
+        back[k].visible = standing;
+        front[k].visible = standing;
+        if (standing) {
+          const sy = wr.standingScaleY(lag) * inv;
+          const lean = wr.lean(lag);
+          const a = wr.standingAlpha(lag);
+          back[k].scaleY = sy;
+          front[k].scaleY = sy;
+          back[k].rotation = lean;
+          front[k].rotation = lean;
+          back[k].alpha = a;
+          front[k].alpha = a;
+        }
+        const debris = wr.debris(lag);
+        const da = wr.debrisAlpha(lag);
+        crushed[k].visible = debris === 'crushed';
+        cut[k].visible = debris === 'cut';
+        crushed[k].alpha = da;
+        cut[k].alpha = da;
       }
     }
   }

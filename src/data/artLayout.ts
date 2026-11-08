@@ -262,15 +262,73 @@ export const PILLBOX_LAYOUT = {
 // Barbed wire
 // ---------------------------------------------------------------------------
 
+/**
+ * A wire belt runs across the battlefield, into the screen, so it is drawn END-ON (docs/AGENT_GUIDE.md, art rule):
+ * one or a few short, tall cross-sections of concertina coil hung on crossed timber pickets, standing on one ground
+ * line inside the belt's data width. Each piece is split in two sprites that share one box and origin: the BACK half
+ * (far picket, far loops of the coil) draws behind every unit row, the FRONT half (near picket, near loops) over them,
+ * so a man passing through has the coil over his legs. Once destroyed a piece leaves debris on the ground.
+ */
 export const WIRE_LAYOUT = {
-  tileW: 64,
-  /** Origin of every wire tile = left edge on that strand's ground line. */
-  backBox: { w: 64, h: 34, ox: 0, oy: 30 } as ArtBox,
-  frontBox: { w: 64, h: 38, ox: 0, oy: 34 } as ArtBox,
-  flatBox: { w: 64, h: 16, ox: 0, oy: 11 } as ArtBox,
-  /** y of each strand's ground line relative to VIEW.groundY: behind row 0 and in front of row 3. */
-  backDy: -27,
-  frontDy: 28,
+  /** Both halves of a standing piece. Origin = centre of the piece on its ground line. */
+  backBox: { w: 48, h: 56, ox: 24, oy: 50 } as ArtBox,
+  frontBox: { w: 48, h: 56, ox: 24, oy: 50 } as ArtBox,
+  /** Crushed flat by a tank: a squashed tangle with the pickets lying in it. Origin = centre on the ground line. */
+  crushedBox: { w: 66, h: 16, ox: 33, oy: 11 } as ArtBox,
+  /** Blown apart by a shell: snapped stumps and torn loops sagging to the ground. Origin = centre on the ground line. */
+  cutBox: { w: 52, h: 26, ox: 26, oy: 20 } as ArtBox,
+  /** Footprint of one piece left to right (picket legs and the coil seen down its axis, wu): narrow, less than postH. */
+  pieceW: 38,
+  /** Height of the picket tops above the ground line: waist to chest on a 58 wu soldier. */
+  postH: 44,
+  /** Splay of the picket legs at the ground and of the crossed tops (half widths, wu). */
+  legHalf: 13,
+  topHalf: 10,
+  /** Picket thickness (wu). */
+  postW: 2.6,
+  /** The far picket of a piece sits this far back (up and right, wu) and this much smaller. */
+  farDx: 2,
+  farDy: -6,
+  farScale: 0.9,
+  /** Coil: centre height above the ground line, loop radius, and how much each loop's radius varies. */
+  coilY: -19,
+  coilR: 15,
+  coilJitter: 1.5,
+  /** Loops of the coil seen end-on; the nearest `nearLoops` belong to the front half. */
+  loops: 7,
+  nearLoops: 3,
+  /** Each farther loop drifts this far (wu) as the coil recedes into the screen, and its centre wanders round a
+   * circle of helixR (wu) by helixStep rad per loop, so the loops overlap like a coil seen down its axis. */
+  helixR: 2.2,
+  helixStep: 2.4,
+  loopDx: 0.35,
+  loopDy: -0.85,
+  /** Wire stroke widths (wu) and barbs per loop. */
+  wireW: 1.4,
+  farWireW: 1.1,
+  barbs: 7,
+  barbSize: 1.5,
+  /** Centre-to-centre spacing of the pieces in a wide belt, and the most pieces one belt shows. */
+  pitch: 80,
+  maxPieces: 3,
+  /** Ground line of the pieces relative to VIEW.groundY (a little in front of the feet line of the men inside). */
+  dy: 10,
+  /**
+   * Infantry inside a standing belt walk on the feet line VIEW.groundY + feetDy, keeping rowSpread of their depth
+   * offset, eased over squeezeTime seconds (view only), so every row passes through the coil, not above or below it.
+   */
+  feetDy: -1,
+  rowSpread: 0.35,
+  squeezeTime: 0.22,
+  /** A tank crushing the wire: seconds the coil takes to fold down, how far it leans the way the tank drives (rad), and
+   * the height it folds to (share) before only the flattened tangle is left. */
+  collapseTime: 0.4,
+  collapseLean: 0.55,
+  collapseFlat: 0.12,
+  /** Delay (s) between neighbouring pieces of one belt folding, as the tank reaches each in turn. */
+  collapseStagger: 0.8,
+  /** Share of the collapse after which the tangle starts to show. */
+  debrisFrom: 0.35,
 } as const;
 
 // ---------------------------------------------------------------------------

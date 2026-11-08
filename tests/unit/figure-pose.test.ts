@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFigureAnim, createFigureInput, updateFigure, type FigureAnim, type FigureInput } from '../../src/art/figure';
 import {
+  C_WIRE,
   J_CHEST,
   J_FANKLE,
   J_FELBOW,
@@ -23,7 +24,8 @@ import {
   N_JOINTS,
   N_POSE,
 } from '../../src/art/figure/pose';
-import { DEATH_VARIANTS, FIGURE, FIGURE_KIND_LIST, type DeathVariant, type FigureKind } from '../../src/data/figure';
+import { CONFIG } from '../../src/data/config';
+import { DEATH_VARIANTS, FIGURE, FIGURE_KIND_LIST, FIGURE_WIRE, type DeathVariant, type FigureKind } from '../../src/data/figure';
 import type { FactionId, UnitAction } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 
@@ -43,6 +45,7 @@ interface State {
   fire?: boolean;
   controlled?: boolean;
   pitch?: number;
+  wire?: boolean;
 }
 
 const STATES: readonly State[] = [
@@ -63,6 +66,8 @@ const STATES: readonly State[] = [
   { name: 'hit', action: 'idle', hit: true },
   { name: 'runGun', action: 'fire', speed: 1, fire: true, controlled: true },
   { name: 'inside', action: 'inside' },
+  { name: 'wire', action: 'move', speed: CONFIG.wireSlow, wire: true },
+  { name: 'wireCarry', action: 'move', speed: CONFIG.wireSlow, wire: true, carry: true },
 ];
 
 function apply(inp: FigureInput, kind: FigureKind, s: State, t: number): void {
@@ -75,6 +80,7 @@ function apply(inp: FigureInput, kind: FigureKind, s: State, t: number): void {
   inp.victory = s.victory ?? false;
   inp.controlled = s.controlled ?? false;
   inp.aimPitch = s.pitch ?? 0;
+  inp.struggling = s.wire ?? false;
   inp.fired = (s.fire ?? false) && Math.floor(t / 0.3) !== Math.floor((t - DT) / 0.3);
   inp.hit = (s.hit ?? false) && t < DT * 1.5;
   inp.death = null;
@@ -204,19 +210,21 @@ describe('figure pose', () => {
   });
 
   it('plants the stance foot: its world position stays fixed while the unit moves at constant speed', () => {
-    const cases: { kind: FigureKind; speed: number; carry: boolean }[] = [];
+    const cases: { kind: FigureKind; speed: number; carry: boolean; wire?: boolean }[] = [];
     for (const kind of FIGURE_KIND_LIST) {
       cases.push({ kind, speed: UNITS[kind].speed, carry: false });
       cases.push({ kind, speed: 40, carry: false });
       cases.push({ kind, speed: -30, carry: false });
     }
     cases.push({ kind: 'sapper', speed: 70, carry: true });
+    for (const kind of FIGURE_KIND_LIST) cases.push({ kind, speed: UNITS[kind].speed * CONFIG.wireSlow, carry: false, wire: true });
     for (const c of cases) {
       const a = createFigureAnim(c.kind, 'british', 21);
       const inp = createFigureInput(c.kind);
       inp.action = 'move';
       inp.speed = c.speed;
       inp.carrying = c.carry;
+      inp.struggling = c.wire ?? false;
       let x = 0;
       const dt = 1 / 120;
       for (let i = 0; i < 360; i++) {
@@ -255,6 +263,65 @@ describe('figure pose', () => {
       expect(stances, `${c.kind} at ${c.speed}`).toBeGreaterThan(2);
       expect(worst, `${c.kind} at ${c.speed}`).toBeLessThan(0.25);
     }
+  });
+
+  it('struggles through wire: short, high-kneed steps with the arms up, eased in by the data blend', () => {
+    for (const kind of FIGURE_KIND_LIST) {
+      const walk = (struggling: boolean) => {
+        const a = createFigureAnim(kind, 'british', 33);
+        const inp = createFigureInput(kind);
+        const speed = UNITS[kind].speed * CONFIG.wireSlow;
+        inp.action = 'move';
+        inp.speed = speed;
+        inp.struggling = struggling;
+        let lift = 0;
+        let hand = 0;
+        let shoulder = 0;
+        let n = 0;
+        let phase0 = 0;
+        for (let i = 0; i < 300; i++) {
+          inp.moved = speed * DT;
+          updateFigure(a, inp, DT);
+          if (i === 120) phase0 = a.phase;
+          if (i > 120) {
+            lift = Math.max(lift, -a.joints[J_NANKLE * 2 + 1] - FIGURE.ankle, -a.joints[J_FANKLE * 2 + 1] - FIGURE.ankle);
+            hand += a.joints[J_NHAND * 2 + 1];
+            shoulder += a.joints[J_NSHOULDER * 2 + 1];
+            n++;
+          }
+        }
+        return { lift, hand: hand / n, shoulder: shoulder / n, cycles: a.phase - phase0 };
+      };
+      const plain = walk(false);
+      const wire = walk(true);
+      // Shorter steps over the same distance: more gait cycles.
+      expect(wire.cycles, `${kind} cycles`).toBeGreaterThan(plain.cycles * 1.4);
+      // High knees: the swinging foot rises much higher.
+      expect(wire.lift, `${kind} lift`).toBeGreaterThan(plain.lift * 1.8);
+      expect(wire.lift, `${kind} lift`).toBeGreaterThan(FIGURE_WIRE.gait.lift * 0.6);
+      // Arms up: the near hand is higher than on a plain walk, and above the shoulder unless a carry is kept.
+      expect(wire.hand, `${kind} hand`).toBeLessThan(plain.hand - 2);
+      if (!FIGURE_WIRE.keepCarry.includes(kind)) expect(wire.hand, `${kind} hand over shoulder`).toBeLessThan(wire.shoulder);
+    }
+    // The struggle eases in over the data blend time: no jump on the first frame, settled after about 5 time constants.
+    const a = createFigureAnim('rifle', 'british', 3);
+    const inp = createFigureInput('rifle');
+    inp.action = 'move';
+    inp.speed = 30;
+    for (let i = 0; i < 60; i++) {
+      inp.moved = 30 * DT;
+      updateFigure(a, inp, DT);
+    }
+    inp.struggling = true;
+    inp.moved = 30 * DT;
+    updateFigure(a, inp, DT);
+    expect(a.sv[C_WIRE]).toBeGreaterThan(0);
+    expect(a.sv[C_WIRE]).toBeLessThan(0.2);
+    for (let t = DT; t < FIGURE_WIRE.blend * 6; t += DT) {
+      inp.moved = 30 * DT;
+      updateFigure(a, inp, DT);
+    }
+    expect(a.sv[C_WIRE]).toBeGreaterThan(0.95);
   });
 
   it('blends every transition between actions without popping', () => {
@@ -329,6 +396,7 @@ describe('figure pose', () => {
         inp.inTrench = rnd() < 0.2;
         inp.carrying = rnd() < 0.3;
         inp.victory = rnd() < 0.05;
+        inp.struggling = rnd() < 0.3;
         inp.fired = rnd() < 0.2;
         inp.hit = rnd() < 0.1;
         updateFigure(a, inp, dt);

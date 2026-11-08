@@ -14,7 +14,7 @@ export { hqKey, hqSpecs } from './hq';
 export { pillboxKey, pillboxSpecs } from './pillbox';
 export { createTileSpan, tileSpan, type TileSpan } from './span';
 export { TRENCH_BASE_PALETTE, TRENCH_KEYS, trenchKey, trenchKitSpecs, trenchSpec, type TrenchLayer, type TrenchPalette } from './trench';
-export { WIRE_KEYS, wireSpecs } from './wire';
+export { WIRE_KEYS, createWirePieces, wirePieceLayout, wireSpecs, type WirePieces } from './wire';
 
 /** Every fixed structure sprite. (trenchSpec(layer, width) builds extra one-piece trench sprites on demand.) */
 export function structureSpecs(): SpriteSpec[] {

@@ -412,6 +412,9 @@ export class BattleViewImpl implements BattleView {
         case 'unitDied':
           units.onDied(e.unit, e.unitId, e.cause, e.dir, e.x);
           break;
+        case 'wireDestroyed':
+          structures.onWireDestroyed(e.targetIndex, e.side, e.cause);
+          break;
         case 'battleEnded':
           // The losing headquarters ends as a ruin even when the battle was lost on a timer.
           if (e.side >= 0 && state.sides[e.side === 0 ? 1 : 0].hq) structures.forceRuin(e.side === 0 ? 1 : 0);

@@ -24,6 +24,7 @@ import {
   FIGURE_LOADOUT,
   FIGURE_STANCES,
   FIGURE_UPPERS,
+  FIGURE_WIRE,
   type DeathVariant,
   type FigureKindDef,
   type GaitProfile,
@@ -73,6 +74,7 @@ import {
   C_STYLE,
   C_TWIST,
   C_WANG,
+  C_WIRE,
   J_MUZZLE,
   J_NHAND,
   N_CHANNELS,
@@ -213,6 +215,30 @@ function env(t: number, t0: number, t1: number, t2: number, t3: number): number 
   return 1 - smooth01((t - t2) / (t3 - t2));
 }
 
+/**
+ * Arms up through the wire: a carried rifle or gun is held high out of the coil (the pinned hands follow it), a
+ * shoulder-borne tube, launcher or crate is lifted a little, and free arms reach up and forward to part the strands.
+ * Only the targets change, so the springs ease the arms in and out.
+ */
+function struggleUpper(a: FigureAnim, inp: FigureInput): void {
+  const W = FIGURE_WIRE;
+  const tg = a.tg;
+  if (W.keepCarry.includes(a.kind) || (a.kind === 'sapper' && inp.carrying)) {
+    a.relTY += W.liftY;
+    return;
+  }
+  if (a.weaponVisible && tg[C_GND] < 0.5 && (tg[C_NPIN] > 0.5 || tg[C_FPIN] > 0.5)) {
+    a.relTX = W.holdX;
+    a.relTY = W.holdY;
+    tg[C_WANG] = W.holdAngle;
+    return;
+  }
+  tg[C_NSH] = W.nearSh;
+  tg[C_NEL] = W.nearEl;
+  tg[C_FSH] = W.farSh;
+  tg[C_FEL] = W.farEl;
+}
+
 function moveFireUpper(K: FigureKindDef, kind: FigureAnim['kind']): UpperDef {
   if (kind === 'lmg') return K.idle.upper;
   if (kind === 'mortar' || kind === 'sapper' || kind === 'medic') return K.move;
@@ -268,6 +294,8 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
   tau[C_STYLE] = F.spring.style;
   tau[C_BACK] = F.spring.style;
   tau[C_CHEER] = F.spring.body;
+  tau[C_WIRE] = FIGURE_WIRE.blend;
+  tg[C_WIRE] = inp.struggling && !inp.victory ? 1 : 0;
 
   if (pushing && !inp.victory) {
     // Both hands on the cart handle, leaning into the push (the legs take the gait while moving).
@@ -287,6 +315,7 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
         tg[C_WANG] += a.carryTilt;
         a.relTY += a.carryLift;
       }
+      if (inp.struggling) struggleUpper(a, inp);
     }
     return;
   }
@@ -570,6 +599,15 @@ function gaitProfile(a: FigureAnim, inp: FigureInput, K: FigureKindDef): GaitPro
 function advanceGait(a: FigureAnim, inp: FigureInput, K: FigureKindDef): void {
   const prof = gaitProfile(a, inp, K);
   blendStyle(prof.slow, prof.fast, clamp01(a.sv[C_STYLE]));
+  // Wading through wire: every gait parameter eases toward the struggle style by its springed weight.
+  const wire = clamp01(a.sv[C_WIRE]);
+  if (wire > 0) {
+    const WG = FIGURE_WIRE.gait;
+    for (let i = 0; i < STYLE_KEYS.length; i++) {
+      const k = STYLE_KEYS[i];
+      GS[k] += (WG[k] - GS[k]) * wire;
+    }
+  }
   const back = clamp01(a.sv[C_BACK]);
   if (back > 0) {
     GS.stride *= lerp(1, F.gait.backStride, back);
@@ -816,14 +854,16 @@ function compose(a: FigureAnim, inp: FigureInput, K: FigureKindDef, dt: number):
 
   // Arms: free (swinging) arm pose mixed with the hand pinned to the weapon.
   const armSwing = GS.armSwing * a.gArm;
+  // Struggling through wire, free arms keep their posed reach (up and forward) instead of the walking swing.
+  const gw = w * (1 - clamp01(sv[C_WIRE]));
   const cheerWave = cheerW * F.cheer.armWave * Math.sin(cheerPh);
   for (let side = 0; side < 2; side++) {
     const near = side === 0;
     const pin = clamp01(sv[near ? C_NPIN : C_FPIN]);
     const swing = near ? -armSwing : armSwing;
     const fwd = clamp01(swing / Math.max(0.05, GS.armSwing));
-    const sh = lerp(sv[near ? C_NSH : C_FSH], swing + GS.lean * 0.4, w) + (near ? cheerWave : -cheerWave) - F.flinch.arm * fl;
-    const el = Math.max(0.02, lerp(sv[near ? C_NEL : C_FEL], GS.elbow + GS.elbowSwing * fwd, w));
+    const sh = lerp(sv[near ? C_NSH : C_FSH], swing + GS.lean * 0.4, gw) + (near ? cheerWave : -cheerWave) - F.flinch.arm * fl;
+    const el = Math.max(0.02, lerp(sv[near ? C_NEL : C_FEL], GS.elbow + GS.elbowSwing * fwd, gw));
     const sx = near ? nsx : fsx;
     const sy = near ? nsy : fsy;
     const a1 = HALF_PI - sh;

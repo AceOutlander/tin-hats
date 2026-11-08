@@ -24,12 +24,14 @@ import {
   TRENCH_KEYS,
   WIRE_KEYS,
   createTileSpan,
+  createWirePieces,
   flagStripTint,
   flagWave,
   hqKey,
   pillboxKey,
   structureSpecs,
   tileSpan,
+  wirePieceLayout,
 } from '../src/art/structures';
 import { AIR_KEYS, TANK_KEYS, TANK_LOOKS, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
 import type { SpriteSpec } from '../src/art/types';
@@ -335,10 +337,12 @@ function trench(ctx: Ctx, cx: number, gy: number, width: number, occupants: { x:
   drawLayer(1);
 }
 
-function wireRun(ctx: Ctx, x0: number, gy: number, tiles: number, between: () => void): void {
-  for (let i = 0; i < tiles; i++) put(ctx, WIRE_KEYS.back, x0 + i * WIRE_LAYOUT.tileW, gy + WIRE_LAYOUT.backDy);
+/** A wire belt of `width` drawn end-on: its pieces' far halves, then whatever stands in it, then the near halves. */
+function wireBelt(ctx: Ctx, cx: number, gy: number, width: number, between: () => void): void {
+  const p = wirePieceLayout(width, createWirePieces());
+  for (let i = 0; i < p.count; i++) put(ctx, WIRE_KEYS.back, cx + p.x[i], gy + WIRE_LAYOUT.dy);
   between();
-  for (let i = 0; i < tiles; i++) put(ctx, WIRE_KEYS.front, x0 + i * WIRE_LAYOUT.tileW, gy + WIRE_LAYOUT.frontDy);
+  for (let i = 0; i < p.count; i++) put(ctx, WIRE_KEYS.front, cx + p.x[i], gy + WIRE_LAYOUT.dy);
 }
 
 function fieldScene(ctx: Ctx, t: number): void {
@@ -374,12 +378,12 @@ function fieldScene(ctx: Ctx, t: number): void {
   // Stage B: wire, supplies, airdrops.
   const gb = 550;
   stage(ctx, 270, 620, gb);
-  wireRun(ctx, 30, gb, 3, () => {
-    rowFigure(ctx, 70, gb, 1, false, 1, 'walk', t * 5);
-    rowFigure(ctx, 150, gb, 2, false, 1, 'stand');
-  });
-  put(ctx, WIRE_KEYS.flat, 270, gb);
-  label(ctx, 'wire (units pass between strands) / flattened', 210, gb + 66);
+  rowFigure(ctx, 30, gb, 2, false, 1, 'stand');
+  wireBelt(ctx, 80, gb, 100, () => figure(ctx, 82, gb + WIRE_LAYOUT.feetDy, 1, 1, 'walk', t * 3));
+  wireBelt(ctx, 190, gb, 180, () => undefined);
+  put(ctx, WIRE_KEYS.crushed, 310, gb + WIRE_LAYOUT.dy);
+  put(ctx, WIRE_KEYS.cut, 380, gb + WIRE_LAYOUT.dy);
+  label(ctx, 'wire end-on: 100 wu, 180 wu / crushed, cut', 200, gb + 66);
   put(ctx, SUPPLY_KEYS.dump, 500, gb);
   rowFigure(ctx, 566, gb, 2, false, -1, 'stand');
   label(ctx, 'supply dump', 500, gb + 36);

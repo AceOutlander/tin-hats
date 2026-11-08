@@ -132,7 +132,9 @@ export const C_STYLE = 32;
 export const C_BACK = 33;
 export const C_CHEER = 34;
 export const C_PLATE = 35;
-export const N_CHANNELS = 36;
+/** Weight of the struggle through enemy wire (0..1). */
+export const C_WIRE = 36;
+export const N_CHANNELS = 37;
 
 /** Death of a unit: which fall, seconds since death, and the way the blow travelled. */
 export interface FigureDeath {
@@ -160,6 +162,8 @@ export interface FigureInput {
   stepping: boolean;
   /** Victory cheer. */
   victory: boolean;
+  /** Inside enemy barbed wire (view only): short high-kneed steps with the arms up, pushing through. */
+  struggling: boolean;
   /** One-shot triggers: set for the frame the event happens, then clear. */
   fired: boolean;
   hit: boolean;
@@ -179,6 +183,7 @@ export function createFigureInput(kind: UnitKind = 'rifle'): FigureInput {
     controlled: false,
     stepping: false,
     victory: false,
+    struggling: false,
     fired: false,
     hit: false,
     death: null,

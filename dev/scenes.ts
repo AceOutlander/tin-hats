@@ -11,8 +11,12 @@
  *   assault   mortar, grenade, rockets and a tank shell on a German trench, wire and pillbox
  *   support   smoke screen, artillery barrage, air strike and an airdrop
  *   turn      a line of soldiers about-faces and runs back (turn smoothness)
+ *   wire      a soldier standing by a belt of German wire for scale, men struggling through a second belt, and a tank
+ *             crushing a third flat
  */
+import { CONFIG } from '../src/data/config';
 import type { MissionDef, UnitAction, UnitKind } from '../src/data/schema';
+import { UNITS } from '../src/data/units';
 import type { BattleState, SimEvent, SimEventType, UnitState } from '../src/sim';
 
 export type Emit = (type: SimEventType, fields: Partial<SimEvent>) => void;
@@ -279,7 +283,7 @@ export const SCENES: Record<string, Scene> = {
       if (k.at(4.5)) k.launch(0, 'mortar', 4160, 1.7, 70);
       if (k.at(7.5)) k.launch(0, 'mortar', 3830, 1.2, 70);
       if (k.at(8.7)) {
-        k.emit('wireDestroyed', { targetIndex: 0, x: 3830 });
+        k.emit('wireDestroyed', { targetIndex: 0, side: 1, x: 3830, cause: 'explosive' });
         (k.s.wires[0] as { alive: boolean }).alive = false;
       }
       if (k.at(3.25)) k.kill(5, 'explosive', 1);
@@ -380,4 +384,41 @@ export const SCENES: Record<string, Scene> = {
       k.go(4, Math.floor(t / 4) % 2 === 0 ? 2450 : 1950, 40);
     },
   },
+
+  wire: {
+    cam: 3000,
+    wire: [
+      { x: 2720, width: 100, owner: 1 },
+      { x: 3000, width: 160, owner: 1 },
+      { x: 3330, width: 120, owner: 1 },
+    ],
+    forces: [
+      { side: 0, kind: 'rifle', x: 2655, row: 2 },
+      { side: 0, kind: 'rifle', x: 2890, row: 1 },
+      { side: 0, kind: 'assault', x: 2850, row: 3 },
+      { side: 0, kind: 'lmg', x: 2820, row: 0 },
+      { side: 0, kind: 'tank', x: 3150, row: 1 },
+    ],
+    tick(t, k) {
+      k.stand(0, 'idle');
+      // Through the middle belt at the sim's wire speed (CONFIG.wireSlow), full speed outside it.
+      const goals = [0, 3150, 3150, 3150];
+      for (let i = 1; i < 4; i++) {
+        const u = k.u[i];
+        const inside = Math.abs(u.x - 3000) <= 80;
+        const speed = UNITS[u.kind].speed * (inside ? CONFIG.wireSlow : 1);
+        if (t > 0.3 * i) k.go(i, goals[i], speed);
+        else k.stand(i);
+      }
+      // The tank drives into the right-hand belt and crushes it.
+      if (t > 1) k.go(4, 3480, 40);
+      else k.stand(4);
+      const wr = k.s.wires[2] as { alive: boolean; id: number };
+      if (wr.alive && k.u[4].x > 3330 - 60 - 40) {
+        k.emit('wireDestroyed', { targetIndex: wr.id, side: 1, x: 3330, cause: null });
+        wr.alive = false;
+      }
+    },
+  },
 };
+
