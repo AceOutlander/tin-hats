@@ -10,6 +10,10 @@ import { glyph, helmetIcon, unitIcon } from '../shell/icons';
 import { withScrollCue } from '../shell/scrollCue';
 import type { ScreenFactory } from '../shell/types';
 
+/** Size of an upgrade's battle preview in CSS px: as wide as the Refund and Buy buttons under it. */
+const PREVIEW_W = 118;
+const PREVIEW_H = 44;
+
 interface Group {
   unit: UnitKind | null;
   name: string;
@@ -120,8 +124,38 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
     });
     buy.disabled = !up.canBuy;
     add(actions, refund, buy);
-    add(card, text, actions);
+    const side = el('div', 'th-up-side');
+    const preview = upgradePreview(up);
+    if (preview) side.append(preview);
+    side.append(actions);
+    add(card, text, side);
     return card;
+  }
+
+  /** How the next level looks in battle (the top level once it is full), when the app can paint it. */
+  function upgradePreview(up: UpgradeView): HTMLElement | null {
+    const paint = ctx.opts.paintUpgradePreview;
+    if (!paint || up.maxLevel <= 0) return null;
+    const maxed = up.level >= up.maxLevel;
+    const level = maxed ? up.maxLevel : up.level + 1;
+    const fig = el('figure', 'th-up-preview');
+    fig.dataset.testid = `upgrade-preview-${up.id}`;
+    fig.dataset.level = String(level);
+    const canvas = el('canvas', 'th-up-preview-pic');
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    canvas.width = Math.round(PREVIEW_W * dpr);
+    canvas.height = Math.round(PREVIEW_H * dpr);
+    canvas.setAttribute('aria-hidden', 'true');
+    try {
+      if (!paint(canvas, up.id, level)) return null;
+    } catch (err) {
+      console.warn('Tin Hats UI: paintUpgradePreview failed', err);
+      return null;
+    }
+    const caption = el('figcaption', 'th-up-preview-cap', maxed ? 'In battle' : `Level ${level}`);
+    fig.setAttribute('aria-label', maxed ? `${up.name} as it looks in battle` : `${up.name} level ${level} as it will look in battle`);
+    add(fig, canvas, caption);
+    return fig;
   }
 
   function render(): void {

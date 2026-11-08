@@ -20,6 +20,7 @@ import {
   type WeaponModel,
 } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
+import type { FigureGearKeys } from './gear';
 import { hash01 } from './math';
 
 // ---------------------------------------------------------------------------
@@ -291,6 +292,12 @@ export class FigureAnim {
   crateVisible = false;
   /** Mortar baseplate laid flat (0..1). */
   plate = 0;
+  /** Upgrade gear keys (setFigureGear); null = level 0. */
+  gear: FigureGearKeys | null = null;
+  /** Drawn instead of the nation's crate while a sapper carries (setFigureCrateKey); null = the nation's crate. */
+  crateKey: string | null = null;
+  /** Sapper pushing the handcart (setFigurePushing). */
+  pushing = false;
 
   // Death.
   dead = false;
@@ -386,6 +393,9 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.itemFar = false;
   a.weaponVisible = a.model !== 'none' && a.model !== 'crate';
   a.crateVisible = false;
+  a.gear = null;
+  a.crateKey = null;
+  a.pushing = false;
   a.dead = false;
   a.deathVariant = DEATH_VARIANTS[0];
   a.deathDir = -1;

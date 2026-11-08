@@ -3,6 +3,7 @@
  * first gesture, auto-pause when the page loses focus, and the unit icon painter.
  */
 import { paintUnitPortrait } from '../art/icons';
+import { paintUpgradePreview } from '../art/upgradePreview';
 import type { GameAudio } from '../audio';
 import type { FactionId, Side, UnitKind } from '../data/schema';
 import { createMemoryStorage, type StorageLike } from '../meta';
@@ -28,6 +29,11 @@ export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: U
     const faction = app.session ? app.session.battle.state.sides[side].faction : DEFAULT_FACTIONS[side];
     paintUnitPortrait(canvas, kind, faction);
   };
+}
+
+/** The Quartermaster's battle previews: the player's nation, its other upgrades at their bought levels. */
+export function createUpgradePainter(app: App): (canvas: HTMLCanvasElement, upgradeId: string, level: number) => boolean {
+  return (canvas, upgradeId, level) => paintUpgradePreview(canvas, upgradeId, level, DEFAULT_FACTIONS[0], app.save.upgrades);
 }
 
 /**

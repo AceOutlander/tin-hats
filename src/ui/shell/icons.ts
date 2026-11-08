@@ -115,6 +115,12 @@ export function supportIcon(kind: SupportKind, className = 'th-support-icon'): S
 export type PaintUnitIcon = (canvas: HTMLCanvasElement, kind: UnitKind, side: Side) => void;
 
 /**
+ * Paints how an upgrade looks in battle at `level` (1 to its maximum) into a canvas whose pixel size is already set;
+ * returns false when it has no picture for that upgrade.
+ */
+export type PaintUpgradePreview = (canvas: HTMLCanvasElement, upgradeId: string, level: number) => boolean;
+
+/**
  * A unit portrait for cards and group headings: the art track's painter when
  * the app supplied one, otherwise a plain tin hat so the layout still holds.
  */

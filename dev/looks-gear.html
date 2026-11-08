@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin Hats: upgrade gear preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #6f6a58;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Upgrade gear preview (dev server only).
+        looks-gear.html?mode=infantry     every infantry kind at gear (0,0) (1,1) (2,2) (3,3) (3,0) (0,3), both nations
+           extra: z=0.95 (scale; 0.95 = phone size, a 58 wu figure about 55 CSS px), action=move|idle|aim, bg=dark
+        looks-gear.html?mode=medic        medic at every healing level, both nations, idle and walking
+        looks-gear.html?mode=sapper       sapper pushing (walking cycle, placeholder cart at the handle), standing,
+                                          and carrying a swapped load (setFigureCrateKey)
+        looks-gear.html?mode=tanks        every tank look at its gear levels (red dot = muzzle point)
+      ';' works in place of '&' (needed when the URL goes through x.cmd):
+        x.cmd npx tsx tools/shot.ts "dev/looks-gear.html?mode=infantry;z=0.95" out.png --ready
+    -->
+    <canvas id="c"></canvas>
+    <script type="module" src="./looks-gear.ts"></script>
+  </body>
+</html>

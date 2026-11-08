@@ -23,6 +23,8 @@ import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
+import type { SideLooks } from '../data/upgradeLooks';
+import { sideLooks } from '../meta/looks';
 import { SpriteRegistry, type SpriteFrame } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
@@ -77,6 +79,8 @@ export class BattleViewImpl implements BattleView {
   weather: WeatherMode = 'auto';
   visualSeed = 0;
   playerSide: 0 | 1 = 0;
+  /** What each side of the attached battle looks like (its Quartermaster upgrades). */
+  looks: SideLooks[] = [];
 
   private scene: Phaser.Scene | null = null;
   private layers: Layers | null = null;
@@ -332,10 +336,19 @@ export class BattleViewImpl implements BattleView {
       soil: colours.soil,
       soilDark: colours.soilDark,
     };
-    const specs = StructureViews.battleSpecs(state, earth);
+    // Quartermaster upgrades are the player's side's (side 0, as the sim applies them); the other side shows its
+    // nation's established positions.
+    const looks = [
+      sideLooks(state.sides[0].faction, battle.config.upgrades, battle.config.upgradeDefs),
+      sideLooks(state.sides[1].faction, null),
+    ];
+    this.looks = looks;
+    const specs = StructureViews.battleSpecs(state, earth, looks);
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
-    this.structures.build(state, earth);
+    this.structures.build(state, earth, looks);
     this.units.reset(opts.visualSeed);
+    this.units.setLooks(0, looks[0]);
+    this.units.setLooks(1, looks[1]);
     this.effects.clear();
     this.effects.ctx.state = state;
     this.effects.ctx.playerSide = opts.playerSide;

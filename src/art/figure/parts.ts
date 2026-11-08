@@ -17,6 +17,7 @@ import { FACTIONS } from '../../data/factions';
 import { FIGURE, FIGURE_CRATE, FIGURE_KIND_LIST, FIGURE_LOADOUT, WEAPON_GEOM, type FigureKind, type HandItem, type WeaponModel } from '../../data/figure';
 import type { FactionId } from '../../data/schema';
 import type { SpriteSpec } from '../types';
+import { gearFigureSprites } from './gear';
 import { TAU } from './math';
 
 type Ctx = CanvasRenderingContext2D;
@@ -27,7 +28,7 @@ const RAD = FIGURE.radius;
 const B = FIGURE.bones;
 const RIM = FIGURE.rimWidth;
 
-function makeSpec(key: string, x0: number, y0: number, x1: number, y1: number, paint: Paint): SpriteSpec {
+export function makeSpec(key: string, x0: number, y0: number, x1: number, y1: number, paint: Paint): SpriteSpec {
   const w = x1 - x0;
   const h = y1 - y0;
   return {
@@ -52,7 +53,7 @@ function ch(hex: string, i: number): number {
   return parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
 }
 
-function mix(a: string, b: string, t: number): string {
+export function mix(a: string, b: string, t: number): string {
   let out = '#';
   for (let i = 0; i < 3; i++) {
     const v = Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t);
@@ -70,7 +71,7 @@ function poly(ctx: Ctx, pts: readonly number[]): void {
   ctx.closePath();
 }
 
-function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number): void {
+export function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number): void {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.moveTo(x + rr, y);
   ctx.arcTo(x + w, y, x + w, y + h, rr);
@@ -80,7 +81,7 @@ function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number):
   ctx.closePath();
 }
 
-function fillPath(ctx: Ctx, color: string, build: () => void): void {
+export function fillPath(ctx: Ctx, color: string, build: () => void): void {
   ctx.beginPath();
   build();
   ctx.fillStyle = color;
@@ -88,7 +89,7 @@ function fillPath(ctx: Ctx, color: string, build: () => void): void {
 }
 
 /** Fill a path and give it a thin light edge so dark kit reads on dark ground. */
-function solid(ctx: Ctx, color: string, build: () => void, edge = 'rgba(232, 226, 206, 0.32)', edgeWidth = 0.32): void {
+export function solid(ctx: Ctx, color: string, build: () => void, edge = 'rgba(232, 226, 206, 0.32)', edgeWidth = 0.32): void {
   ctx.beginPath();
   build();
   ctx.fillStyle = color;
@@ -99,7 +100,7 @@ function solid(ctx: Ctx, color: string, build: () => void, edge = 'rgba(232, 226
   ctx.stroke();
 }
 
-function line(ctx: Ctx, color: string, width: number, pts: readonly number[]): void {
+export function line(ctx: Ctx, color: string, width: number, pts: readonly number[]): void {
   ctx.beginPath();
   ctx.moveTo(pts[0], pts[1]);
   for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
@@ -190,7 +191,7 @@ function bootSpec(key: string, color: string, grow: number): SpriteSpec {
 // ---------------------------------------------------------------------------
 // Helmets (head space: origin at the head centre, x toward the face, y down)
 // ---------------------------------------------------------------------------
-function brodiePath(ctx: Ctx): void {
+export function brodiePath(ctx: Ctx): void {
   // Wide flat brim with a shallow bowl on top.
   ctx.moveTo(-9.0, -2.5);
   ctx.quadraticCurveTo(-8.7, -3.5, -6.0, -3.6);
@@ -202,7 +203,7 @@ function brodiePath(ctx: Ctx): void {
   ctx.closePath();
 }
 
-function stahlhelmPath(ctx: Ctx): void {
+export function stahlhelmPath(ctx: Ctx): void {
   // Deep dome, short visor, the skirt flaring out over the ear and the neck.
   ctx.moveTo(6.9, -2.3);
   ctx.quadraticCurveTo(6.5, -2.9, 5.6, -3.4);
@@ -215,7 +216,7 @@ function stahlhelmPath(ctx: Ctx): void {
   ctx.closePath();
 }
 
-function helmetSpec(key: string, kind: 'brodie' | 'stahlhelm', tint: string, dark: string, rim: boolean): SpriteSpec {
+export function helmetSpec(key: string, kind: 'brodie' | 'stahlhelm', tint: string, dark: string, rim: boolean): SpriteSpec {
   // Paths are drawn for a head of radius 5.4 and scaled to the real head.
   const k = FIGURE.headRadius / 5.4;
   const x0 = (kind === 'brodie' ? -10.4 : -9.2) * k;
@@ -283,7 +284,7 @@ function packSpec(key: string, tint: string, dark: string): SpriteSpec {
   });
 }
 
-function pouchesSpec(key: string, tint: string, dark: string): SpriteSpec {
+export function pouchesSpec(key: string, tint: string, dark: string): SpriteSpec {
   // Anchored at the hip, upright: belt, ammunition pouch at the front, entrenching tool behind.
   return makeSpec(key, -6.2, -7.0, 5.6, 0.2, (ctx) => {
     solid(ctx, dark, () => rrect(ctx, -5.6, -6.4, 2.9, 5.6, 1.0));
@@ -527,7 +528,7 @@ function paintPanzerschreck(ctx: Ctx): void {
 // ---------------------------------------------------------------------------
 // Hand items (held at the origin, +x along the forearm)
 // ---------------------------------------------------------------------------
-function paintMills(ctx: Ctx): void {
+export function paintMills(ctx: Ctx): void {
   const g = '#3a4430';
   solid(ctx, g, () => ctx.ellipse(0.4, 0, 1.7, 1.35, 0, 0, TAU));
   line(ctx, mix(g, '#000000', 0.4), 0.25, [-0.6, -1.2, -0.6, 1.2]);
@@ -536,7 +537,7 @@ function paintMills(ctx: Ctx): void {
   line(ctx, STEEL_L, 0.35, [-1.2, -0.8, -1.8, 0.8]);
 }
 
-function paintStick(ctx: Ctx): void {
+export function paintStick(ctx: Ctx): void {
   solid(ctx, WOOD_L, () => rrect(ctx, -1.4, -0.55, 6.6, 1.1, 0.5));
   solid(ctx, '#4b5246', () => rrect(ctx, 5.0, -1.35, 3.6, 2.7, 0.5));
   line(ctx, STEEL_L, 0.3, [5.3, -1.0, 5.3, 1.0]);
@@ -741,12 +742,17 @@ function factionSpecs(f: FactionId): SpriteSpec[] {
 let cache: SpriteSpec[] | null = null;
 let cacheMap: Map<string, SpriteSpec> | null = null;
 
-/** Every figure sprite (body, rims, helmets, kit, weapons, items) for every faction. */
+/** The figure sprites without upgrade gear (body, rims, helmets, kit, weapons, items) for every faction. */
+export function baseFigureSprites(): SpriteSpec[] {
+  const out = [...bodySpecs(), ...weaponSpecs()];
+  for (const f of Object.keys(FACTIONS) as FactionId[]) out.push(...factionSpecs(f));
+  return out;
+}
+
+/** Every figure sprite (body, rims, helmets, kit, upgrade gear, weapons, items) for every faction. */
 export function allFigureSprites(): SpriteSpec[] {
-  if (!cache) {
-    cache = [...bodySpecs(), ...weaponSpecs()];
-    for (const f of Object.keys(FACTIONS) as FactionId[]) cache.push(...factionSpecs(f));
-  }
+  // ./gear uses the painters above; it only calls back into this module at run time, never while loading.
+  if (!cache) cache = [...baseFigureSprites(), ...gearFigureSprites()];
   return cache;
 }
 

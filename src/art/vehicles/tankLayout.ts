@@ -21,6 +21,8 @@ export interface TankState {
   recoil: number;
   /** -1..1, hull pitch on its suspension as a fraction of the look's rockMax; positive lifts the nose. */
   hullRock: number;
+  /** Extra gun length (wu) of the long-gun upgrade (tankGearKeys().gunExtra); default 0. */
+  gunExtra?: number;
 }
 
 /** Where to put a sprite's origin, and its rotation in radians (clockwise on screen). */
@@ -180,8 +182,9 @@ export function layoutTank(state: TankState, out: TankPose): TankPose {
   out.barrel.x = tx - gcos * slide;
   out.barrel.y = ty - gsin * slide;
   out.barrel.rot = gunRot;
-  out.muzzle.x = out.barrel.x + gcos * L.barrelLength;
-  out.muzzle.y = out.barrel.y + gsin * L.barrelLength;
+  const len = L.barrelLength + (state.gunExtra ?? 0);
+  out.muzzle.x = out.barrel.x + gcos * len;
+  out.muzzle.y = out.barrel.y + gsin * len;
   return out;
 }
 

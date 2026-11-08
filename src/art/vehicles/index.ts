@@ -18,6 +18,7 @@ export {
   type TankPose,
   type TankState,
 } from './tankLayout';
+export { tankGearKeys, tankGearSpecs, type TankGearKeys } from './tankGear';
 export { tankSpecs } from './tanks';
 
 /** Every vehicle sprite. */

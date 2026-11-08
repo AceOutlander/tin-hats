@@ -44,6 +44,10 @@ export const RENDER = {
     /** Contact shadow: width as a multiple of the unit's footprint (figures use figureShadowW), height, alpha. */
     figureShadowW: 30,
     figureShadowH: 7,
+    /** A sapper's supply truck (upgrade looks): how far it rocks (wu) and how often along the road (rad per wu); its shadow is this share of its length. */
+    truckBob: 0.7,
+    truckBobFreq: 0.35,
+    truckShadowK: 0.85,
     tankShadowPad: 1.05,
     tankShadowH: 16,
     shadowAlpha: 0.38,

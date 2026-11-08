@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Tin Hats: HQ upgrade looks</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #15160f;
+        overflow: hidden;
+        font: 12px/1.3 system-ui, sans-serif;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Parameters may be separated by ; instead of &amp; (handy from cmd.exe).
+      ?f=british|german   which nation (default british): rows are the HQ upgrade stages 0 to 3, columns the damage states
+      &anchors=1          mark the door, flag top and base, fire points; the gun position outline is always shown
+      &zoom=2&ox=0&oy=0   magnify, ox/oy = scene coordinates of the top-left corner of the view
+      &only=tent          show one style only, one row
+      The scene is 1320 wu wide and always fits the page width (844 px wide is about the in-battle scale).
+    -->
+    <canvas id="view"></canvas>
+    <script type="module" src="./looks-hq.ts"></script>
+  </body>
+</html>

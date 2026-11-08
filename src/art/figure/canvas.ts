@@ -4,7 +4,9 @@
  */
 import { FIGURE } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
+import type { GearLevels } from '../../data/upgradeLooks';
 import { updateFigure } from './animate';
+import { setFigureGear } from './gear';
 import { createFigureLayout, layoutFigure, type FigurePart } from './layout';
 import { figureSpriteMap } from './parts';
 import { createFigureAnim, createFigureInput, isFigureKind, type FigureAnim } from './pose';
@@ -84,14 +86,16 @@ const BOUNDS = new Float64Array(4);
 
 /**
  * Paint a portrait of one unit kind into a canvas of any size (uses the
- * canvas's pixel size). Returns false for kinds that are not stick figures.
+ * canvas's pixel size), wearing the gear of the given upgrade levels (default none). Returns false for kinds that are
+ * not stick figures.
  */
-export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId): boolean {
+export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear?: GearLevels): boolean {
   const ctx = canvas.getContext('2d');
   if (!ctx || !isFigureKind(kind)) return false;
   const pose = ICON_POSE[kind];
   const anim = createFigureAnim(kind, faction, 3);
   anim.altAim = false;
+  if (gear) setFigureGear(anim, gear);
   const input = createFigureInput(kind);
   input.action = pose.action;
   input.carrying = pose.carrying;

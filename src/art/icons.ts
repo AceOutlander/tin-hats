@@ -11,10 +11,12 @@
  */
 import { FACTIONS } from '../data/factions';
 import { FIGURE } from '../data/figure';
+import { GEAR_NONE } from '../data/looksGear';
 import type { FactionId, UnitKind } from '../data/schema';
+import type { GearLevels } from '../data/upgradeLooks';
 import { paintUnitIcon as paintFigureIcon } from './figure';
 import type { SpriteSpec } from './types';
-import { TANK_KEYS, createTankPose, layoutTank, tankSpecs, type PartXf } from './vehicles';
+import { TANK_KEYS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs, tankSpecs, type PartXf } from './vehicles';
 import type { TankLook } from '../data/artLayout';
 
 interface Placed {
@@ -26,29 +28,31 @@ interface Placed {
 
 let specByKey: Map<string, SpriteSpec> | null = null;
 
-function tankSpec(key: string): SpriteSpec {
+function tankSpec(key: string, look: TankLook, gear: GearLevels): SpriteSpec {
   if (!specByKey) {
     specByKey = new Map();
     for (const s of tankSpecs()) specByKey.set(s.key, s);
   }
+  if (!specByKey.has(key)) for (const s of tankGearSpecs(look, gear)) specByKey.set(s.key, s);
   const s = specByKey.get(key);
   if (!s) throw new Error(`Tin Hats art: no tank sprite "${key}"`);
   return s;
 }
 
 /** The parts of a parked tank, back to front, in tank space (+x forward, ground at y = 0). */
-function placeTank(look: TankLook): Placed[] {
+function placeTank(look: TankLook, gear: GearLevels): Placed[] {
   const keys = TANK_KEYS[look];
-  const pose = layoutTank({ look, distance: 0, turretAim: 0, recoil: 0, hullRock: 0 }, createTankPose());
+  const g = tankGearKeys(look, gear);
+  const pose = layoutTank({ look, distance: 0, turretAim: 0, recoil: 0, hullRock: 0, gunExtra: g.gunExtra }, createTankPose());
   const out: Placed[] = [];
   const add = (key: string, xf: PartXf): void => {
-    out.push({ spec: tankSpec(key), x: xf.x, y: xf.y, rot: xf.rot });
+    out.push({ spec: tankSpec(key, look, gear), x: xf.x, y: xf.y, rot: xf.rot });
   };
   add(keys.track[pose.trackFrame], pose.track);
   for (let i = 0; i < pose.wheelCount; i++) add(keys.wheels[i], pose.wheels[i]);
-  add(keys.hull, pose.hull);
-  add(keys.barrel, pose.barrel);
-  add(keys.turret, pose.turret);
+  add(g.hull, pose.hull);
+  add(g.barrel, pose.barrel);
+  add(g.turret, pose.turret);
   return out;
 }
 
@@ -75,10 +79,10 @@ function boundsOf(parts: readonly Placed[]): [number, number, number, number] {
   return [x0, y0, x1, y1];
 }
 
-function paintTank(canvas: HTMLCanvasElement, look: TankLook): boolean {
+function paintTank(canvas: HTMLCanvasElement, look: TankLook, gear: GearLevels): boolean {
   const ctx = canvas.getContext('2d');
   if (!ctx) return false;
-  const parts = placeTank(look);
+  const parts = placeTank(look, gear);
   const [x0, y0, x1, y1] = boundsOf(parts);
   const W = canvas.width;
   const H = canvas.height;
@@ -104,11 +108,11 @@ function paintTank(canvas: HTMLCanvasElement, look: TankLook): boolean {
 
 /**
  * Paint a portrait of any unit kind into a canvas, using the canvas's pixel size.
- * Stick figures come from the figure module, tanks from the vehicle sprites.
- * Returns false only if the canvas has no 2D context.
+ * Stick figures come from the figure module, tanks from the vehicle sprites. `gear` draws the unit with its
+ * upgrade gear (default none, the normal look). Returns false only if the canvas has no 2D context.
  */
-export function paintUnitPortrait(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId): boolean {
-  if (kind === 'tank') return paintTank(canvas, FACTIONS[faction].look.tank);
-  if (kind === 'heavyTank') return paintTank(canvas, FACTIONS[faction].look.heavyTank);
-  return paintFigureIcon(canvas, kind, faction);
+export function paintUnitPortrait(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear: GearLevels = GEAR_NONE): boolean {
+  if (kind === 'tank') return paintTank(canvas, FACTIONS[faction].look.tank, gear);
+  if (kind === 'heavyTank') return paintTank(canvas, FACTIONS[faction].look.heavyTank, gear);
+  return paintFigureIcon(canvas, kind, faction, gear);
 }

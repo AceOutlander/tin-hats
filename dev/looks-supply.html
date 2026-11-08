@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Tin Hats: supply looks</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #15160f;
+        overflow: hidden;
+        font: 12px/1.3 system-ui, sans-serif;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      nav {
+        position: fixed;
+        right: 6px;
+        bottom: 6px;
+        display: flex;
+        gap: 6px;
+        padding: 4px 8px;
+        background: rgba(10, 10, 8, 0.7);
+        border-radius: 4px;
+      }
+      nav a {
+        color: #d8d2bd;
+        text-decoration: none;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      ?sec=dumps|haul   which scene (default dumps)
+      &zoom=2&ox=0&oy=0   magnify, ox/oy = scene coordinates of the top-left corner of the view
+      &anchors=1     mark sprite origins, the cart handle grip and the cart wheel hub
+      &bg=day|dusk|dark   sky tone behind the pieces
+      &nav=0         hide the scene links
+      Scenes are 1200 wu wide; the view always fits the page width. ';' works as a separator as well as '&'.
+    -->
+    <canvas id="view"></canvas>
+    <nav id="nav"></nav>
+    <script type="module" src="./looks-supply.ts"></script>
+  </body>
+</html>

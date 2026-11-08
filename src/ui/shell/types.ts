@@ -1,7 +1,7 @@
 /** Types shared by the UI shell and the menu screens. */
 import type { Difficulty } from '../../data/schema';
 import type { AppApi, CampaignView, HudState, PanelDropsState, ResultView, ScreenId } from '../contracts';
-import type { PaintUnitIcon } from './icons';
+import type { PaintUnitIcon, PaintUpgradePreview } from './icons';
 
 /** What the HUD track's createHud returns (src/ui/hud/index.ts). */
 export interface HudHandle {
@@ -20,6 +20,8 @@ export type CreateHud = (root: HTMLElement, app: AppApi, opts: HudOptions) => Hu
 export interface UiOptions {
   /** Paints a unit portrait into a canvas; supplied by the art track through the app glue. */
   paintUnitIcon?: PaintUnitIcon;
+  /** Paints the battle look of an upgrade level for the Quartermaster; without it the cards show no picture. */
+  paintUpgradePreview?: PaintUpgradePreview;
   /**
    * The HUD factory. When omitted the UI loads src/ui/hud/index.ts itself (lazily, and
    * carries on without a HUD if that module is missing). Pass `null` to run with no HUD.

@@ -10,9 +10,15 @@
  *
  * Sprites: allFigureSprites() (keys "fig/..."). Canvas reference renderer:
  * drawFigure2d(), paintUnitIcon().
+ *
+ * Upgrade gear and the sapper's handcart stage (remembered on the anim, cleared by resetFigureAnim):
+ *   setFigureGear(anim, { health, damage });   // after create / reset
+ *   setFigureCrateKey(anim, key | null);       // a bigger load instead of the crate
+ *   setFigurePushing(anim, on);                // hands on the handcart handle (SAPPER_CART_HANDLE)
  */
 export { chooseDeathVariant, updateFigure } from './animate';
 export { drawFigure2d, drawFigureParts, figureBounds, paintUnitIcon } from './canvas';
+export { figureGearKeys, gearSpriteKey, setFigureCrateKey, setFigureGear, setFigurePushing, type FigureGearKeys } from './gear';
 export { FIGURE_PART_COUNT, FIGURE_RIM_PARTS, createFigureLayout, layoutFigure, type FigurePart } from './layout';
 export { FACTION_FIGURE_KEYS, allFigureSprites, figureSpriteMap } from './parts';
 export {

@@ -2,8 +2,11 @@
  * HQ bunkers, one per faction, each in three damage states. Drawn for the
  * left side facing right (door and gun toward +x); the renderer mirrors the
  * right-hand HQ. Anchors are in HQ_LAYOUT (src/data/artLayout.ts).
+ *
+ * The bunker painters are shared with the upgrade HQ styles (hqStyles.ts),
+ * which draw the same bunkers without the machine gun in the slit.
  */
-import { ART_COLORS as C, DAMAGE_STATES, HQ_LAYOUT, type DamageState, type HqLayout } from '../../data/artLayout';
+import { ART_COLORS as C, DAMAGE_STATES, HQ_LAYOUT, type ArtPoint, type DamageState, type HqLayout } from '../../data/artLayout';
 import type { FactionId } from '../../data/schema';
 import {
   type Ctx,
@@ -45,7 +48,11 @@ export function hqKey(faction: FactionId, state: DamageState): string {
 const BAG_W = 18;
 const BAG_H = 10;
 
-function flagpole(ctx: Ctx, L: HqLayout): void {
+/** The layout fields the bunker painters use (shared by HqLayout and HqStyleLayout). */
+export type BunkerFrame = Pick<HqLayout, 'doorX' | 'doorW' | 'doorH' | 'flagBase' | 'flagTop' | 'fires'>;
+
+/** A flagpole from flagBase up to flagTop (the flag itself is a separate sprite). */
+export function flagpole(ctx: Ctx, L: Pick<HqLayout, 'flagBase' | 'flagTop'>): void {
   const x = L.flagBase.x;
   strokeLine(ctx, [x, L.flagBase.y + 6, x, L.flagTop.y - 3], C.inkSoft, 2.6);
   strokeLine(ctx, [x - 0.7, L.flagBase.y + 6, x - 0.7, L.flagTop.y - 2], rgba(C.rim, 0.8), 0.8);
@@ -59,7 +66,7 @@ function flagpole(ctx: Ctx, L: HqLayout): void {
   ctx.fillRect(x - 2.5, L.flagBase.y - 24, 5, 2.2);
 }
 
-function poleStump(ctx: Ctx, L: HqLayout, baseY: number): void {
+function poleStump(ctx: Ctx, L: Pick<HqLayout, 'flagBase'>, baseY: number): void {
   const x = L.flagBase.x;
   strokeLine(ctx, [x, baseY, x + 5, baseY - 30], C.inkSoft, 2.6);
   strokeLine(ctx, [x + 5, baseY - 30, x + 7.5, baseY - 35], C.inkSoft, 1.2);
@@ -79,14 +86,14 @@ function breakAbove(ctx: Ctx, profile: readonly number[], top: number): void {
 }
 
 /** Paint behind what is already there: the far wall seen through the gaps of a ruin. */
-function behind(ctx: Ctx, pts: readonly number[], color: string): void {
+export function behind(ctx: Ctx, pts: readonly number[], color: string): void {
   ctx.save();
   ctx.globalCompositeOperation = 'destination-over';
   fillPoly(ctx, pts, color);
   ctx.restore();
 }
 
-function beam(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, width: number): void {
+export function beam(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, width: number): void {
   strokeLine(ctx, [x0, y0, x1, y1], C.timberDark, width);
   strokeLine(ctx, [x0, y0 - width * 0.3, x1, y1 - width * 0.3], rgba(C.timberRim, 0.7), width * 0.28);
 }
@@ -165,7 +172,7 @@ function radioMast(ctx: Ctx, state: DamageState): void {
   ctx.restore();
 }
 
-function britishBody(ctx: Ctx, L: HqLayout, rand: () => number): void {
+function britishBody(ctx: Ctx, L: BunkerFrame, rand: () => number, gunTip: ArtPoint | null): void {
   // Earth banked up against the rear, and the earth cover on the roof.
   rimPoly(ctx, [-174, 2, -162, -28, -146, -62, -126, -90, -100, -100, -100, 2], C.earth, C.earthRim);
   rimmed(
@@ -210,7 +217,7 @@ function britishBody(ctx: Ctx, L: HqLayout, rand: () => number): void {
   fillPoly(ctx, [105, -58, 152, -58, 152, -37, 105, -37], C.concreteDark);
   strokeLine(ctx, [105, -58.4, 152, -58.4], rgba(C.concreteRim, 0.8), 0.9);
   fillPoly(ctx, [110, -53, 152, -53, 152, -42, 110, -42], C.void);
-  machineGun(ctx, L.gunSlit, 24);
+  if (gunTip) machineGun(ctx, gunTip, 24);
 
   // Timber roof: a heavy beam with the log ends showing.
   rimRect(ctx, -140, -93, 248, 14, 2, C.timber, C.timberRim);
@@ -268,15 +275,15 @@ function britishBody(ctx: Ctx, L: HqLayout, rand: () => number): void {
   rimRect(ctx, 90, -11, 7, 12, 1.5, C.drum, C.drumRim);
 }
 
-function paintBritish(ctx: Ctx, state: DamageState): void {
-  const L = HQ_LAYOUT.british;
+/** The British bunker in one damage state; gunTip = muzzle of the gun in the slit, or null for an empty slit. */
+export function paintBritishBunker(ctx: Ctx, state: DamageState, L: BunkerFrame, gunTip: ArtPoint | null): void {
   const rand = rng(1940);
   const ruin = state === 'ruin';
   if (!ruin) {
     radioMast(ctx, state);
     flagpole(ctx, L);
   }
-  britishBody(ctx, L, rand);
+  britishBody(ctx, L, rand, gunTip);
 
   if (state !== 'intact') {
     const drand = rng(77);
@@ -355,7 +362,7 @@ function radioMastStump(ctx: Ctx): void {
 // German: angular poured-concrete bunker with a steel observation cupola
 // ---------------------------------------------------------------------------
 
-function germanBody(ctx: Ctx, L: HqLayout, rand: () => number): void {
+function germanBody(ctx: Ctx, L: BunkerFrame, rand: () => number, gunTip: ArtPoint | null): void {
   const body = mix(C.concrete, C.steel, 0.32);
   const bodyDark = mix(C.concreteDark, C.steel, 0.3);
 
@@ -398,7 +405,7 @@ function germanBody(ctx: Ctx, L: HqLayout, rand: () => number): void {
   strokeLine(ctx, [96, -67.4, 128.7, -67.4], rgba(C.concreteRim, 0.7), 0.9);
   fillPoly(ctx, [102, -62.5, 133.7, -62.5, 152, -46, 152, -43.5, 102, -43.5], mix(bodyDark, C.void, 0.55));
   fillPoly(ctx, [108, -58, 138.7, -58, 150, -48, 108, -48], C.void);
-  machineGun(ctx, L.gunSlit, 24);
+  if (gunTip) machineGun(ctx, gunTip, 24);
 
   // Roof slabs: thick, overhanging, with a dark soffit.
   rimPoly(ctx, [58, -83, 58, -92, 115, -92, 159, -52, 154, -45, 111, -83], mix(body, C.concreteRim, 0.16), C.concreteRim, 1.5);
@@ -456,12 +463,12 @@ function germanBody(ctx: Ctx, L: HqLayout, rand: () => number): void {
   bagPile(ctx, 122, 2, 3, 2, BAG_W, BAG_H, 2);
 }
 
-function paintGerman(ctx: Ctx, state: DamageState): void {
-  const L = HQ_LAYOUT.german;
+/** The German bunker in one damage state; gunTip = muzzle of the gun in the embrasure, or null for an empty one. */
+export function paintGermanBunker(ctx: Ctx, state: DamageState, L: BunkerFrame, gunTip: ArtPoint | null): void {
   const rand = rng(1944);
   const ruin = state === 'ruin';
   if (!ruin) flagpole(ctx, L);
-  germanBody(ctx, L, rand);
+  germanBody(ctx, L, rand, gunTip);
 
   if (state !== 'intact') {
     const drand = rng(31);
@@ -540,8 +547,10 @@ function paintGerman(ctx: Ctx, state: DamageState): void {
 export function hqSpecs(): SpriteSpec[] {
   const specs: SpriteSpec[] = [];
   for (const state of DAMAGE_STATES) {
-    specs.push(makeSpec(hqKey('british', state), HQ_LAYOUT.british.box, (ctx) => paintBritish(ctx, state)));
-    specs.push(makeSpec(hqKey('german', state), HQ_LAYOUT.german.box, (ctx) => paintGerman(ctx, state)));
+    const B = HQ_LAYOUT.british;
+    const G = HQ_LAYOUT.german;
+    specs.push(makeSpec(hqKey('british', state), B.box, (ctx) => paintBritishBunker(ctx, state, B, B.gunSlit)));
+    specs.push(makeSpec(hqKey('german', state), G.box, (ctx) => paintGermanBunker(ctx, state, G, G.gunSlit)));
   }
   return specs;
 }

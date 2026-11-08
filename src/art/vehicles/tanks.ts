@@ -33,7 +33,7 @@ import type { SpriteSpec } from '../types';
 import { type BeltPoint, beltPath, beltPoint, makeBelt } from './belt';
 import { TANK_KEYS, TANK_TRACK_PITCH } from './tankLayout';
 
-interface TankPalette {
+export interface TankPalette {
   body: string;
   bodyDark: string;
   panel: string;
@@ -41,7 +41,7 @@ interface TankPalette {
   rim: string;
 }
 
-function palette(look: TankLook): TankPalette {
+export function palette(look: TankLook): TankPalette {
   const f = FACTIONS[TANK_LAYOUT[look].faction].look;
   return {
     body: mix(C.ink, f.tintDark, 0.45),
@@ -307,7 +307,7 @@ function kingTigerHull(ctx: Ctx, P: TankPalette): void {
   disc(ctx, 105.3, -49.6, 2.6, P.bodyDark);
 }
 
-const HULL: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
+export const HULL: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillHull,
   panzer4: panzer4Hull,
   kingTiger: kingTigerHull,
@@ -392,7 +392,7 @@ function kingTigerTurret(ctx: Ctx, P: TankPalette): void {
   );
 }
 
-const TURRET: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
+export const TURRET: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillTurret,
   panzer4: panzer4Turret,
   kingTiger: kingTigerTurret,
@@ -403,7 +403,7 @@ const TURRET: Record<TankLook, (ctx: Ctx, P: TankPalette) => void> = {
 // ---------------------------------------------------------------------------
 
 /** A gun tube built from [x0, x1, halfThickness] sections. */
-function tube(ctx: Ctx, sections: readonly number[], P: TankPalette): void {
+export function tube(ctx: Ctx, sections: readonly number[], P: TankPalette): void {
   for (let i = 0; i < sections.length; i += 3) {
     const x0 = sections[i];
     const x1 = sections[i + 1];
@@ -412,8 +412,8 @@ function tube(ctx: Ctx, sections: readonly number[], P: TankPalette): void {
   }
 }
 
-function paintBarrel(ctx: Ctx, look: TankLook, P: TankPalette): void {
-  const len = TANK_LAYOUT[look].barrelLength;
+/** The gun tube; `len` defaults to the look's barrel (the long-gun upgrade passes a longer one). */
+export function paintBarrel(ctx: Ctx, look: TankLook, P: TankPalette, len = TANK_LAYOUT[look].barrelLength): void {
   if (look === 'churchill') {
     tube(ctx, [-7, len, 2.4, -2, 12, 3.3, len - 8, len, 3.3], P);
   } else if (look === 'panzer4') {

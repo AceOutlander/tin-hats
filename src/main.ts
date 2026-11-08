@@ -7,7 +7,7 @@ import { createAudio } from './audio';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
-import { browserStorage, createIconPainter, installPageGuards } from './app/page';
+import { browserStorage, createIconPainter, createUpgradePainter, installPageGuards } from './app/page';
 import { withStorageFallback } from './meta';
 import { registerServiceWorker } from './pwa';
 import { createBattleView } from './render';
@@ -35,6 +35,7 @@ async function boot(): Promise<void> {
   );
   const ui = createUi(uiEl, app, {
     paintUnitIcon: createIconPainter(app),
+    paintUpgradePreview: createUpgradePainter(app),
     createHud,
     onScreen: (screen) => app.onScreen(screen),
     onPortrait: (portrait) => {

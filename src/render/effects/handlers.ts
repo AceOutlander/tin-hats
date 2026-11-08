@@ -105,7 +105,7 @@ function collapseHq(fx: EffectContext, side: number): void {
   fx.ruinedAt[side] = fx.time;
   const H = R.hq;
   const g = fx.groundY(-1);
-  const half = (HQ_LAYOUT[st.sides[side].faction].bodyW / 2) * H.collapseSpread;
+  const half = ((fx.structures.hqBodyW(side) || HQ_LAYOUT[st.sides[side].faction].bodyW) / 2) * H.collapseSpread;
   fx.sound.at('explosionLarge', hq.x);
   if (!fx.onScreen(hq.x - half, hq.x + half)) return;
   fx.play('hqCollapse', hq.x, g - 24, 1, 0, g, 1);

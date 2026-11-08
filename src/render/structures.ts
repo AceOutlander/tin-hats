@@ -11,21 +11,26 @@ import {
   createTileSpan,
   flagStripTint,
   flagWave,
-  hqKey,
   pillboxKey,
   tileSpan,
   trenchKey,
   trenchSpec,
   type TrenchPalette,
 } from '../art/structures';
-import { SUPPLY_KEYS } from '../art/props';
+import { bigLoadSpec, cartSpecs, dumpStyleKey, dumpStyleSpecs, truckSpecs } from '../art/props/supplyLooks';
+import { hqGunKey, hqGunSpecs } from '../art/structures/hqGun';
+import { hqStyleKey, hqStyleSpecs } from '../art/structures/hqStyles';
 import type { SpriteSpec } from '../art/types';
-import { FLAG_LAYOUT, HQ_LAYOUT, PILLBOX_LAYOUT, TRENCH_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
+import { FLAG_LAYOUT, PILLBOX_LAYOUT, TRENCH_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_SPRITES } from '../data/fx';
+import { HQ_GUN_LAYOUT } from '../data/looksGun';
+import { HQ_STYLE_LAYOUT } from '../data/looksHq';
 import { RENDER } from '../data/render';
 import type { FactionId, Side } from '../data/schema';
+import type { HqGunStyle, HqStyle, SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
+import { lookStyle } from '../meta/looks';
 import type { BattleState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
@@ -114,6 +119,8 @@ class FlagView {
 
 class HqView {
   readonly img: Img;
+  /** The HQ machine-gun position on the ground in front of the building. */
+  readonly gun: Img;
   readonly flag: FlagView;
   readonly flash: Img;
   flashTime = 0;
@@ -121,21 +128,33 @@ class HqView {
   artX = 0;
   dir = 1;
   faction: FactionId = 'british';
+  /** Building and gun-position styles, from the side's upgrade looks. */
+  style: HqStyle;
+  gunStyle: HqGunStyle;
   state: DamageState | '' = '';
   /** Show the ruin although the HQ still has health (the battle ended another way). */
   forcedRuin = false;
 
-  constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId) {
+  constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId, style: HqStyle, gunStyle: HqGunStyle) {
     this.faction = faction;
-    this.img = addImage(scene, layers.byName.structures, reg.get(hqKey(faction, 'intact')).frame);
+    this.style = style;
+    this.gunStyle = gunStyle;
+    this.img = addImage(scene, layers.byName.structures, reg.get(hqStyleKey(style, faction, 'intact')).frame);
+    this.gun = addImage(scene, layers.byName.structures, reg.get(hqGunKey(gunStyle, faction, 'intact')).frame);
     this.flag = new FlagView(scene, layers.byName.structures, reg, FLAG_KEYS[FACTIONS[faction].look.flag]);
     this.flash = addImage(scene, layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
     this.flash.setBlendMode(Phaser.BlendModes.ADD);
     this.flash.visible = false;
   }
 
+  /** World x of the gun position's base. */
+  gunX(): number {
+    return this.artX + this.dir * HQ_STYLE_LAYOUT[this.style].gunNest.x;
+  }
+
   destroy(): void {
     this.img.destroy();
+    this.gun.destroy();
     this.flag.destroy();
     this.flash.destroy();
   }
@@ -180,8 +199,32 @@ export class StructureViews {
   }
 
   /** One-piece trench sprites this battle needs, dug in its theatre's earth (built into a per-battle atlas by the view). */
-  static battleSpecs(state: BattleState, palette: TrenchPalette): SpriteSpec[] {
+  static battleSpecs(state: BattleState, palette: TrenchPalette, looks: readonly SideLooks[]): SpriteSpec[] {
     const out: SpriteSpec[] = [];
+    // The HQ, its gun position and the dump in each side's upgrade looks.
+    const keys = new Set<string>();
+    const addAll = (specs: SpriteSpec[]): void => {
+      for (const sp of specs) {
+        if (keys.has(sp.key)) continue;
+        keys.add(sp.key);
+        out.push(sp);
+      }
+    };
+    for (let side = 0; side < 2; side++) {
+      const l = looks[side];
+      if (!l) continue;
+      const f = state.sides[side].faction;
+      if (state.sides[side].hq) {
+        addAll(hqStyleSpecs(lookStyle(l, 'hq'), f));
+        addAll(hqGunSpecs(lookStyle(l, 'hqGun'), f));
+      }
+      if (state.dumps[side]) addAll(dumpStyleSpecs(lookStyle(l, 'dump'), f));
+      // What the side's sappers haul with (the unit views draw it).
+      const haul = lookStyle(l, 'sapper');
+      if (haul === 'bigLoad') addAll([bigLoadSpec(f)]);
+      else if (haul === 'handcart') addAll(cartSpecs(f));
+      else if (haul === 'truck') addAll(truckSpecs(f));
+    }
     const seen = new Set<number>();
     for (const t of state.trenches) {
       const w = Math.round(t.width);
@@ -212,7 +255,7 @@ export class StructureViews {
   }
 
   /** Create the views for a battle's structures (`palette`: the one battleSpecs built its trenches in). */
-  build(state: BattleState, palette: TrenchPalette): void {
+  build(state: BattleState, palette: TrenchPalette, looks: readonly SideLooks[]): void {
     this.clear();
     const reg = this.reg;
     const gy = VIEW.groundY;
@@ -244,8 +287,9 @@ export class StructureViews {
       const d = state.dumps[side];
       // A side that can never have sappers (mission 9 lives on airdrops) has no use for a dump.
       if (!d || state.sides[side].available.sapper !== true) continue;
-      const img = addImage(this.scene, this.layers.byName.structures, reg.get(SUPPLY_KEYS.dump).frame);
-      setKey(img, reg, SUPPLY_KEYS.dump, dirOf(side));
+      const dumpKey = dumpStyleKey(lookStyle(looks[side], 'dump'), state.sides[side].faction);
+      const img = addImage(this.scene, this.layers.byName.structures, reg.get(dumpKey).frame);
+      setKey(img, reg, dumpKey, dirOf(side));
       img.x = d.x;
       img.y = gy;
       this.dumps.push(img);
@@ -294,11 +338,15 @@ export class StructureViews {
     for (let side = 0; side < 2; side++) {
       const s = state.sides[side];
       if (!s.hq) continue;
-      const hv = new HqView(this.scene, this.layers, reg, s.faction);
+      const hv = new HqView(this.scene, this.layers, reg, s.faction, lookStyle(looks[side], 'hq'), lookStyle(looks[side], 'hqGun'));
       hv.dir = dirOf(side);
-      hv.artX = s.hq.doorX - hv.dir * HQ_LAYOUT[s.faction].doorX;
+      hv.artX = s.hq.doorX - hv.dir * HQ_STYLE_LAYOUT[hv.style].doorX;
       hv.img.x = hv.artX;
       hv.img.y = gy;
+      setKey(hv.img, reg, hqStyleKey(hv.style, hv.faction, 'intact'), hv.dir);
+      hv.gun.x = hv.gunX();
+      hv.gun.y = gy;
+      setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, 'intact'), hv.dir);
       this.hqs[side] = hv;
     }
   }
@@ -317,9 +365,9 @@ export class StructureViews {
   hqGun(side: number, out: GunPoint): boolean {
     const hv = this.hqs[side];
     if (!hv) return false;
-    const L = HQ_LAYOUT[hv.faction];
-    out.x = hv.artX + hv.dir * L.gunSlit.x;
-    out.y = VIEW.groundY + L.gunSlit.y;
+    const m = HQ_GUN_LAYOUT[hv.gunStyle].muzzle;
+    out.x = hv.gunX() + hv.dir * m.x;
+    out.y = VIEW.groundY + m.y;
     out.dir = hv.dir;
     return true;
   }
@@ -328,12 +376,18 @@ export class StructureViews {
   hqFire(side: number, index: number, out: GunPoint): boolean {
     const hv = this.hqs[side];
     if (!hv) return false;
-    const pts = HQ_LAYOUT[hv.faction].fires;
+    const pts = HQ_STYLE_LAYOUT[hv.style].fires;
     if (index < 0 || index >= pts.length) return false;
     out.x = hv.artX + hv.dir * pts[index].x;
     out.y = VIEW.groundY + pts[index].y;
     out.dir = hv.dir;
     return true;
+  }
+
+  /** Width (wu) of an HQ's building, for effects spread along it; 0 if that side has no HQ view. */
+  hqBodyW(side: number): number {
+    const hv = this.hqs[side];
+    return hv ? HQ_STYLE_LAYOUT[hv.style].bodyW : 0;
   }
 
   /** Show the ruin of an HQ that still has health (the battle ended another way). */
@@ -405,17 +459,19 @@ export class StructureViews {
       const st: DamageState = !hq.alive || hv.forcedRuin ? 'ruin' : frac > S.hqDamaged ? 'intact' : 'damaged';
       if (st !== hv.state) {
         hv.state = st;
-        setKey(hv.img, reg, hqKey(hv.faction, st), hv.dir);
+        setKey(hv.img, reg, hqStyleKey(hv.style, hv.faction, st), hv.dir);
+        setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, st === 'ruin' ? 'ruin' : 'intact'), hv.dir);
         hv.flag.setVisible(st !== 'ruin');
       }
-      const L = HQ_LAYOUT[hv.faction];
+      const L = HQ_STYLE_LAYOUT[hv.style];
       if (st !== 'ruin') hv.flag.update(hv.artX + hv.dir * L.flagTop.x, VIEW.groundY + L.flagTop.y, hv.dir, this.time + side * S.flagPhase);
       hv.flashTime -= dt;
       const on = hv.flashTime > 0 && hq.alive;
       hv.flash.visible = on;
       if (on) {
-        hv.flash.x = hv.artX + hv.dir * L.gunSlit.x;
-        hv.flash.y = VIEW.groundY + L.gunSlit.y;
+        const m = HQ_GUN_LAYOUT[hv.gunStyle].muzzle;
+        hv.flash.x = hv.gunX() + hv.dir * m.x;
+        hv.flash.y = VIEW.groundY + m.y;
         hv.flash.scaleX = hv.dir * S.slitFlashScale * this.flashInv;
         hv.flash.scaleY = S.slitFlashScale * this.flashInv;
       }

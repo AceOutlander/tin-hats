@@ -17,20 +17,28 @@ import {
   createFigureLayout,
   layoutFigure,
   resetFigureAnim,
+  setFigureCrateKey,
+  setFigureGear,
+  setFigurePushing,
   updateFigure,
   type FigureAnim,
   type FigureDeath,
   type FigureInput,
   type FigurePart,
 } from '../art/figure';
-import { TANK_KEYS, createTankPose, layoutTank, type TankPose, type TankState } from '../art/vehicles';
+import { bigLoadKey, cartKey, truckKey } from '../art/props/supplyLooks';
+import { TANK_KEYS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs, type TankGearKeys, type TankPose, type TankState } from '../art/vehicles';
 import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, type TankLook } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_KEYS } from '../data/fx';
+import { GEAR_NONE } from '../data/looksGear';
+import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
 import type { DamageType, FactionId, Side, UnitKind } from '../data/schema';
+import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { createRng, mixSeed, type Rng01 } from '../fx';
+import { lookStyle } from '../meta/looks';
 import type { BattleState, UnitState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
@@ -43,6 +51,8 @@ const STATE_LIVE = 1;
 const STATE_DYING = 2;
 
 const U = RENDER.unit;
+/** Atlas group of the tank gear variants a battle needs (built in setLooks, dropped in reset). */
+const GEAR_GROUP = 'unitGear';
 
 /**
  * Put one part on its image: figure-space position (px, py), rotation and scale (sx, sy), drawn at (x0, y0) with
@@ -240,9 +250,17 @@ class FigureView extends UnitViewBase {
   readonly parts: FigurePart[];
   readonly death: FigureDeath = { variant: 'crumple', time: 0, dir: -1 };
   appliedShade = 1;
+  /** How this sapper moves supplies (upgrade looks); 'crate' for everyone else. */
+  haul: SapperStyle = 'crate';
+  /** The handcart or the supply truck of a sapper's haul (made the first time a view needs one). */
+  private vehicle: Img | null = null;
+  private vehicleKey = '';
+  private vehicleInv = 1;
+  private readonly scene: Phaser.Scene;
 
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
+    this.scene = scene;
     const first = reg.get(RENDER_KEYS.white);
     for (let i = 0; i < FIGURE_PART_COUNT; i++) {
       const img = addImage(scene, this.layer, first.frame);
@@ -273,7 +291,46 @@ class FigureView extends UnitViewBase {
     inp.hit = false;
     inp.death = null;
     this.bodyH = VIEW.figureHeight;
+    this.haul = 'crate';
+    if (this.vehicle) this.vehicle.visible = false;
     this.applyShade(1);
+  }
+
+  /** A sapper's haul from the upgrade looks (call after reset): a bigger load, a handcart or a supply truck. */
+  setHaul(haul: SapperStyle, faction: FactionId): void {
+    this.haul = haul;
+    setFigureCrateKey(this.anim, haul === 'bigLoad' ? bigLoadKey(faction) : null);
+    setFigurePushing(this.anim, haul === 'handcart');
+    if (haul === 'handcart' || haul === 'truck') {
+      if (!this.vehicle) {
+        this.vehicle = addImage(this.scene, this.layer, this.reg.get(RENDER_KEYS.white).frame);
+        this.vehicleKey = '';
+      }
+      // Drawn in front of the figure (the truck stands alone; the cart is pushed ahead of him).
+      this.layer.bringToTop(this.vehicle);
+    }
+  }
+
+  private showVehicle(key: string, x: number, y: number, dir: number): void {
+    const img = this.vehicle;
+    if (!img) return;
+    if (key !== this.vehicleKey) {
+      const fr = this.reg.get(key);
+      img.setFrame(fr.frame);
+      this.vehicleKey = key;
+      this.vehicleInv = 1 / fr.scale;
+    }
+    img.visible = true;
+    img.x = x;
+    img.y = y;
+    img.scaleX = dir * this.s * this.vehicleInv;
+    img.scaleY = this.s * this.vehicleInv;
+    img.alpha = this.appliedAlpha;
+    if (this.appliedShade === 1) img.clearTint();
+    else {
+      const c = Math.round(this.appliedShade * 255);
+      img.setTint((c << 16) | (c << 8) | c);
+    }
   }
 
   setShown(on: boolean): void {
@@ -281,6 +338,7 @@ class FigureView extends UnitViewBase {
     this.shown = on;
     if (!on) {
       for (const img of this.images) img.visible = false;
+      if (this.vehicle) this.vehicle.visible = false;
       this.shadow.visible = false;
       this.hidePips();
     }
@@ -311,10 +369,25 @@ class FigureView extends UnitViewBase {
   /** Update the animation by dt and copy the parts onto the images. */
   draw(dt: number): void {
     updateFigure(this.anim, this.input, dt);
-    layoutFigure(this.anim, this.parts);
     const x = this.x;
     const y = this.y + this.sink;
     const s = this.s;
+    const dir = this.turnK < 0 ? -1 : 1;
+    if (this.haul === 'truck') {
+      // The sapper drives a supply truck: no figure, a truck rocking gently as it rolls.
+      for (let i = 0; i < FIGURE_PART_COUNT; i++) this.images[i].visible = false;
+      const key = truckKey(this.faction, this.input.death ? 'wreck' : this.input.carrying ? 'loaded' : 'empty');
+      const bob = this.input.death ? 0 : Math.sin(x * U.truckBobFreq) * U.truckBob * s;
+      this.showVehicle(key, x, y + bob, dir);
+      this.placeShadow(SUPPLY_TRUCK_LAYOUT.length * U.truckShadowK, U.figureShadowH);
+      return;
+    }
+    layoutFigure(this.anim, this.parts);
+    if (this.haul === 'handcart') {
+      if (this.input.death) {
+        if (this.vehicle) this.vehicle.visible = false;
+      } else this.showVehicle(cartKey(this.faction, this.input.carrying), x + dir * SAPPER_CART_HANDLE.x * s, this.y, dir);
+    }
     // Never squash to nothing mid-turn: the figure is at its narrowest for a frame or two, then mirrors.
     const k = this.turnK < 0 ? Math.min(this.turnK, -U.turnMinK) : Math.max(this.turnK, U.turnMinK);
     const parts = this.parts;
@@ -355,6 +428,8 @@ const TANK_IMAGES = TANK_MAX_WHEELS + 5;
 class TankView extends UnitViewBase {
   readonly keys: string[] = [];
   look: TankLook = 'churchill';
+  /** Hull, turret and gun keys of this tank's upgrade gear (the look's normal keys at level 0). */
+  gear: TankGearKeys = tankGearKeys('churchill', GEAR_NONE);
   readonly tank: TankState = { look: 'churchill', distance: 0, turretAim: 0, recoil: 0, hullRock: 0 };
   readonly pose: TankPose = createTankPose();
   inv = 1;
@@ -436,6 +511,17 @@ class TankView extends UnitViewBase {
     this.speed = 0;
     this.bodyH = TANK_LAYOUT[look].height;
     this.inv = 1 / this.reg.get(TANK_KEYS[look].hull).scale;
+    this.setGear(GEAR_NONE);
+    // The gear atlas is rebuilt per battle: never trust a cached frame across a reset.
+    this.keys.fill('');
+  }
+
+  /** Draw with these gear levels; variants missing from the atlas (setLooks not called for them) fall back to level 0. */
+  setGear(gear: GearLevels): void {
+    const g = tankGearKeys(this.look, gear);
+    const ok = this.reg.has(g.hull) && this.reg.has(g.turret) && this.reg.has(g.barrel);
+    this.gear = ok ? g : tankGearKeys(this.look, GEAR_NONE);
+    this.tank.gunExtra = this.gear.gunExtra;
   }
 
   setShown(on: boolean): void {
@@ -514,9 +600,10 @@ class TankView extends UnitViewBase {
         img[i].visible = false;
       }
     }
-    this.put(i++, keys.hull, pose.hull.x, pose.hull.y, pose.hull.rot, true);
-    this.put(i++, keys.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
-    this.put(i, keys.turret, pose.turret.x, pose.turret.y, pose.turret.rot, true);
+    const g = this.gear;
+    this.put(i++, g.hull, pose.hull.x, pose.hull.y, pose.hull.rot, true);
+    this.put(i++, g.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
+    this.put(i, g.turret, pose.turret.x, pose.turret.y, pose.turret.rot, true);
     this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
   }
 
@@ -570,6 +657,8 @@ export class UnitViews {
   /** Scratch for the crowd spread: live figure views per side, sorted by x, and their spread positions. */
   private readonly lanes: FigureView[][] = [[], []];
   private relaxed = new Float64Array(64);
+  /** Looks of each side (upgrade gear), from setLooks; null = no gear. */
+  private readonly looks: (SideLooks | null)[] = [null, null];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -589,7 +678,7 @@ export class UnitViews {
     this.ringScale = RENDER.marker.ringScale / ring.scale;
   }
 
-  /** Start a battle: drop every view. */
+  /** Start a battle: drop every view, and every side's looks (call setLooks again after this). */
   reset(seed: number): void {
     for (let i = 0; i < this.bySlot.length; i++) {
       const v = this.bySlot[i];
@@ -597,10 +686,30 @@ export class UnitViews {
     }
     this.bySlot = [];
     while (this.dying.length > 0) this.release(this.dying[this.dying.length - 1]);
+    this.looks[0] = null;
+    this.looks[1] = null;
+    this.reg.removeGroup(GEAR_GROUP);
     this.seed = seed;
     this.controlledId = -1;
     this.ring.visible = false;
     this.ringHigh.visible = false;
+  }
+
+  /**
+   * The looks one side shows (its Quartermaster upgrades), or null for none. Call once per battle after reset() and
+   * before the first update: units of that side created from then on wear the gear of looks.gear[kind] (level 0 for
+   * kinds not listed). Builds the tank gear sprites the side needs.
+   */
+  setLooks(side: Side, looks: SideLooks | null): void {
+    this.looks[side] = looks;
+    if (!looks) return;
+    const look = FACTIONS[looks.faction].look;
+    const specs = [...tankGearSpecs(look.tank, this.gearOf(side, 'tank')), ...tankGearSpecs(look.heavyTank, this.gearOf(side, 'heavyTank'))];
+    if (specs.length > 0) this.reg.addAtlas(GEAR_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
+  }
+
+  private gearOf(side: Side, kind: UnitKind): GearLevels {
+    return this.looks[side]?.gear[kind] ?? GEAR_NONE;
   }
 
   /** Views alive (live and dying). */
@@ -638,11 +747,16 @@ export class UnitViews {
       const pool = this.tankPool[row];
       const tv = pool.pop() ?? new TankView(row, this.reg, this.scene, this.layers);
       tv.reset(u.kind, u.faction);
+      tv.setGear(this.gearOf(u.side, u.kind));
       v = tv;
     } else {
       const pool = this.figurePool[row];
       const fv = pool.pop() ?? new FigureView(row, this.reg, this.scene, this.layers);
       fv.reset(u.kind, u.faction, mixSeed(this.seed ^ U.seedSalt, u.id));
+      // After the reset (which goes back to level 0): this unit's upgrade gear.
+      setFigureGear(fv.anim, this.gearOf(u.side, u.kind));
+      const looks = this.looks[u.side];
+      if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);
       // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.
       fv.anim.altAim = mixSeed(this.seed ^ U.kneelSalt, u.id) / 4294967296 < U.kneelByRow[row];
       v = fv;

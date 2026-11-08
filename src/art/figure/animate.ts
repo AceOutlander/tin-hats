@@ -26,10 +26,12 @@ import {
   FIGURE_UPPERS,
   type DeathVariant,
   type FigureKindDef,
+  type GaitProfile,
   type GaitStyle,
   type StanceDef,
   type UpperDef,
 } from '../../data/figure';
+import { SAPPER_PUSH } from '../../data/looksGear';
 import type { DamageType } from '../../data/schema';
 import { VIEW } from '../../data/view';
 import { updateDeath } from './death';
@@ -243,7 +245,9 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
 
   a.item = 'none';
   a.itemFar = false;
-  a.crateVisible = a.kind === 'sapper' && (inp.carrying || act === 'load');
+  const pushing = a.pushing && a.kind === 'sapper';
+  // A sapper pushing the handcart has his load on the cart.
+  a.crateVisible = a.kind === 'sapper' && !pushing && (inp.carrying || act === 'load');
   a.weaponVisible = a.model !== 'none' && a.model !== 'crate';
   tg[C_GAIT] = moving ? 1 : 0;
   tg[C_CHEER] = inp.victory && !moving ? 1 : 0;
@@ -264,6 +268,13 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
   tau[C_STYLE] = F.spring.style;
   tau[C_BACK] = F.spring.style;
   tau[C_CHEER] = F.spring.body;
+
+  if (pushing && !inp.victory) {
+    // Both hands on the cart handle, leaning into the push (the legs take the gait while moving).
+    setStance(a, SAPPER_PUSH.stance);
+    setUpper(a, SAPPER_PUSH.upper);
+    return;
+  }
 
   if (moving) {
     setStance(a, K.idle.stance);
@@ -549,8 +560,15 @@ function resyncGait(a: FigureAnim): void {
   }
 }
 
+/** The gait a figure walks with: pushing the handcart, hauling a crate, or its kind's own. */
+function gaitProfile(a: FigureAnim, inp: FigureInput, K: FigureKindDef): GaitProfile {
+  if (a.kind !== 'sapper') return K.gait;
+  if (a.pushing) return SAPPER_PUSH.gait;
+  return inp.carrying ? FIGURE_GAIT_CARRY : K.gait;
+}
+
 function advanceGait(a: FigureAnim, inp: FigureInput, K: FigureKindDef): void {
-  const prof = a.kind === 'sapper' && inp.carrying ? FIGURE_GAIT_CARRY : K.gait;
+  const prof = gaitProfile(a, inp, K);
   blendStyle(prof.slow, prof.fast, clamp01(a.sv[C_STYLE]));
   const back = clamp01(a.sv[C_BACK]);
   if (back > 0) {
@@ -955,7 +973,7 @@ export function updateFigure(a: FigureAnim, inp: FigureInput, dtIn: number): voi
 
   chooseTargets(a, inp, K, moving);
   const tg = a.tg;
-  const prof = a.kind === 'sapper' && inp.carrying ? FIGURE_GAIT_CARRY : K.gait;
+  const prof = gaitProfile(a, inp, K);
   tg[C_STYLE] = ramp(Math.abs(speed), prof.walkSpeed, prof.runSpeed);
   tg[C_BACK] = speed < -F.gait.minSpeed ? 1 : speed > F.gait.minSpeed ? 0 : tg[C_BACK];
 

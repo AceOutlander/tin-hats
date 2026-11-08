@@ -7,7 +7,7 @@
  * Facing left: mirror every part (x -> -x, rotation -> -rotation, scaleX -> -scaleX),
  * or simply flip the container that holds the parts.
  */
-import { FIGURE_KINDS } from '../../data/figure';
+import { figureGearKeys } from './gear';
 import { HALF_PI } from './math';
 import { BODY_KEYS, FACTION_FIGURE_KEYS, RIM_KEYS } from './parts';
 import {
@@ -81,22 +81,24 @@ const S_PACK = 20;
 const S_TORSO_LO = 21;
 const S_TORSO_UP = 22;
 const S_POUCHES = 23;
-const S_NEAR_TH = 24;
-const S_NEAR_SH = 25;
-const S_NEAR_BOOT = 26;
-const S_SATCHEL = 27;
-const S_HEAD = 28;
-const S_HELMET = 29;
-const S_PLATE = 30;
-const S_BIPOD = 31;
-const S_WEAPON = 32;
-const S_NEAR_ITEM = 33;
-const S_NEAR_UA = 34;
-const S_ARMBAND = 35;
-const S_NEAR_FA = 36;
+/** Upgrade gear: a strap across the chest (bandolier, medic's aid strap). Hidden unless worn. */
+const S_BANDOLIER = 24;
+const S_NEAR_TH = 25;
+const S_NEAR_SH = 26;
+const S_NEAR_BOOT = 27;
+const S_SATCHEL = 28;
+const S_HEAD = 29;
+const S_HELMET = 30;
+const S_PLATE = 31;
+const S_BIPOD = 32;
+const S_WEAPON = 33;
+const S_NEAR_ITEM = 34;
+const S_NEAR_UA = 35;
+const S_ARMBAND = 36;
+const S_NEAR_FA = 37;
 
 /** Number of parts every layout has. */
-export const FIGURE_PART_COUNT = 37;
+export const FIGURE_PART_COUNT = 38;
 /** Parts 0 .. FIGURE_RIM_PARTS - 1 are the light rim behind the body (a renderer fades them faster than the body). */
 export const FIGURE_RIM_PARTS = S_RIM_NEAR_FA + 1;
 
@@ -125,8 +127,10 @@ function putJ(o: FigurePart, key: string | null, j: Float64Array, joint: number,
 export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const j = a.joints;
   const p = a.pose;
-  const K = FIGURE_KINDS[a.kind];
   const keys = FACTION_FIGURE_KEYS[a.faction];
+  // Gear keys (the level-0 set unless setFigureGear was called for this nation and kind).
+  const ag = a.gear;
+  const G = ag && ag.kind === a.kind && ag.faction === a.faction ? ag : figureGearKeys(a.faction, a.kind, 0, 0);
   const B = BODY_KEYS;
   const R = RIM_KEYS;
 
@@ -144,7 +148,7 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_RIM_NEAR_BOOT], R.boot, j, J_NANKLE, p[P_NFP]);
   // The helmet wobbles on the head a moment behind the body (secondary motion).
   const helmRot = p[P_NECK] + HALF_PI + a.helm;
-  putJ(out[S_RIM_HELMET], keys.helmetRim, j, J_HEAD, helmRot);
+  putJ(out[S_RIM_HELMET], G.helmetRim, j, J_HEAD, helmRot);
   putJ(out[S_RIM_NEAR_UA], R.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_RIM_NEAR_FA], R.forearm, j, J_NELBOW, p[P_NFA]);
 
@@ -159,10 +163,11 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   // Body and kit.
   // The pack bounces along the back (secondary motion).
   const ch = p[P_CHEST];
-  put(out[S_PACK], keys.pack, j[J_CHEST * 2] - Math.cos(ch) * a.pack, j[J_CHEST * 2 + 1] - Math.sin(ch) * a.pack, ch + HALF_PI, K.pack);
+  put(out[S_PACK], G.pack, j[J_CHEST * 2] - Math.cos(ch) * a.pack, j[J_CHEST * 2 + 1] - Math.sin(ch) * a.pack, ch + HALF_PI, G.packShow);
   putJ(out[S_TORSO_LO], B.torsoLower, j, J_HIP, p[P_SPINE]);
   putJ(out[S_TORSO_UP], B.torsoUpper, j, J_CHEST, p[P_CHEST]);
-  putJ(out[S_POUCHES], keys.pouches, j, J_HIP, p[P_SPINE] + HALF_PI, K.pouches);
+  putJ(out[S_POUCHES], G.pouches, j, J_HIP, p[P_SPINE] + HALF_PI, G.pouchesShow);
+  putJ(out[S_BANDOLIER], G.bandolier, j, J_CHEST, ch + HALF_PI);
 
   // Near leg, satchel, head and helmet.
   putJ(out[S_NEAR_TH], B.thigh, j, J_HIP, p[P_NTH]);
@@ -171,9 +176,9 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const sp = p[P_SPINE];
   const sx = j[J_HIP * 2] + Math.cos(sp) * 1.6 - Math.sin(sp) * 1.2;
   const sy = j[J_HIP * 2 + 1] + Math.sin(sp) * 1.6 + Math.cos(sp) * 1.2;
-  put(out[S_SATCHEL], keys.satchel, sx, sy, p[P_SATCHEL], K.satchel);
+  put(out[S_SATCHEL], G.satchel, sx, sy, p[P_SATCHEL], G.satchelShow);
   putJ(out[S_HEAD], B.head, j, J_NECK, p[P_NECK]);
-  putJ(out[S_HELMET], keys.helmet, j, J_HEAD, helmRot);
+  putJ(out[S_HELMET], G.helmet, j, J_HEAD, helmRot);
 
   // Weapon (or crate), its bipod and baseplate, hand items.
   const wa = p[P_WA];
@@ -184,7 +189,7 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const c = Math.cos(wa);
   const s = Math.sin(wa);
   put(out[S_BIPOD], keys.bipod[a.kind], gx + g.bipodX * c - g.bipodY * s, gy + g.bipodX * s + g.bipodY * c, p[P_BIPOD], a.weaponVisible);
-  if (a.crateVisible) put(out[S_WEAPON], keys.crate, gx, gy, wa);
+  if (a.crateVisible) put(out[S_WEAPON], a.crateKey ?? keys.crate, gx, gy, wa);
   else put(out[S_WEAPON], keys.weapon[a.kind], gx, gy, wa, a.weaponVisible);
   putJ(out[S_NEAR_ITEM], keys.item[a.item], j, J_NHAND, p[P_NFA], !a.itemFar);
 

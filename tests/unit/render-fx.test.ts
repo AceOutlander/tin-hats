@@ -95,6 +95,8 @@ function fakeFx(playerSide = 0): { fx: EffectContext; rec: Recorder } {
     flights: { has: () => false, cancelProvisional: () => undefined, spawn: () => undefined },
     tracers: { spawn: () => undefined },
     units: { viewAtSlot: () => null, liveView: () => null, findById: () => null, coverEdge: () => NaN },
+    // The HQ drawn is as wide as the bunker (the building's width now follows the side's upgrade looks).
+    structures: { hqBodyW: () => 300 },
     ambient: {
       delayed: { add: (id: string) => rec.delayed.push(id) },
       burners: { add: () => undefined },
