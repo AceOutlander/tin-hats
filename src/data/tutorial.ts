@@ -197,6 +197,9 @@ export const TUTORIAL: TutorialTunables = {
       artillery: { text: 'New: {name}. Tap it, then tap the battlefield where the shells should fall.' },
       smoke: { text: 'New: {name}. Tap it, then tap the ground in front of your men.' },
       airStrike: { text: 'New: {name}. Tap it, then tap the battlefield where the aircraft should strike.' },
+      bomber: { text: 'New: {name}. Tap it, then tap the battlefield where the bombs should fall.' },
+      fighter: { text: 'New: {name}. Tap it, then tap the battlefield where the fighter should strafe.' },
+      recon: { text: 'New: {name}. Tap it, then tap the battlefield to scout.' },
     },
   },
 };

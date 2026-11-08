@@ -96,6 +96,9 @@ export function updateSupports(w: World): void {
     if (cd.artillery > 0) cd.artillery = cd.artillery > dt ? cd.artillery - dt : 0;
     if (cd.smoke > 0) cd.smoke = cd.smoke > dt ? cd.smoke - dt : 0;
     if (cd.airStrike > 0) cd.airStrike = cd.airStrike > dt ? cd.airStrike - dt : 0;
+    if (cd.bomber > 0) cd.bomber = cd.bomber > dt ? cd.bomber - dt : 0;
+    if (cd.fighter > 0) cd.fighter = cd.fighter > dt ? cd.fighter - dt : 0;
+    if (cd.recon > 0) cd.recon = cd.recon > dt ? cd.recon - dt : 0;
     for (let k = 0; k < SUPPORT_COUNT; k++) {
       const slot = si * SUPPORT_COUNT + k;
       if (w.strikeTime[slot] < 0) continue;

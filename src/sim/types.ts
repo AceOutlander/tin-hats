@@ -518,7 +518,14 @@ export type SimEventType =
   | 'announce'
   | 'hint'
   | 'controlLost'
-  | 'battleEnded';
+  | 'battleEnded'
+  | 'speech'
+  | 'bossArrived'
+  | 'planePass'
+  | 'planeDown'
+  | 'reconReveal'
+  | 'apcUnload'
+  | 'ignite';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an
@@ -576,6 +583,25 @@ export type SimEventType =
  * controlLost       The controlled unit died (control simply ends, with no event, on a release or when
  *                   the battle ends). side, unit, unitId, kind, x, row.
  * battleEnded       side = winner (-1 for a draw), value = battle time in seconds; see state.endReason.
+ *
+ * New units and planes (contract, 2026-11-08). The contract's shorthand a/b/c/d maps onto the
+ * existing named fields as listed here; consumers read these names.
+ * speech            The commander speaks after an order. side, unit, unitId, kind ('commander'), x, row;
+ *                   order = the order given (contract c: 0 fallBack, 1 hold, 2 advance);
+ *                   value = line seed, a non-negative integer (contract d): show
+ *                   SPEECH[faction][order][value % lines.length] (src/data/speech.ts).
+ * bossArrived       The King Tiger squad entered the field: show the warning banner and sound.
+ *                   side, unit, unitId, kind ('heavyTank'), x, row.
+ * planePass         A call-in plane flies across. side, support = its kind (contract b, the kind
+ *                   itself rather than an index), x = start, x2 = end, row = altitude row (contract c),
+ *                   value = seconds the pass takes (contract d), dir = sign of x2 - x.
+ * planeDown         Anti-aircraft fire shot a plane down. side = the plane's side, support = its kind, x.
+ * reconReveal       Enemy health is shown around x. side = the side that sees it, x = centre,
+ *                   value = radius in wu (contract c), x2 = duration in seconds (contract d; as smokeSpawned).
+ * apcUnload         An APC dropped its squad. side, unit, unitId, kind ('apc') = the carrier, x, row;
+ *                   value = soldiers unloaded (unitSpawned events follow for each).
+ * ignite            A flamethrower's fuel tank was hit from behind and went up (a unitDied and an
+ *                   explosion follow in the same step). side, unit, unitId, kind ('flame'), x, row.
  */
 export interface SimEvent {
   type: SimEventType;

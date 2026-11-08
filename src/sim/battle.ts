@@ -87,12 +87,20 @@ class ProgressRecord implements Record<UnitKind, number> {
   at = 0.5;
   tank = 0.5;
   heavyTank = 0.5;
+  apc = 0.5;
+  flame = 0.5;
+  commander = 0.5;
+  aa = 0.5;
+  lightTank = 0.5;
 }
 
 class CooldownRecord implements Record<SupportKind, number> {
   artillery = 0.5;
   smoke = 0.5;
   airStrike = 0.5;
+  bomber = 0.5;
+  fighter = 0.5;
+  recon = 0.5;
 }
 
 function progressRecord(): Record<UnitKind, number> {

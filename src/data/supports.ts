@@ -53,7 +53,57 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     vehicleDamageMul: 3,
     pattern: 'sweep',
   },
+
+  // TODO(planes engineer): placeholder planes from the contract commit; no mission offers them yet.
+  bomber: {
+    kind: 'bomber',
+    cooldown: 120,
+    delay: 4,
+    rounds: 8,
+    duration: 1.6,
+    spread: 360,
+    weapon: 'aerialBomb',
+    smokeRadius: 0,
+    smokeTime: 0,
+    warning: 3,
+    launchOffset: 140,
+    hqDamageMul: 0.25,
+    vehicleDamageMul: 3,
+    pattern: 'sweep',
+  },
+  fighter: {
+    kind: 'fighter',
+    cooldown: 75,
+    delay: 3,
+    rounds: 10,
+    duration: 1,
+    spread: 200,
+    weapon: 'strafeMg',
+    smokeRadius: 0,
+    smokeTime: 0,
+    warning: 2,
+    launchOffset: 80,
+    hqDamageMul: 0.1,
+    vehicleDamageMul: 0.5,
+    pattern: 'sweep',
+  },
+  recon: {
+    kind: 'recon',
+    cooldown: 60,
+    delay: 3,
+    rounds: 0,
+    duration: 20,
+    spread: 600,
+    weapon: null,
+    smokeRadius: 0,
+    smokeTime: 0,
+    warning: 2,
+    launchOffset: 0,
+    hqDamageMul: 0,
+    vehicleDamageMul: 1,
+    pattern: 'scatter',
+  },
 };
 
 /** In HUD order. */
-export const SUPPORT_KINDS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike'];
+export const SUPPORT_KINDS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon'];

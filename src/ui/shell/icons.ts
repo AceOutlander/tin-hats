@@ -89,6 +89,12 @@ export function glyph(name: GlyphName, className = 'th-icon'): SVGSVGElement {
   return svg('0 0 24 24', className, GLYPHS[name]);
 }
 
+const AIRCRAFT: readonly PathSpec[] = [
+  { d: 'M3 25.5 L27 22 L31 6 L36 6 L34.5 21.5 L43 22.5 Q47 25 43 27.5 L34.5 28.5 L36 44 L31 44 L27 29 Z' },
+  { d: 'M4 25.5 L3 18 L7 18 L11 24.3 Z M4 25.5 L3 33 L7 33 L11 26.7 Z' },
+];
+
+// TODO(planes engineer): the planes borrow the air-strike aircraft until they have their own icons.
 const SUPPORT_ICONS: Record<SupportKind, readonly PathSpec[]> = {
   artillery: [
     { d: starburst(24, 22, 19, 8, 9) },
@@ -102,10 +108,10 @@ const SUPPORT_ICONS: Record<SupportKind, readonly PathSpec[]> = {
     { cls: 'th-cut', d: 'M15 30a4 4 0 0 1 0-8M24 27a5 5 0 0 1 6-7' },
     { d: 'M8 41h32v3H8Z' },
   ],
-  airStrike: [
-    { d: 'M3 25.5 L27 22 L31 6 L36 6 L34.5 21.5 L43 22.5 Q47 25 43 27.5 L34.5 28.5 L36 44 L31 44 L27 29 Z' },
-    { d: 'M4 25.5 L3 18 L7 18 L11 24.3 Z M4 25.5 L3 33 L7 33 L11 26.7 Z' },
-  ],
+  airStrike: AIRCRAFT,
+  bomber: AIRCRAFT,
+  fighter: AIRCRAFT,
+  recon: AIRCRAFT,
 };
 
 export function supportIcon(kind: SupportKind, className = 'th-support-icon'): SVGSVGElement {

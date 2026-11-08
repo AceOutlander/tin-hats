@@ -6,7 +6,23 @@ import type { MissionAiPlan, MissionDef, SideStart, UnitKind } from '../schema';
  * can exercise the whole simulation.
  */
 
-const EVERY_UNIT: UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'heavyTank'];
+const EVERY_UNIT: UnitKind[] = [
+  'sapper',
+  'rifle',
+  'lmg',
+  'assault',
+  'mortar',
+  'sniper',
+  'medic',
+  'at',
+  'tank',
+  'heavyTank',
+  'apc',
+  'flame',
+  'commander',
+  'aa',
+  'lightTank',
+];
 
 /** A mixed army grown in steps, used by both commanders on both grounds. */
 const PLAN: MissionAiPlan = {

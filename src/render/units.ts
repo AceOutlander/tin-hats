@@ -637,8 +637,9 @@ class TankView extends UnitViewBase {
 
 export type UnitView = FigureView | TankView;
 
+/** The APC and the light tank are drawn as the faction's tank until the units job gives them their own art. */
 function isVehicle(kind: UnitKind): boolean {
-  return kind === 'tank' || kind === 'heavyTank';
+  return kind === 'tank' || kind === 'heavyTank' || kind === 'apc' || kind === 'lightTank';
 }
 
 /**

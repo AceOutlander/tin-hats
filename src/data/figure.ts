@@ -17,7 +17,9 @@
 import type { DamageType, FactionId, UnitKind } from './schema';
 import { VIEW } from './view';
 
-export type FigureKind = Exclude<UnitKind, 'tank' | 'heavyTank'>;
+export type FigureKind = Exclude<UnitKind, 'tank' | 'heavyTank' | 'apc' | 'lightTank'>;
+/** The figure kinds that have their own poses; the new kinds borrow one until the units job draws them. */
+type CoreFigureKind = Exclude<FigureKind, 'flame' | 'commander' | 'aa'>;
 
 export const FIGURE_KIND_LIST: readonly FigureKind[] = [
   'sapper',
@@ -28,6 +30,9 @@ export const FIGURE_KIND_LIST: readonly FigureKind[] = [
   'sniper',
   'medic',
   'at',
+  'flame',
+  'commander',
+  'aa',
 ];
 
 /** crumple = folds and falls on its face; thrown = knocked backward by a bullet; spin = staggers, flails and drops; blast = tossed through the air. */
@@ -601,7 +606,7 @@ export const FIGURE_CRATE = {
 
 const FREE = upper({});
 
-export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
+const CORE_FIGURE_KINDS: Record<CoreFigureKind, FigureKindDef> = {
   sapper: {
     idle: { stance: STAND, upper: FREE },
     move: upper({ nearSh: 0.1, nearEl: 0.2, farSh: 0, farEl: 0.2 }),
@@ -778,6 +783,14 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
   },
 };
 
+// TODO(units engineer): placeholder poses for the new infantry kinds (contract commit).
+export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
+  ...CORE_FIGURE_KINDS,
+  flame: CORE_FIGURE_KINDS.assault,
+  commander: CORE_FIGURE_KINDS.rifle,
+  aa: CORE_FIGURE_KINDS.lmg,
+};
+
 /** Upper-body poses that are the same for every kind (or only used by one). */
 export const FIGURE_UPPERS = {
   /** Assault trooper mid-throw: the gun hangs in the far hand. */
@@ -840,6 +853,10 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
       sniper: 'enfieldScoped',
       medic: 'none',
       at: 'piat',
+      // TODO(units engineer): placeholder weapons for the new kinds.
+      flame: 'sten',
+      commander: 'enfield',
+      aa: 'bren',
     },
     grenade: 'mills',
   },
@@ -853,6 +870,10 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
       sniper: 'kar98Scoped',
       medic: 'none',
       at: 'panzerschreck',
+      // TODO(units engineer): placeholder weapons for the new kinds.
+      flame: 'mp40',
+      commander: 'kar98',
+      aa: 'mg34',
     },
     grenade: 'stick',
   },

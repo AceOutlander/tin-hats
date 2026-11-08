@@ -479,7 +479,7 @@ describe('BattleSession', () => {
       const { session } = setup();
       expect(session.tally.smokeSpawned).toBe(0);
       expect(session.tally.controlLost).toBe(0);
-      expect(session.tally.supportCalled).toEqual({ artillery: 0, smoke: 0, airStrike: 0 });
+      expect(session.tally.supportCalled).toEqual({ artillery: 0, smoke: 0, airStrike: 0, bomber: 0, fighter: 0, recon: 0 });
     });
   });
 });

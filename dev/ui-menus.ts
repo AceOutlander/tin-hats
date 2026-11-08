@@ -43,6 +43,11 @@ const UNIT_NAMES: Record<UnitKind, string> = {
   at: 'PIAT Team',
   tank: 'Churchill',
   heavyTank: 'Heavy Churchill',
+  apc: 'Universal Carrier',
+  flame: 'Flamethrower',
+  commander: 'Lieutenant',
+  aa: 'Bofors Crew',
+  lightTank: 'Cruiser Tank',
 };
 
 const UNIT_BLURBS: Record<UnitKind, string> = {
@@ -56,18 +61,29 @@ const UNIT_BLURBS: Record<UnitKind, string> = {
   at: 'Kills tanks and damages pillboxes. Poor against infantry.',
   tank: 'Shrugs off bullets. High-explosive gun plus machine gun. Costly.',
   heavyTank: 'A lumbering fortress on tracks.',
+  apc: 'Fast and bullet-proof, with a machine gun. Carries a squad to the front.',
+  flame: 'Short range. Burns out trenches and pillboxes.',
+  commander: 'Nearby soldiers deal 5% more damage. One at a time.',
+  aa: 'Shoots down or drives off enemy planes.',
+  lightTank: 'A light, fast tank with a small gun.',
 };
 
 const SUPPORT_NAMES: Record<SupportKind, string> = {
   artillery: 'Artillery Barrage',
   smoke: 'Smoke Screen',
   airStrike: 'Typhoon Air Strike',
+  bomber: 'Bomber',
+  fighter: 'Fighter',
+  recon: 'Recon Plane',
 };
 
 const SUPPORT_BLURBS: Record<SupportKind, string> = {
   artillery: 'A battery drops a salvo of shells around the spot you mark. Slow to arrive, hard to survive.',
   smoke: 'A cloud that blocks rifle and machine-gun fire for a few seconds. Cross open ground under it.',
   airStrike: 'A fighter-bomber rockets a strip of the front. Wrecks armour and anything bunched up.',
+  bomber: 'A bomber carpets a wide stretch of the front with bombs.',
+  fighter: 'A fighter strafes the spot you mark.',
+  recon: 'A recon plane shows enemy health in a wide area for a while.',
 };
 
 const MISSIONS: MockMission[] = [

@@ -389,7 +389,7 @@ function timeline(k: FigureKind): Seg[] {
   return out;
 }
 
-const FIRE_GAP: Record<FigureKind, number> = { sapper: 1, rifle: 0.9, lmg: 0.09, assault: 0.085, mortar: 1.2, sniper: 1.4, medic: 1, at: 1.5 };
+const FIRE_GAP: Record<FigureKind, number> = { sapper: 1, rifle: 0.9, lmg: 0.09, assault: 0.085, mortar: 1.2, sniper: 1.4, medic: 1, at: 1.5, flame: 0.5, commander: 1.1, aa: 0.15 };
 
 function applySeg(a: Actor, seg: Seg, dt: number): void {
   const inp = a.input;

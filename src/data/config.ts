@@ -60,6 +60,9 @@ export const CONFIG: GameConfig = {
   throwPoseTime: 0.8,
   guardAlertTime: 6,
 
+  // TODO(units engineer): tune the King Tiger escort.
+  veteran: { hpMul: 1.4, accuracyMul: 1.25 },
+
   maxUnits: 160,
   maxProjectiles: 128,
   maxSmokes: 8,

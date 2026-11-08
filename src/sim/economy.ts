@@ -49,6 +49,21 @@ function setProgress(p: Record<UnitKind, number>, k: number): void {
     case 'heavyTank':
       p.heavyTank = v;
       break;
+    case 'apc':
+      p.apc = v;
+      break;
+    case 'flame':
+      p.flame = v;
+      break;
+    case 'commander':
+      p.commander = v;
+      break;
+    case 'aa':
+      p.aa = v;
+      break;
+    case 'lightTank':
+      p.lightTank = v;
+      break;
   }
 }
 

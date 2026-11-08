@@ -32,7 +32,23 @@ import { paintUnitPortrait } from '../../src/art/icons';
 import type { CreateHud, PaintUnitIcon } from '../../src/ui';
 import type { createHud } from '../../src/ui/hud';
 
-const ALL_KINDS: UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'heavyTank'];
+const ALL_KINDS: UnitKind[] = [
+  'sapper',
+  'rifle',
+  'lmg',
+  'assault',
+  'mortar',
+  'sniper',
+  'medic',
+  'at',
+  'tank',
+  'heavyTank',
+  'apc',
+  'flame',
+  'commander',
+  'aa',
+  'lightTank',
+];
 const ALL_ACTIONS: UnitAction[] = ['idle', 'move', 'aim', 'fire', 'reload', 'throw', 'load', 'heal', 'deploy', 'inside'];
 const ALL_FACTIONS: FactionId[] = ['british', 'german'];
 
@@ -45,7 +61,7 @@ function leaves(value: unknown, out: string[] = []): string[] {
 }
 
 describe('unit vocabulary', () => {
-  it('has the same ten unit kinds in the schema list, the unit table and the faction tables', () => {
+  it('has the same unit kinds in the schema list, the unit table and the faction tables', () => {
     expect([...UNIT_KINDS].sort()).toEqual([...ALL_KINDS].sort());
     expect(Object.keys(UNITS).sort()).toEqual([...ALL_KINDS].sort());
     for (const f of ALL_FACTIONS) {

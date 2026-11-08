@@ -93,6 +93,9 @@ export const APP: AppTunables = {
     artillery: 'Calls a barrage of shells down on a spot you choose. Hurts everything caught in the open.',
     smoke: 'Lays a screen that blocks direct fire for a few seconds. Cover an advance with it.',
     airStrike: 'A fighter-bomber rockets a strip of the battlefield. Strong against tanks and clusters.',
+    bomber: 'A bomber flies over and carpets a wide stretch of the battlefield with bombs.',
+    fighter: 'A fighter dives in and strafes the spot you choose with its guns.',
+    recon: 'A recon plane circles overhead and shows enemy health in a wide area for a while.',
   },
   statLabels: {
     // Short: each level line sits in a narrow column beside the card's buttons, and the card's own name

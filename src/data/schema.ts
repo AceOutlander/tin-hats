@@ -12,7 +12,12 @@ export type Side = 0 | 1;
 
 export type FactionId = 'british' | 'german';
 
-/** Mirrored roster. heavyTank is the non-trainable boss tank (King Tiger). */
+/**
+ * Mirrored roster. heavyTank is the non-trainable King Tiger (an elite squad with veteran escorts).
+ * apc = armoured personnel carrier (machine gun only, bullet-proof, carries one squad), flame = flamethrower,
+ * commander = officer with a damage aura (one per side), aa = anti-aircraft gun team,
+ * lightTank = the enemy-only early-war Panzer III Ausf. E.
+ */
 export type UnitKind =
   | 'sapper'
   | 'rifle'
@@ -23,7 +28,12 @@ export type UnitKind =
   | 'medic'
   | 'at'
   | 'tank'
-  | 'heavyTank';
+  | 'heavyTank'
+  | 'apc'
+  | 'flame'
+  | 'commander'
+  | 'aa'
+  | 'lightTank';
 
 export type DamageType = 'bullet' | 'explosive' | 'antiTank';
 
@@ -31,7 +41,8 @@ export type DamageType = 'bullet' | 'explosive' | 'antiTank';
 export type TargetClass = 'infantryOpen' | 'infantryTrench' | 'fortification' | 'vehicle' | 'hq';
 
 export type Order = 'fallBack' | 'hold' | 'advance';
-export type SupportKind = 'artillery' | 'smoke' | 'airStrike';
+/** bomber = bombing run over a large area, fighter = strafing run, recon = reveals enemy health in a radius. */
+export type SupportKind = 'artillery' | 'smoke' | 'airStrike' | 'bomber' | 'fighter' | 'recon';
 export type Difficulty = 'normal' | 'hard' | 'insane';
 export type TheatreId = 'france' | 'desert' | 'sicily' | 'italy' | 'normandy' | 'holland' | 'germany';
 export type TimeOfDay = 'dawn' | 'day' | 'overcast' | 'dusk' | 'night';
@@ -150,9 +161,33 @@ export interface UnitDef {
    * line unit instead of leading, and they never count as the line themselves.
    */
   followsLine: boolean;
+
+  /*
+   * New-unit fields (optional; absent = the plain behaviour). Read once when tables are built, not per tick.
+   */
+  /**
+   * Vehicles: damage multipliers by the side of the vehicle a hit comes from (front = the way it faces).
+   * Absent = 1 from both sides. The King Tiger has a thick front and a weak rear.
+   */
+  armour?: { front: number; rear: number };
+  /** APC: infantry it carries to the front (one squad), unloaded where it stops. */
+  carries?: number;
+  /** Commander: friendly soldiers within `radius` wu deal `damageMul` x damage. Does not stack. */
+  aura?: { radius: number; damageMul: number };
+  /** Commander: a side may have only one alive or queued at a time. */
+  uniquePerSide?: boolean;
+  /** Flamethrower: a bullet hit from behind ignites the fuel tank and kills instantly with a small explosion. */
+  rearIgnite?: boolean;
+  /** Anti-aircraft team: can engage planes. */
+  antiAir?: boolean;
+  /** Enemy-only (Panzer III, King Tiger): never trainable by, nor sold to, the player. */
+  enemyOnly?: boolean;
 }
 
-export type DamageMatrix = Record<DamageType, Record<TargetClass, number>>;
+/** Commander speech bubbles (src/data/speech.ts): short text lines per faction and per order. */
+export type SpeechTable = Record<FactionId, Record<Order, readonly string[]>>;
+
+export type DamageMatrix =Record<DamageType, Record<TargetClass, number>>;
 
 export interface FactionLook {
   helmet: 'brodie' | 'stahlhelm';
@@ -349,6 +384,9 @@ export interface GameConfig {
   /** A guard that was hit by something it cannot reach chases toward the enemy (inside its leash) for this long. */
   guardAlertTime: number;
 
+  /** Veteran infantry (ForceDef.veteran, the King Tiger's escort): multipliers on health and on hit chance. */
+  veteran: { hpMul: number; accuracyMul: number };
+
   /** Pool sizes. Units and projectiles are hard caps; the event, command and damage buffers grow if exceeded. */
   maxUnits: number;
   maxProjectiles: number;
@@ -511,6 +549,8 @@ export interface ForceDef {
    * garrison = with `trenchId`, hold that trench whatever the order until it falls, then join the army.
    */
   behaviour?: 'army' | 'guard' | 'assault' | 'garrison';
+  /** Veteran infantry (the King Tiger's escort): health and hit chance scaled by config.veteran. */
+  veteran?: boolean;
 }
 
 export interface SideStart {
