@@ -89,11 +89,11 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 - Insane: near one-shot lethality. Almost any hit kills infantry for both sides, and the enemy fields armies the size of a real invasion.
 - Lethality changes apply equally to both sides, so the harder modes stay fair. Hard and Insane add more enemy troops and better setups on top of that.
 ## Army size
-- The population cap becomes 150 on Recruit, Normal and Hard, and 175 on Insane, for both sides.
+- ~~The population cap becomes 150 on Recruit, Normal and Hard, and 175 on Insane, for both sides.~~ **Superseded by the owner (2026-11-08): the population cap is 100 for both sides on every difficulty, permanently.** Insane gets its "real invasion" feel from setups, waves and the non-simulated background armies, not a higher cap.
 - Rebalance the economy (income, costs, training times) so reaching a large army is possible, and update the balance tests and the "reasonable player" bot for each difficulty.
 - To make Insane feel like a real invasion, add distant background armies (cheap, non-simulated crowds, vehicles and artillery flashes) and reinforcement waves, rather than only simulating more units.
 ## Performance
-- The game must stay smooth on a mid-range phone with 350 units on the field plus effects. Profile it and optimize: pooling, culling off-screen units, simpler drawing for distant units, and lighter simulation where possible. Add a soak test at full army size on Insane.
+- The game must stay smooth on a mid-range phone with ~~350~~ **200** units on the field plus effects (owner, 2026-11-08: scaled to the cap of 100 per side). Profile it and optimize: pooling, culling off-screen units, simpler drawing for distant units, and lighter simulation where possible. Add a soak test at full army size on Insane (100 per side, 200 in total).
 - If a phone still can't keep up, add a graphics setting that lowers effects and background detail, not the unit cap."
 
 Decisions already announced to the owner: lethality is a per-difficulty multiplier applied identically to both sides
