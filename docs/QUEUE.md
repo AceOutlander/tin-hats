@@ -21,7 +21,8 @@ Ausf. E, King Tiger elite squad), then **job 10, medals and the Armoury** (with 
 points folded into medals; the Armoury sells the new units). Then the rest in order: 2 admin panel, 3 Money, 5 passives,
 6 prep phase, 9 difficulty overhaul (4 is done). Each goes live as it finishes. Then **Stalingrad** (owner, 2026-11-08): the Part 1 foundations plus the Soviet Stalingrad
 campaign, built on the git branch `stalingrad` (or kept fully hidden) so other updates can still be published. It stays
-off the live site until it is 100% done: all 10 missions, briefings, music, balance tests and checks passing. Then tell
+off the live site until it is 100% done: all 10 missions, briefings, music, balance tests and checks passing. The Stalingrad release also removes the 10 placeholder British missions and
+adds the standalone "Basic Training" tutorial (both specs below), all on the `stalingrad` branch. Then tell
 the owner it is ready and **wait for the owner to say when to push it live**. (The iPhone rendering bug moved to after all the campaigns, owner
 2026-11-08.)
 
@@ -66,6 +67,32 @@ How these decisions fit together (for the implementers):
   the African campaign.
 
 The owner's specs follow, verbatim.
+
+## The current missions are placeholders (owner, 2026-11-08; part of the Stalingrad release)
+
+"## The current missions are placeholders
+- The 10 current British missions are placeholders. When Stalingrad goes live, delete them completely: missions, briefings, campaign map entries and their tests. Campaigns are the main game.
+- Keep anything reusable from them (backdrops, music tracks, mechanics) for the new campaigns, as planned.
+- Players keep earned medals, bought units, upgrades and passives when the placeholders are removed.
+- When Stalingrad goes live, update the Tin Hats card text on hunteracedev.com so it describes the game as a whole instead of the old British campaign."
+
+Notes: do the removal on the `stalingrad` branch so it ships with Stalingrad. The save migration keeps medals, Armoury
+purchases, upgrades and passives and drops (or archives in a `legacy` block) the old missions' progress; the balance
+tests and browser specs that loop over the old missions move to the new campaigns. This replaces the earlier plan to keep
+the old British campaign until D-Day replaces it.
+
+## Separate tutorial: "Basic Training" (owner, 2026-11-08; ships with Stalingrad)
+
+"## Separate tutorial ("Basic Training")
+- A standalone tutorial on the main menu, separate from all campaigns. It's offered on first launch, skippable, and replayable anytime.
+- Set on a training ground with practice targets and a weak mock enemy, taking about 5–10 minutes, step by step, with short on-screen prompts.
+- It teaches: money and sappers, training units, the three army orders and per-unit-type orders, direct control, trenches and cover, call-ins, building in a prep phase, and the medals, Armoury and Quartermaster screens.
+- Finishing it once pays a small one-time medal reward, so new players can buy their first unit.
+- Build it on the Stalingrad branch so it goes live together with Stalingrad. Pegasus Bridge in the D-Day campaign becomes a normal mission, no longer a tutorial."
+
+Notes: it replaces today's mission 1 tutorial steps (src/data/tutorial.ts) and reuses that step engine; it needs the
+prep phase, per-unit orders, medals and Armoury to exist first, which the queue order already gives.
+
 
 ## Barbed wire drawn end-on (done and live, commit 5e85113)
 
@@ -402,7 +429,7 @@ Notes for the implementer: every mission names its track in mission data (`music
 - Every side gets its own period-accurate uniforms, helmets and headgear, defined in data.
 - Soviet, Stalingrad: as already specced.
 - British, D-Day: replaces the current British campaign, whose 10 missions are scrapped. Reuse their backdrops and features where useful (the desert and Italy art can go to the African campaign). Migrate saves cleanly: earned medals and passives stay. Update the Tin Hats card text on hunteracedev.com to match.
-  1. Pegasus Bridge, night of 5–6 June 1944: a glider assault to seize the bridges. Shorter, and teaches the basics as the new tutorial.
+  1. Pegasus Bridge, night of 5–6 June 1944: a glider assault to seize the bridges. Shorter, and teaches the basics as the new tutorial. (Superseded 2026-11-08: Pegasus Bridge is a normal mission; the standalone "Basic Training" is the tutorial.)
   2. Merville Battery: paratroopers knock out the coastal guns before the landings.
   3. Gold Beach: land under fire and break through the beach defences.
   4. Sword Beach: push inland from the beach.
