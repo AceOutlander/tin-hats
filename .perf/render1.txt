@@ -1,0 +1,9 @@
+﻿.\x.cmd : Error: the battle never became heavy enough (try lower --units, --fighting or a wider --gap)
+At line:1 char:432
++ ...  $_.Line }; .\x.cmd npx tsx tools/perf.ts --dist=.perf/dist --units=1 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error: the batt... a wider --gap):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at reachHeavy (C:\dev\tin-hats-perf\tools\perf.ts:304:49)
+    at async main (C:\dev\tin-hats-perf\tools\perf.ts:320:5)

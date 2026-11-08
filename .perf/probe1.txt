@@ -1,0 +1,34 @@
+﻿cpu x4 844x390 dsf 1: 157 frames in 13.6 s (11.6 fps), units now 56
+phases ms/frame avg (p95, max): render 15.01 (47.1, 68.3)  draw 23.63 (87.7, 143.8)  sim 5.10  after 1.21  hud 0.51  interval 86.6 (224.2)
+stats: images 5772 visible 1310 unitViews 82 drawn 36 particles 18 live 18 tracers 0 blood 17 atlasPages 2 atlasPx 10993520 canvas 844x390 dpr 1 quality 0
+Phaser layer draw (JS submit) total 22.42 ms/frame:
+  unitRow1         4.598 ms/frame
+  unitRow0         4.564 ms/frame
+  unitRow3         3.683 ms/frame
+  unitRow2         3.095 ms/frame
+  effects          1.892 ms/frame
+  shadows          0.929 ms/frame
+  structures       0.749 ms/frame
+  glow             0.399 ms/frame
+  sky              0.397 ms/frame
+  pips1            0.349 ms/frame
+  pips0            0.344 ms/frame
+  trenchFront      0.212 ms/frame
+  rain             0.171 ms/frame
+  pips3            0.132 ms/frame
+wrapped functions (ms/frame avg, calls/frame, worst frame ms):
+  view.render              15.108  calls 1.0  worst 68.30  per-call 15.1077
+  UnitViews.update         13.239  calls 1.0  worst 68.00  per-call 13.2391
+  FigureView.draw          10.179  calls 42.9  worst 65.10  per-call 0.2374
+  UnitViews.updateDying    2.772  calls 25.8  worst 30.00  per-call 0.1074
+  EffectsSystem.update     1.426  calls 1.0  worst 31.50  per-call 1.4263
+  view.afterStep           1.254  calls 2.4  worst 31.70  per-call 0.5318
+  ParticleDrawer.draw      0.604  calls 1.0  worst 23.60  per-call 0.6045
+  UnitViews.spreadCrowds   0.252  calls 1.0  worst 12.50  per-call 0.2519
+  StructureViews.update    0.199  calls 1.0  worst 10.30  per-call 0.1987
+  BackdropView.update      0.119  calls 1.0  worst 15.60  per-call 0.1186
+  UnitViews.onDied         0.091  calls 0.2  worst 3.90  per-call 0.4438
+  UnitViews.acquire        0.085  calls 0.1  worst 7.80  per-call 1.6500
+  TankView.draw            0.028  calls 0.5  worst 0.90  per-call 0.0524
+  UnitViews.release        0.007  calls 0.2  worst 0.30  per-call 0.0423
+layers mid-window: [{"name":"sky","total":3,"visible":2},{"name":"celestial","total":1,"visible":1},{"name":"clouds","total":2,"visible":1},{"name":"menuSkyFlash","total":1,"visible":0},{"name":"menuFork","total":1,"visible":0},{"name":"farBackdrop","total":2,"visible":1},{"name":"midBackdrop","total":2,"visible":1},{"name":"menuRainFar","total":230,"visible":0},{"name":"nearBackdrop","total":2,"visible":2},{"name":"ground","total":2,"visible":1},{"name":"groundDecals","total":46,"visible":4},{"name":"trenchBack","total":3,"visible":3},{"name":"structures","total":32,"visible":32},{"name":"shadows","total":139,"visible":50},{"name":"fortification","total":2,"visible":2},{"name":"trenchFront","total":9,"visible":9},{"name":"wireFront","total":2,"visible":2},{"name":"markers","total":49,"visible":2},{"name":"projectiles","total":2,"visible":0},{"name":"effects","total":432,"visible":157},{"name":"menuRainMid","total":125,"visible":0},{"name":"foreground","total":3,"visible":3},{"name":"nightTint","total":2,"visible":0},{"name":"rain","total":46,"visible":0},{"name":"lightningFlash","total":1,"visible":0},{"name":"unitRow0","total":780,"visible":322},{"name":"unitRow1","total":1102,"visible":371},{"name":"unitRow2","total":1026,"visible":335},{"name":"unitRow3","total":932,"visible":433},{"name":"pipsRow0","total":105,"visible":35},{"name":"pipsRow1","total":145,"visible":5},{"name":"pipsRow2","total":135,"visible":0},{"name":"pipsRow3","total":125,"visible":25},{"name":"bloodRow0","total":12,"visible":2},{"name":"bloodRow1","total":1,"visible":1},{"name":"bloodRow2","total":6,"visible":5},{"name":"bloodRow3","total":5,"visible":5},{"name":"glow","total":27,"visible":0},{"name":"lit","total":19,"visible":0},{"name":"grade","total":1,"visible":0}]

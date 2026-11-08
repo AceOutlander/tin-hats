@@ -1,0 +1,50 @@
+﻿heavy after 7.9 s: 52 + 28 units (18 aiming or firing), battle time 107 s
+
+proving ground, seed 1, 844x390 dsf 1, cpu x1, quality auto
+503 frames over 10.3 s of play (48.7 fps), 0.67 sim steps per frame, 0.134 ms per step (smoothed)
+JS milliseconds per frame
+  sim step (input, steps, app)   avg   0.25   p95   0.90   max  11.60
+  view afterStep (events)        avg   0.06   p95   0.30   max   5.20
+  view render (layout)           avg   3.58   p95  13.20   max  62.60
+  HUD update                     avg   0.17   p95   0.50   max  14.50
+  SIM + RENDER + HUD (budget)    avg   4.06   p95  15.10   max  62.60
+  Phaser draw (informational)    avg   8.76   p95  30.20   max  85.60
+  frame interval                 avg  22.54   p95  54.70   max 174.40
+  main thread CPU per frame      5.75 ms (of which script 12.83 ms) (CPU time, so other programs on the machine do not inflate it)
+live objects: 62 units (55 to 75), 89 unit views (44 drawn), 5564 images (1649 visible), particles avg 106 peak 227, tracers peak 1
+heap: 21.3 -> 21.5 MB after GC (+1.32 MB/min retained), about 11.35 MB/s allocated, 94 collections, 18 long tasks
+game objects by layer (total/visible): unitRow1 1122/340, unitRow2 1046/155, unitRow3 932/249, unitRow0 780/323, effects 428/31, menuRainFar 230/0, pipsRow1 150/20, shadows 149/38, pipsRow2 140/5, menuRainMid 125/0, pipsRow3 125/15, pipsRow0 105/25, markers 49/0, groundDecals 47/30, rain 46/0, lit 35/0, structures 32/32, glow 29/2
+quality: level 2 (2 drops, 0 raises), canvas 844x390 px (pixel ratio 1)
+PASS: average JS 4.06 ms per frame against a budget of 6 ms
+
+Allocation sampling: 402.3 MB sampled over 10 s; biggest allocating functions
+   42.5%   16948.7 KB/s  run  phaser-D6cePiZw.js:142528
+   10.9%    4342.7 KB/s  run  phaser-D6cePiZw.js:143805
+    5.1%    2027.0 KB/s  draw  index-Ce3_EiZh.js:63593
+    4.0%    1578.3 KB/s  get  phaser-D6cePiZw.js:32553
+    3.2%    1273.8 KB/s  advanceGait  index-Ce3_EiZh.js:39441
+    2.5%     996.9 KB/s  ImageWebGLRenderer  phaser-D6cePiZw.js:44717
+    2.3%     898.5 KB/s  get  phaser-D6cePiZw.js:35177
+    2.2%     878.8 KB/s  get  phaser-D6cePiZw.js:35196
+    2.2%     875.3 KB/s  setAlpha  phaser-D6cePiZw.js:32506
+    2.2%     869.5 KB/s  get  phaser-D6cePiZw.js:36930
+    2.1%     852.0 KB/s  get  phaser-D6cePiZw.js:36948
+    2.0%     797.6 KB/s  get  phaser-D6cePiZw.js:36992
+    1.9%     772.6 KB/s  get  phaser-D6cePiZw.js:32610
+    1.9%     771.4 KB/s  get  phaser-D6cePiZw.js:32572
+    1.9%     771.0 KB/s  get  phaser-D6cePiZw.js:32591
+    1.9%     765.2 KB/s  layoutFigure  index-Ce3_EiZh.js:41625
+    1.7%     676.9 KB/s  updateLive  index-Ce3_EiZh.js:64205
+    1.1%     438.9 KB/s  LayerWebGLRenderer  phaser-D6cePiZw.js:45797
+    0.7%     283.4 KB/s  updateFigure  index-Ce3_EiZh.js:39756
+    0.6%     223.7 KB/s  compose  index-Ce3_EiZh.js:39552
+    0.5%     216.7 KB/s  draw  index-Ce3_EiZh.js:60816
+    0.3%     118.8 KB/s  set  phaser-D6cePiZw.js:32532
+    0.3%     115.6 KB/s  count  index-Ce3_EiZh.js:65699
+    0.3%     109.3 KB/s  stepTurn  index-Ce3_EiZh.js:63408
+    0.2%      96.1 KB/s  sampleTrack  index-Ce3_EiZh.js:38229
+    0.2%      89.2 KB/s  poseToJoints  index-Ce3_EiZh.js:38527
+    0.2%      86.4 KB/s  hash01  index-Ce3_EiZh.js:38209
+    0.2%      84.9 KB/s  Wrap  phaser-D6cePiZw.js:105762
+    0.2%      64.3 KB/s  update  index-Ce3_EiZh.js:62638
+    0.2%      62.5 KB/s  visit  index-Ce3_EiZh.js:60790
