@@ -423,6 +423,28 @@ squad) are not for sale. Riflemen and sappers stay free.
 
 Notes for the implementer: every mission names its track in mission data (`music` field; see `docs/MUSIC.md`). Reuse the `sword` and `hill112` tracks for the matching D-Day missions (Sword Beach; Operation Epsom and Hill 112) and the desert tracks (`crusader`, `alamein`) for the African campaign, and compose a new track for every other new mission so no two missions share one. The British campaign theme ("The Line") carries over to D-Day; the Soviet campaigns get their own theme, and their tracks should sound cold (wintry colours, glassy or bleak textures, sparse open voicings, icy percussion), alongside the driving battle feel. The African campaign gets its own theme too.
 
+### What medals buy, and the Poland unlock (owner, 2026-11-08)
+
+"## What medals buy
+1. Unlocking unit types in the Armoury (as specced).
+2. Upgrading troops and the HQ, replacing Quartermaster points (as specced).
+3. Unlocking the Battle for Poland campaign for 2,999 medals, as an alternative to buying it for $4.99.
+
+## Poland unlock
+- It's available only in the Google Play app, never in the free website version or the public repo.
+- In the app it can be unlocked either by spending 2,999 medals or by buying it for $4.99 through Google Play Billing. Either way unlocks it permanently, and a purchase is restored if the app is reinstalled.
+- The Armoury shows it as a locked campaign with both options, and how many medals I have toward it.
+- Use the balance bot to estimate how many campaigns and difficulties a typical player must finish to earn 2,999 medals while also buying a sensible set of units and upgrades. Report it, and suggest a different medal price if it's unreasonable. Keep all prices in data."
+"- The admin panel can unlock and re-lock it for testing."
+
+Notes: parts 1 and 2 are the medals job (job 10). Part 3 and the Poland unlock are built with the Google Play and Poland
+add-on jobs at the end of the queue, inside the Android build only; the public repo and the website never contain the
+Poland content, the unlock code paths that reveal it, or the Billing code (the plan document for keeping paid content
+private comes first). The medal-economy estimate for 2,999 medals can run earlier, once the campaigns exist, using the
+balance bot; report it to the owner with a suggested price. Prices go in data (src/data/medals.ts for the medal price;
+the store price lives in the Play Console, mirrored in the private build's data for display).
+
+
 ## Campaigns (2026-11-08 list)
 
 "## Campaigns (10 missions each; the last few generally feature tanks; era-correct units and equipment; check the history before writing briefings)
@@ -466,6 +488,9 @@ job. The upload signing key must be created and kept outside every repo, and its
 (add it to the owner's checklist).
 
 ## Paid add-on: Poland 1939 campaign (very last; after the French and German campaigns)
+
+Update (owner, 2026-11-08): it is called "the Battle for Poland" and can be unlocked in the Google Play app either for
+2,999 medals or for $4.99 through Google Play Billing; see "What medals buy, and the Poland unlock" under the medals spec.
 
 "## Paid add-on: Poland 1939 campaign (do not build the payment part yet)
 - A 10-mission campaign as Poland, September to October 1939. Tragic but heroic: holding out and delaying is the victory, and the war is lost by the end. The Soviets invade from the east in the later missions.
