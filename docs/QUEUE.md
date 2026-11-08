@@ -66,7 +66,9 @@ How these decisions fit together (for the implementers):
 
 The owner's specs follow, verbatim.
 
-## Barbed wire drawn end-on (small job, right after hiding enemy HP)
+## Barbed wire drawn end-on (done and live, commit 5e85113)
+
+Built as DECISIONS 253: end-on pieces (`WIRE_LAYOUT`, `src/art/structures/wire.ts`), the struggle gait (`FIGURE_WIRE`), the tank crush (`src/render/wireRules.ts`); the Germany dragon's teeth are end-on clusters now. Trench note for job 12 in DECISIONS 253.
 
 "Small job, right after the current one: the barbed wire is drawn wrong, same problem as the trenches. It shows as long horizontal strips lying along the ground, as if seen from above.
 
