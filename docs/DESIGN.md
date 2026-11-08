@@ -57,7 +57,7 @@ Events (pooled flat records with a `type` and generic numeric fields, documented
 
 - One resource: Supplies. Each HQ gives a passive trickle (`config.hqIncomePerSec`).
 - A supply dump sits `config.dumpDistance` in front of each HQ. Sappers walk HQ to dump, spend `loadTime` loading, and carry `sapperCarry` supplies back; supplies are credited when they reach the HQ door. The dump never runs dry.
-- Training: each unit kind has its own queue; kinds train in parallel, one unit at a time per kind. Cost and population are paid when queued, so the cap (40) can never be exceeded. A finished unit appears at the HQ door and walks out.
+- Training: each unit kind has its own queue; kinds train in parallel, one unit at a time per kind. Cost and population are paid when queued, so the cap (100) can never be exceeded. A finished unit appears at the HQ door and walks out.
 - Population = population cost of living units plus queued units.
 - Sides flagged `hasHq: false` (survival attackers) have no economy; their units arrive from mission events at their map edge.
 

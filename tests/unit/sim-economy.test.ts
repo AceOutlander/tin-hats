@@ -266,7 +266,8 @@ describe('training', () => {
 
   it('never lets population pass the cap, counting queued units', () => {
     const mission = testMission({
-      a: { supplies: 100_000 },
+      // Riflemen already in the field fill all but 40 of the cap, so the queue below has to stop exactly at it.
+      a: { supplies: 100_000, forces: [{ kind: 'rifle', count: CONFIG.popCap - 40, x: 600 }] },
       units: [
         ['sapper', 'rifle', 'lmg', 'at', 'tank'],
         ['sapper', 'rifle'],
@@ -284,7 +285,7 @@ describe('training', () => {
     const side = b.state.sides[0];
     expect(side.pop).toBeLessThanOrEqual(CONFIG.popCap);
     expect(side.pop).toBe(CONFIG.popCap);
-    // 5 tanks (25) + 5 at (10) + 2 lmg (4) + 1 rifle (1) = 40; the rest were refused.
+    // On top of the riflemen in the field: 5 tanks (25) + 5 at (10) + 2 lmg (4) + 1 rifle (1) = 40; the rest were refused.
     expect(side.queue.tank).toBe(5);
     expect(side.queue.at).toBe(5);
     expect(side.queue.lmg).toBe(2);

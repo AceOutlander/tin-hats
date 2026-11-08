@@ -379,8 +379,13 @@ export interface AiDef {
   regroupFrac: number;
   /** Radius of the "group" around the hold line or the leading unit. */
   groupRadius: number;
-  /** Advance regardless of the ratio when population reaches popCap * popCapAttackFrac. */
+  /**
+   * Advance regardless of the ratio when population reaches attackFullPop * popCapAttackFrac, where attackFullPop is
+   * attackArmyPop scaled by the difficulty's AI population multiplier and never above the side's cap. The AI judges a
+   * "full" army by this fixed size, so raising the population cap does not make it wait longer to attack.
+   */
   popCapAttackFrac: number;
+  attackArmyPop: number;
   /** After this many seconds of Hold (divided by aggression) the AI attacks at the lower impatientRatio. */
   impatienceAfter: number;
   impatientRatio: number;
@@ -390,6 +395,8 @@ export interface AiDef {
   maxQueueDepth: number;
   /** With the build plan satisfied and at least this many supplies banked, train extra units in plan proportions. */
   surplusSupplies: number;
+  /** Past a full-sized army (see attackArmyPop) the AI trains only while at least this many supplies stay banked. */
+  reserveSupplies: number;
   /** Seconds between decisions of the test bot (the AI uses the difficulty's interval). */
   botThinkInterval: number;
   /** Reactions: anti-tank teams added per visible enemy tank. */

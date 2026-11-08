@@ -16,7 +16,7 @@ import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { canTrain } from './commands';
 import { canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
-import type { CommanderKind } from './types';
+import type { CommanderKind, SideState } from './types';
 import { CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
 
 /** Build the commander memory for a side, or null for human and idle commanders. */
@@ -154,6 +154,14 @@ function survey(w: World, si: number): void {
   }
 }
 
+/**
+ * The size at which the AI counts its army as full: a fixed size (scaled like the cap by difficulty), never above the
+ * side's cap, so raising the population cap neither delays its attacks nor makes it spend its whole bank at once.
+ */
+function fullArmyPop(side: SideState): number {
+  return Math.min(side.popCap, (AI.attackArmyPop * side.popCap) / CONFIG.popCap);
+}
+
 /** Economy first, then the build plan plus reactions to what it sees. */
 function build(w: World, si: number, ai: AiState): void {
   const side = w.state.sides[si];
@@ -196,6 +204,9 @@ function build(w: World, si: number, ai: AiState): void {
       pick = k;
     }
   }
+  // Past a full-sized army the AI grows only while a reserve stays banked, so losses can be replaced instead of every
+  // supply being spent at once (below that size it trains exactly as it did under the old cap of 40).
+  if (side.pop >= fullArmyPop(side) && side.supplies < AI.reserveSupplies) return;
   if (pick < 0 && side.supplies >= AI.surplusSupplies) {
     // Plan satisfied and supplies banked: keep growing in the plan's proportions.
     let lowest = Infinity;
@@ -237,7 +248,7 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   const time = w.state.time;
   if (time - ai.lastOrderTime < AI.minOrderInterval) return;
   const order = side.order;
-  const capped = side.pop >= side.popCap * AI.popCapAttackFrac;
+  const capped = side.pop >= fullArmyPop(side) * AI.popCapAttackFrac;
   // With no enemy HQ to take (survival) there is nothing to attack, and sheltering in the HQ only
   // hands the trench to the waves: hold the line until the clock runs out.
   const survival = w.state.sides[1 - si].hq === null;

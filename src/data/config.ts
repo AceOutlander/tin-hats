@@ -6,7 +6,7 @@ import type { GameConfig } from './schema';
  */
 export const CONFIG: GameConfig = {
   tickRate: 30,
-  popCap: 40,
+  popCap: 100,
   maxQueue: 5,
 
   hqHp: 1000,
