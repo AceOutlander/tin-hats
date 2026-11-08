@@ -7,7 +7,7 @@ import { CONFIG } from '../../src/data/config';
 import { DAMAGE } from '../../src/data/damage';
 import type { UnitKind, UpgradeDef, UpgradeEffect } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
-import { UPGRADES } from '../../src/data/upgrades';
+import { UPGRADE_MEDALS_PER_LEVEL, UPGRADES } from '../../src/data/upgrades';
 import { WEAPONS } from '../../src/data/weapons';
 import type { Battle } from '../../src/sim';
 import { KIND_INDEX } from '../../src/sim/tables';
@@ -69,10 +69,10 @@ describe('the upgrade table', () => {
     expect(UPGRADES).toHaveLength(4 + 2 * COMBAT.length);
   });
 
-  it('gives every upgrade three levels at one point each, a name and a description, with modest growing effects', () => {
+  it('gives every upgrade three levels at one price each (in medals), a name and a description, with modest growing effects', () => {
     for (const u of UPGRADES) {
       expect(u.levels, u.id).toHaveLength(MAX);
-      expect(u.costPerLevel, u.id).toBe(1);
+      expect(u.costPerLevel, u.id).toBe(UPGRADE_MEDALS_PER_LEVEL);
       expect(u.name.length, u.id).toBeGreaterThan(3);
       expect(u.description.length, u.id).toBeGreaterThan(15);
       for (let l = 0; l < MAX; l++) {
