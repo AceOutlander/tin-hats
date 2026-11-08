@@ -7,6 +7,7 @@ Publishing steps: `CLAUDE.md`, "Push to live".
 Order:
 1. Per-unit-type orders (in progress 2026-11-07).
 2. Quartermaster upgrade looks.
+2b. Battle music and campaign map music (spec below).
 3. Admin panel (spec below).
 4. Prep phase for defensive missions.
 5. Difficulty overhaul (difficulty levels, army size, performance).
@@ -38,6 +39,30 @@ Run the checks, push to live, and send me screenshots of the HQ at all four stag
 
 Note: nations as data arrive with the Soviet campaign, so build per-nation looks as data now, filled in for Britain
 and Germany; add the Soviet looks (log dugout and so on) in Soviet Part 1.
+
+## 2b. Battle music and campaign map music (after job 2, before the admin panel)
+
+"## Mood
+- Exciting and driving, cool-sounding, with a grim edge. Not as dark or slow as the menu theme. Think marching snare, low brass, driving strings and timpani, minor keys, a strong rhythm.
+- Every mission gets its own track, matched to its setting, and all of them stay original. For example: France 1940 urgent and uncertain; Dunkirk desperate and rushing; the desert dry and sparse with hand percussion; Italy heavier with mountain echo and bells; Normandy big brass and driving snare; Hill 112 heavy and mechanical, like tanks; Arnhem tense like a ticking clock; the Siegfried Line a big final push.
+- Give each campaign a short theme that comes back in different forms across its missions, so the British missions sound related. The Soviet campaign will get its own theme later.
+
+## Music that reacts to the battle
+- Each track has layers that fade in and out with what's happening: a quieter build-up layer while things are calm, a full combat layer during heavy fighting, a tense layer when my HQ is under threat or a survival timer is close, and a short ending sting for victory or defeat. The prep phase in defensive missions gets its own building-tension layer.
+- Change smoothly, never cutting abruptly, and don't flip back and forth every few seconds.
+- With 15–30 minute missions, the music must not feel like one loop on repeat: at least 3 minutes of material per track, varied sections, and occasional quiet stretches.
+
+## Campaign map
+- A calmer, reflective track between missions: grim but hopeful, somewhere between the menu theme and the battle music.
+
+## Technical
+- Synthesize everything in code with the existing music system and no audio files. Each mission's music is chosen in mission data, so new missions just name their track.
+- Render a mission's music when that mission loads, not all at once at startup, so phones don't run out of memory. Keep only the current mission's music in memory.
+- Music stays on the Music slider and sits under the gunfire and explosions, so the battle stays easy to hear.
+- Run the checks, push to live, and tell me which mission to try first."
+
+Notes: the prep-phase layer can only be wired once the prep phase exists (job 4); build the layer and its trigger
+hook now and connect it then. Music is measured, never heard: report mix levels against gunfire and explosions.
 
 ## 3. Admin panel
 
