@@ -26,7 +26,7 @@ Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade l
 9. **Difficulty overhaul** (spec below), with a population cap of 100 on every difficulty. Insane: same income and cap as
    the player, made hard by a much smarter, human-like AI (owner, 2026-11-08).
 10. **Medals and the Armoury** (spec below).
-11. **Campaigns**, in this order: the Part 1 foundations from the Soviet spec first, then Soviet Stalingrad, British
+11. **Campaigns** (music: reuse fitting tracks, compose new ones for the rest; Soviet tracks sound cold), in this order: the Part 1 foundations from the Soviet spec first, then Soviet Stalingrad, British
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
 12. **Trench art pass** (spec below).
 
@@ -293,6 +293,12 @@ use it later.
 - Show medals earned and the score breakdown on the victory screen.
 - The admin panel can give and remove medals.
 - Balance tests: the "reasonable player" bot must be able to afford a sensible army progression across a campaign on Normal without replaying."
+
+### Music for the new campaigns (owner, 2026-11-08)
+
+"the new music is tied to the old British missions that are being scrapped. When building the new campaigns, reuse tracks where they fit (Sword Beach and Hill 112 for D-Day, the desert tracks for the African campaign) and compose new ones for every other new mission, so each mission still has its own. Russian battles should sound cold"
+
+Notes for the implementer: every mission names its track in mission data (`music` field; see `docs/MUSIC.md`). Reuse the `sword` and `hill112` tracks for the matching D-Day missions (Sword Beach; Operation Epsom and Hill 112) and the desert tracks (`crusader`, `alamein`) for the African campaign, and compose a new track for every other new mission so no two missions share one. The British campaign theme ("The Line") carries over to D-Day; the Soviet campaigns get their own theme, and their tracks should sound cold (wintry colours, glassy or bleak textures, sparse open voicings, icy percussion), alongside the driving battle feel. The African campaign gets its own theme too.
 
 ## Campaigns (2026-11-08 list)
 
