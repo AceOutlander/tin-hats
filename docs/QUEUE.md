@@ -10,8 +10,8 @@ schedule a resume just after the reset.
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
 Now: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08).
-Next, right after the music: the **iPhone rendering bug** (spec below; if the owner says otherwise, it moves to just
-before publishing). Then job 1 onward.
+Next, right after the music: job 1 onward. (The iPhone rendering bug moved to after all the campaigns, owner
+2026-11-08.)
 
 1. **Hide enemy unit HP** (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
    battle; only the Recon plane (job 7) reveals it, in a radius, for a while. No earlier written spec exists; see
@@ -34,7 +34,7 @@ before publishing). Then job 1 onward.
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
 12. **Trench art pass** (spec below).
 
-Later: a French campaign, and a German campaign as DLC. Near the very end: publishing on Google Play (spec below). Very last: the Poland 1939 campaign as a paid add-on (spec at
+Later: a French campaign, and a German campaign as DLC. After all the campaigns: the iPhone rendering bug (spec below). Then publishing on Google Play (spec below). Very last: the Poland 1939 campaign as a paid add-on (spec at
 the end; the store plan comes first, and no payment code or paid content goes into the public repo until the owner
 picks a store).
 
@@ -54,7 +54,7 @@ How these decisions fit together (for the implementers):
 
 The owner's specs follow, verbatim.
 
-## iPhone rendering bug (right after the music job)
+## iPhone rendering bug (after all the campaigns, before the Google Play publishing work)
 
 "## iPhone rendering bug
 On iPhone, soldiers, buildings and other details don't render. Reproduce it with the Safari engine (Playwright WebKit with iPhone emulation), find the cause (for example a graphics feature or shader iOS Safari doesn't support), fix it with a fallback that works on every browser, and add a WebKit browser test so it can't break again. Add a renderer info readout to the admin panel's debug tab so I can check it on my own iPhone.
