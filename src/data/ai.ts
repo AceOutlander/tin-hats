@@ -64,3 +64,22 @@ export const AI_RECOVERY: AiRecoveryDef = {
   homeLineReach: 1900,
   deadlineRush: 150,
 };
+
+/** AI tunables for the aircraft and anti-aircraft guns (job 7), beside AI like AI_RECOVERY. */
+export interface AiPlanesDef {
+  /** Anti-aircraft guns wanted per enemy aircraft call-in seen so far (rounded up, at most AI.maxReaction). */
+  aaPerPlane: number;
+  /** Bomber: value of enemies (as bestCluster) at a spot worth a bombing run; a heavy tank in reach always is. */
+  bomberMinValue: number;
+  /** Fighter: value of enemies at a spot worth strafing. */
+  fighterMinValue: number;
+  /** Recon: only while advancing, and only with at least this much money banked. */
+  reconMinSupplies: number;
+}
+
+export const AI_PLANES: AiPlanesDef = {
+  aaPerPlane: 0.5,
+  bomberMinValue: 420,
+  fighterMinValue: 300,
+  reconMinSupplies: 600,
+};

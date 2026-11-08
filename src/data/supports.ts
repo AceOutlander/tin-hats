@@ -54,7 +54,7 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     pattern: 'sweep',
   },
 
-  // TODO(planes engineer): placeholder planes from the contract commit; no mission offers them yet.
+  // Aircraft call-ins (job 7): each costs money (SUPPORT_COST) and flies across the field (PLANES), so anti-aircraft guns get a window.
   bomber: {
     kind: 'bomber',
     cooldown: 120,
@@ -68,7 +68,7 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     warning: 3,
     launchOffset: 140,
     hqDamageMul: 0.25,
-    vehicleDamageMul: 3,
+    vehicleDamageMul: 5,
     pattern: 'sweep',
   },
   fighter: {
@@ -107,3 +107,60 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
 
 /** In HUD order. */
 export const SUPPORT_KINDS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon'];
+
+/** Money each call-in costs on top of its cooldown. Paid when the call is accepted. */
+export const SUPPORT_COST: Record<SupportKind, number> = {
+  artillery: 0,
+  smoke: 0,
+  airStrike: 0,
+  bomber: 300,
+  fighter: 180,
+  recon: 100,
+};
+
+/**
+ * An aircraft call-in in flight. It enters approach seconds before its first round, crosses the
+ * strip at the speed that sweeps it in `duration` (or `speed` when it has no rounds), and leaves
+ * `exit` seconds after the last one: the whole crossing is one planePass event. Anti-aircraft fire
+ * takes its health; at or below driveOffFrac of it the pilot turns for home and drops nothing more,
+ * at 0 it goes down (planeDown).
+ */
+export interface PlaneDef {
+  hp: number;
+  /** Seconds of flight before the first round, and after the last. */
+  approach: number;
+  exit: number;
+  /** Speed in wu/s for a plane with no rounds (recon); bombers and fighters sweep their strip in `duration`. */
+  speed: number;
+  /** Altitude row for the view (0 = highest). */
+  row: number;
+  /** Fraction of its health at which it breaks off its run. */
+  driveOffFrac: number;
+}
+
+export interface AntiAirDef {
+  /** Horizontal reach of an anti-aircraft gun against a plane overhead (wu). */
+  range: number;
+  /** Seconds between bursts at a plane, shots per burst, hit chance per shot and damage per hit. */
+  cooldown: number;
+  burst: number;
+  accuracy: number;
+  damage: number;
+}
+
+export const PLANES: Partial<Record<SupportKind, PlaneDef>> = {
+  bomber: { hp: 160, approach: 2.5, exit: 2, speed: 0, row: 0, driveOffFrac: 0.5 },
+  fighter: { hp: 100, approach: 2, exit: 1.5, speed: 0, row: 1, driveOffFrac: 0.4 },
+  recon: { hp: 80, approach: 2.5, exit: 2.5, speed: 420, row: 0, driveOffFrac: 0.5 },
+};
+
+export const ANTI_AIR: AntiAirDef = {
+  range: 520,
+  cooldown: 0.5,
+  burst: 1,
+  accuracy: 0.5,
+  damage: 30,
+};
+
+/** Call-ins whose rounds come down from above: hit-facing armour does not apply to them. */
+export const TOP_ATTACK_SUPPORTS: readonly SupportKind[] = ['airStrike', 'bomber', 'fighter'];

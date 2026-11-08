@@ -9,7 +9,7 @@
  * reactions to what it sees), pick the order from relative strength with
  * hysteresis, and call in supports.
  */
-import { AI, AI_RECOVERY } from '../data/ai';
+import { AI, AI_PLANES, AI_RECOVERY } from '../data/ai';
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
@@ -190,6 +190,8 @@ function build(w: World, si: number, ai: AiState): void {
     react(w, si, ai, 'assault', AI.assaultVsDugIn);
   }
   if (AI.infantryPerLmg > 0) react(w, si, ai, 'lmg', Math.floor(SV.foeOpen / AI.infantryPerLmg));
+  // The enemy flies: answer with anti-aircraft guns.
+  if (w.planesSeen[si] > 0) react(w, si, ai, 'aa', Math.ceil(w.planesSeen[si] * AI_PLANES.aaPerPlane));
 
   // Train the kind furthest below its target.
   let pick = -1;
@@ -407,6 +409,7 @@ function callSupports(w: World, si: number, ai: AiState): void {
       else if (BEST[1] >= AI.airStrikeMinValue) issueSupport(w, si, ai, 'airStrike', BEST[0]);
     }
   }
+  callPlanes(w, si, ai);
   if (s.time - ai.lastSupportTime < AI.supportGap) return;
   if (side.order === 'advance' && SV.foeDugIn > 0 && canCallSupport(w, si, 'smoke') && smokeHelps(w, si)) {
     const lead = w.armedFront[si];
@@ -431,5 +434,43 @@ export function runCommanders(w: World): void {
   for (let si = 0; si < 2; si++) {
     const ai = w.ai[si];
     if (ai && tick % ai.thinkTicks === 0) think(w, si, ai);
+  }
+}
+
+/**
+ * Aircraft, under the same costs, cooldowns and availability as the player: a bomber on a heavy tank
+ * within reach or on a big cluster, a fighter on a smaller one, and a recon plane over the enemy front
+ * while advancing with money to spare.
+ */
+function callPlanes(w: World, si: number, ai: AiState): void {
+  const s = w.state;
+  if (s.time - ai.lastSupportTime < AI.supportGap) return;
+  const bomber = canCallSupport(w, si, 'bomber');
+  const fighter = canCallSupport(w, si, 'fighter');
+  if (bomber || fighter) {
+    bestCluster(w, si);
+    if (bomber) {
+      const dir = si === 0 ? 1 : -1;
+      const lead = w.armedFront[si];
+      for (let i = 0; i < s.unitCount; i++) {
+        const u = s.units[i];
+        if (!u.alive || u.side === si || u.inside || u.def.armour === undefined) continue;
+        if ((u.x - lead) * dir > AI.supportReach) continue;
+        issueSupport(w, si, ai, 'bomber', u.x);
+        return;
+      }
+      if (BEST[1] >= AI_PLANES.bomberMinValue) {
+        issueSupport(w, si, ai, 'bomber', BEST[0]);
+        return;
+      }
+    }
+    if (fighter && BEST[1] >= AI_PLANES.fighterMinValue) {
+      issueSupport(w, si, ai, 'fighter', BEST[0]);
+      return;
+    }
+  }
+  const side = s.sides[si];
+  if (side.order === 'advance' && side.supplies >= AI_PLANES.reconMinSupplies && canCallSupport(w, si, 'recon')) {
+    issueSupport(w, si, ai, 'recon', w.front[1 - si]);
   }
 }

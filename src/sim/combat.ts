@@ -3,7 +3,7 @@
  * pillbox guns: target search and validation, the aim / fire / reload cycle,
  * hit rolls, projectile launches, and the deferred damage queue.
  */
-import { CONFIG } from '../data/config';
+import { CONFIG, SPECIALS } from '../data/config';
 import { LAUNCH, launch } from './projectiles';
 import {
   CLASS_FORT,
@@ -14,7 +14,12 @@ import {
   DUG_IN_RANK,
   NO_PREFERENCE,
   WEAPON_DTYPE,
+  KIND_ARMOUR_FRONT,
+  KIND_ARMOUR_REAR,
+  KIND_HAS_ARMOUR,
+  KIND_REAR_IGNITE,
   WEAPON_DUG_IN,
+  WEAPON_FLUSH,
   WEAPON_LIST,
   WEAPON_MASK,
   WEAPON_MIN_RANK,
@@ -33,8 +38,12 @@ import {
   type MountState,
   type UnitState,
 } from './types';
-import { killUnit } from './units';
-import type { World } from './world';
+import { flushUnit } from './trenches';
+import { igniteUnit, killUnit } from './units';
+import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './world';
+
+/** Index of the bullet damage type (a bullet in the back ignites a flamethrower). */
+const BULLET = DAMAGE_TYPES.indexOf('bullet');
 
 /** Weight of the preference rank against distance when scoring targets: rank always wins. */
 const RANK_WEIGHT = 1e7;
@@ -346,7 +355,7 @@ function fireShot(
       let frac = weapon.range > 0 ? dist / weapon.range : 1;
       if (frac > 1) frac = 1;
       if (frac < CONFIG.scatterMinFrac) frac = CONFIG.scatterMinFrac;
-      land += w.rng.gauss() * weapon.scatter * frac;
+      land += (w.rng.gauss() * weapon.scatter * frac) / m.accuracy;
       if (land < 0) land = 0;
       else if (land > s.length) land = s.length;
     }
@@ -356,15 +365,18 @@ function fireShot(
     LAUNCH[3] = 0;
     LAUNCH[4] = 1;
     LAUNCH[5] = 1;
+    LAUNCH[6] = 0;
     launch(w, side, wi, row, trow, shooter, source);
   } else if (target !== 'ground') {
     let t = weapon.range > 0 ? dist / weapon.range : 0;
     if (t > 1) t = 1;
-    const chance = weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t;
+    const chance = (weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t) * m.accuracy;
     hit = w.rng.next() < chance;
     if (hit) {
-      const amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
-      w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir);
+      const flush = WEAPON_FLUSH[wi] === 1;
+      let amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
+      if (flush && cls === CLASS_FORT) amount *= SPECIALS.flamePillboxMul;
+      w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir, flush ? DMG_FLUSH : 0);
     }
   }
 
@@ -463,7 +475,7 @@ export function applyDamage(w: World): void {
   const s = w.state;
   const q = w.damage;
   for (let i = 0; i < q.count; i++) {
-    const amount = q.amount[i];
+    let amount = q.amount[i];
     const by = q.side[i];
     const dtype = q.dtype[i];
     const dir = q.dir[i];
@@ -471,12 +483,26 @@ export function applyDamage(w: World): void {
       case TARGET_UNIT: {
         const u = s.units[q.targetIndex[i]];
         if (!u.alive || u.id !== q.targetId[i] || u.inside) break;
+        const flags = q.flags[i];
+        const k = u.kindIndex;
+        if (KIND_HAS_ARMOUR[k] === 1 && (flags & DMG_TOP) === 0) {
+          // Hit-facing armour: a blow travelling the way the vehicle faces came from behind.
+          const from = (flags & DMG_FLEW_POS) !== 0 ? 1 : (flags & DMG_FLEW_NEG) !== 0 ? -1 : dir;
+          amount *= from === u.facing ? KIND_ARMOUR_REAR[k] : KIND_ARMOUR_FRONT[k];
+        }
+        if (KIND_REAR_IGNITE[k] === 1 && dtype === BULLET && dir === u.facing) {
+          // A bullet in the fuel tank on his back: he goes up at once.
+          s.sides[by].stats.damageDealt += u.hp;
+          igniteUnit(w, u, dir, by);
+          break;
+        }
         u.hp -= amount;
         u.hitTime = s.time;
         s.sides[by].stats.damageDealt += amount;
         if (u.hp <= 0) {
           killUnit(w, u, dtype, dir, by);
         } else {
+          if ((flags & DMG_FLUSH) !== 0 && u.slot >= 0) flushUnit(w, u);
           const e = w.events.emit('unitHit');
           e.side = u.side;
           e.unit = u.index;

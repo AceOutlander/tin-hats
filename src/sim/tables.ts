@@ -6,8 +6,8 @@
 import { CONFIG } from '../data/config';
 import { DAMAGE } from '../data/damage';
 import type { DamageType, TargetClass, UnitDef, UnitKind, WeaponDef } from '../data/schema';
-import { UNITS, UNIT_KINDS } from '../data/units';
-import { WEAPONS } from '../data/weapons';
+import { BOSS_KINDS, UNITS, UNIT_KINDS } from '../data/units';
+import { FLUSH_WEAPONS, WEAPONS } from '../data/weapons';
 import type { UnitState } from './types';
 
 /** Seconds per tick. */
@@ -124,3 +124,28 @@ export const WEAPON_DTYPE: Int8Array = (() => {
   for (let i = 0; i < WEAPON_LIST.length; i++) out[i] = DAMAGE_TYPES.indexOf(WEAPON_LIST[i].damageType);
   return out;
 })();
+
+/*
+ * New-unit fields of UnitDef (optional), compiled per kind index so the tick reads typed arrays.
+ */
+/** Per kind: 1 if its armour depends on the side a hit comes from (UnitDef.armour). */
+export const KIND_HAS_ARMOUR: Uint8Array = Uint8Array.from(KIND_DEFS, (d) => (d.armour ? 1 : 0));
+/** Per kind: damage multiplier for a hit on the front (the way it faces) and on the rear. */
+export const KIND_ARMOUR_FRONT: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.armour ? d.armour.front : 1));
+export const KIND_ARMOUR_REAR: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.armour ? d.armour.rear : 1));
+/** Per kind: men it carries (APC), 0 for none. */
+export const KIND_CARRIES: Int32Array = Int32Array.from(KIND_DEFS, (d) => d.carries ?? 0);
+/** Per kind: 1 if a bullet in the back ignites it (flamethrower). */
+export const KIND_REAR_IGNITE: Uint8Array = Uint8Array.from(KIND_DEFS, (d) => (d.rearIgnite ? 1 : 0));
+/** Per kind: 1 if it shoots at aircraft. */
+export const KIND_ANTI_AIR: Uint8Array = Uint8Array.from(KIND_DEFS, (d) => (d.antiAir ? 1 : 0));
+/** Per kind: radius of its damage aura (commander), 0 for none, and the multiplier it gives. */
+export const KIND_AURA_RADIUS: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.radius : 0));
+export const KIND_AURA_MUL: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.damageMul : 1));
+/** Per kind: 1 if its arrival on the field is announced like a boss (bossArrived). */
+export const KIND_BOSS: Uint8Array = Uint8Array.from(KIND_LIST, (kind) => (BOSS_KINDS.includes(kind) ? 1 : 0));
+/** Per kind: 1 if it may ride in an APC (trench infantry: not sappers, medics, crews that cannot use a trench). */
+export const KIND_RIDES: Uint8Array = Uint8Array.from(KIND_DEFS, (d) => (d.class === 'infantry' && d.usesTrench && d.armed ? 1 : 0));
+
+/** Per weapon: 1 if its hits burn trench occupants out of their slots (flamethrower). */
+export const WEAPON_FLUSH: Uint8Array = Uint8Array.from(WEAPON_LIST, (weapon) => (FLUSH_WEAPONS.includes(weapon.id) ? 1 : 0));

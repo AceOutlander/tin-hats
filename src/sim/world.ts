@@ -172,6 +172,14 @@ export class CommandQueue {
  * Damage dealt during a tick, applied only after every unit and structure has
  * acted, so neither side benefits from acting first.
  */
+/** DamageQueue.flags: hit from above (armour facing does not apply). */
+export const DMG_TOP = 1;
+/** DamageQueue.flags: a flamethrower: a trench occupant it hurts is burned out of his slot. */
+export const DMG_FLUSH = 2;
+/** DamageQueue.flags: a shell that struck the hull while flying toward +x, or toward -x (the armour side it hit). */
+export const DMG_FLEW_POS = 4;
+export const DMG_FLEW_NEG = 8;
+
 export class DamageQueue {
   count = 0;
   /** TARGET_UNIT, TARGET_HQ or TARGET_PILLBOX. */
@@ -186,6 +194,8 @@ export class DamageQueue {
   dtype: Int8Array;
   /** Direction the blow travelled: 1 or -1. */
   dir: Int8Array;
+  /** DMG_* bits: top attack, flushes a trench, and the direction a shell flew when it hit the hull. */
+  flags: Uint8Array;
 
   constructor(capacity: number) {
     this.targetType = new Int8Array(capacity);
@@ -195,6 +205,7 @@ export class DamageQueue {
     this.side = new Int8Array(capacity);
     this.dtype = new Int8Array(capacity);
     this.dir = new Int8Array(capacity);
+    this.flags = new Uint8Array(capacity);
   }
 
   push(
@@ -205,6 +216,7 @@ export class DamageQueue {
     side: number,
     dtype: number,
     dir: number,
+    flags: number,
   ): void {
     if (this.count === this.amount.length) this.grow();
     const i = this.count++;
@@ -215,6 +227,7 @@ export class DamageQueue {
     this.side[i] = side;
     this.dtype[i] = dtype;
     this.dir[i] = dir;
+    this.flags[i] = flags;
   }
 
   private grow(): void {
@@ -240,6 +253,9 @@ export class DamageQueue {
     const dir = new Int8Array(n);
     dir.set(this.dir);
     this.dir = dir;
+    const flags = new Uint8Array(n);
+    flags.set(this.flags);
+    this.flags = flags;
   }
 }
 
@@ -257,6 +273,8 @@ export interface ReserveGroup {
   postTrench: number;
   /** Units still waiting. */
   left: number;
+  /** Veterans (ForceDef.veteran). */
+  veteran: boolean;
 }
 
 /** Per-side memory of the AI commander (also used by the test bot). */
@@ -358,4 +376,21 @@ export interface World {
   strikeFired: Int32Array;
   /** 1 once its supportIncoming has been emitted. */
   strikeWarned: Uint8Array;
+
+  /** Aircraft, per strike slot: health, PLANE_* state, and whether its planePass was emitted. */
+  planeHp: Float64Array;
+  planeState: Uint8Array;
+  planePassed: Uint8Array;
+  /** Per side: aircraft of that side in the air right now (flying or breaking off). */
+  planesUp: Int32Array;
+  /** Per side: enemy aircraft call-ins it has seen (the AI answers with anti-aircraft guns). */
+  planesSeen: Int32Array;
+  /** Per side: pool index of the commander whose aura applies this tick, -1 for none. */
+  auraUnit: Int32Array;
+  /** Per unit pool index: 1 while an anti-aircraft gun has a plane in reach (it holds its fire at the ground). */
+  aaEngaged: Uint8Array;
+  /** 1 if any entry of aaEngaged is set. */
+  aaAny: number;
+  /** Per side: commander speeches so far (picks the line, so no random number is drawn). */
+  speechCount: Int32Array;
 }

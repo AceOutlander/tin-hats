@@ -17,7 +17,8 @@ import { fireUnits, moveUnits, senseUnits } from './orders';
 import { Rng } from './rng';
 import { updateProjectiles, updateSmokes } from './projectiles';
 import { computeFronts, fireStructures, senseStructures } from './structures';
-import { SUPPORT_COUNT, updateSupports } from './supports';
+import { updateAuras, updateCarriers } from './specials';
+import { SUPPORT_COUNT, fireAntiAir, updateSupports } from './supports';
 import { KIND_COUNT, KIND_LIST } from './tables';
 import { layoutTrenches, slotCount, updateTrenches } from './trenches';
 import type {
@@ -198,6 +199,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
       targetRow: -1,
       hqMul: 1,
       vehicleMul: 1,
+      top: false,
     });
   }
   const smokes: SmokeState[] = [];
@@ -304,6 +306,15 @@ class BattleImpl implements Battle, World {
   readonly strikeX = new Float64Array(2 * SUPPORT_COUNT);
   readonly strikeFired = new Int32Array(2 * SUPPORT_COUNT);
   readonly strikeWarned = new Uint8Array(2 * SUPPORT_COUNT);
+  readonly planeHp = new Float64Array(2 * SUPPORT_COUNT);
+  readonly planeState = new Uint8Array(2 * SUPPORT_COUNT);
+  readonly planePassed = new Uint8Array(2 * SUPPORT_COUNT);
+  readonly planesUp = new Int32Array(2);
+  readonly planesSeen = new Int32Array(2);
+  readonly auraUnit = new Int32Array(2).fill(-1);
+  readonly speechCount = new Int32Array(2);
+  readonly aaEngaged = new Uint8Array(CONFIG.maxUnits);
+  aaAny = 0;
 
   constructor(config: BattleConfig) {
     const mission = config.mission;
@@ -373,8 +384,11 @@ class BattleImpl implements Battle, World {
     senseUnits(this);
     senseStructures(this, s.tick % this.retargetTicks === 0);
     moveUnits(this); // wire slows and is crushed here
+    updateCarriers(this); // men climb into APCs, loaded APCs unload at the front
     updateTrenches(this); // drop into slots, captures
     updateProjectiles(this); // rounds already in flight land on the new positions
+    updateAuras(this); // each side's commander
+    fireAntiAir(this); // guns with a plane in reach fire at it (and hold their fire at the ground)
     fireUnits(this);
     fireStructures(this);
     updateSmokes(this);

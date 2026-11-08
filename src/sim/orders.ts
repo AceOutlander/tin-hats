@@ -10,8 +10,9 @@ import { CONFIG } from '../data/config';
 import type { UnitAction } from '../data/schema';
 import { senseMount, updateMount } from './combat';
 import { crushWire, inEnemyWire } from './projectiles';
-import { DT, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
+import { DT, KIND_HAS_ARMOUR, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
 import { senseControlled } from './control';
+import { applyAura } from './specials';
 import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
@@ -322,6 +323,12 @@ export function moveUnits(w: World): void {
 
     if (u.inside) {
       u.velX = 0;
+      if (u.carrier >= 0) {
+        // Riding in an APC: wherever it goes.
+        const c = units[u.carrier];
+        if (c.alive && c.id === u.carrierId) u.x = c.x;
+        continue;
+      }
       // Garrisoned units walk out one at a time once their order is no longer Fall Back.
       const hq = side.hq;
       if (hq && orderFor(side, u.kind) !== 'fallBack' && w.doorTimer[u.side] <= 0) {
@@ -444,8 +451,11 @@ export function fireUnits(w: World): void {
     const active = ready && m2.windup <= 0 && hasTarget && (ctrl || u.engaged || (weapon.moveAndFire && !fleeing));
     m.x = u.x;
     m.damageMul = w.mods[u.side].unitDamage[u.kindIndex];
+    if (w.auraUnit[u.side] >= 0) applyAura(w, u, m);
     m.rateMul = 1;
-    m.trigger = true;
+    m.accuracy = u.accuracy;
+    // An anti-aircraft gun with a plane in reach holds its fire at the ground.
+    m.trigger = w.aaEngaged[i] === 0;
     if (ctrl) {
       m.damageMul *= CONFIG.controlDamageMul;
       m.rateMul = CONFIG.controlReloadMul;
@@ -476,6 +486,7 @@ export function fireUnits(w: World): void {
       m2.x = u.x;
       m2.damageMul = m.damageMul;
       m2.rateMul = m.rateMul;
+      m2.accuracy = u.accuracy;
       updateMount(w, m2, active2, u.side, u.row, u, 'unit');
     }
     const throwing =
@@ -485,7 +496,8 @@ export function fireUnits(w: World): void {
     u.weaponCharge = weapon.cooldown > 0 ? 1 - m.cooldown / weapon.cooldown : 1;
     if (!moving) {
       if (throwing && u.aimX !== u.x) u.facing = u.aimX > u.x ? 1 : -1;
-      else if (active && m.aimX !== u.x) u.facing = m.aimX > u.x ? 1 : -1;
+      // An armoured hull (UnitDef.armour) keeps its front to the enemy while its turret turns.
+      else if (active && m.aimX !== u.x && KIND_HAS_ARMOUR[u.kindIndex] === 0) u.facing = m.aimX > u.x ? 1 : -1;
       else if (!ctrl) u.facing = dir; // a controlled unit keeps facing the way it last walked
     }
 

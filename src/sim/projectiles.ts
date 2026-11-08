@@ -7,7 +7,7 @@
  * from the edge of each target's footprint, so a round that lands on a tank's hull does full damage.
  * Damage goes through the deferred damage queue like every other hit.
  */
-import { CONFIG } from '../data/config';
+import { CONFIG, SPECIALS } from '../data/config';
 import type { Side } from '../data/schema';
 import {
   CLASS_FORT,
@@ -15,12 +15,13 @@ import {
   CLASS_VEHICLE,
   DAMAGE_TYPES,
   WEAPON_DTYPE,
+  WEAPON_FLUSH,
   WEAPON_LIST,
   damageFactor,
   unitClass,
 } from './tables';
 import { TARGET_HQ, TARGET_PILLBOX, TARGET_UNIT, type EntityKind, type UnitState, type WireState } from './types';
-import type { World } from './world';
+import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './world';
 
 /** Index of 'explosive' in DAMAGE_TYPES: only explosive splash hurts wire. */
 const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
@@ -30,9 +31,10 @@ const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
  * allocation note in combat.ts): [0] launch x, [1] landing x, [2] damage multiplier,
  * [3] flight time in seconds, or 0 to derive it from the distance and weapon.projectileSpeed,
  * [4] extra multiplier on damage to an HQ and [5] to vehicles (1 for weapons; support call-ins use
- * their hqDamageMul and vehicleDamageMul). Set all six before every call.
+ * their hqDamageMul and vehicleDamageMul), [6] 1 for a round dropped from an aircraft (hits from above,
+ * so hit-facing armour does not apply), else 0. Set all seven before every call.
  */
-export const LAUNCH = new Float64Array(6);
+export const LAUNCH = new Float64Array(7);
 
 /**
  * Put a projectile of weapon `wi` in flight from LAUNCH[0] to LAUNCH[1] and emit its `projectile`
@@ -75,6 +77,7 @@ export function launch(
   p.damageMul = LAUNCH[2];
   p.hqMul = LAUNCH[4];
   p.vehicleMul = LAUNCH[5];
+  p.top = LAUNCH[6] !== 0;
   p.fromX = fromX;
   p.toX = toX;
   p.x = fromX;
@@ -125,6 +128,11 @@ function explode(w: World, pi: number): void {
   const r = weapon.splashRadius;
   const side = p.side;
   const enemy = 1 - side;
+  const flush = WEAPON_FLUSH[wi] === 1;
+  // A direct-fire round that lands on a hull struck the face it was flying at; anything else splashes outward.
+  const direct = weapon.delivery === 'direct';
+  const flew = p.toX >= p.fromX ? DMG_FLEW_POS : DMG_FLEW_NEG;
+  const base = (p.top ? DMG_TOP : 0) | (flush ? DMG_FLUSH : 0);
 
   const e = w.events.emit('explosion');
   e.side = side;
@@ -143,8 +151,10 @@ function explode(w: World, pi: number): void {
     const falloff = d <= 0 ? 1 : 1 - d / r;
     const cls = unitClass(t);
     const mul = cls === CLASS_VEHICLE ? p.damageMul * p.vehicleMul : p.damageMul;
-    const amount = weapon.damage * mul * falloff * damageFactor(dtype, cls);
-    w.damage.push(TARGET_UNIT, i, t.id, amount, side, dtype, t.x >= x ? 1 : -1);
+    let amount = weapon.damage * mul * falloff * damageFactor(dtype, cls);
+    if (flush && t.trenchId >= 0) amount *= SPECIALS.flameTrenchMul;
+    const flags = direct && d <= 0 ? base | flew : base;
+    w.damage.push(TARGET_UNIT, i, t.id, amount, side, dtype, t.x >= x ? 1 : -1, flags);
   }
 
   const pillboxes = s.pillboxes;
@@ -154,8 +164,9 @@ function explode(w: World, pi: number): void {
     const d = (b.x > x ? b.x - x : x - b.x) - CONFIG.pillboxWidth / 2;
     if (d > r) continue;
     const falloff = d <= 0 ? 1 : 1 - d / r;
-    const amount = weapon.damage * p.damageMul * falloff * damageFactor(dtype, CLASS_FORT);
-    w.damage.push(TARGET_PILLBOX, i, -1, amount, side, dtype, b.x >= x ? 1 : -1);
+    let amount = weapon.damage * p.damageMul * falloff * damageFactor(dtype, CLASS_FORT);
+    if (flush) amount *= SPECIALS.flamePillboxMul;
+    w.damage.push(TARGET_PILLBOX, i, -1, amount, side, dtype, b.x >= x ? 1 : -1, base);
   }
 
   const hq = s.sides[enemy].hq;
@@ -164,7 +175,7 @@ function explode(w: World, pi: number): void {
     if (d <= r) {
       const falloff = d <= 0 ? 1 : 1 - d / r;
       const amount = weapon.damage * p.damageMul * p.hqMul * falloff * damageFactor(dtype, CLASS_HQ);
-      w.damage.push(TARGET_HQ, enemy, -1, amount, side, dtype, hq.x >= x ? 1 : -1);
+      w.damage.push(TARGET_HQ, enemy, -1, amount, side, dtype, hq.x >= x ? 1 : -1, base);
     }
   }
 

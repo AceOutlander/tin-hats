@@ -66,7 +66,9 @@ export const M10: MissionDef = {
         { kind: 'at', count: 1, trenchId: 3 },
         { kind: 'rifle', count: 3, trenchId: 4, behaviour: 'garrison' },
         { kind: 'rifle', count: 2, trenchId: 5, behaviour: 'garrison' },
+        // The King Tiger squad (February 1945, historically plausible): the tank and its veteran escort.
         { kind: 'heavyTank', count: 1, x: 12800, behaviour: 'guard' },
+        { kind: 'rifle', count: 3, x: 12940, behaviour: 'guard', veteran: true },
       ],
     },
   ],

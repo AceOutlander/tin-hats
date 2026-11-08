@@ -174,6 +174,8 @@ export interface MountState {
   trigger: boolean;
   /** internal: this shooter's fixed 0..1 offset for fire distribution (config.targetSpread); 0 for structures. */
   spread: number;
+  /** internal: multiplier on this mount's hit chance (veteran troops; divides the scatter of shells). 1 normally. */
+  accuracy: number;
 }
 
 /**
@@ -275,6 +277,23 @@ export interface UnitState {
   /** internal: medics: pool index and id of the unit being healed, -1 for none. */
   healIndex: number;
   healId: number;
+
+  /** Veteran (the King Tiger's escort): more health and a better hit chance (config.veteran). Draw the elite marker. */
+  veteran: boolean;
+  /** internal: multiplier on hit chance (config.veteran.accuracyMul for veterans, else 1). */
+  accuracy: number;
+  /**
+   * Riding in an APC: pool index and id of the carrier, -1 otherwise. A passenger is `inside` (action
+   * 'inside': not drawn, cannot be hit) but does not count in the HQ garrison; it moves with the carrier.
+   */
+  carrier: number;
+  carrierId: number;
+  /** APC: men aboard (draw them riding, or a loaded hull); 0 for everyone else. */
+  passengers: number;
+  /** internal: battle time until which a man burned out of a trench may not take a slot again. */
+  flushedUntil: number;
+  /** internal: anti-aircraft gun: seconds until it may fire at a plane again. */
+  aaCooldown: number;
 }
 
 /** A side's headquarters bunker. */
@@ -434,6 +453,8 @@ export interface ProjectileState {
   /** internal: extra multipliers on its damage to an HQ and to vehicles (support call-ins; 1 otherwise). */
   hqMul: number;
   vehicleMul: number;
+  /** internal: a call-in from an aircraft: its hits come from above (the armour facing rule does not apply). */
+  top: boolean;
 }
 
 /** A smoke cloud (pool slots): blocks direct fire along any line that crosses it, see smokeBlocks. */

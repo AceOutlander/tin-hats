@@ -6,7 +6,7 @@
  * when infantry of the side that does not own it stand inside it while none of the owner's
  * infantry do; the old owner's reservations are then cancelled.
  */
-import { CONFIG } from '../data/config';
+import { CONFIG, SPECIALS } from '../data/config';
 import { KIND_SAPPER } from './tables';
 import type { UnitState } from './types';
 import type { World } from './world';
@@ -43,6 +43,8 @@ export function slotCount(slots: readonly { slots: number }[]): number {
 export function claimSlot(w: World, u: UnitState, t: number): boolean {
   const trench = w.state.trenches[t];
   if (w.trenchTaken[t] >= trench.slots) return false;
+  // Burned out by a flamethrower: he will not get back into a slot for a while.
+  if (u.flushedUntil > w.state.time) return false;
   const first = w.trenchSlot0[t];
   const last = trench.slots - 1;
   let best = -1;
@@ -137,4 +139,13 @@ export function updateTrenches(w: World): void {
     if (a > 0 && b === 0 && owner !== 0) capture(w, t, 0);
     else if (b > 0 && a === 0 && owner !== 1) capture(w, t, 1);
   }
+}
+
+/**
+ * A flamethrower burned this man out of his trench: he loses the slot (and the cover) and may not
+ * take one again for SPECIALS.flushSeconds.
+ */
+export function flushUnit(w: World, u: UnitState): void {
+  releaseSlot(w, u);
+  u.flushedUntil = w.state.time + SPECIALS.flushSeconds;
 }

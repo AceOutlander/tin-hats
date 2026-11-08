@@ -60,7 +60,7 @@ export const CONFIG: GameConfig = {
   throwPoseTime: 0.8,
   guardAlertTime: 6,
 
-  // TODO(units engineer): tune the King Tiger escort.
+  // The King Tiger escort: tougher and steadier than the line.
   veteran: { hpMul: 1.4, accuracyMul: 1.25 },
 
   maxUnits: 160,
@@ -68,4 +68,35 @@ export const CONFIG: GameConfig = {
   maxSmokes: 8,
   maxEvents: 256,
   maxCommands: 64,
+};
+
+/**
+ * Tunables of the new units and the aircraft (job 7). They live beside CONFIG rather than in
+ * GameConfig so the shared contract in schema.ts stays as it is (like AI_RECOVERY in ai.ts).
+ */
+export interface SpecialsDef {
+  /** APC: friendly infantry within this distance (wu) of an APC with room climb aboard. */
+  apcBoardRadius: number;
+  /** APC: under Advance it unloads once the enemy front is this close (wu), or when it stops to fight. */
+  apcUnloadDistance: number;
+  /** APC: unloaded men step off this far apart (wu), behind the carrier. */
+  apcUnloadSpacing: number;
+  /** Flamethrower: a man burned out of a trench slot may not take a slot again for this long (s). */
+  flushSeconds: number;
+  /** Flamethrower: extra multiplier on its damage to pillboxes (it burns out the crew). */
+  flamePillboxMul: number;
+  /** Flamethrower: extra multiplier on its damage to men in a trench (fire pours into it). */
+  flameTrenchMul: number;
+  /** Flamethrower fuel tank going up: radius (wu) of the explosion the view draws. */
+  igniteRadius: number;
+}
+
+export const SPECIALS: SpecialsDef = {
+  apcBoardRadius: 70,
+  apcUnloadDistance: 300,
+  apcUnloadSpacing: 16,
+  flushSeconds: 6,
+  flamePillboxMul: 3,
+  flameTrenchMul: 2,
+  igniteRadius: 40,
 };

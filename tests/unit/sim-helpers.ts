@@ -208,7 +208,8 @@ export function checkInvariants(b: Battle): void {
     if (u.inside !== (u.action === 'inside')) throw new Error(`${where}: unit ${u.id} inside/action mismatch`);
     if (u.trenchId >= 0 && (u.inside || !u.def.usesTrench)) throw new Error(`${where}: unit ${u.id} ${u.kind} in trench ${u.trenchId}`);
     if (u.inside) {
-      inside[u.side]++;
+      // Men riding in an APC are inside it, not in the HQ garrison.
+      if (u.carrier < 0) inside[u.side]++;
     } else if (u.side === 0) {
       rightmost0 = Math.max(rightmost0, u.x);
     } else {

@@ -4,9 +4,10 @@
  */
 import { CONFIG } from '../data/config';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
-import { SUPPORTS } from '../data/supports';
+import { SUPPORTS, SUPPORT_COST } from '../data/supports';
 import { UNITS } from '../data/units';
 import { releaseControl, setControlInput, takeControl } from './control';
+import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
 import {
@@ -31,6 +32,8 @@ export function canTrain(w: World, si: number, kind: UnitKind): boolean {
   if (!side.hasHq || !hq || !hq.alive) return false;
   if (side.available[kind] !== true) return false;
   const def = UNITS[kind];
+  // One commander per side: none while one is alive or queued.
+  if (def.uniquePerSide === true && side.alive[kind] + side.queue[kind] > 0) return false;
   const room = side.pop + side.reservePop + def.pop <= side.popCap;
   return side.queue[kind] < CONFIG.maxQueue && side.supplies >= def.cost && room;
 }
@@ -63,6 +66,7 @@ function emitOrder(w: World, si: number, order: Order, kind: UnitKind | null): v
   e.side = si;
   e.order = order;
   e.kind = kind;
+  if (kind === null) speak(w, si, order);
 }
 
 /** The army-wide order. Kinds with their own order keep it. */
@@ -98,6 +102,12 @@ function applyFollowAll(w: World, si: number): void {
 function applySupport(w: World, si: number, kind: SupportKind, x: number): void {
   if (!(kind in SUPPORTS) || !Number.isFinite(x)) return;
   if (!canCallSupport(w, si, kind)) return;
+  const cost = SUPPORT_COST[kind];
+  if (cost > 0) {
+    const side = w.state.sides[si];
+    side.supplies -= cost;
+    side.stats.suppliesSpent += cost;
+  }
   callSupport(w, si, kind, x);
 }
 

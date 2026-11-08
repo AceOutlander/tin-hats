@@ -229,8 +229,8 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     cost: 1200,
     pop: 8,
     trainTime: 60,
-    hp: 2600,
-    speed: 32,
+    hp: 2200,
+    speed: 30,
     weapon: 'heavyGun',
     secondary: 'coaxMg',
     trainable: false,
@@ -244,10 +244,12 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     width: 130,
     followsLine: false,
     enemyOnly: true,
+    // Very thick front plate, thin rear: bombs and air strikes come from above and ignore both.
+    armour: { front: 0.35, rear: 1.6 },
   },
 
-  // TODO(units engineer): every stat below is a placeholder from the contract commit. trainable stays false
-  // until the units job wires each kind in, so nothing new appears in game yet.
+  // Job 7. The APC, flamethrower, commander and anti-aircraft gun are bought in the Armoury and trained
+  // where a mission lists them; the Panzer III and the King Tiger are enemy-only.
   apc: {
     kind: 'apc',
     class: 'vehicle',
@@ -255,11 +257,11 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     cost: 250,
     pop: 3,
     trainTime: 15,
-    hp: 500,
-    speed: 75,
+    hp: 520,
+    speed: 82,
     weapon: 'apcMg',
     secondary: null,
-    trainable: false,
+    trainable: true,
     usesTrench: false,
     formationDepth: 22,
     engageFrac: 0.7,
@@ -278,11 +280,11 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     cost: 90,
     pop: 1,
     trainTime: 8,
-    hp: 90,
-    speed: 72,
+    hp: 105,
+    speed: 76,
     weapon: 'flamer',
     secondary: null,
-    trainable: false,
+    trainable: true,
     usesTrench: true,
     formationDepth: 0,
     engageFrac: 0.9,
@@ -305,7 +307,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     speed: 80,
     weapon: 'pistol',
     secondary: null,
-    trainable: false,
+    trainable: true,
     usesTrench: true,
     formationDepth: 44,
     engageFrac: 0.9,
@@ -329,7 +331,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     speed: 55,
     weapon: 'aaGun',
     secondary: null,
-    trainable: false,
+    trainable: true,
     usesTrench: true,
     formationDepth: 88,
     engageFrac: 1,
@@ -341,6 +343,7 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     followsLine: true,
     antiAir: true,
   },
+  // Panzer III Ausf. E: fast and light, a small gun that does little to heavier armour.
   lightTank: {
     kind: 'lightTank',
     class: 'vehicle',
@@ -348,8 +351,8 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     cost: 280,
     pop: 4,
     trainTime: 20,
-    hp: 600,
-    speed: 68,
+    hp: 560,
+    speed: 72,
     weapon: 'lightTankGun',
     secondary: 'coaxMg',
     trainable: false,
@@ -365,3 +368,6 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     enemyOnly: true,
   },
 };
+
+/** Kinds whose arrival is announced like a boss (bossArrived: a banner and a sound). */
+export const BOSS_KINDS: readonly UnitKind[] = ['heavyTank'];

@@ -1,12 +1,12 @@
 /**
  * The unit pool: spawning, death, the hold-formation grid and entering the HQ.
  */
-import { CONFIG } from '../data/config';
+import { CONFIG, SPECIALS } from '../data/config';
 import type { Side } from '../data/schema';
 import { WEAPONS } from '../data/weapons';
-import { DAMAGE_TYPES, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
+import { DAMAGE_TYPES, KIND_BOSS, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
 import { releaseSlot } from './trenches';
-import { TARGET_NONE, type Behaviour, type MountState, type UnitState } from './types';
+import { TARGET_NONE, type Behaviour, type MountState, type SimEvent, type SimEventType, type UnitState } from './types';
 import type { World } from './world';
 
 /** Sapper tasks (UnitState.task). */
@@ -18,6 +18,8 @@ export const TASK_TO_HQ = 2;
 const LONG_AGO = 1e6;
 /** Fractional part of (a side's spawn count * this) spreads the per-unit jitter evenly over 0..1 (golden ratio sequence). */
 const JITTER_STEP = 0.6180339887498949;
+/** Index of the explosive damage type (a flamethrower that goes up). */
+const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
 
 export function createMount(): MountState {
   return {
@@ -38,6 +40,7 @@ export function createMount(): MountState {
     rateMul: 1,
     trigger: true,
     spread: 0,
+    accuracy: 1,
   };
 }
 
@@ -106,6 +109,13 @@ export function createUnit(index: number): UnitState {
     hitTime: -LONG_AGO,
     healIndex: -1,
     healId: -1,
+    veteran: false,
+    accuracy: 1,
+    carrier: -1,
+    carrierId: -1,
+    passengers: 0,
+    flushedUntil: -LONG_AGO,
+    aaCooldown: 0,
   };
 }
 
@@ -234,6 +244,15 @@ export function spawnUnit(
   u.hitTime = -LONG_AGO;
   u.healIndex = -1;
   u.healId = -1;
+  u.veteran = false;
+  u.accuracy = 1;
+  u.mount.accuracy = 1;
+  u.mount2.accuracy = 1;
+  u.carrier = -1;
+  u.carrierId = -1;
+  u.passengers = 0;
+  u.flushedUntil = -LONG_AGO;
+  u.aaCooldown = 0;
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = def.formationDepth;
@@ -253,6 +272,7 @@ export function spawnUnit(
   e.row = u.row;
   e.value = trained ? 1 : 0;
   e.hit = inside;
+  if (KIND_BOSS[kindIndex] === 1 && !inside) emitUnitEvent(w, 'bossArrived', u);
   return u;
 }
 
@@ -266,7 +286,8 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
   side.alive[u.kind]--;
   side.stats.lost++;
   if (killerSide >= 0) s.sides[killerSide].stats.kills++;
-  if (u.inside && side.hq) side.hq.garrison--;
+  if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
+  if (u.passengers > 0) dropPassengers(w, u, false);
   freeCell(w, u);
   releaseSlot(w, u);
 
@@ -308,4 +329,105 @@ export function enterHq(w: World, u: UnitState): void {
   u.mount2.windup = 0;
   releaseSlot(w, u);
   hq.garrison++;
+  if (u.passengers > 0) dropPassengers(w, u, true);
+}
+
+/** Emit an event of `type` about unit u: side, unit, unitId, kind, x, row. */
+export function emitUnitEvent(w: World, type: SimEventType, u: UnitState): SimEvent {
+  const e = w.events.emit(type);
+  e.side = u.side;
+  e.unit = u.index;
+  e.unitId = u.id;
+  e.kind = u.kind;
+  e.x = u.x;
+  e.row = u.row;
+  return e;
+}
+
+/** Make a freshly spawned unit a veteran (config.veteran): more health, a steadier aim. */
+export function makeVeteran(u: UnitState): void {
+  u.veteran = true;
+  u.maxHp *= CONFIG.veteran.hpMul;
+  u.hp = u.maxHp;
+  u.accuracy = CONFIG.veteran.accuracyMul;
+}
+
+/**
+ * A flamethrower's fuel tank is hit from behind: ignite, then he dies (explosive) and the tank
+ * bursts (an explosion event of radius SPECIALS.igniteRadius; it deals no damage).
+ */
+export function igniteUnit(w: World, u: UnitState, dir: number, killerSide: number): void {
+  emitUnitEvent(w, 'ignite', u);
+  const x = u.x;
+  const row = u.row;
+  const weapon = u.def.weapon;
+  killUnit(w, u, EXPLOSIVE, dir, killerSide);
+  const e = w.events.emit('explosion');
+  e.side = killerSide;
+  e.x = x;
+  e.row = row;
+  e.value = SPECIALS.igniteRadius;
+  e.weapon = weapon;
+  e.cause = 'explosive';
+}
+
+/** Put a man aboard an APC (the caller checked there is room). */
+export function board(w: World, u: UnitState, apc: UnitState): void {
+  releaseSlot(w, u);
+  u.inside = true;
+  u.carrier = apc.index;
+  u.carrierId = apc.id;
+  u.velX = 0;
+  u.engaged = false;
+  u.x = apc.x;
+  u.mount.targetType = TARGET_NONE;
+  u.mount.burstLeft = 0;
+  u.mount2.targetType = TARGET_NONE;
+  u.mount2.burstLeft = 0;
+  u.mount2.windup = 0;
+  u.action = 'inside';
+  u.actionTime = 0;
+  apc.passengers++;
+}
+
+/**
+ * Everyone aboard an APC gets off: into the HQ garrison when the carrier itself went inside
+ * (`intoHq`), otherwise onto the ground just behind it, SPECIALS.apcUnloadSpacing apart, each with a
+ * unitSpawned event (value 0). Returns the number of men who got off.
+ */
+export function dropPassengers(w: World, apc: UnitState, intoHq: boolean): number {
+  const s = w.state;
+  const hq = s.sides[apc.side].hq;
+  const dir = apc.side === 0 ? 1 : -1;
+  const margin = CONFIG.mapMargin;
+  let n = 0;
+  for (let i = 0; i < s.unitCount; i++) {
+    const p = s.units[i];
+    if (!p.alive || p.carrier !== apc.index || p.carrierId !== apc.id) continue;
+    p.carrier = -1;
+    p.carrierId = -1;
+    if (intoHq && hq) {
+      hq.garrison++;
+      p.x = hq.doorX;
+      p.prevX = p.x;
+      n++;
+      continue;
+    }
+    let x = apc.x - dir * (apc.def.width / 2 + SPECIALS.apcUnloadSpacing * (n + 1));
+    if (x < margin) x = margin;
+    else if (x > s.length - margin) x = s.length - margin;
+    p.inside = false;
+    p.action = 'idle';
+    p.actionTime = 0;
+    p.x = x;
+    p.prevX = x;
+    p.goalX = x;
+    p.aimX = x;
+    p.facing = dir;
+    n++;
+    // Back on the field: the view shows him again.
+    emitUnitEvent(w, 'unitSpawned', p).value = 0;
+  }
+  apc.passengers = 0;
+  return n;
 }

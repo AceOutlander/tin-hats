@@ -8,7 +8,7 @@ import { releaseAll } from './control';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
 import { claimSlot, enterSlot } from './trenches';
 import type { EndReason } from './types';
-import { spawnUnit } from './units';
+import { makeVeteran, spawnUnit } from './units';
 import type { World } from './world';
 
 /**
@@ -59,7 +59,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   for (let j = 0; j < count; j++) {
     if (capped && side.pop + side.reservePop + def.pop > side.popCap) {
       const post = force.x ?? (trench >= 0 ? s.trenches[trench].x : NaN);
-      w.reserve.push({ side: si, kindIndex, behaviour, postX: post, postTrench: trench, left: count - j });
+      w.reserve.push({ side: si, kindIndex, behaviour, postX: post, postTrench: trench, left: count - j, veteran: force.veteran === true });
       side.reservePop += (count - j) * def.pop;
       break;
     }
@@ -68,6 +68,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     const u = spawnUnit(w, si, kindIndex, startX, behaviour, false, false);
     if (!u) break;
     spawned++;
+    if (force.veteran === true) makeVeteran(u);
     if (behaviour === 'garrison') u.postTrench = trench;
     let x: number;
     if (seat && claimSlot(w, u, trench)) {
@@ -187,6 +188,7 @@ function releaseReserve(w: World): void {
       }
       const u = spawnUnit(w, g.side, g.kindIndex, x, g.behaviour, false, false);
       if (!u) break;
+      if (g.veteran) makeVeteran(u);
       g.left--;
       side.reservePop -= def.pop;
       if (!Number.isNaN(g.postX)) u.postX = g.postX;
