@@ -3,10 +3,10 @@
  * that renders a score from src/data/music.ts once into a seamlessly looping buffer, and the player that loops it on
  * the Music bus. The audio engine (../engine.ts) owns the rendered tracks and the player.
  */
-export { makeImpulse, midiHz, playDrum, playHorn, playPad, playPiano } from './instruments';
+export { makeImpulse, midiHz, playChoir, playDrum, playHorn, playPad, playPiano, playStringLead } from './instruments';
 export { MusicPlayer, type LoopedTrack } from './player';
 export { buildTrack, foldAndLevel, renderTrack, type RenderedTrack } from './render';
-export { drumBeats, inKey, loopBeats, loopSeconds, scoreNotes, sectionTimes, secondsPerBeat, type ScoreNote } from './score';
+export { choirChords, drumBeats, inKey, instrumentRange, loopBeats, loopSeconds, scoreNotes, sectionTimes, secondsPerBeat, type ScoreChoirChord, type ScoreNote } from './score';
 export {
   band,
   db,

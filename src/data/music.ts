@@ -11,7 +11,7 @@
  */
 import { CAMPAIGN_MAP } from './musicMap';
 
-export type MusicInstrument = 'pad' | 'horn' | 'piano' | 'drum';
+export type MusicInstrument = 'pad' | 'horn' | 'piano' | 'drum' | 'strings' | 'choir';
 
 /** Dark string pad: several detuned voices per note through a low-pass that swells open and closes again. */
 export interface PadSettings {
@@ -52,6 +52,55 @@ export interface HornSettings {
   /** Breath noise through a band-pass at breathHz, as a share of the level. */
   breath: number;
   breathHz: number;
+  /** Optional swell within a note: it speaks at (1 - swell) of its level, grows to full in its middle and eases back
+   * to (1 - swell / 2) by its end, as a player leans into a long note. Without it the note holds its level. */
+  swell?: number;
+  level: number;
+  range: readonly [number, number];
+}
+
+/**
+ * A string section carrying a melody: several detuned sawtooths (the players, never quite together) through two
+ * low-pass stages that open with the velocity, a slow bowed attack, a vibrato that comes in after the note has spoken,
+ * and the same swell as the horn's. Overlapping notes give the legato.
+ */
+export interface StringLeadSettings {
+  voices: number;
+  detuneCents: number;
+  cutoff: number;
+  brightness: number;
+  q: number;
+  attack: number;
+  release: number;
+  vibratoRate: number;
+  vibratoCents: number;
+  vibratoDelay: number;
+  swell: number;
+  level: number;
+  range: readonly [number, number];
+}
+
+/** One vowel's formants: [centre (Hz), quality, level] for each band. */
+export type Formants = readonly (readonly [number, number, number])[];
+
+/**
+ * A wordless choir: every note of a chord is a few detuned sawtooths (the buzz of the voices) with a slow shared
+ * vibrato, summed and softened, then shaped into a vowel by parallel band-passes at the vowel's formants. Each chord
+ * glides from one vowel to another ("oo" = 0 to "ah" = 1) over its length, as the singers open up.
+ */
+export interface ChoirSettings {
+  voices: number;
+  detuneCents: number;
+  /** Formants of "oo" and of "ah" (same number of bands); a vowel in between is interpolated band by band. */
+  oo: Formants;
+  ah: Formants;
+  /** Low-pass over the buzz before the formants (Hz). */
+  sourceCutoff: number;
+  vibratoRate: number;
+  vibratoCents: number;
+  attack: number;
+  release: number;
+  /** Level of the whole chord at velocity 1. */
   level: number;
   range: readonly [number, number];
 }
@@ -91,6 +140,9 @@ export interface DrumSettings {
   noiseCutoff: number;
   noiseDecay: number;
   level: number;
+  /** A roll (a hit with `roll` beats): strokes a second, the first stroke's share of the velocity (it grows to full)
+   * and the share of `decay` every stroke but the last rings for. */
+  roll?: { rate: number; start: number; ring: number };
 }
 
 /** The big dark reverb: an impulse response made of decaying noise that grows darker as it fades. */
@@ -134,6 +186,18 @@ export interface DrumHit {
   vel: number;
   /** Pitch multiplier for this hit (1 = as set). */
   pitch: number;
+  /** A soft roll instead of one hit: strokes for this many beats, growing from a murmur to `vel`. */
+  roll?: number;
+}
+
+/** A chord sung by the choir, gliding from one vowel to another (0 = "oo", 1 = "ah") over its length. */
+export interface ChoirChord {
+  at: number;
+  beats: number;
+  notes: readonly number[];
+  vel: number;
+  vowel: readonly [number, number];
+  accidentals?: readonly number[];
 }
 
 export interface MusicSection {
@@ -145,14 +209,18 @@ export interface MusicSection {
   horn: readonly MelodyNote[];
   piano: readonly MelodyNote[];
   drums: readonly DrumHit[];
+  /** The string section's melody (a track with `instruments.strings`). */
+  strings?: readonly MelodyNote[];
+  /** The choir's chords (a track with `instruments.choir`). */
+  choir?: readonly ChoirChord[];
 }
 
 export interface TrackDef {
   title: string;
   bpm: number;
   beatsPerBar: number;
-  /** Tonic pitch class (0 = C, 2 = D) and mode; the natural minor scale is the key's notes. */
-  key: { tonic: number; mode: 'minor' };
+  /** Tonic pitch class (0 = C, 2 = D) and mode; the natural minor or the major scale is the key's notes. */
+  key: { tonic: number; mode: 'minor' | 'major' };
   /** Render settings: sample rate and channels of the buffer (memory on phones), and the seconds rendered past the
    * loop for the tails, which are then folded back onto the start so they carry across the loop point. */
   sampleRate: number;
@@ -163,15 +231,19 @@ export interface TrackDef {
   /** Small random shifts in timing (s) and velocity (share), so it does not sound like a sequencer. */
   humanize: { time: number; velocity: number };
   seed: number;
-  instruments: { pad: PadSettings; horn: HornSettings; piano: PianoSettings; drum: DrumSettings };
-  /** Per-instrument dry and reverb levels, the reverb return, and a last low-pass over everything (Hz). */
-  mix: Record<MusicInstrument, MixSend> & { reverb: number; lowpass: number };
+  /** The instruments; piano, strings and choir only in a track that writes for them. */
+  instruments: { pad: PadSettings; horn: HornSettings; drum: DrumSettings; piano?: PianoSettings; strings?: StringLeadSettings; choir?: ChoirSettings };
+  /** Per-instrument dry and reverb levels (one for every instrument the track has), the reverb return, and a last
+   * low-pass over everything (Hz). */
+  mix: Record<'pad' | 'horn' | 'drum', MixSend> & { piano?: MixSend; strings?: MixSend; choir?: MixSend; reverb: number; lowpass: number };
   reverb: ReverbSettings;
   sections: readonly MusicSection[];
 }
 
 /** The natural minor scale as semitones above the tonic. */
 export const MINOR_SCALE: readonly number[] = [0, 2, 3, 5, 7, 8, 10];
+/** The major scale as semitones above the tonic. */
+export const MAJOR_SCALE: readonly number[] = [0, 2, 4, 5, 7, 9, 11];
 
 const D = 2;
 

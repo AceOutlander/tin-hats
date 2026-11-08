@@ -6,12 +6,12 @@
  * round again, so the loop point has no click and no gap. The buffer keeps the tail samples (zeroed) after the loop:
  * the player loops [0, loopSeconds) of it, which saves a second copy of a buffer that is megabytes long.
  */
-import type { MusicInstrument, TrackDef } from '../../data/music';
+import type { DrumSettings, MusicInstrument, TrackDef } from '../../data/music';
 import { seededRandom } from '../dsp';
 import { startRendering, type OfflineContextCtor } from '../render';
 import { createNoiseBank, type NoiseBank } from '../synth';
-import { makeImpulse, playDrum, playHorn, playPad, playPiano } from './instruments';
-import { loopSeconds, scoreNotes } from './score';
+import { makeImpulse, playChoir, playDrum, playHorn, playPad, playPiano, playStringLead } from './instruments';
+import { choirChords, loopSeconds, scoreNotes } from './score';
 
 export interface RenderedTrack {
   buffer: AudioBuffer;
@@ -47,38 +47,66 @@ export function buildTrack(ctx: BaseAudioContext, out: AudioNode, def: TrackDef,
   wet.gain.value = def.mix.reverb;
   reverb.connect(wet);
   wet.connect(dest);
+  // One bus per instrument the score uses, made when its first note comes.
+  const buses = new Map<MusicInstrument, AudioNode>();
   const bus = (name: MusicInstrument): AudioNode => {
+    const made = buses.get(name);
+    if (made) return made;
+    const m = def.mix[name];
+    if (!m) throw new Error(`${def.title}: no mix for the ${name}`);
     const input = ctx.createGain();
     const dry = ctx.createGain();
-    dry.gain.value = def.mix[name].dry;
+    dry.gain.value = m.dry;
     const send = ctx.createGain();
-    send.gain.value = def.mix[name].send;
+    send.gain.value = m.send;
     input.connect(dry);
     dry.connect(dest);
     input.connect(send);
     send.connect(reverb);
+    buses.set(name, input);
     return input;
   };
-  const buses: Record<MusicInstrument, AudioNode> = { pad: bus('pad'), horn: bus('horn'), piano: bus('piano'), drum: bus('drum') };
   const I = def.instruments;
+  const need = <T>(settings: T | undefined, what: string): T => {
+    if (settings === undefined) throw new Error(`${def.title}: the score needs the ${what}, which the track does not set`);
+    return settings;
+  };
   const H = def.humanize;
   const human = (t: number): number => Math.max(0, t + (rng() * 2 - 1) * H.time);
   const velocity = (v: number): number => Math.max(0.05, Math.min(1, v * (1 + (rng() * 2 - 1) * H.velocity)));
   for (const n of scoreNotes(def)) {
     switch (n.instrument) {
       case 'pad':
-        playPad(ctx, buses.pad, n.at, n.length, n.note, I.pad.level * n.vel, I.pad);
+        playPad(ctx, bus('pad'), n.at, n.length, n.note, I.pad.level * n.vel, I.pad);
         break;
       case 'horn':
-        playHorn(ctx, buses.horn, human(n.at), n.length, n.note, velocity(n.vel), I.horn, bank, rng);
+        playHorn(ctx, bus('horn'), human(n.at), n.length, n.note, velocity(n.vel), I.horn, bank, rng);
         break;
       case 'piano':
-        playPiano(ctx, buses.piano, human(n.at), n.length, n.note, velocity(n.vel), I.piano, bank);
+        playPiano(ctx, bus('piano'), human(n.at), n.length, n.note, velocity(n.vel), need(I.piano, 'piano'), bank);
         break;
       case 'drum':
-        playDrum(ctx, buses.drum, human(n.at), velocity(n.vel), n.pitch, I.drum, bank);
+        if (n.length > 0) playRoll(ctx, bus('drum'), human(n.at), n.length, velocity(n.vel), n.pitch, I.drum, need(I.drum.roll, 'drum roll'), bank, rng);
+        else playDrum(ctx, bus('drum'), human(n.at), velocity(n.vel), n.pitch, I.drum, bank);
+        break;
+      case 'strings':
+        playStringLead(ctx, bus('strings'), human(n.at), n.length, n.note, velocity(n.vel), need(I.strings, 'strings'), rng);
+        break;
+      case 'choir':
+        // Sung a chord at a time, below.
         break;
     }
+  }
+  for (const c of choirChords(def)) playChoir(ctx, bus('choir'), c.at, c.length, c.notes, c.vel, c.vowel, need(I.choir, 'choir'), rng);
+}
+
+/** A timpani roll: strokes at the drum's roll rate over `length` seconds, growing to `vel`, the last left to ring. */
+function playRoll(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, vel: number, pitch: number, s: DrumSettings, r: NonNullable<DrumSettings['roll']>, bank: NoiseBank, rng: () => number): void {
+  const strokes = Math.max(1, Math.round(length * r.rate));
+  const short: DrumSettings = { ...s, decay: s.decay * r.ring };
+  for (let k = 0; k < strokes; k++) {
+    const share = r.start + ((1 - r.start) * k) / Math.max(1, strokes - 1);
+    playDrum(ctx, dest, at + k / r.rate, vel * share * (0.9 + 0.2 * rng()), pitch, k < strokes - 1 ? short : s, bank);
   }
 }
 

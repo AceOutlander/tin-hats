@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAudio } from '../../src/audio';
 import {
   band,
+  buildTrack,
   db,
   drumBeats,
   inKey,
+  instrumentRange,
   loopBeats,
   loopSeconds,
   loudestWindow,
@@ -19,7 +21,12 @@ import {
   sumLoudness,
 } from '../../src/audio/music';
 import type { RenderedTrack } from '../../src/audio/music';
-import { MINOR_SCALE, MUSIC, MUSIC_TRACKS, REQUIEM, type TrackDef } from '../../src/data/music';
+import { createNoiseBank } from '../../src/audio/synth';
+import { MAJOR_SCALE, MINOR_SCALE, MUSIC, MUSIC_TRACKS, REQUIEM, type TrackDef } from '../../src/data/music';
+import { CAMPAIGN_MAP } from '../../src/data/musicMap';
+
+/** Most nodes the map track's graph may hold (built at once on the main thread, rendered on a phone). */
+const MAP_BUDGET = { oscillators: 3000, filters: 1500 };
 
 /** A recording stand-in for the few WebAudio nodes the player and the engine's music path touch. */
 class Param {
@@ -173,11 +180,11 @@ describe('the menu theme as a score', () => {
   });
 
   it('keeps every note inside its instrument\'s range and every event inside its section', () => {
-    const I = def.instruments;
-    const range = { pad: I.pad.range, horn: I.horn.range, piano: I.piano.range } as const;
     for (const n of scoreNotes(def)) {
       if (n.instrument === 'drum') continue;
-      const [lo, hi] = range[n.instrument];
+      const range = instrumentRange(def, n.instrument);
+      expect(range, n.instrument).not.toBeNull();
+      const [lo, hi] = range ?? [0, 0];
       expect(n.note, `${n.instrument} ${n.note}`).toBeGreaterThanOrEqual(lo);
       expect(n.note, `${n.instrument} ${n.note}`).toBeLessThanOrEqual(hi);
     }
@@ -238,6 +245,187 @@ describe('the menu theme as a score', () => {
     expect(def.sampleRate).toBeLessThanOrEqual(32000);
     // A two-minute mono buffer at the render rate stays far below the 46 MB of stereo at 44.1 kHz.
     expect((loopSeconds(def) + def.tail) * def.sampleRate * def.channels * 4).toBeLessThan(16e6);
+  });
+});
+
+/** Records every node an offline build makes and every value it schedules, to compare two builds. */
+class RecordingContext extends Context {
+  log: string[] = [];
+  override createGain(): Node {
+    return this.record(super.createGain());
+  }
+  override createBiquadFilter(): Node {
+    return this.record(super.createBiquadFilter());
+  }
+  override createOscillator(): Node {
+    return this.record(super.createOscillator());
+  }
+  override createBufferSource(): Node {
+    return this.record(super.createBufferSource());
+  }
+  createConvolver(): Node {
+    return this.record(new Node('convolver'));
+  }
+  private record(n: Node): Node {
+    const id = this.log.length;
+    this.log.push(n.kind);
+    for (const name of ['gain', 'frequency', 'detune', 'Q'] as const) {
+      const p = n[name];
+      const set = p.setValueAtTime.bind(p);
+      const lin = p.linearRampToValueAtTime.bind(p);
+      const exp = p.exponentialRampToValueAtTime.bind(p);
+      p.setValueAtTime = (v: number, t: number) => (this.log.push(`${id}.${name} set ${v} ${t}`), set(v, t));
+      p.linearRampToValueAtTime = (v: number, t: number) => (this.log.push(`${id}.${name} lin ${v} ${t}`), lin(v, t));
+      p.exponentialRampToValueAtTime = (v: number, t: number) => (this.log.push(`${id}.${name} exp ${v} ${t}`), exp(v, t));
+    }
+    const start = n.start.bind(n);
+    n.start = (t = 0) => (this.log.push(`${id} start ${t}`), start(t));
+    return n;
+  }
+}
+
+function buildLog(def: TrackDef): RecordingContext {
+  const ctx = new RecordingContext();
+  ctx.sampleRate = def.sampleRate;
+  buildTrack(ctx as unknown as BaseAudioContext, new Node('out') as unknown as AudioNode, def, createNoiseBank());
+  return ctx;
+}
+
+describe('the campaign map theme as a score', () => {
+  const def: TrackDef = CAMPAIGN_MAP;
+  const notes = scoreNotes(def);
+  const climax = def.sections.findIndex((s) => s.name === 'Roll of honour');
+  const melodic = (s: (typeof def.sections)[number]): number[] => [...s.horn, ...(s.strings ?? [])].map((n) => n.vel);
+
+  it('is a slow, major-key hymn of two to three minutes before it repeats', () => {
+    expect(MUSIC_TRACKS.map).toBe(CAMPAIGN_MAP);
+    expect(def.key.mode).toBe('major');
+    expect(MAJOR_SCALE).toEqual([0, 2, 4, 5, 7, 9, 11]);
+    expect(def.bpm).toBeGreaterThanOrEqual(56);
+    expect(def.bpm).toBeLessThanOrEqual(66);
+    expect(loopSeconds(def)).toBeGreaterThanOrEqual(120);
+    expect(loopSeconds(def)).toBeLessThanOrEqual(200);
+    const times = sectionTimes(def);
+    expect(times[0].start).toBe(0);
+    for (let i = 1; i < times.length; i++) expect(times[i].start).toBeCloseTo(times[i - 1].end, 9);
+    expect(times[times.length - 1].end).toBeCloseTo(loopSeconds(def), 9);
+    expect(def.sections.length).toBeGreaterThanOrEqual(6);
+    // Memory on a phone: the mono buffer with its tail stays under 16 MB.
+    expect((loopSeconds(def) + def.tail) * def.sampleRate * def.channels * 4).toBeLessThan(16e6);
+    expect(def.sampleRate).toBeLessThanOrEqual(32000);
+  });
+
+  it('keeps every note in E flat major, the only colour from outside the key the borrowed minor iv\'s C flat', () => {
+    expect(notes.filter((n) => n.instrument !== 'drum').length).toBeGreaterThan(200);
+    for (const n of notes) {
+      if (n.instrument === 'drum') continue;
+      if (n.accidental) {
+        expect(inKey(def, n.note), `${n.instrument} ${n.note} is marked but in key`).toBe(false);
+        expect((((n.note - def.key.tonic) % 12) + 12) % 12, `${n.instrument} ${n.note}`).toBe(8);
+      } else {
+        expect(inKey(def, n.note), `${n.instrument} ${n.note} at ${n.at.toFixed(1)} s`).toBe(true);
+      }
+    }
+  });
+
+  it('keeps every note in its instrument\'s range, every event inside its section, and has settings and a mix for every instrument it uses', () => {
+    for (const n of notes) {
+      if (n.instrument === 'drum') continue;
+      const range = instrumentRange(def, n.instrument);
+      expect(range, n.instrument).not.toBeNull();
+      const [lo, hi] = range ?? [0, 0];
+      expect(n.note, `${n.instrument} ${n.note}`).toBeGreaterThanOrEqual(lo);
+      expect(n.note, `${n.instrument} ${n.note}`).toBeLessThanOrEqual(hi);
+      expect(def.mix[n.instrument], n.instrument).toBeDefined();
+    }
+    for (const s of def.sections) {
+      const beats = s.bars * def.beatsPerBar;
+      for (const e of [...s.chords, ...s.horn, ...s.piano, ...(s.strings ?? []), ...(s.choir ?? [])]) {
+        expect(e.at, s.name).toBeGreaterThanOrEqual(0);
+        expect(e.at + e.beats, s.name).toBeLessThanOrEqual(beats + 1e-9);
+      }
+      for (const d of s.drums) {
+        expect(d.at).toBeGreaterThanOrEqual(0);
+        expect(d.at + (d.roll ?? 0), s.name).toBeLessThanOrEqual(beats + 1e-9);
+      }
+      for (const c of s.choir ?? []) {
+        for (const v of c.vowel) {
+          expect(v).toBeGreaterThanOrEqual(0);
+          expect(v).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+    expect(def.instruments.strings).toBeDefined();
+    expect(def.instruments.choir).toBeDefined();
+    expect(def.instruments.drum.roll).toBeDefined();
+    // The choir's two vowels have the same bands, and "ah" opens higher than "oo".
+    const C = def.instruments.choir;
+    expect(C?.oo.length).toBe(C?.ah.length);
+    expect(C?.ah[0][0]).toBeGreaterThan(C?.oo[0][0] ?? Infinity);
+  });
+
+  it('follows the brief\'s shape: strings alone, the horn\'s melody, the strings taking it up with the choir, one climax, a quiet end', () => {
+    const [intro, horn, , strings] = def.sections;
+    // It opens quietly on strings alone.
+    expect(intro.horn.length).toBe(0);
+    expect(intro.choir ?? []).toEqual([]);
+    expect((intro.strings ?? []).length).toBeGreaterThan(0);
+    expect(Math.max(...melodic(intro))).toBeLessThanOrEqual(0.4);
+    // A long singing melody on the solo horn...
+    expect(horn.horn.length).toBeGreaterThanOrEqual(15);
+    expect(horn.strings ?? []).toEqual([]);
+    expect(horn.horn.reduce((t, n) => t + n.beats, 0)).toBeGreaterThanOrEqual(horn.bars * def.beatsPerBar * 0.9);
+    // ...taken up by the full strings (in octaves), the same tune, with the choir underneath.
+    const upper = (strings.strings ?? []).filter((n, i, all) => all.every((m) => m.at !== n.at || m.note <= n.note));
+    const sung = horn.horn.slice(0, 15).map((n) => [n.at, n.note]);
+    expect(upper.slice(0, 15).map((n) => [n.at, n.note])).toEqual(sung);
+    for (const u of upper) expect((strings.strings ?? []).some((n) => n.at === u.at && n.note === u.note - 12), `octave under ${u.note}`).toBe(true);
+    expect((strings.choir ?? []).length).toBeGreaterThan(0);
+    // The choir is not there at first, then sings "oo" and opens to "ah" only at the top.
+    expect(def.sections.slice(0, 2).every((s) => (s.choir ?? []).length === 0)).toBe(true);
+    const vowelTop = def.sections.map((s) => Math.max(0, ...(s.choir ?? []).flatMap((c) => [...c.vowel])));
+    expect(vowelTop[climax]).toBeGreaterThanOrEqual(0.95);
+    for (let i = 0; i < climax - 1; i++) expect(vowelTop[i], def.sections[i].name).toBeLessThanOrEqual(0.5);
+    // One climax: the section with the loudest melody, pad and choir, and the highest note, after a timpani roll.
+    expect(climax).toBeGreaterThan(def.sections.length / 2);
+    const loudest = def.sections.map((s) => Math.max(...melodic(s)));
+    expect(loudest.indexOf(Math.max(...loudest))).toBe(climax);
+    expect(def.sections.map((s) => s.padLevel).indexOf(Math.max(...def.sections.map((s) => s.padLevel)))).toBe(climax);
+    const top = Math.max(...notes.filter((n) => n.instrument === 'strings' || n.instrument === 'horn').map((n) => n.note));
+    expect(notes.find((n) => n.note === top && n.instrument === 'strings')?.section).toBe(climax);
+    expect(def.sections[climax - 1].drums.some((d) => (d.roll ?? 0) > 0)).toBe(true);
+    // Then it settles to a quiet end that leads back into the opening: soft, on the tonic chord, the choir gone.
+    const coda = def.sections[def.sections.length - 1];
+    expect(coda.padLevel).toBeLessThanOrEqual(0.75);
+    expect(Math.max(...melodic(coda))).toBeLessThanOrEqual(0.45);
+    const last = coda.chords[coda.chords.length - 1];
+    expect(last.at + last.beats).toBe(coda.bars * def.beatsPerBar);
+    expect(((last.notes[0] - def.key.tonic) % 12 + 12) % 12).toBe(0);
+    expect(((intro.chords[0].notes[0] - def.key.tonic) % 12 + 12) % 12).toBe(0);
+    const choirEnds = (coda.choir ?? []).map((c) => c.at + c.beats);
+    expect(Math.max(0, ...choirEnds)).toBeLessThanOrEqual(coda.bars * def.beatsPerBar - 4);
+  });
+
+  it('is slow and singing: long notes, not a busy line', () => {
+    const spb = 60 / def.bpm;
+    const melody = notes.filter((n) => n.instrument === 'horn');
+    expect(melody.reduce((t, n) => t + n.length, 0) / melody.length).toBeGreaterThan(spb);
+    expect(melody.length / loopSeconds(def)).toBeLessThan(0.6);
+  });
+
+  it('builds the same graph every time (deterministic), within a node budget for phones', () => {
+    const a = buildLog(def);
+    const b = buildLog(def);
+    expect(a.log.length).toBeGreaterThan(1000);
+    expect(b.log).toEqual(a.log);
+    const oscillators = a.nodes.filter((n) => n.kind === 'oscillator').length;
+    const filters = a.nodes.filter((n) => n.kind === 'filter').length;
+    expect(oscillators).toBeLessThanOrEqual(MAP_BUDGET.oscillators);
+    expect(filters).toBeLessThanOrEqual(MAP_BUDGET.filters);
+    // Everything is routed: every instrument's notes end up on a bus that reaches the output.
+    expect(a.nodes.filter((n) => n.kind === 'convolver').length).toBe(1);
+    // A different seed humanises differently.
+    expect(buildLog({ ...def, seed: def.seed + 1 }).log).not.toEqual(a.log);
   });
 });
 
@@ -401,6 +589,34 @@ describe('the music player', () => {
     audio.stopMusic();
     expect(audio.musicStats().playing).toBe(false);
     expect(audio.musicStats().wanted).toBe(null);
+  });
+
+  it('plays the campaign map track on the Music bus too, and swaps it for the menu theme with a fade', async () => {
+    const ctx = new Context();
+    const audio = createAudio({ context: ctx as unknown as BaseAudioContext, renderMusic: () => Promise.resolve(fakeTrack(loopSeconds(CAMPAIGN_MAP))) });
+    const music = ctx.nodes[2];
+    audio.prepareMusic('map');
+    audio.startMusic('map');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(audio.musicStats().render).toBe('ready');
+    expect(audio.musicStats().playing).toBe(true);
+    const source = ctx.nodes.find((n) => n.kind === 'bufferSource');
+    expect(source?.loop).toBe(true);
+    expect(source?.loopEnd).toBeCloseTo(loopSeconds(CAMPAIGN_MAP), 9);
+    const gain = ctx.nodes.find((n) => n.kind === 'gain' && n.outputs.includes(music));
+    expect(gain, 'the map track feeds the Music bus').toBeDefined();
+    expect(source?.outputs).toEqual([gain]);
+    // Back to the title: the map track fades out while the menu theme comes in.
+    ctx.currentTime = 20;
+    audio.prepareMusic('menu');
+    audio.startMusic('menu');
+    await Promise.resolve();
+    await Promise.resolve();
+    const last = gain?.gain.events[gain.gain.events.length - 1];
+    expect(last?.[0]).toBe('linear');
+    expect(last?.[1]).toBe(0);
+    expect(last?.[2]).toBeCloseTo(20 + MUSIC.player.fadeOut, 9);
   });
 
   it('carries on silently when the track cannot be rendered', async () => {
