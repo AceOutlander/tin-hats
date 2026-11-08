@@ -12,7 +12,13 @@ Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade l
 Done and live: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08;
 commit 771aaf2, live 2026-11-08 10:14). Still to run for it: test:balance and the menu, audio and smoke browser specs
 (skipped to publish fast at the owner's request).
-Next, right after the music: the small **minor blood** job (spec below), then job 1 onward. (The iPhone rendering bug moved to after all the campaigns, owner
+Next: the small **minor blood** job (spec below), then job 1 (hide enemy unit HP), then **Stalingrad** (owner,
+2026-11-08): the Part 1 foundations it needs plus the Soviet Stalingrad campaign (job 11, first campaign), built on the
+git branch `stalingrad`, never on `main`. **Do NOT push Stalingrad live until it is 100% done** (owner): every mission
+built and winnable, every check green; only then merge to main and publish. Whatever Stalingrad needs from other jobs
+(prep phase for Brest, Volokolamsk, the house on the square and the factory district; new units such as the Panzer III
+Ausf. E; the Katyusha; snow, ruins and rubble) is built on that branch as part of it. Jobs 2 onward continue after
+Stalingrad, on main. (The iPhone rendering bug moved to after all the campaigns, owner
 2026-11-08.)
 
 1. **Hide enemy unit HP** (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
