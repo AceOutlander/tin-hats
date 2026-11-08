@@ -9,6 +9,10 @@ schedule a resume just after the reset.
 
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
+Now: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08).
+Next, right after the music: the **iPhone rendering bug** (spec below; if the owner says otherwise, it moves to just
+before publishing). Then job 1 onward.
+
 1. **Hide enemy unit HP** (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
    battle; only the Recon plane (job 7) reveals it, in a radius, for a while. No earlier written spec exists; see
    "Hide enemy unit HP" below.
@@ -30,7 +34,7 @@ Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade l
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
 12. **Trench art pass** (spec below).
 
-Later: a French campaign, and a German campaign as DLC. Very last: the Poland 1939 campaign as a paid add-on (spec at
+Later: a French campaign, and a German campaign as DLC. Near the very end: publishing on Google Play (spec below). Very last: the Poland 1939 campaign as a paid add-on (spec at
 the end; the store plan comes first, and no payment code or paid content goes into the public repo until the owner
 picks a store).
 
@@ -49,6 +53,20 @@ How these decisions fit together (for the implementers):
   the African campaign.
 
 The owner's specs follow, verbatim.
+
+## iPhone rendering bug (right after the music job)
+
+"## iPhone rendering bug
+On iPhone, soldiers, buildings and other details don't render. Reproduce it with the Safari engine (Playwright WebKit with iPhone emulation), find the cause (for example a graphics feature or shader iOS Safari doesn't support), fix it with a fallback that works on every browser, and add a WebKit browser test so it can't break again. Add a renderer info readout to the admin panel's debug tab so I can check it on my own iPhone.
+Do this right after the current job. (If I tell you otherwise, move it to just before publishing.)"
+
+Notes for the implementer: the admin panel (job 2) comes after this, so put the renderer info (renderer type, WebGL
+version, GPU and driver strings where exposed, max texture size and units, the texture atlas sizes in use, device pixel
+ratio, quality level) behind the existing `?debug=1` hooks now, and the admin panel's debug tab shows the same readout
+when it is built. Playwright's WebKit build must be installed into `.tools` (it is not yet); headless WebKit on Windows
+is not iOS Safari, so if the bug does not reproduce there, also check the likely iOS limits directly (texture size over
+4096, texture units, float or depth textures, MSAA, non-power-of-two textures, the atlas page sizes) and pick the
+fallback from that.
 
 ## Hide enemy unit HP
 
@@ -330,6 +348,19 @@ Notes for the implementer: every mission names its track in mission data (`music
   9. The Moltke Bridge, late April: cross into the government quarter.
   10. The Reichstag, 30 April to 2 May 1945: the final assault, ending with the red flag raised.
 - African: you play African units of the time, including the King's African Rifles, the Royal West African Frontier Force (Nigeria, Gold Coast), South African forces, Ethiopian patriot fighters and the Belgian Congo's Force Publique. The main enemy is the Italian army, a new enemy faction with the Kingdom of Italy's flag and no fascist symbols. Add Vichy French for Madagascar and Germans only where historically accurate (North Africa). Pick 10 battles from the East African campaign (such as Keren, Saïo, Gondar and the liberation of Ethiopia), Madagascar and North Africa (such as El Alamein), and check the history first."
+
+## Publishing on Google Play (at the very end, before the Poland add-on)
+
+"## Publishing on Google Play (at the very end, before the Poland add-on)
+- Wrap the game as an Android app with Capacitor: landscape only, offline, saves kept on the device, proper app icon and splash screen.
+- Plan the Poland campaign as an in-app purchase through Google Play Billing. The paid content lives in a private repo, goes only into the Android build, and never into the public repo or the free website version.
+- Prepare everything Google Play needs: a release build signed for upload, a privacy policy page on hunteracedev.com, store listing text, phone and tablet screenshots, and the answers for the content rating and data safety forms. Make a checklist of the steps I have to do myself, like creating the developer account, paying the fee and running any required testing period.
+- Test the Android build on an Android emulator, and check performance with full armies."
+
+Notes for the implementer: `docs/CAPACITOR.md` already describes the wrap. The Android SDK, an emulator and a JDK are
+not installed on this PC yet (a JDK is: Eclipse Adoptium 25 is on PATH); installing the SDK and emulator is part of the
+job. The upload signing key must be created and kept outside every repo, and its backup is the owner's responsibility
+(add it to the owner's checklist).
 
 ## Paid add-on: Poland 1939 campaign (very last; after the French and German campaigns)
 
