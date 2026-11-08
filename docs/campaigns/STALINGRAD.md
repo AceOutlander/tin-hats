@@ -46,10 +46,10 @@ in `NATIONS.md` (Soviet, German, Romanian); sources and the equipment-by-date ta
 
 | Missions | Date | Infantry | Anti-tank | Armour | Air and guns |
 | --- | --- | --- | --- | --- | --- |
-| 1 Brest | 22 Jun 1941 | Kar98k, MG34, MP40, GrW 34, pioneers with FmW 35/41 | none needed | StuG III Ausf. B battery (2) | 10.5 cm guns, Nebelwerfer 41, 60 cm Karl siege mortar (scripted), Ju 87, Ju 88 |
+| 1 Brest | 22 Jun 1941 | Kar98k, MG34, MP40, GrW 34, pioneers with FmW 35/41 | none needed | StuG III Ausf. B battery (2) | 10.5 cm guns, 21 cm mortars, Nebelwerfer 41, 60 cm Karl siege mortar (scripted); no air on the first day (the only documented raids were Ju 88s on 29 June) |
 | 2 Dubno | 27 Jun 1941 | same | Pak 36, a few Pak 38, 8.8 cm Flak in the ground role | Panzer III Ausf. E (3.7 cm), Panzer III with 5 cm, Panzer IV Ausf. D/E (short 7.5 cm), Panzer II as scouts | Ju 87, Bf 109F |
 | 3 Volokolamsk | 16 Nov 1941 | same | Pak 36, Pak 38 | Panzer III (5 cm), Panzer III Ausf. E still possible (owner window to Dec 1941), Panzer IV short, StuG III | Ju 87 |
-| 4 Klin | Dec 1941 | same, no winter clothing | Pak 38 | a few Panzer III and IV, several frozen in place | sparse |
+| 4 Klin | Dec 1941 | same, no winter clothing | Pak 38 | a few Pz 38(t) and Panzer IV (the 7th Panzer Division had no Panzer IIIs), several frozen in place | sparse |
 | 5 to 8 Stalingrad city | Sep to Oct 1942 | Kar98k, MG34 and MG42, MP40, GrW 34, pioneers with FmW 41, snipers | Pak 38, Pak 40, Hafthohlladung magnetic charges | Panzer III Ausf. J and L (5 cm long), Panzer IV Ausf. F2/G (long 7.5 cm), StuG III Ausf. F | Ju 87 (ever present), He 111, Nebelwerfer, 8.8 cm Flak |
 | 9 Uranus | 19 to 23 Nov 1942 | Romanian: Mannlicher and ZB rifles, ZB vz. 30 LMG, 37 mm Pak; German 22nd Panzer | Pak 38/40 | Romanian R-2 (Czech LT vz. 35); German Pz 38(t), Pz III, Pz IV | little air (fog) |
 | 10 Ring | Jan 1943 | the 6th Army in greatcoats and improvised winter wear; MG42, MP40 | Pak 40, Flak 88 | a few Pz III/IV and StuG, mostly out of fuel | no air support; Nebelwerfer |

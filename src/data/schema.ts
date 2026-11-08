@@ -10,13 +10,19 @@
 /** 0 = the side whose HQ is at the left edge (the player in the campaign); 1 = right edge. */
 export type Side = 0 | 1;
 
-export type FactionId = 'british' | 'german';
+/**
+ * Nations as data (docs/campaigns/FOUNDATIONS.md section 5). FactionId becomes NationId once the other nations land;
+ * NationId is the alias new code should use.
+ */
+export type FactionId = 'british' | 'german' | 'soviet';
+export type NationId = FactionId;
 
 /**
  * Mirrored roster. heavyTank is the non-trainable King Tiger (an elite squad with veteran escorts).
  * apc = armoured personnel carrier (machine gun only, bullet-proof, carries one squad), flame = flamethrower,
  * commander = officer with a damage aura (one per side), aa = anti-aircraft gun team,
- * lightTank = the enemy-only early-war Panzer III Ausf. E.
+ * lightTank = the enemy-only early-war Panzer III Ausf. E,
+ * conscript = the Soviet signature infantry (NATIONS.md): cheap, weak riflemen trained as a squad of several per order.
  */
 export type UnitKind =
   | 'sapper'
@@ -33,7 +39,8 @@ export type UnitKind =
   | 'flame'
   | 'commander'
   | 'aa'
-  | 'lightTank';
+  | 'lightTank'
+  | 'conscript';
 
 export type DamageType = 'bullet' | 'explosive' | 'antiTank';
 
@@ -41,8 +48,11 @@ export type DamageType = 'bullet' | 'explosive' | 'antiTank';
 export type TargetClass = 'infantryOpen' | 'infantryTrench' | 'fortification' | 'vehicle' | 'hq';
 
 export type Order = 'fallBack' | 'hold' | 'advance';
-/** bomber = bombing run over a large area, fighter = strafing run, recon = reveals enemy health in a radius. */
-export type SupportKind = 'artillery' | 'smoke' | 'airStrike' | 'bomber' | 'fighter' | 'recon';
+/**
+ * bomber = bombing run over a large area, fighter = strafing run, recon = reveals enemy health in a radius,
+ * katyusha = the Soviet signature rocket salvo (a wide, inaccurate barrage with a long cooldown).
+ */
+export type SupportKind = 'artillery' | 'smoke' | 'airStrike' | 'bomber' | 'fighter' | 'recon' | 'katyusha';
 export type Difficulty = 'normal' | 'hard' | 'insane';
 export type TheatreId = 'france' | 'desert' | 'sicily' | 'italy' | 'normandy' | 'holland' | 'germany';
 export type TimeOfDay = 'dawn' | 'day' | 'overcast' | 'dusk' | 'night';
@@ -182,6 +192,11 @@ export interface UnitDef {
   antiAir?: boolean;
   /** Enemy-only (Panzer III, King Tiger): never trainable by, nor sold to, the player. */
   enemyOnly?: boolean;
+  /**
+   * Squad training (Soviet conscripts): one training order costs cost x squad and pop x squad, takes trainTime, and
+   * sends all `squad` men out of the HQ together. cost, pop and hp stay per man. Absent = 1.
+   */
+  squad?: number;
 }
 
 /** Commander speech bubbles (src/data/speech.ts): short text lines per faction and per order. */
@@ -189,14 +204,18 @@ export type SpeechTable = Record<FactionId, Record<Order, readonly string[]>>;
 
 export type DamageMatrix =Record<DamageType, Record<TargetClass, number>>;
 
+/** Helmet shapes drawn in src/art/figure/parts.ts. ssh40 = the Soviet SSh-40 (a deep round dome, a short brim all round). */
+export type HelmetShape = 'brodie' | 'stahlhelm' | 'ssh40';
+
 export interface FactionLook {
-  helmet: 'brodie' | 'stahlhelm';
+  helmet: HelmetShape;
   /** Uniform / helmet tint and a darker shade, CSS hex colours. */
   tint: string;
   tintDark: string;
-  flag: 'unionJack' | 'balkenkreuz';
-  tank: 'churchill' | 'panzer4';
-  heavyTank: 'churchill' | 'kingTiger';
+  /** sovietRed = the red flag with the gold hammer and sickle and the gold-edged star (NATIONS.md section 1). */
+  flag: 'unionJack' | 'balkenkreuz' | 'sovietRed';
+  tank: 'churchill' | 'panzer4' | 't34';
+  heavyTank: 'churchill' | 'kingTiger' | 'kv1';
 }
 
 export interface FactionDef {
@@ -208,6 +227,39 @@ export interface FactionDef {
   unitBlurbs: Record<UnitKind, string>;
   supportNames: Record<SupportKind, string>;
   look: FactionLook;
+  /** HUD accent and campaign-card colour (NATIONS.md). */
+  uiAccent: string;
+  /**
+   * The nation's signature kinds (NATIONS.md section 2): only this nation fields them, so a mission may offer them only
+   * to a side of this nation (tests/unit/nations.test.ts).
+   */
+  signature: { units: UnitKind[]; supports: SupportKind[] };
+}
+
+/**
+ * Campaigns (FOUNDATIONS.md section 6). Mission ids have four digits by campaign: Stalingrad 1001 to 1010, D-Day 2001
+ * to 2010, Road to Berlin 3001 to 3010, Africa 4001 to 4010. 'british' is today's campaign (ids 1 to 10), kept until
+ * the new campaigns replace it.
+ */
+export type CampaignId = 'british' | 'stalingrad';
+
+export interface CampaignDef {
+  id: CampaignId;
+  /** The player's nation: the card's flag and colours. */
+  nation: NationId;
+  title: string;
+  /** Dates line for the card, e.g. 'June 1941 to February 1943'. */
+  subtitle: string;
+  /** Every mission id of the campaign lies in [first, last]. */
+  missionRange: { first: number; last: number };
+  /** Mission ids in play order. */
+  missionIds: number[];
+  /** Open from the start, or once a mission (of any campaign) is cleared. */
+  unlock: { always: true } | { afterMission: number };
+  /** One-line blurb for the campaign select screen. */
+  card: string;
+  /** False while the campaign is being built: it must not be offered on the live site. */
+  released: boolean;
 }
 
 export interface SupportDef {
