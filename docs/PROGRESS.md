@@ -44,8 +44,25 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
-## In progress
-- Nothing is mid-flight. Paused at the usage limit (2026-11-07 evening) after publishing job 2; resume with queue job 3, the admin panel (spec in `docs/QUEUE.md`).
+## In progress (paused 2026-11-08 ~23:50 UTC for a computer restart; every copy committed, nothing running)
+
+Owner's order of work (2026-11-08, latest): 1. lag fix first, timeboxed to about 30 minutes for the biggest one or two
+wins, pushed live, deeper performance work later in the queue; 2. publish new units, medals and the Armoury together
+with the lag fix, after checking they add no lag; 3. in parallel, Stalingrad and Basic Training on the `stalingrad`
+branch (never live until 100% done and the owner says push). The other follow-ups below wait until after the lag fix.
+
+Each job lives in its own git worktree next to this repo (node_modules and .tools are junctions to this repo's):
+
+| Job | Worktree, branch, last commit | State |
+| --- | --- | --- |
+| New units, medals, Armoury (jobs 7, 10) | `C:\dev\tin-hats`, `main`, db8c4bb | Integrated and committed, NOT pushed. Integration checks passed (typecheck, lint, unit, build, smoke 12/12, campaign spec fixed for medals); the "wins ground" sandbox test failed twice (known issue below). Also on main: 03496a5 the Armoury shows only the player's own nation's names. Next: push together with the lag fix. |
+| Lag fix (top priority) | `C:\dev\tin-hats-perf`, `perf`, 3be7628 | Measuring only, no game code changed. Findings so far in `docs/PERF_FINDINGS.md` there (sim not the cause; render about 90 images per soldier, draw p95 25-43 ms at CPU x4, 73 long tasks; 5 MB/s garbage; battle music rendered piece by piece during the battle with build tasks up to 65 ms). Owner plays on a PC in Chrome and sees stutters/hitches, so fix spikes first. Next: pick the one or two biggest hitch fixes, measure, add the FPS counter setting and a perf test, merge into main, push with the units. |
+| Follow-ups from the owner's playtest | `C:\dev\tin-hats-flame`, `followups`, 29034cc | WIP, not checked as a whole. Done: fire-like flame jet (bold layered flat fire with licking tongues, looked at; the pale core still looks a little beady), flamethrower gas mask (head sprite `fig/body/headMask`; not yet seen in a close-up, only the lens glow shows at battle zoom: make it bigger and lighter), cap 100 everywhere (aiPopCapMul 1 on every difficulty, debug grantPopulation clamped, tests), short button labels (`FactionDef.buttonNames`: Flamer, Lt., Carrier; test `hud-labels`), collapsible call-ins column (`src/ui/hud/callins.ts`, stopped mid-way while updating the browser specs missions, sandbox, unit-orders). Next: finish, run all checks, merge after the lag fix. |
+| Campaign map theme (Band of Brothers mood, original) | `C:\dev\tin-hats-music`, `campaign-theme`, 6632e01 | WIP: score and instruments written, tests being added when paused. Next: finish tests, render a preview for the owner, merge and push. |
+| Stalingrad and Basic Training | `C:\dev\tin-hats-stalingrad`, `stalingrad`, dd926df | Just started: STALINGRAD.md being history-checked, Soviet nation data begun in schema.ts and factions.ts (may not type-check). Plan (workflow script `tin-hats-stalingrad-start`): Soviet nation and history check, then missions 1001-1005 and 1006-1010 as data, Soviet art, cold Soviet music, Basic Training, then integrate on the branch. Missing engine features go to `docs/campaigns/STALINGRAD_BUILD.md`. |
+
+Owner notes from 2026-11-08 already handled: the training-button names and the "/280" (fixed on `followups`); the
+proving ground is a debug-only test battle (explained to the owner).
 
 ## Next
 - **Queue (owner, 2026-11-08): follow the Build order in `docs/QUEUE.md` (specs verbatim there).** 1. hide enemy unit HP (done), 2. admin panel, 3. rename the resource to Money, 4. Quartermaster upgrade looks (done), 5. unlockable passives, 6. prep phase, 7. new units (APC, flamethrower, commander, planes, anti-aircraft), 8. music for every mission and the campaign map, 9. difficulty overhaul (cap 100 everywhere), 10. medals and the Armoury, 11. campaigns (Soviet Part 1 foundations, Stalingrad, British D-Day replacing today's British campaign, Road to Berlin, African), 12. trench art pass. Later: French campaign, German campaign as DLC. Standing rule: push to live after each job whose checks pass, then go straight on.
