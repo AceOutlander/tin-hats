@@ -9,7 +9,9 @@ schedule a resume just after the reset.
 
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
-Now: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08).
+Done and live: music for every mission and the campaign map (job 8, moved to the front by the owner on 2026-11-08;
+commit 771aaf2, live 2026-11-08 10:14). Still to run for it: test:balance and the menu, audio and smoke browser specs
+(skipped to publish fast at the owner's request).
 Next, right after the music: the small **minor blood** job (spec below), then job 1 onward. (The iPhone rendering bug moved to after all the campaigns, owner
 2026-11-08.)
 
