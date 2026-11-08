@@ -39,7 +39,8 @@ the owner it is ready and **wait for the owner to say when to push it live**. (T
 8. **Music for every mission and the campaign map** (spec below). Owner's additions: "The combat layer kicks in
    during a big battle, meaning 20 or more soldiers per side fighting close together. Not too grim, not too happy,
    exciting."
-9. **Difficulty overhaul** (spec below), with a population cap of 100 on every difficulty. Insane: same income and cap as
+9. **Difficulty overhaul** (spec below): three levels named Normal, Specialized and Elite (owner, 2026-11-08), with a
+   population cap of 100 on every difficulty. Insane: same income and cap as
    the player, made hard by a much smarter, human-like AI (owner, 2026-11-08).
 10. **Medals and the Armoury** (spec below).
 11. **Campaigns** (music: reuse fitting tracks, compose new ones for the rest; Soviet tracks sound cold), in this order: the Part 1 foundations from the Soviet spec first, then Soviet Stalingrad, British
@@ -229,6 +230,28 @@ Note (job 1, hidden enemy HP): the AI must not use hidden enemy HP unless it use
 Decisions already announced to the owner: lethality is a per-difficulty multiplier applied identically to both sides
 (unit stats unchanged; this replaces the old "difficulty never changes unit stats" rule); a mission cleared on the old
 Normal counts as cleared on Recruit.
+
+### Difficulty names and levels: Normal, Specialized, Elite (owner, 2026-11-08; replaces the earlier spec where they differ)
+
+"## Difficulty names and levels: Normal, Specialized, Elite
+- Normal: as hard as the current Insane. The AI is decent.
+- Specialized: close to realistic. Weapons are much deadlier for both sides, cover and accuracy matter more, and the AI is good.
+- Elite: one shot, one kill. Any hit kills a soldier, for both sides. Vehicles, pillboxes and HQs keep their normal toughness against the right weapons. The enemy has the same income and population cap as me, and difficulty comes from the expert AI using real tactics, as specced earlier.
+- Drop Recruit, so there are three levels. The cap is 100 for all of them.
+- On Elite, every enemy unit looks visibly elite: extra gear and ammo, camouflage, a veteran or elite marker and a tougher-looking build, readable at phone size and cheap to draw. No SS or Nazi symbols.
+- Rename everywhere: menus, settings, saves, the mission screen, medal multipliers and tests. Existing saves map old levels to the new ones fairly."
+
+How this reads against the earlier difficulty spec above: Recruit is dropped; "Hard" becomes Specialized; "Insane" becomes
+Elite, where infantry die to any hit (one shot, one kill) instead of near one-shot lethality, while vehicles, pillboxes
+and HQs keep their normal toughness against the right weapons. Elite keeps the "same income and cap as the player,
+smarter AI" rules and the expert human-like AI from "Insane: same income, much smarter enemy" (read "Insane" there as
+Elite, "Hard" as Specialized). The tests in that section map the same way: the Elite AI must beat the Normal AI in most
+equal-income AI battles; an expert-player bot must win every mission on Elite at least some of the time; Specialized and
+Normal must stay comfortably beatable by the reasonable-player bot. Internal ids: rename 'normal' / 'hard' / 'insane' to
+'normal' / 'specialized' / 'elite' in data, saves (with a migration), medal multipliers (job 10 ships first with the old
+ids; this job renames them) and tests. Fair save mapping, to be finalised in the job: today's normal clears map to the
+new Normal (the new Normal is harder, so nothing is lost), hard to Specialized and insane to Elite, with medal history
+kept per mission.
 
 ### Insane: same income, much smarter enemy (owner, 2026-11-08; replaces the earlier Insane notes above)
 
