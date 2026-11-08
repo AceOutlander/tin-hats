@@ -20,7 +20,8 @@ describe('the sandbox grounds', () => {
     expect(SANDBOX.wire.length).toBeGreaterThan(0);
     for (const side of [0, 1] as const) {
       expect([...SANDBOX.units[side]].sort()).toEqual([...ALL_KINDS].sort());
-      expect([...SANDBOX.supports[side]].sort()).toEqual(['airStrike', 'artillery', 'smoke']);
+      // The player also gets the plane call-ins; the enemy keeps the classic three.
+      expect([...SANDBOX.supports[side]].sort()).toEqual(side === 0 ? ['airStrike', 'artillery', 'bomber', 'fighter', 'recon', 'smoke'] : ['airStrike', 'artillery', 'smoke']);
       expect(SANDBOX.start[side].supplies).toBeGreaterThanOrEqual(2000);
     }
     const b = makeBattle({ mission: SANDBOX });

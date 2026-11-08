@@ -30,9 +30,9 @@ import {
   waitForState,
 } from './helpers';
 
-/** The nine unit buttons of the proving ground, in HUD order (the King Tiger is not trainable). */
-const TRAIN_KINDS: readonly UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'];
-const SUPPORTS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike'];
+/** The thirteen unit buttons of the proving ground, in HUD order (the King Tiger and the Panzer III are enemy-only). */
+const TRAIN_KINDS: readonly UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'commander', 'aa'];
+const SUPPORTS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon'];
 /** Where a lone rifleman stands to meet the enemy's first push (world x), well ahead of the British trench at 1700. */
 const FRONT_X = 2700;
 /** The phone screens the HUD is built for, smallest first (CSS px). */
@@ -71,6 +71,7 @@ test.describe('proving ground (Phase 2)', () => {
     await grantPopulation(page, 40);
     for (const kind of TRAIN_KINDS) await expect(page.getByTestId(`train-${kind}`)).toBeAttached();
     await expect(page.getByTestId('train-heavyTank')).toHaveCount(0);
+    await expect(page.getByTestId('train-lightTank')).toHaveCount(0);
     const before = (await state(page)).units[0];
 
     for (const kind of TRAIN_KINDS) {
@@ -87,7 +88,7 @@ test.describe('proving ground (Phase 2)', () => {
   });
 
   for (const size of VIEWPORTS) {
-    test(`the training bar holds all nine unit buttons at ${size.w}x${size.h}`, async ({ page }) => {
+    test(`the training bar holds all thirteen unit buttons at ${size.w}x${size.h}`, async ({ page }) => {
       await page.setViewportSize({ width: size.w, height: size.h });
       await begin(page, 22);
       await setTimeScale(page, 0);
@@ -242,6 +243,9 @@ test.describe('proving ground (Phase 2)', () => {
       if (kind === 'smoke') {
         await waitForState(page, 'a smoke cloud', (s) => s.smokes >= 1 && s.tally.smokeSpawned >= 1, 30_000);
         await shot(page, 'sandbox-smoke');
+      } else if (kind === 'recon') {
+        // The recon plane drops nothing: it shows the enemy's health around the target for a while.
+        await waitForState(page, 'recon over the target', (s) => s.tally.supportIncoming.recon >= 1, 30_000);
       } else {
         await waitForState(page, `${kind} blasts`, (s) => s.tally.explosion > blasts, 30_000);
       }

@@ -2,7 +2,7 @@ import type { MissionAiPlan, MissionDef, SideStart, UnitKind } from '../schema';
 
 /**
  * Test grounds, not part of the campaign (not listed in MISSIONS): every unit and every support
- * for both sides, generous supplies, and all the fortifications, so tests, tools and debug pages
+ * for both sides (the plane call-ins for the player only), generous supplies, and all the fortifications, so tests, tools and debug pages
  * can exercise the whole simulation.
  */
 
@@ -67,7 +67,9 @@ export const SANDBOX: MissionDef = {
   newSupport: null,
   units: [EVERY_UNIT, EVERY_UNIT],
   supports: [
-    ['artillery', 'smoke', 'airStrike'],
+    // The player gets every call-in, the plane call-ins too. The enemy keeps the classic three: with bombers of its own
+    // the AI on both sides never reached the pillboxes in 240 s (DECISIONS 255), and the enemy AA still has targets.
+    ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon'],
     ['artillery', 'smoke', 'airStrike'],
   ],
   start: [

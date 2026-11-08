@@ -57,15 +57,15 @@ test.describe('armoury', () => {
     // --- Mission 2's briefing lends nothing now the Bren gun is bought ----------------------------------------------
     await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).unlockAll());
     await tapIn(page, 'armoury', 'back');
-    await tap(page, 'mission-pin-2');
-    await tap(page, 'mission-start');
+    await tapIn(page, 'campaign', 'mission-pin-2');
+    await tapIn(page, 'campaign', 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');
     await expect(page.getByTestId('briefing-loans')).toHaveCount(0);
     await tapIn(page, 'briefing', 'back');
 
-    // Mission 3 lends its Assault Troopers (not bought).
-    await tap(page, 'mission-pin-3');
-    await tap(page, 'mission-start');
+    // Mission 3 lends its Assault Troopers (not bought). The map that the briefing left is still fading in.
+    await tapIn(page, 'campaign', 'mission-pin-3');
+    await tapIn(page, 'campaign', 'mission-start');
     await expect(page.getByTestId('briefing-loans')).toContainText('On loan for this mission');
     await shot(page, 'armoury-briefing-loan');
     await tap(page, 'begin');
@@ -98,8 +98,8 @@ test.describe('armoury', () => {
     expect(await storedMedals(page)).toBe(result?.pointsAwarded);
 
     await tap(page, 'result-map');
-    await tap(page, 'mission-pin-1');
-    await tap(page, 'mission-start');
+    await tapIn(page, 'campaign', 'mission-pin-1');
+    await tapIn(page, 'campaign', 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('Replay: 50% medals');
     await tap(page, 'difficulty-hard');
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');
