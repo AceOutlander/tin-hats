@@ -30,7 +30,9 @@ Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade l
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
 12. **Trench art pass** (spec below).
 
-Later: a French campaign, and a German campaign as DLC.
+Later: a French campaign, and a German campaign as DLC. Very last: the Poland 1939 campaign as a paid add-on (spec at
+the end; the store plan comes first, and no payment code or paid content goes into the public repo until the owner
+picks a store).
 
 Deferred trench items (from the trench rebuild), folded into job 12: climbing in and out, tanks bumping over the pit,
 splitting big positions into two or three pits, a coloured band on the sandbags, unit tests for the trench layout,
@@ -328,3 +330,11 @@ Notes for the implementer: every mission names its track in mission data (`music
   9. The Moltke Bridge, late April: cross into the government quarter.
   10. The Reichstag, 30 April to 2 May 1945: the final assault, ending with the red flag raised.
 - African: you play African units of the time, including the King's African Rifles, the Royal West African Frontier Force (Nigeria, Gold Coast), South African forces, Ethiopian patriot fighters and the Belgian Congo's Force Publique. The main enemy is the Italian army, a new enemy faction with the Kingdom of Italy's flag and no fascist symbols. Add Vichy French for Madagascar and Germans only where historically accurate (North Africa). Pick 10 battles from the East African campaign (such as Keren, Saïo, Gondar and the liberation of Ethiopia), Madagascar and North Africa (such as El Alamein), and check the history first."
+
+## Paid add-on: Poland 1939 campaign (very last; after the French and German campaigns)
+
+"## Paid add-on: Poland 1939 campaign (do not build the payment part yet)
+- A 10-mission campaign as Poland, September to October 1939. Tragic but heroic: holding out and delaying is the victory, and the war is lost by the end. The Soviets invade from the east in the later missions.
+- Missions to research and choose from: the Polish Post Office in Danzig, Westerplatte, Mokra, Wizna, the Bzura counter-offensive, the defense of Warsaw, Modlin, Grodno, Tomaszów Lubelski and Kock.
+- Polish signature units: cavalry used as fast-moving infantry, the 7TP tank, the wz. 35 anti-tank rifle. Period-accurate Polish uniforms and the white-and-red flag. The Germans only field 1939 equipment (Panzer I, II, III Ausf. E and Czech-built tanks).
+- This will be paid content, and the main game's code is public. Before building it, write a short plan in docs/ for keeping paid content out of the public repo and unlocking it only after a real purchase check, with options for itch.io, Steam, and the Google Play and App Store versions. Don't add any payment code or put paid content in the public repo until I've picked a store."
