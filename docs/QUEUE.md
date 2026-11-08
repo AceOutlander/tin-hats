@@ -14,7 +14,8 @@ commit 771aaf2, live 2026-11-08 10:14). Its skipped checks were run with the blo
 audio and smoke browser specs 18/18 (after adding the battleMusic hook to the smoke test's list of debug hooks).
 
 Done and live: **minor blood** with a Show blood setting (commit c737d59, live 2026-11-08 10:58).
-Next: job 1 (hide enemy unit HP), then the small **barbed wire end-on** job (spec below), then the remaining foundation jobs
+Done and live: job 1, **hide enemy unit HP** (commit eac9581, live 2026-11-08).
+Next: the small **barbed wire end-on** job (spec below), then the remaining foundation jobs
 in order (2 admin panel, 3 Money, 5 passives, 6 prep phase, 7 new units, 9 difficulty overhaul, 10 medals; 4 is done),
 which go live as they finish. Then **Stalingrad** (owner, 2026-11-08): the Part 1 foundations plus the Soviet Stalingrad
 campaign, built on the git branch `stalingrad` (or kept fully hidden) so other updates can still be published. It stays
@@ -22,7 +23,7 @@ off the live site until it is 100% done: all 10 missions, briefings, music, bala
 the owner it is ready and **wait for the owner to say when to push it live**. (The iPhone rendering bug moved to after all the campaigns, owner
 2026-11-08.)
 
-1. **Hide enemy unit HP** (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
+1. **Hide enemy unit HP** (done and live, commit eac9581) (owner: "Do the hidden enemy HP first if it isn't done yet"). Enemy units show no health in
    battle; only the Recon plane (job 7) reveals it, in a radius, for a while. No earlier written spec exists; see
    "Hide enemy unit HP" below.
 2. **Admin panel** (spec below), so the rest is easier to test.
@@ -102,7 +103,13 @@ is not iOS Safari, so if the bug does not reproduce there, also check the likely
 4096, texture units, float or depth textures, MSAA, non-power-of-two textures, the atlas page sizes) and pick the
 fallback from that.
 
-## Hide enemy unit HP
+## Hide enemy unit HP (done and live, commit eac9581)
+
+Built as the working reading below (DECISIONS 252): `src/render/hpReveal.ts`, data `RENDER.hpReveal`
+(`revealOwnHp: true`, `revealEnemyHp: false`). For the Recon plane (job 7) and the admin panel (job 2):
+`view.hpReveal.revealEnemy(x, radius, seconds)` reveals an area for a while (battle time), `setEnemyShown(on)` the
+whole side. Debug: `__TH.hpPips()`, `__TH.revealEnemyHp(on)`. For job 9: the smarter AI must not use the player's
+hidden HP display, and should not gain "sees enemy health" behaviour unless it flies a recon plane of its own.
 
 The owner's only words on it: "Hide enemy unit HP (already requested)" and, under the Recon plane, "reveals enemy unit
 health in a large radius for a while (enemy HP is hidden otherwise)". No earlier written spec was found in the docs.
@@ -198,6 +205,8 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 - The enemy attacks in waves that test the defences, and the "reasonable player" bot must be able to use the prep phase in balance tests."
 
 ## Difficulty overhaul (job 9)
+
+Note (job 1, hidden enemy HP): the AI must not use hidden enemy HP unless it uses a recon plane (DECISIONS 252).
 
 "## New difficulty levels
 - Recruit (new, easiest): plays like the current Normal, for new players.
