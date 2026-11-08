@@ -18,7 +18,8 @@ Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade l
    upgrade visuals are small but noticeable."
 5. **Unlockable passives** (spec below).
 6. **Prep phase for defensive missions** (spec below).
-7. **New units** (spec below): APC, flamethrower, commander, bomber, fighter and recon call-ins, anti-aircraft gun.
+7. **New units** (spec below): APC, flamethrower, commander, bomber, fighter and recon call-ins, anti-aircraft gun,
+   and two new German tanks (Panzer III Ausf. E for 1939–41, the elite King Tiger squad from mid-1944).
 8. **Music for every mission and the campaign map** (spec below). Owner's additions: "The combat layer kicks in
    during a big battle, meaning 20 or more soldiers per side fighting close together. Not too grim, not too happy,
    exciting."
@@ -231,6 +232,26 @@ Each mission gets a short briefing and a campaign map location. Check the histor
   - Fighter: strafes a chosen area.
   - Recon plane: reveals enemy unit health in a large radius for a while (enemy HP is hidden otherwise).
 - Anti-aircraft gun: both sides, so planes can be shot down or driven off."
+
+### Two new German tanks (part of job 7, owner 2026-11-08)
+
+"## Two new German tanks
+- Panzer III Ausf. E: the standard early-war German tank. Fast and light, with a small gun that's weak against heavy armour. Clearly weaker than the Panzer IV, and vulnerable to anti-tank rifles and guns. It appears only in 1939–41 missions, like the early Soviet missions (Brest, Dubno).
+
+- King Tiger: an elite, rare heavy tank that only appears from mid-1944 (D-Day from Goodwood onward, and the Road to Berlin from 1944 onward), and only where the mission data places it.
+  - It arrives as an elite squad: one King Tiger plus an escort of veteran infantry who are tougher and more accurate than normal troops.
+  - It looks clearly elite: its own camouflage scheme and an elite marker, with no SS or Nazi symbols.
+  - Strengths: a deadly long-range gun and very thick front armour, so most anti-tank weapons barely scratch it from the front.
+  - Weaknesses: slow, slow turret, and weak rear armour. Hits from behind, bombers and heavy tanks like the IS-2 can kill it. It's beatable with flanking, air strikes or concentrated fire, never invincible.
+  - Its arrival gets a warning (a text banner and a sound cue), like a boss.
+- Both are added to the balance tests with clear counters. The admin panel can spawn them."
+
+Notes for the implementer: the game already has a King Tiger as the `heavyTank` boss guarding the German HQ in today's
+mission 10 (Siegfried Line, early 1945, historically plausible). Turn that into this elite-squad King Tiger rather than
+adding a second one, and keep it out of anything set before mid-1944. Front versus rear armour needs a new hit-facing
+rule in the sim (damage depends on which side of the tank the shot comes from); build it as data so other tanks can
+use it later.
+
 
 ## Medals and the Armoury
 
