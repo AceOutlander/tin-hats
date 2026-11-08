@@ -42,6 +42,8 @@ export interface ControlState {
   name: string;
   hp: number;
   maxHp: number;
+  /** False hides the health bar: the unit is not the player's own and its health is not revealed. */
+  hpShown: boolean;
   /** 0..1, 1 = ready to fire. */
   reload: number;
   hasAbility: boolean;

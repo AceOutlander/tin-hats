@@ -33,6 +33,7 @@ import type { AttachOptions, AudioSink, BattleView, MenuSceneStats, RenderStats,
 import { EffectsSystem, pillboxAt } from './effects';
 import { PanInput } from './input';
 import { addImage, createLayers, type Layers } from './layers';
+import { HpReveal } from './hpReveal';
 import { FramePerf, type PerfReport } from './perf';
 import { QualityGovernor, startQuality } from './quality';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
@@ -81,6 +82,7 @@ export class BattleViewImpl implements BattleView {
   playerSide: 0 | 1 = 0;
   /** What each side of the attached battle looks like (its Quartermaster upgrades). */
   looks: SideLooks[] = [];
+  readonly hpReveal = new HpReveal();
 
   private scene: Phaser.Scene | null = null;
   private layers: Layers | null = null;
@@ -219,6 +221,7 @@ export class BattleViewImpl implements BattleView {
     this.backdrop = new BackdropView(scene, layers);
     this.units = new UnitViews(scene, layers, reg);
     this.units.blood.setEnabled(this.showBlood);
+    this.units.hpReveal = this.hpReveal;
     this.structures = new StructureViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
@@ -321,6 +324,7 @@ export class BattleViewImpl implements BattleView {
     this.battle = battle;
     this.resize();
     this.playerSide = opts.playerSide;
+    this.hpReveal.reset(opts.playerSide);
     this.weather = opts.weather ?? 'auto';
     this.visualSeed = opts.visualSeed;
     const state = battle.state;
@@ -697,6 +701,8 @@ export class BattleViewImpl implements BattleView {
       bloodPools: this.units?.blood.count() ?? 0,
       bloodDeaths: this.units?.blood.bleedingDeaths ?? 0,
       bloodDrawn: this.units?.blood.drawn() ?? 0,
+      pipsOwn: this.units?.pipsDrawn[this.playerSide] ?? 0,
+      pipsEnemy: this.units?.pipsDrawn[this.playerSide === 0 ? 1 : 0] ?? 0,
       images,
       imagesVisible: visible,
       tracers: this.effects?.ctx.tracers.count ?? 0,

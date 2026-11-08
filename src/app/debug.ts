@@ -184,6 +184,10 @@ export interface DebugApi {
   weatherStats(): WeatherStats;
   /** Blood pools on the ground now and drawn on screen, the cap, the soldiers killed by gunfire this battle, and the "Show blood" setting. */
   blood(): { pools: number; drawn: number; cap: number; deaths: number; shown: boolean };
+  /** Health pips drawn last frame over the player's own units and over the enemy's, and whether the enemy's whole side is revealed. */
+  hpPips(): { own: number; enemy: number; enemyRevealed: boolean };
+  /** Reveal (true) or hide again (false) the enemy's unit health everywhere, as the admin panel will. */
+  revealEnemyHp(on: boolean): void;
   buttonRects(): unknown;
   /** `cssPerWu` converts a world distance to CSS px on screen: screen x = (world x - left) * cssPerWu. */
   camera(): { centerX: number; left: number; viewWidthWu: number; length: number; cssPerWu: number };
@@ -538,6 +542,12 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       const stats = view.getStats();
       return { pools: stats.bloodPools, drawn: stats.bloodDrawn, cap: RENDER.blood.maxPools, deaths: stats.bloodDeaths, shown: app.save.settings.showBlood };
     },
+
+    hpPips() {
+      const stats = view.getStats();
+      return { own: stats.pipsOwn, enemy: stats.pipsEnemy, enemyRevealed: view.hpReveal.enemyShown() };
+    },
+    revealEnemyHp: (on) => view.hpReveal.setEnemyShown(on),
 
     buttonRects: () => ui.getHudButtonRects(),
 

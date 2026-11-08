@@ -3,6 +3,7 @@ import type { AudioBus, GameAudio, MixStats } from '../../src/audio';
 import type { MissionDef } from '../../src/data/schema';
 import { M01 } from '../../src/data/missions/m01';
 import type { AttachOptions, BattleCamera, BattleView, RenderStats } from '../../src/render/contracts';
+import { HpReveal } from '../../src/render/hpReveal';
 import type { Battle } from '../../src/sim';
 import type { HudState, ResultView, ScreenId, UiApi } from '../../src/ui/contracts';
 
@@ -58,6 +59,8 @@ export function createFakeView(): FakeView {
     bloodPools: 0,
     bloodDeaths: 0,
     bloodDrawn: 0,
+    pipsOwn: 0,
+    pipsEnemy: 0,
     images: 0,
     imagesVisible: 0,
     tracers: 0,
@@ -86,11 +89,13 @@ export function createFakeView(): FakeView {
     menuFrames: [],
     reducedFlashing: false,
     showBlood: true,
+    hpReveal: new HpReveal(),
     onTapUnit: null,
     onTapGround: null,
     attach(battle, opts) {
       view.attached = battle;
       view.attachOptions = opts;
+      view.hpReveal.reset(opts.playerSide);
     },
     detach() {
       view.attached = null;

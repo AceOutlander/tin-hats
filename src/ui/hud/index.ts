@@ -429,6 +429,7 @@ class HudView implements Hud {
   private cardKind: UnitKind | null = null;
   private readonly cardName: TextCell;
   private readonly cardHp: BarCell;
+  private readonly cardHpHidden: FlagCell;
   private readonly fireSweep: FracCell;
   private readonly abilityButton: HTMLButtonElement;
   private readonly abilityHidden: FlagCell;
@@ -563,7 +564,9 @@ class HudView implements Hud {
     this.cardCanvas = el('canvas', 'th-card-ico', card);
     const cardCol = el('div', 'th-card-col', card);
     this.cardName = new TextCell(el('span', 'th-card-name', cardCol));
-    this.cardHp = new BarCell(el('span', 'th-hbar', cardCol));
+    const cardBar = el('span', 'th-hbar', cardCol);
+    this.cardHp = new BarCell(cardBar);
+    this.cardHpHidden = new FlagCell(cardBar, 'is-hidden');
     this.controlFlag = new FlagCell(root, 'is-control');
 
     const trainWrap = el('div', 'th-hplate th-trainwrap', bottom);
@@ -815,7 +818,8 @@ class HudView implements Hud {
       this.cardKind = c.kind;
       this.paintIcon(this.cardCanvas, c.kind);
     }
-    this.cardHp.set(c.hp, c.maxHp);
+    this.cardHpHidden.set(!c.hpShown);
+    if (c.hpShown) this.cardHp.set(c.hp, c.maxHp);
     this.fireSweep.set(c.reload);
     this.abilityHidden.set(!c.hasAbility);
     if (c.hasAbility) {

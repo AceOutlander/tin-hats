@@ -116,6 +116,7 @@ function makeControl(kind: UnitKind): ControlState {
     name: british.unitNames[entry.kind],
     hp: 64,
     maxHp: 100,
+    hpShown: true,
     reload: 1,
     hasAbility: entry.ability !== null,
     abilityName: entry.ability ?? '',

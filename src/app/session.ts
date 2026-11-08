@@ -11,7 +11,7 @@ import { SUPPORT_KINDS } from '../data/supports';
 import type { Battle, UnitState } from '../sim';
 import type { BattleCamera } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
-import { HudModel } from './hudModel';
+import { HudModel, type HpShownQuery } from './hudModel';
 import { playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
 import type { Tutorial } from './tutorial';
 
@@ -21,6 +21,8 @@ export interface SessionView {
   afterStep(): void;
   setControlled(unitId: number): void;
   setTargeting(kind: SupportKind | null): void;
+  /** Whose unit health the player sees (the battle view's HpReveal). */
+  readonly hpReveal?: HpShownQuery;
 }
 
 export interface SessionOptions {
@@ -210,7 +212,7 @@ export class BattleSession {
   fill(paused: boolean, muted: boolean): HudState {
     const camera = this.view.camera;
     const hud = this.hud;
-    hud.refresh(this.battle, camera.centerX, camera.viewWidthWu);
+    hud.refresh(this.battle, camera.centerX, camera.viewWidthWu, this.view.hpReveal ?? null);
     const st = hud.state;
     const time = this.battle.state.time;
     st.paused = paused;

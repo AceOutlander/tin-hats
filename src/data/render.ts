@@ -137,6 +137,19 @@ export const RENDER = {
   },
 
   /**
+   * Whose unit health the player sees in battle (src/render/hpReveal.ts). The player's own units show their health
+   * pips; the enemy's never do unless something reveals them: the whole side (the admin panel, ?debug=1
+   * __TH.revealEnemyHp) or an area for a while (the Recon plane). Structures (HQs, pillboxes) are not units and always
+   * show their damage; the enemy HQ's health bar stays in the HUD and on the minimap.
+   */
+  hpReveal: {
+    revealOwnHp: true,
+    revealEnemyHp: false,
+    /** Most reveal areas alive at once (a fixed pool; a new one past the cap replaces the one ending soonest). */
+    maxAreas: 8,
+  },
+
+  /**
    * Minor, non-graphic blood (src/render/blood.ts, the "Show blood" setting): a soldier killed by gunfire gets one small
    * dark-red pool that spreads on the ground under his body and fades out with it. No splatter; never for explosive or
    * anti-tank deaths, vehicles or buildings.

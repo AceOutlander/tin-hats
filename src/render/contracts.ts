@@ -17,6 +17,7 @@
 import type { Side, SupportKind } from '../data/schema';
 import type { MenuStormState } from '../fx';
 import type { Battle } from '../sim';
+import type { HpReveal } from './hpReveal';
 
 /** What the title storm scene is drawing, for the debug hooks and the tests. */
 export interface MenuSceneStats {
@@ -98,6 +99,9 @@ export interface RenderStats {
   bloodDeaths: number;
   /** Blood pools drawn last frame (on screen). */
   bloodDrawn: number;
+  /** Health pips drawn last frame over the player's own units and over the enemy's (0 unless enemy health is revealed). */
+  pipsOwn: number;
+  pipsEnemy: number;
   /** Game objects in the scene (all layers) and how many are visible. */
   images: number;
   imagesVisible: number;
@@ -154,6 +158,12 @@ export interface BattleView {
   weatherStats(): WeatherStats;
   /** "Reduce flashing": lightning in battle and on the title screen only swells into a slow soft glow, with no bolt. */
   setReducedFlashing(on: boolean): void;
+  /**
+   * Whose unit health the player sees (own units yes, the enemy's no, by default). The Recon plane and the admin panel
+   * reveal enemy health through it: setEnemyShown(on) for the whole side, revealEnemy(x, radius, seconds) for an area.
+   * attach() resets it to the data defaults (RENDER.hpReveal).
+   */
+  readonly hpReveal: HpReveal;
   /** "Show blood": a small dark pool under each soldier killed by gunfire. Off removes every pool at once and starts no more. */
   setShowBlood(on: boolean): void;
   /**

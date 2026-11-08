@@ -6,11 +6,16 @@
 import { APP } from '../data/app';
 import { CONFIG } from '../data/config';
 import { FACTIONS } from '../data/factions';
-import type { UnitKind } from '../data/schema';
+import type { Side, UnitKind } from '../data/schema';
 import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
 import type { Battle } from '../sim';
 import type { ControlState, HudState, MinimapState, SupportButtonState, TrainButtonState } from '../ui/contracts';
+
+/** Whose unit health the player may see (the battle view's HpReveal). */
+export interface HpShownQuery {
+  shows(side: Side, x: number): boolean;
+}
 
 interface HqDot {
   x: number;
@@ -46,6 +51,7 @@ export class HudModel {
     name: '',
     hp: 0,
     maxHp: 1,
+    hpShown: true,
     reload: 1,
     hasAbility: false,
     abilityName: '',
@@ -145,8 +151,11 @@ export class HudModel {
     }
   }
 
-  /** Once per rendered frame. `camCenterX` and `camViewW` are the camera's view in wu. */
-  refresh(battle: Battle, camCenterX: number, camViewW: number): void {
+  /**
+   * Once per rendered frame. `camCenterX` and `camViewW` are the camera's view in wu. `hp` says whose unit health
+   * the player sees (without it, only the player's own side's).
+   */
+  refresh(battle: Battle, camCenterX: number, camViewW: number, hp: HpShownQuery | null = null): void {
     const s = battle.state;
     const st = this.state;
     const me = s.sides[0];
@@ -198,11 +207,11 @@ export class HudModel {
     st.enemyHqHp = ehq ? Math.max(0, ehq.hp) : null;
     st.enemyHqMaxHp = ehq ? ehq.maxHp : 1;
 
-    this.refreshControl(battle);
+    this.refreshControl(battle, hp);
     this.refreshMinimap(battle, camCenterX, camViewW);
   }
 
-  private refreshControl(battle: Battle): void {
+  private refreshControl(battle: Battle, hp: HpShownQuery | null): void {
     const st = this.state;
     const s = battle.state;
     const index = s.sides[0].controlled;
@@ -216,6 +225,8 @@ export class HudModel {
     c.name = this.unitNames[u.kind];
     c.hp = u.hp;
     c.maxHp = u.maxHp;
+    // The sim only lets the player control their own units, but an enemy unit's health would stay hidden all the same.
+    c.hpShown = hp !== null ? hp.shows(u.side, u.x) : u.side === 0;
     c.reload = u.weaponCharge;
     const second = u.mount2.weapon;
     c.hasAbility = second !== null;

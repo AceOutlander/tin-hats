@@ -1304,6 +1304,11 @@
   height: 9px;
 }
 
+/* An enemy unit's health is hidden unless revealed (src/render/hpReveal.ts). */
+.th-ctrl-card .th-hbar.is-hidden {
+  visibility: hidden;
+}
+
 .th-firerow {
   position: absolute;
   right: var(--sr);

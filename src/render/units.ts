@@ -44,6 +44,7 @@ import { lookStyle } from '../meta/looks';
 import type { BattleState, UnitState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { BloodPools, type PoolImage } from './blood';
+import { HpReveal } from './hpReveal';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE } from './sprites';
 
@@ -673,6 +674,10 @@ export class UnitViews {
   private readonly looks: (SideLooks | null)[] = [null, null];
   /** Blood pools under the bodies of soldiers killed by gunfire (the "Show blood" setting). */
   readonly blood: BloodPools;
+  /** Whose health pips are drawn (the enemy's are hidden unless revealed); the battle view hands in its own. */
+  hpReveal = new HpReveal();
+  /** Health pips drawn last frame, per side. */
+  readonly pipsDrawn: [number, number] = [0, 0];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -896,6 +901,9 @@ export class UnitViews {
       if (!u || !u.alive || u.id !== v.unitId) this.release(v);
     }
     this.drawn = 0;
+    this.pipsDrawn[0] = 0;
+    this.pipsDrawn[1] = 0;
+    this.hpReveal.update(state.time);
     const over = state.over;
     for (let i = 0; i < n; i++) {
       const u = units[i];
@@ -1071,8 +1079,10 @@ export class UnitViews {
     }
     v.fired = false;
     v.hit = false;
-    if (u.hp < u.maxHp && u.hp > 0) {
+    // Enemy health stays hidden unless revealed (src/render/hpReveal.ts); the player's own units always show theirs.
+    if (u.hp < u.maxHp && u.hp > 0 && this.hpReveal.shows(u.side, simX)) {
       v.showPips(u.hp / u.maxHp, v.y + v.sink - v.bodyH * v.s - U.pipLift * v.s);
+      this.pipsDrawn[u.side]++;
     } else {
       v.hidePips();
     }
