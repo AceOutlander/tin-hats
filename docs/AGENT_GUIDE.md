@@ -57,6 +57,13 @@ Do not edit files outside the paths you were given, except to add a line to the 
 - Content must be original. No swastikas, SS runes or other Nazi party symbols in art, text or UI; the German flag is the plain Balkenkreuz (straight-armed black cross, white outline).
 - Tests: never weaken, skip or delete a test to get a green run. Fix the code, or fix a test that is genuinely wrong and say so. Never report something as working unless you ran it and saw it pass.
 
+## Art rule: lines across the battlefield are drawn end-on
+
+The game is a side view. Every obstacle or fortification that forms a line across the battlefield (barbed wire,
+trenches, tank traps, sandbag walls, anything built in the prep phase) must be drawn end-on: a narrow cross-section
+standing on, or cut into, the ground line. Never draw one as a long strip lying along the ground as if seen from above.
+Check new art against this rule before committing it (owner, 2026-11-08).
+
 ## Looking at your work
 
 Visual work must be looked at, not assumed. Take screenshots with `tools/shot.ts` into `docs/screenshots/` (or the scratch

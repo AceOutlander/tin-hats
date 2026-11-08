@@ -14,7 +14,7 @@ commit 771aaf2, live 2026-11-08 10:14). Its skipped checks were run with the blo
 audio and smoke browser specs 18/18 (after adding the battleMusic hook to the smoke test's list of debug hooks).
 
 Done and live: **minor blood** with a Show blood setting (commit c737d59, live 2026-11-08 10:58).
-Next: job 1 (hide enemy unit HP), then the remaining foundation jobs
+Next: job 1 (hide enemy unit HP), then the small **barbed wire end-on** job (spec below), then the remaining foundation jobs
 in order (2 admin panel, 3 Money, 5 passives, 6 prep phase, 7 new units, 9 difficulty overhaul, 10 medals; 4 is done),
 which go live as they finish. Then **Stalingrad** (owner, 2026-11-08): the Part 1 foundations plus the Soviet Stalingrad
 campaign, built on the git branch `stalingrad` (or kept fully hidden) so other updates can still be published. It stays
@@ -62,6 +62,21 @@ How these decisions fit together (for the implementers):
   the African campaign.
 
 The owner's specs follow, verbatim.
+
+## Barbed wire drawn end-on (small job, right after hiding enemy HP)
+
+"Small job, right after the current one: the barbed wire is drawn wrong, same problem as the trenches. It shows as long horizontal strips lying along the ground, as if seen from above.
+
+Fix:
+- A barbed wire obstacle runs across the battlefield, into the screen, so draw it end-on: a short, tall cross-section of coiled concertina wire on two or three crossed wooden posts. It's narrow left to right and about waist to chest high on a soldier, standing up from the ground line.
+- Infantry visibly slow down and struggle through it, as the slow effect already works. Tanks crush it flat. Gameplay values stay the same.
+
+General art rule (add to docs/AGENT_GUIDE.md and apply it now): the game is a side view, and every obstacle or fortification that forms a line across the battlefield (wire, trenches, tank traps, sandbag walls, anything built in the prep phase) must be drawn end-on, as a narrow cross-section standing on or cut into the ground line, never as a long strip lying along the ground. Check every existing obstacle against this rule and fix any that break it.
+
+Run the related checks, push to live, and send me a screenshot of the new wire next to a soldier."
+
+Note: the art rule is already in docs/AGENT_GUIDE.md (added 2026-11-08). The trench art pass (job 12) follows the same
+rule.
 
 ## Minor blood (done and live, commit c737d59)
 
