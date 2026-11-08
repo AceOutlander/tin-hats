@@ -5,6 +5,9 @@
 import type { BattleTrackDef } from '../musicBattle';
 import type { BattleTrackName } from '../schema';
 import { ARRAS } from './arras';
+import { DUNKIRK } from './dunkirk';
+import { CRUSADER } from './crusader';
+import { ALAMEIN } from './alamein';
 import { CASSINO } from './cassino';
 import { PRIMOSOLE } from './primosole';
 import { SWORD } from './sword';
@@ -16,6 +19,9 @@ export type { BattleTrackName };
 
 export const BATTLE_TRACKS: Record<BattleTrackName, BattleTrackDef> = {
   arras: ARRAS,
+  dunkirk: DUNKIRK,
+  crusader: CRUSADER,
+  alamein: ALAMEIN,
   primosole: PRIMOSOLE,
   cassino: CASSINO,
   sword: SWORD,

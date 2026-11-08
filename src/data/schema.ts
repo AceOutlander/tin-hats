@@ -562,7 +562,7 @@ export interface MissionAiPlan {
  * The battle music tracks (src/data/musicTracks/index.ts registers one definition for each name). A new mission
  * track adds its name here and its file there.
  */
-export type BattleTrackName = 'arras' | 'hill112' | 'arnhem' | 'reichswald' | 'primosole' | 'cassino' | 'sword';
+export type BattleTrackName = 'arras' | 'dunkirk' | 'crusader' | 'alamein' | 'hill112' | 'arnhem' | 'reichswald' | 'primosole' | 'cassino' | 'sword';
 
 export interface MissionDef {
   id: number;
