@@ -332,7 +332,9 @@ interface BuildingDef {
 - **Target class `infantryBuilding`** is a new damage matrix column. Starting values: bullet 0.15 (pillbox-like, as
   the spec asks), explosive 0.7, antiTank 0.5, fire (job 7's flamethrower) 1.8 with flush-out (occupants hit by fire
   leave the building). Grenades and mortars rank buildings with men in them like trenches (`dugIn: 'prefer'`).
-- **Floors**: men on floor 2 and up get `range x 1.08` and are drawn in upper windows. When building hp falls below
+- **Floors**: men on floor 2 and up get `range x 1.08` and are drawn in upper windows. Anti-tank weapons fired
+  from the top floor of a building of 3 or more floors get `config.topFloorVsVehicles` (1.3), firing down onto thin
+  roof armour (Pavlov's House). When building hp falls below
   `(floors - n) / floors`, the top remaining floor collapses: its occupants take explosive damage and drop to the floor
   below if there is room, otherwise they are pushed out into the street.
 - **At 0 hp** the building becomes rubble: the occupants are expelled, and the ground across its width becomes
@@ -423,6 +425,37 @@ interface MinefieldDef {
 - **Snow**: theatres gain a `winter` variant (palette whitened, snow on roofs and trees, snowfall particles, breath puffs
   on figures). Ground types `snow` and `deepSnow` do the rest.
 
+### 4.8 Small additions the campaign documents use
+
+All of these are data plus small, contained rules:
+
+- **Pillbox weapon and look**: `PillboxDef.weapon` (default `pillboxGun`; also `casemate88`, `fieldGun`,
+  `fieldGunDirect`, or `null` for gunless casemates such as Merville's) and `PillboxDef.look` (`pillbox`, `casemate`,
+  `cupola`, `tobruk`, `gunPit`, `barricade`, `fort`). Per-pillbox damage multipliers (`bulletMul`, `explosiveMul`,
+  `antiTankMul`) cover the Hillman cupolas.
+- **Dormant structures**: a pillbox with `owner -1` that a `setOwner` event activates (Gold's bypassed pillbox).
+- **Sapper jobs** (on job 6's job system):
+  - Build (prep);
+  - Clear (mines, felled-tree road blocks, rubble lanes);
+  - Breach (a Bangalore: removes wire in 6 s, or clears a 60 wu lane in a minefield);
+  - Demolish (a satchel charge on a pillbox or building: heavy explosive damage after 8 s at the target).
+  Rates are in data; the AI may use them.
+- **Road blocks**: a wire-like structure that also blocks vehicles until cleared.
+- **Ditches and causeways**: an anti-tank ditch is a short vehicle barrier with crossing points (Kursk, Prokhorovka).
+  A causeway is a road strip through marsh that vehicles may use.
+- **Shallow trenches**: `TrenchDef.cover` (default 1.0; 0.5 for limestone scrapes at Sidi Rezegh). A sector's
+  `digMul` slows prep building (rock x2).
+- **Mission-only kinds**: units that are never trainable or bought, placed by data and loans. Examples: Churchill
+  AVRE (`avrePetard`, a short-range demolition gun against fortifications and buildings), Sherman Crab (`avreFlail`,
+  clears mines as it drives). They follow the same rules as the boss tank today.
+- **Unit tags**: `skis`, `veteran`, `loaned`, `flag` (carries the objective flag; if all carriers die the next
+  spawned riflemen carry it).
+- **Free scripted call-ins**: `barrage` and `airRaid` events with side 0 give the player historical bombardments
+  (Uranus, Ring, Goodwood). They obey the same damage rules, with `hqDamageMul` kept.
+- **Naval bombardment range**: `MissionDef.navalRange` (wu from the left edge) limits the British signature call-in.
+- **Time-of-day bands**: the night visibility factor can be overridden per mission (`nightVisibility`; the full moon at
+  Alamein is 0.8).
+
 ## 5. Nations as data
 
 ### 5.1 From factions to nations
@@ -433,7 +466,7 @@ troops on one side.
 
 ```ts
 type NationId = 'british' | 'german' | 'soviet' | 'italian' | 'vichy' | 'romanian'
-  | 'eastAfrican' | 'westAfrican' | 'southAfrican' | 'ethiopian' | 'congolese' | 'chadian';
+  | 'eastAfrican' | 'westAfrican' | 'southAfrican' | 'ethiopian' | 'sudanese' | 'congolese' | 'chadian';
 
 interface NationDef {
   id: NationId;
@@ -473,6 +506,12 @@ interface NationEraDef {
   merge over the nation's defaults.
 - **Per-kind nation**: `SideStart.nation` (the default) plus `rosterNation?: Partial<Record<UnitKind, NationId>>`
   (for example, in the African campaign, `lightTank: 'southAfrican'`) and `ForceDef.nation?`.
+- **Per-force look and tags**: `ForceDef.look?` picks a variant inside the era (a `stug3b` instead of the era's
+  Panzer, a `kv2` among `kv1`s), and `ForceDef.tags?` adds unit tags that the rules read: `skis` (ignores deep snow),
+  `veteran` (the King Tiger escort, if job 7 does not make it a kind), `loaned`. A look override must still pass the
+  equipment test.
+- **Mission roster overrides**: `MissionDef.lookOverrides?: Partial<Record<UnitKind, VehicleLookId>>` per side sets
+  the era's default vehicle for a mission (Cromwells at Villers-Bocage, Churchills in Epsom, Shermans elsewhere).
 - **Look ids are strings** resolved through registries in `src/art` (`HEADGEAR`, `VEHICLES`, `FLAGS`, `AIRCRAFT`).
   The boot atlas keeps only the UI and title art. Each battle rasterises the limb, headgear and vehicle sprites for the
   nations and eras present into its own atlas page (two at most), freed when the battle ends (risk 5).
@@ -545,6 +584,7 @@ interface MedalTargets {
   targetMinutes?: number;              // timed: sim minutes from the end of the first prep to victory
   targetCasualties: number;            // own casualties, counted as population lost (rifleman 1, LMG team 2, tank 5)
   hqHealthWeight?: number;             // fixed: share of the score from HQ health at the end (default 0.3)
+  structureWeight?: { ref: StructureRef; weight: number };  // fixed: a defended building's health also counts
 }
 ```
 
