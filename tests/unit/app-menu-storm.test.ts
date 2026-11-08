@@ -72,7 +72,8 @@ describe('the title storm in the app', () => {
     expect(audio.bedOn).toBe(true);
   });
 
-  it('plays the menu theme with the storm: on the title and behind Settings from it, off anywhere else', () => {
+  // The owner added the campaign map track (2026-11): the map now plays its own music instead of silence.
+  it('plays the menu theme with the storm: on the title and behind Settings from it, the map track on the map, none in battle', () => {
     const { app, audio } = makeApp();
     expect(audio.music).toBe(null);
     app.onScreen('title');
@@ -81,7 +82,7 @@ describe('the title storm in the app', () => {
     expect(audio.music).toBe('menu');
     app.onScreen('title');
     app.onScreen('campaign');
-    expect(audio.music).toBe(null);
+    expect(audio.music).toBe('map');
     app.onScreen('title');
     expect(audio.music).toBe('menu');
     app.startMission(1, 'normal');

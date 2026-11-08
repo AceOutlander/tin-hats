@@ -48,6 +48,7 @@ function recorder(): { audio: SfxAudio; played: Played[] } {
   const audio: SfxAudio = {
     play: (name, opts) => void played.push({ name, x: null, opts }),
     playAt: (name, x, opts) => void played.push({ name, x, opts }),
+    endBattleMusic: () => false,
   };
   return { audio, played };
 }
@@ -65,6 +66,22 @@ describe('the sounds the app plays for events', () => {
     playEventSound(audio, ev('battleEnded', { side: 1 }), 0);
     playEventSound(audio, ev('battleEnded', { side: -1 }), 0);
     expect(played.map((p) => p.name)).toEqual(['victorySting', 'defeatSting', 'defeatSting']);
+  });
+
+  it('leaves the sting to the battle music when the music has one ready', () => {
+    const { audio, played } = recorder();
+    const ends: [boolean, boolean][] = [];
+    audio.endBattleMusic = (won, sting) => {
+      ends.push([won, sting]);
+      return true;
+    };
+    playEventSound(audio, ev('battleEnded', { side: 0 }), 0);
+    playEventSound(audio, ev('battleEnded', { side: 1 }), 0);
+    expect(played).toEqual([]);
+    expect(ends).toEqual([
+      [true, true],
+      [false, true],
+    ]);
   });
 
   it('sounds a trench taken where it is, lower and quieter when the enemy takes it', () => {

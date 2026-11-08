@@ -101,4 +101,6 @@ export const M01: MissionDef = {
     firstAttackAfter: 105,
   },
   expectedMinutes: [3, 4],
+  /* Urgent and uncertain, France 1940, on the British campaign theme. */
+  music: 'arras',
 };

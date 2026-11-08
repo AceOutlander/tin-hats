@@ -31,8 +31,12 @@ import {
   type SoundDef,
 } from '../data/sounds';
 import { MUSIC, MUSIC_TRACKS, type MusicTrackName } from '../data/music';
-import { makeClipCurve } from './dsp';
+import { MUSIC_BATTLE, type BattleTrackDef, type MusicLayer } from '../data/musicBattle';
+import { BATTLE_TRACKS, type BattleTrackName } from '../data/musicTracks';
+import { makeClipCurve, seededRandom } from './dsp';
 import { MusicPlayer, renderTrack, type RenderedTrack } from './music';
+import { battlePieces, renderBattlePiece, trackBytes, type BattlePiece, type RenderedPiece } from './music/battle';
+import { BattleMusicPlayer, type BattlePlayerStats } from './music/battlePlayer';
 import { findOfflineContext, renderSound } from './render';
 import { buildThunder, RainBed } from './storm';
 import { buildLoop, buildOneShot, createNoiseBank, type NoiseBank } from './synth';
@@ -84,6 +88,8 @@ export interface MixStats {
 export interface MusicStats {
   /** The track asked for, or null. */
   wanted: string | null;
+  /** The track playing now, or null (null as soon as it is stopped, while its fade-out finishes). */
+  current: string | null;
   /** 'idle' (never asked), 'rendering', 'ready', 'failed' or 'unavailable' (no OfflineAudioContext). */
   render: string;
   /** True while a source is looping on the Music bus. */
@@ -101,11 +107,41 @@ export interface MusicStats {
   buildMs: number;
 }
 
+/** The battle music's state, for the debug hooks and the tests (the same object every time). */
+export interface BattleMusicStats {
+  /** The track asked for, or null. */
+  track: BattleTrackName | null;
+  /** 'idle', 'waiting' (the render starts shortly after the battle loads), 'rendering', 'ready', 'failed' or 'unavailable'. */
+  state: string;
+  piecesReady: number;
+  piecesTotal: number;
+  /** Bytes of samples held now, and what the whole track will hold. */
+  bytes: number;
+  budgetBytes: number;
+  /** Wall-clock ms from the first piece to the last, and to the first piece being ready. */
+  renderMs: number;
+  firstMs: number;
+  /** The longest main-thread graph build of one piece and all of them together (ms). */
+  buildMs: number;
+  buildMsTotal: number;
+  /** Loudest sample of any piece, and the rate they were rendered at. */
+  peak: number;
+  sampleRate: number;
+  /** Tracks prepared and released since the engine was made. */
+  prepared: number;
+  released: number;
+  player: Readonly<BattlePlayerStats> | null;
+}
+
 export interface AudioOptions {
   /** Start muted (the app passes its saved setting). */
   muted?: boolean;
   /** Renders a music track (tests inject one; default: renderTrack on the browser's OfflineAudioContext). */
   renderMusic?: (name: MusicTrackName) => Promise<RenderedTrack>;
+  /** Renders one piece of a battle track (tests inject one; default: renderBattlePiece on the browser's OfflineAudioContext). */
+  renderPiece?: (def: BattleTrackDef, piece: BattlePiece, rate: number) => Promise<RenderedPiece>;
+  /** Waits between battle-music pieces (tests make it instant; default: a timer). */
+  wait?: (ms: number) => Promise<void>;
   /** Random source in 0..1 for pitch spread and variations. Default Math.random. */
   random?: () => number;
   /** Use this context instead of creating one on unlock(). For tests and offline rendering. */
@@ -157,6 +193,24 @@ export interface GameAudio {
   musicStats(): Readonly<MusicStats>;
   /** A rendered track (debug hooks, the preview page and the tests), or null until it is ready. */
   musicTrack(name: MusicTrackName): RenderedTrack | null;
+  /** Let go of a looping track's buffer (fading it out first if it plays); asked for again, it is rendered again. */
+  releaseMusic(name: MusicTrackName): void;
+  /**
+   * Start rendering a battle track in the background, a piece at a time, a moment after the battle loads (any earlier
+   * battle music is released first). Its build layer fades in as soon as the first section is ready.
+   */
+  prepareBattleMusic(name: BattleTrackName): void;
+  /** The layer the battle asks for; it crossfades on the next bar line. */
+  setBattleLayer(layer: MusicLayer): void;
+  /** Keep the battle music's sections coming; call every frame (it does work only near a section's end). */
+  tickBattleMusic(): void;
+  /** The battle ended: the layers fade out under the sting (if `sting`). True when a battle-music sting started. */
+  endBattleMusic(won: boolean, sting: boolean): boolean;
+  /** Fade the battle music out and free its buffers. */
+  releaseBattleMusic(): void;
+  battleMusicStats(): Readonly<BattleMusicStats>;
+  /** The battle music player (debug hooks and the preview page), or null. */
+  battleMusic(): BattleMusicPlayer | null;
   /** Freeze all sound (pause, tab hidden). One-shots requested while suspended are discarded. */
   suspend(): void;
   resume(): void;
@@ -171,6 +225,14 @@ type ContextCtor = new () => AudioContext;
 function findContext(): ContextCtor | null {
   const scope = globalThis as unknown as { AudioContext?: ContextCtor; webkitAudioContext?: ContextCtor };
   return scope.AudioContext ?? scope.webkitAudioContext ?? null;
+}
+
+function now(): number {
+  return typeof performance !== 'undefined' ? performance.now() : 0;
+}
+
+function timer(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function ignore(): void {
@@ -251,7 +313,29 @@ class AudioEngine implements GameAudio {
   private readonly renders = new Map<MusicTrackName, string>();
   private readonly renderMusic: ((name: MusicTrackName) => Promise<RenderedTrack>) | null;
   private musicWanted: MusicTrackName | null = null;
-  private readonly musicOut: MusicStats = { wanted: null, render: 'idle', playing: false, fade: 0, level: 0, seconds: 0, sampleRate: 0, channels: 0, bytes: 0, renderMs: 0, buildMs: 0 };
+  private readonly musicOut: MusicStats = { wanted: null, current: null, render: 'idle', playing: false, fade: 0, level: 0, seconds: 0, sampleRate: 0, channels: 0, bytes: 0, renderMs: 0, buildMs: 0 };
+  private readonly renderPiece: ((def: BattleTrackDef, piece: BattlePiece, rate: number) => Promise<RenderedPiece>) | null;
+  private readonly wait: (ms: number) => Promise<void>;
+  private battle: BattleMusicPlayer | null = null;
+  private battleGen = 0;
+  private battleLayer: MusicLayer = 'build';
+  private readonly battleOut: BattleMusicStats = {
+    track: null,
+    state: 'idle',
+    piecesReady: 0,
+    piecesTotal: 0,
+    bytes: 0,
+    budgetBytes: 0,
+    renderMs: 0,
+    firstMs: 0,
+    buildMs: 0,
+    buildMsTotal: 0,
+    peak: 0,
+    sampleRate: 0,
+    prepared: 0,
+    released: 0,
+    player: null,
+  };
 
   private readonly rng: () => number;
   private readonly bank: NoiseBank = createNoiseBank();
@@ -283,6 +367,8 @@ class AudioEngine implements GameAudio {
     this.muted = options.muted === true;
     this.rng = options.random ?? Math.random;
     this.renderMusic = options.renderMusic ?? null;
+    this.renderPiece = options.renderPiece ?? null;
+    this.wait = options.wait ?? timer;
     this.contextCtor = options.context ? null : findContext();
     for (const name of ONE_SHOT_NAMES) {
       const def: SoundDef = SOUNDS[name];
@@ -503,13 +589,15 @@ class AudioEngine implements GameAudio {
     }
     pending.then(
       (track) => {
+        // Let go of meanwhile (releaseMusic): the buffer is dropped.
+        if (this.renders.get(name) !== 'rendering') return;
         this.tracks.set(name, track);
         this.renders.set(name, 'ready');
         this.applyMusic();
       },
       () => {
         // No music on this device: everything else carries on.
-        this.renders.set(name, 'failed');
+        if (this.renders.get(name) === 'rendering') this.renders.set(name, 'failed');
       },
     );
   }
@@ -546,6 +634,7 @@ class AudioEngine implements GameAudio {
     const name = this.musicWanted ?? (this.music.current as MusicTrackName | null);
     const track = name ? this.tracks.get(name) : undefined;
     m.wanted = this.musicWanted;
+    m.current = this.music.current;
     m.render = name ? (this.renders.get(name) ?? 'idle') : 'idle';
     m.playing = this.music.playing;
     m.fade = this.music.fade();
@@ -561,6 +650,145 @@ class AudioEngine implements GameAudio {
 
   musicTrack(name: MusicTrackName): RenderedTrack | null {
     return this.tracks.get(name) ?? null;
+  }
+
+  releaseMusic(name: MusicTrackName): void {
+    if (this.musicWanted === name) this.stopMusic();
+    else if (this.music.current === name && this.ctx) {
+      const live = this.live;
+      this.music.stop(this.ctx, live !== null && live.state !== 'running');
+    }
+    this.tracks.delete(name);
+    this.renders.delete(name);
+  }
+
+  // --- battle music ------------------------------------------------------------
+
+  prepareBattleMusic(name: BattleTrackName): void {
+    const same = this.battle;
+    if (same && this.battleOut.track === name && this.battleOut.state !== 'failed') {
+      // The same track again (a restart): keep what is rendered, start from the top.
+      same.restart();
+      same.setTarget(this.battleLayer);
+      return;
+    }
+    this.releaseBattleMusic();
+    const def = BATTLE_TRACKS[name];
+    const gen = ++this.battleGen;
+    const player = new BattleMusicPlayer(def, seededRandom(Math.floor(this.rng() * 0x7fffffff)));
+    this.battle = player;
+    if (this.ctx && this.musicBus) player.attach(this.ctx, this.musicBus);
+    player.setTarget(this.battleLayer);
+    const b = this.battleOut;
+    b.track = name;
+    b.state = 'waiting';
+    b.piecesReady = 0;
+    b.piecesTotal = battlePieces(def).length;
+    b.bytes = 0;
+    b.budgetBytes = trackBytes(def);
+    b.renderMs = 0;
+    b.firstMs = 0;
+    b.buildMs = 0;
+    b.buildMsTotal = 0;
+    b.peak = 0;
+    b.sampleRate = 0;
+    b.prepared++;
+    const Offline = findOfflineContext();
+    const render = this.renderPiece ?? (Offline ? (d: BattleTrackDef, p: BattlePiece, rate: number) => renderBattlePiece(d, p, Offline, rate, now, this.bank) : null);
+    if (!render) {
+      b.state = 'unavailable';
+      return;
+    }
+    void this.renderBattle(gen, def, player, render);
+  }
+
+  /** Render the pieces one at a time, a short wait between them; anything that arrives after a release is dropped. */
+  private async renderBattle(gen: number, def: BattleTrackDef, player: BattleMusicPlayer, render: (d: BattleTrackDef, p: BattlePiece, rate: number) => Promise<RenderedPiece>): Promise<void> {
+    const R = MUSIC_BATTLE.render;
+    const b = this.battleOut;
+    await this.wait(R.startDelayMs);
+    if (gen !== this.battleGen) return;
+    b.state = 'rendering';
+    const started = now();
+    let rate: number = R.sampleRate;
+    for (const piece of battlePieces(def)) {
+      let done: RenderedPiece | null = null;
+      for (let attempt = 0; attempt < 2 && !done; attempt++) {
+        try {
+          done = await render(def, piece, rate);
+        } catch {
+          // A browser that will not render at this rate gets one more try at the fallback rate, on the first piece.
+          if (attempt > 0 || b.piecesReady > 0 || rate === R.fallbackRate) break;
+          rate = R.fallbackRate;
+        }
+      }
+      if (gen !== this.battleGen) return;
+      if (!done) {
+        b.state = 'failed';
+        return;
+      }
+      player.add(piece, done.buffer);
+      b.piecesReady++;
+      b.sampleRate = done.buffer.sampleRate;
+      b.bytes = player.bytes();
+      b.buildMs = Math.max(b.buildMs, done.buildMs);
+      b.buildMsTotal += done.buildMs;
+      b.peak = Math.max(b.peak, done.peak);
+      if (b.piecesReady === 1) b.firstMs = now() - started;
+      player.tick();
+      await this.wait(R.gapMs);
+      if (gen !== this.battleGen) return;
+    }
+    b.renderMs = now() - started;
+    b.state = 'ready';
+  }
+
+  setBattleLayer(layer: MusicLayer): void {
+    this.battleLayer = layer;
+    this.battle?.setTarget(layer);
+  }
+
+  tickBattleMusic(): void {
+    this.battle?.tick();
+  }
+
+  endBattleMusic(won: boolean, sting: boolean): boolean {
+    const player = this.battle;
+    if (!player) return false;
+    return player.end(won, sting);
+  }
+
+  releaseBattleMusic(): void {
+    this.battleGen++;
+    this.battleLayer = 'build';
+    const player = this.battle;
+    this.battle = null;
+    const b = this.battleOut;
+    b.track = null;
+    b.state = 'idle';
+    b.bytes = 0;
+    b.piecesReady = 0;
+    if (!player) return;
+    b.released++;
+    const live = this.live;
+    const frozen = live !== null && live.state !== 'running';
+    const fade = frozen ? 0 : MUSIC_BATTLE.player.fadeOut;
+    player.stop(fade);
+    // The buffers go now; the nodes once the fade is over.
+    player.dropBuffers();
+    setTimeout(() => player.release(), fade * 1000 + 250);
+  }
+
+  battleMusicStats(): Readonly<BattleMusicStats> {
+    const b = this.battleOut;
+    const p = this.battle;
+    b.player = p ? p.stats() : null;
+    if (p) b.bytes = p.bytes();
+    return b;
+  }
+
+  battleMusic(): BattleMusicPlayer | null {
+    return this.battle;
   }
 
   /** RMS of the engine's output; the analyser is only made the first time something asks. */
@@ -705,6 +933,7 @@ class AudioEngine implements GameAudio {
     }
     if (this.bedWanted) this.makeBed();
     this.applyMusic();
+    this.battle?.attach(ctx, musicBus);
   }
 
   /** Renders every one-shot (and its variants) one after another, most-used sounds first as listed in the data. */

@@ -152,11 +152,12 @@ test.describe('menu music', () => {
     await expect(arrived(page, 'title')).toBeVisible();
     await tap(page, 'play');
     await expect(arrived(page, 'campaign')).toBeVisible();
-    expect((await stats(page)).wanted).toBe(null);
-    await expect.poll(async () => (await stats(page)).playing, { timeout: 5000 }).toBe(false);
+    // The campaign map has its own track now (the owner's request, 2026-11): the menu theme gives way to it.
+    expect((await stats(page)).wanted).toBe('map');
+    await expect.poll(async () => (await stats(page)).current, { timeout: 5000 }).not.toBe('menu');
     await tapIn(page, 'campaign', 'back');
     await expect(arrived(page, 'title')).toBeVisible();
-    await expect.poll(async () => (await stats(page)).playing, { timeout: 5000 }).toBe(true);
+    await expect.poll(async () => (await stats(page)).current, { timeout: 5000 }).toBe('menu');
     await expect.poll(async () => (await stats(page)).fade, { timeout: (MUSIC.player.fadeIn + 3) * 1000 }).toBeGreaterThan(0.98);
   });
 });

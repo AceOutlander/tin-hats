@@ -11,6 +11,8 @@ import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MISSIONS } from '../data/missions';
+import type { MusicTrackName } from '../data/music';
+import type { MusicLayer } from '../data/musicBattle';
 import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
@@ -35,8 +37,13 @@ import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsVie
 import { buildCampaignView, buildResult } from './campaignView';
 import { GameLoop } from './loop';
 import { MenuStormDirector } from './menuStorm';
+import { MusicIntensity } from './musicIntensity';
 import { BattleSession } from './session';
 import { TipMemory, Tutorial } from './tutorial';
+
+/** The campaign map track, and the screens it plays on (and behind Settings opened from one of them). */
+export const MAP_MUSIC: MusicTrackName = 'map';
+const MAP_SCREENS: readonly ScreenId[] = ['campaign', 'briefing', 'quartermaster'];
 
 export interface AppDeps {
   view: BattleView;
@@ -75,6 +82,10 @@ export class App implements AppApi {
   readonly tips: TipMemory;
   /** The title screen's storm. */
   readonly storm: MenuStormDirector;
+  /** Picks the battle-music layer from the battle (null outside a battle). */
+  musicIntensity: MusicIntensity | null = null;
+  /** The campaign map track is on. */
+  private mapMusic = false;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
   private readonly storage: StorageLike | null;
@@ -139,8 +150,20 @@ export class App implements AppApi {
    */
   onScreen(screen: ScreenId): void {
     if (screen !== 'battle' && screen !== 'result') this.endSession();
+    // The campaign map track: on the map, the briefing and the Quartermaster (and behind Settings from them).
+    const map = MAP_SCREENS.includes(screen) || (screen === 'settings' && this.mapMusic);
+    if (!map && this.mapMusic) {
+      this.mapMusic = false;
+      this.audio.stopMusic();
+    }
     if (screen === 'title') this.storm.start();
     else if (!(screen === 'settings' && this.storm.running)) this.storm.stop();
+    if (map && !this.mapMusic) {
+      this.mapMusic = true;
+      // Rendered the first time the map opens (and again after a battle, which lets go of it).
+      this.audio.prepareMusic(MAP_MUSIC);
+      this.audio.startMusic(MAP_MUSIC);
+    }
   }
 
   get currentUi(): UiApi | null {
@@ -166,7 +189,9 @@ export class App implements AppApi {
   }
 
   private launch(mission: MissionDef, difficulty: Difficulty, seed: number): void {
-    this.endSession();
+    // A restart of the same mission keeps its rendered music and starts it again from the top.
+    const sameMusic = this.session !== null && this.session.mission.music === mission.music;
+    this.endSession(sameMusic);
     const campaign = this.missions.some((m) => m.id === mission.id);
     // The map opens on the mission last played (the sandbox grounds are not part of the campaign).
     if (campaign && this.save.lastMission !== mission.id) {
@@ -197,16 +222,23 @@ export class App implements AppApi {
     this.loop.reset();
     // A new battle always starts at normal speed; only the debug hooks change it.
     this.loop.timeScale = 1;
+    // The battle music: the map track lets go of its buffer, and the mission's track renders in the background.
+    this.audio.releaseMusic(MAP_MUSIC);
+    this.musicIntensity = new MusicIntensity();
+    this.audio.setBattleLayer('build');
+    this.audio.prepareBattleMusic(mission.music);
     this.audio.resume();
     this.ui?.show('battle', { missionId: mission.id });
   }
 
-  /** Throw the current battle away without recording anything. */
-  endSession(): void {
+  /** Throw the current battle away without recording anything; its music is let go of too, unless `keepMusic`. */
+  endSession(keepMusic = false): void {
     if (this.session) {
       this.session.stopInputs();
       this.view.detach();
       this.session = null;
+      this.musicIntensity = null;
+      if (!keepMusic) this.audio.releaseBattleMusic();
     }
     this.pendingResult = null;
     if (this.loop.paused) {
@@ -230,6 +262,8 @@ export class App implements AppApi {
       points = recordClear(this.save, mission.id, session.difficulty).pointsAwarded;
       this.persist();
     }
+    // The sting was played with the battleEnded event if sound was on; either way the layers fade out now.
+    this.audio.endBattleMusic(session.battle.state.winner === 0, false);
     const ids = this.missions.map((m) => m.id);
     this.pendingResult = buildResult(session.battle, session.difficulty, points, nextMissionId(ids, mission.id));
     this.lastResult = this.pendingResult;
@@ -253,6 +287,9 @@ export class App implements AppApi {
     }
     this.view.render(alpha, dt);
     this.audio.setListener(this.view.camera.centerX, this.view.camera.viewWidthWu);
+    const intensity = this.musicIntensity;
+    if (intensity && !this.session.battle.state.over) this.audio.setBattleLayer(intensity.update(this.session.battle.state));
+    this.audio.tickBattleMusic();
   }
 
   private updateHud(): void {
@@ -260,6 +297,19 @@ export class App implements AppApi {
     if (!session) return;
     const state = session.fill(this.loop.paused, this.save.settings.muted);
     if (this.ui && this.ui.current() === 'battle') this.ui.updateHud(state);
+  }
+
+  /** The prep phase of a defensive mission (a later job adds it): the music's prep layer while it lasts. */
+  setPrepPhase(on: boolean): void {
+    this.musicIntensity?.setPrep(on);
+  }
+
+  /** Debug: hold the battle music on a layer (null hands it back to the battle). */
+  forceMusicLayer(layer: MusicLayer | null): void {
+    const intensity = this.musicIntensity;
+    if (!intensity) return;
+    intensity.force(layer);
+    this.audio.setBattleLayer(intensity.layer);
   }
 
   // --- pause ---------------------------------------------------------------

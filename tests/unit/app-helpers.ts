@@ -145,6 +145,11 @@ export interface FakeAudio extends GameAudio {
   /** The music asked for (null = none), and the tracks asked to be rendered. */
   music: string | null;
   prepared: string[];
+  /** Looping tracks let go of, the battle track asked for (null once released), the layers asked for, battle ends. */
+  releasedMusic: string[];
+  battleTrack: string | null;
+  battleLayers: string[];
+  battleEnds: [boolean, boolean][];
 }
 
 export function createFakeAudio(): FakeAudio {
@@ -189,6 +194,7 @@ export function createFakeAudio(): FakeAudio {
     },
     musicStats: () => ({
       wanted: audio.music,
+      current: audio.music,
       render: 'idle',
       playing: false,
       fade: 0,
@@ -220,6 +226,45 @@ export function createFakeAudio(): FakeAudio {
     resume() {
       audio.suspended = false;
     },
+    releasedMusic: [],
+    releaseMusic(name) {
+      audio.releasedMusic.push(name);
+    },
+    battleTrack: null,
+    battleLayers: [],
+    battleEnds: [],
+    prepareBattleMusic(name) {
+      audio.battleTrack = name;
+    },
+    setBattleLayer(layer) {
+      if (audio.battleLayers[audio.battleLayers.length - 1] !== layer) audio.battleLayers.push(layer);
+    },
+    tickBattleMusic() {},
+    endBattleMusic(won, sting) {
+      audio.battleEnds.push([won, sting]);
+      return false;
+    },
+    releaseBattleMusic() {
+      audio.battleTrack = null;
+    },
+    battleMusicStats: () => ({
+      track: null,
+      state: 'idle',
+      piecesReady: 0,
+      piecesTotal: 0,
+      bytes: 0,
+      budgetBytes: 0,
+      renderMs: 0,
+      firstMs: 0,
+      buildMs: 0,
+      buildMsTotal: 0,
+      peak: 0,
+      sampleRate: 0,
+      prepared: 0,
+      released: 0,
+      player: null,
+    }),
+    battleMusic: () => null,
     whenReady: () => Promise.resolve(),
     getStats: () => ({ voices: 0, played: 0, dropped: 0, stolen: 0, rendered: 0, state: 'running' }),
   };

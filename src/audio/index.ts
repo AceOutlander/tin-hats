@@ -10,7 +10,7 @@
  *   audio.setVolume('ambience', 0.8);                   // the three sliders: music, ambience, sfx
  */
 export { createAudio } from './engine';
-export type { AudioOptions, AudioStats, GameAudio, MixStats, MusicStats, PlayAtOptions, PlayOptions } from './engine';
+export type { AudioOptions, AudioStats, BattleMusicStats, GameAudio, MixStats, MusicStats, PlayAtOptions, PlayOptions } from './engine';
 export type { RenderedTrack } from './music';
 export {
   AUDIO_BUSES,

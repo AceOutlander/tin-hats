@@ -13,13 +13,14 @@ import type { GameAudio } from '../audio';
 import { EVENT_SOUND, SFX } from '../data/sounds';
 import type { SimEvent } from '../sim';
 
-export type SfxAudio = Pick<GameAudio, 'play' | 'playAt'>;
+export type SfxAudio = Pick<GameAudio, 'play' | 'playAt' | 'endBattleMusic'>;
 
 /** Play the sound this event of the last tick deserves, if it is one of the app's. `playerSide` is the side the player commands. */
 export function playEventSound(audio: SfxAudio, e: SimEvent, playerSide: number): void {
   switch (e.type) {
     case 'battleEnded':
-      audio.play(e.side === playerSide ? 'victorySting' : 'defeatSting');
+      // The battle music's own sting when it has one ready; the catalogue sting otherwise.
+      if (!audio.endBattleMusic(e.side === playerSide, true)) audio.play(e.side === playerSide ? 'victorySting' : 'defeatSting');
       break;
     case 'trenchCaptured':
       // The same call for either side, lower and quieter when the enemy takes a trench.

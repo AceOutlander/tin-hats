@@ -38,6 +38,7 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 - **Orders per unit kind** (owner request "only bren units: hold!", DECISIONS 238): each side keeps its army order plus an optional override per unit kind (`SideState.kindOrders`); commands `{ type: 'order', order, kind }` and `{ type: 'followArmy', kind? }`; the army order never clears overrides; Fall Back per kind sends only that kind inside (sappers included); controlled units ignore orders; the AI and test bot use army orders only. HUD: an "Orders for" chip left of the order buttons opens a picker (All units plus every kind of the mission); in a kind scope the buttons light that kind's order, a Follow army button clears it, and train buttons of kinds on their own orders carry a small order badge; S cycles the scope, Escape or a press outside closes the picker. Browser spec `tests/e2e/unit-orders.spec.ts`; pictures `docs/screenshots/unit-orders-*.png`.
 
 ## In progress
+- **Battle and map music, stage 1 of 3** (owner request, DECISIONS 244 to 249, docs/MUSIC.md): reactive layered battle music engine, the British motif, the Arras track (every mission plays it until stage 2), the campaign map track, the preview page and tests. Stage 2: the other nine mission tracks; stage 3: checks and push to live.
 - Nothing is mid-flight. Paused at the usage limit (2026-11-07 evening) after publishing job 2; resume with queue job 3, the admin panel (spec in `docs/QUEUE.md`).
 
 ## Next
@@ -46,6 +47,7 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 - Final verification pass, then `docs/MORNING_REPORT.md`.
 
 ## Known issues
+- Battle music (stage 1): nobody has listened to it (only measured); the menu theme's 12.9 MB buffer stays loaded during battles, so a battle holds about 38 MB of music; render time measured only in headless Chromium (16 to 23 s for Arras, first piece under 1 s), never on a phone; the prep layer is supported but no track writes one yet and nothing calls the prep hook until the prep phase exists.
 - Upgrade looks: the level 1 fuller pouches and level 2 bandolier are subtle at phone size (arms and weapon cover the chest); the prone HQ gunner (level 0) is small and low; the old HQ sprites (`hqSpecs`) are still built into the boot atlas though battles no longer use them (remove with the art tests that name them). Not seen on a real phone.
 - Trenches (DECISIONS 237): no climb pose (men sink with the old ease), tanks keep the old lip bump at the sim width, big positions are not split into several pits, so 7 and 8 men are packed tightly into one pit; the pit interior is mostly hidden behind a full garrison; the depth rows inside the pit are only slightly staggered; the near wall leaves a faint pale halo where its ground colour meets the backdrop. Browser specs not rerun after the change.
 - Menu mix: measured through a loudness weighting and a phone speaker model, never heard on a phone. The thunder margins are only 0.3 to 0.6 dB over their targets.

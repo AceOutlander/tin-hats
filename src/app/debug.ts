@@ -3,11 +3,13 @@
  * nothing is exposed on window. The browser smoke tests drive the game
  * through window.__TH (start a mission, read a state summary, fast-forward).
  */
-import type { GameAudio, MusicStats } from '../audio';
+import { createAudio, type BattleMusicStats, type GameAudio, type MusicStats } from '../audio';
+import { measureBattleMix, type BattleMixReport, type MixedLayer } from '../audio/music/battleMix';
 import { db, measureMix, peakOf, rmsOf, seamOf, sectionTimes, type MixReport, type SeamReport } from '../audio/music';
 import { findOfflineContext } from '../audio/render';
 import { APP } from '../data/app';
-import { MUSIC_TRACKS } from '../data/music';
+import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
+import type { MusicLayer } from '../data/musicBattle';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
@@ -184,8 +186,10 @@ export interface DebugApi {
   perf(): { fps: number; stepMsAvg: number; renderMsAvg: number };
   /** The title screen's storm. */
   menuStorm: MenuStormHooks;
-  /** The menu music. */
+  /** The menu and campaign map music. */
   music: MusicHooks;
+  /** The battle music. */
+  battleMusic: BattleMusicHooks;
 }
 
 /** The rendered menu theme, measured. */
@@ -207,9 +211,32 @@ export interface MusicAnalysis {
 export interface MusicHooks {
   stats(): MusicStats;
   /** Null until the track is rendered. */
-  analyse(): MusicAnalysis | null;
+  analyse(name?: MusicTrackName): MusicAnalysis | null;
   /** The music against the rain bed and a thunder at default volumes (renders those offline); null until ready. */
   mix(): Promise<MixReport | null>;
+}
+
+/** One rendered piece of the battle music, measured. */
+export interface BattlePieceAnalysis {
+  section: string;
+  layer: string;
+  seconds: number;
+  peakDb: number;
+  rmsDb: number;
+}
+
+export interface BattleMusicHooks {
+  stats(): BattleMusicStats;
+  /** Hold the music on a layer (null hands it back to the battle), as the intensity rules would ask for it. */
+  force(layer: MusicLayer | null): void;
+  /** The prep phase hook. */
+  setPrep(on: boolean): void;
+  /** The intensity rules now: the layer asked for and the armed soldiers of each side in the fight. */
+  intensity(): { layer: MusicLayer; fighting: [number, number] } | null;
+  /** Every rendered piece measured; null without battle music. */
+  analyse(): BattlePieceAnalysis[] | null;
+  /** The army of 80 against each layer at default volumes; null until every piece is rendered. */
+  mix(): Promise<BattleMixReport | null>;
 }
 
 export interface MenuStormHooks {
@@ -530,8 +557,8 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     music: {
       stats: () => ({ ...audio.musicStats() }),
-      analyse() {
-        const track = audio.musicTrack(MENU_MUSIC);
+      analyse(name = MENU_MUSIC) {
+        const track = audio.musicTrack(name);
         if (!track) return null;
         const data = track.buffer.getChannelData(0);
         const rate = track.sampleRate;
@@ -553,7 +580,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           rms: rmsOf(data, 0, frames),
           silentShare: windows > 0 ? silent / windows : 0,
           seam: seamOf(data, frames, rate),
-          sections: sectionTimes(MUSIC_TRACKS[MENU_MUSIC]).map((s) => {
+          sections: sectionTimes(MUSIC_TRACKS[name]).map((s) => {
             const a = Math.round(s.start * rate);
             const b = Math.min(frames, Math.round(s.end * rate));
             return { name: s.name, start: s.start, rmsDb: db(rmsOf(data, a, b)), peakDb: db(peakOf(data, a, b)) };
@@ -565,6 +592,51 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         const Offline = findOfflineContext();
         if (!track || !Offline) return null;
         return measureMix(Offline, track);
+      },
+    },
+
+    battleMusic: {
+      stats: () => JSON.parse(JSON.stringify(audio.battleMusicStats())) as BattleMusicStats,
+      force: (layer) => app.forceMusicLayer(layer),
+      setPrep: (on) => app.setPrepPhase(on),
+      intensity() {
+        const i = app.musicIntensity;
+        return i ? { layer: i.layer, fighting: [i.fighting[0], i.fighting[1]] } : null;
+      },
+      analyse() {
+        const player = audio.battleMusic();
+        if (!player) return null;
+        const out: BattlePieceAnalysis[] = [];
+        const add = (section: string, layer: string, buffer: AudioBuffer | null): void => {
+          if (!buffer) return;
+          const data = buffer.getChannelData(0);
+          out.push({ section, layer, seconds: buffer.duration, peakDb: db(peakOf(data)), rmsDb: db(rmsOf(data)) });
+        };
+        player.def.sections.forEach((s, i) => {
+          for (const layer of player.layers) add(s.name, layer, player.buffer(i, layer));
+        });
+        add('sting', 'victory', player.sting('victory'));
+        add('sting', 'defeat', player.sting('defeat'));
+        return out;
+      },
+      async mix() {
+        const player = audio.battleMusic();
+        const Offline = findOfflineContext();
+        if (!player || !Offline || audio.battleMusicStats().state !== 'ready') return null;
+        const join = (layer: MixedLayer): Float32Array => {
+          const parts = player.def.sections.map((_, i) => player.buffer(i, layer)).filter((b): b is AudioBuffer => b !== null);
+          const total = parts.reduce((n, b) => n + b.length, 0);
+          const data = new Float32Array(total);
+          let at = 0;
+          for (const b of parts) {
+            data.set(b.getChannelData(0), at);
+            at += b.length;
+          }
+          return data;
+        };
+        const rate = player.buffer(0, 'build')?.sampleRate ?? 16000;
+        const stingPeak = Math.max(...(['victory', 'defeat'] as const).map((n) => { const b = player.sting(n); return b ? peakOf(b.getChannelData(0)) : 0; }));
+        return measureBattleMix(Offline, createAudio, player.def, { build: join('build'), combat: join('combat'), tense: join('tense') }, rate, stingPeak);
       },
     },
   };

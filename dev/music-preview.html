@@ -105,6 +105,24 @@
     </table>
     <h2>Mix at default volumes</h2>
     <div id="mix">Measuring...</div>
+    <h2>Battle and campaign map music</h2>
+    <p>
+      <select id="btrack"></select
+      ><button id="brender" type="button">Render</button
+      ><button id="bmap" type="button">Render and play the map track</button
+      ><button id="bstop" type="button" disabled>Stop</button>
+    </p>
+    <p id="blayers">
+      <button type="button" data-layer="build" disabled>Build</button
+      ><button type="button" data-layer="combat" disabled>Combat</button
+      ><button type="button" data-layer="tense" disabled>Tense</button
+      ><button type="button" data-layer="prep" disabled>Prep</button
+      ><button type="button" data-sting="victory" disabled>Victory sting</button
+      ><button type="button" data-sting="defeat" disabled>Defeat sting</button>
+    </p>
+    <p id="bnow"></p>
+    <div id="bout"></div>
     <script type="module" src="./music-preview.ts"></script>
+    <script type="module" src="./music-battle-preview.ts"></script>
   </body>
 </html>

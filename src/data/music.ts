@@ -9,6 +9,7 @@
  * over a dark string pad, carried by a distant muted horn and, in the third section, a soft piano, with far-off drum
  * hits at irregular times. It quotes no existing melody, call, hymn or score.
  */
+import { CAMPAIGN_MAP } from './musicMap';
 
 export type MusicInstrument = 'pad' | 'horn' | 'piano' | 'drum';
 
@@ -358,11 +359,12 @@ export const REQUIEM: TrackDef = {
   ],
 };
 
-export type MusicTrackName = 'menu';
+/** The looping tracks: the menu theme and the campaign map (battle tracks are layered: src/data/musicTracks). */
+export type MusicTrackName = 'menu' | 'map';
 
-/** The track registry: campaign-map and battle music are added here later, as data, on the same instruments. */
 export const MUSIC_TRACKS: Record<MusicTrackName, TrackDef> = {
   menu: REQUIEM,
+  map: CAMPAIGN_MAP,
 };
 
 /**

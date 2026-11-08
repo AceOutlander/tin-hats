@@ -558,6 +558,12 @@ export interface MissionAiPlan {
   firstAttackAfter: number;
 }
 
+/**
+ * The battle music tracks (src/data/musicTracks/index.ts registers one definition for each name). A new mission
+ * track adds its name here and its file there.
+ */
+export type BattleTrackName = 'arras';
+
 export interface MissionDef {
   id: number;
   key: string;
@@ -591,4 +597,6 @@ export interface MissionDef {
   bot: MissionAiPlan;
   /** Intended mission length in minutes [min, max], checked by the balance tests. */
   expectedMinutes: [number, number];
+  /** The battle music (src/data/musicTracks): the track this mission plays. */
+  music: BattleTrackName;
 }

@@ -111,6 +111,8 @@ export const SANDBOX: MissionDef = {
   ai: PLAN,
   bot: PLAN,
   expectedMinutes: [4, 30],
+  /* The proving ground plays the opening British track. */
+  music: 'arras',
 };
 
 function mirrorStart(faction: SideStart['faction'], trenchId: number): SideStart {

@@ -121,4 +121,6 @@ export const M03: MissionDef = {
     firstAttackAfter: 130,
   },
   expectedMinutes: [3.5, 6],
+  /* Its own track comes with the next music stage; until then it plays the opening British track. */
+  music: 'arras',
 };

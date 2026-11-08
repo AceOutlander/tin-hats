@@ -4,6 +4,7 @@
  * seconds and a velocity 0..1; `dest` is the instrument's bus.
  */
 import type { DrumSettings, HornSettings, PadSettings, PianoSettings, ReverbSettings } from '../../data/music';
+import type { AnvilSettings, BellSettings, BrassSettings, HandSettings, SnareSettings, StringSettings, TimpaniSettings } from '../../data/musicBattle';
 import { AUDIO } from '../../data/sounds';
 import { seededRandom } from '../dsp';
 import type { NoiseBank } from '../synth';
@@ -264,4 +265,320 @@ export function makeImpulse(ctx: BaseAudioContext, r: ReverbSettings, channels: 
     }
   }
   return impulse;
+}
+
+// --- battle instruments (settings in src/data/musicBattle.ts) ----------------------------------------------------
+
+/** A gain node with a fast attack to `peak` at `at` and an exponential fall to silence over `decay` seconds. */
+function strike(ctx: BaseAudioContext, at: number, peak: number, decay: number, attack = 0.002): GainNode {
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(Math.max(FLOOR, peak), at + attack);
+  g.gain.exponentialRampToValueAtTime(FLOOR, at + attack + Math.max(0.005, decay));
+  return g;
+}
+
+/** A looping noise source started at a random place in its table. */
+function noiseAt(ctx: BaseAudioContext, bank: NoiseBank, color: 'white' | 'pink' | 'brown', at: number, stop: number, rng: () => number): AudioBufferSourceNode {
+  const src = ctx.createBufferSource();
+  const buffer = bank.get(ctx, color);
+  src.buffer = buffer;
+  src.loop = true;
+  src.start(at, rng() * buffer.duration * 0.9);
+  stopAt(src, stop);
+  return src;
+}
+
+/** Snare: hit, ghost, flam, rim, or a roll lasting `length` seconds (crescendo from rollStart to full). */
+export function playSnare(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, vel: number, art: string, s: SnareSettings, bank: NoiseBank, rng: () => number): void {
+  const peak = s.level * vel;
+  if (art === 'rim') {
+    const end = at + s.rimDecay * 1.2;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = s.rimHz;
+    band.Q.value = 4;
+    const env = strike(ctx, at, peak * s.rimMix, s.rimDecay, 0.001);
+    noiseAt(ctx, bank, 'white', at, end, rng).connect(band);
+    band.connect(env);
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = s.rimHz * 0.5;
+    osc.connect(env);
+    osc.start(at);
+    stopAt(osc, end);
+    env.connect(dest);
+    return;
+  }
+  if (art === 'roll') {
+    // One noise source through the wires' filters; its gain is struck rollRate times a second, rising in level.
+    const end = at + length;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = s.highpassHz;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = s.lowpassHz;
+    const env = ctx.createGain();
+    const g = env.gain;
+    g.value = 0;
+    g.setValueAtTime(0, at);
+    const gap = 1 / s.rollRate;
+    const strokes = Math.max(1, Math.round(length / gap));
+    for (let k = 0; k < strokes; k++) {
+      const t = at + k * gap;
+      const share = s.rollStart + ((1 - s.rollStart) * k) / Math.max(1, strokes - 1);
+      const p = peak * s.noiseMix * share * (0.85 + 0.3 * rng());
+      g.setValueAtTime(FLOOR, t);
+      g.linearRampToValueAtTime(p, t + 0.002);
+      g.exponentialRampToValueAtTime(Math.max(FLOOR, p * 0.2), t + Math.min(gap * 0.95, s.rollDecay));
+    }
+    g.exponentialRampToValueAtTime(FLOOR, end + s.decay);
+    noiseAt(ctx, bank, 'white', at, end + s.decay, rng).connect(hp);
+    hp.connect(lp);
+    lp.connect(env);
+    env.connect(dest);
+    return;
+  }
+  if (art === 'flam') snareStroke(ctx, dest, at - s.flamGap, peak * s.flamVel, s, bank, rng);
+  snareStroke(ctx, dest, at, art === 'ghost' ? peak * s.ghost : peak, s, bank, rng);
+}
+
+function snareStroke(ctx: BaseAudioContext, dest: AudioNode, at: number, peak: number, s: SnareSettings, bank: NoiseBank, rng: () => number): void {
+  const t = Math.max(0, at);
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(s.toneHz, t);
+  osc.frequency.exponentialRampToValueAtTime(s.toneEndHz, t + 0.04);
+  const body = strike(ctx, t, peak * s.toneMix, s.toneDecay);
+  osc.connect(body);
+  body.connect(dest);
+  osc.start(t);
+  stopAt(osc, t + s.toneDecay + 0.01);
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = s.highpassHz;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = s.lowpassHz;
+  const wires = strike(ctx, t, peak * s.noiseMix, s.decay, 0.001);
+  noiseAt(ctx, bank, 'white', t, t + s.decay + 0.01, rng).connect(hp);
+  hp.connect(lp);
+  lp.connect(wires);
+  wires.connect(dest);
+}
+
+/** Timpani: a tuned stroke (its modes over a thump), or a roll of soft strokes over `length` seconds. */
+export function playTimpani(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, art: string, s: TimpaniSettings, bank: NoiseBank, rng: () => number): void {
+  if (art === 'roll') {
+    const gap = 1 / s.rollRate;
+    const strokes = Math.max(1, Math.round(length / gap));
+    for (let k = 0; k < strokes; k++) {
+      const share = 0.45 + (0.55 * k) / Math.max(1, strokes - 1);
+      timpaniStroke(ctx, dest, at + k * gap, note, vel * share * (0.85 + 0.3 * rng()), s, bank, rng, k < strokes - 1 ? 0.35 : 1);
+    }
+    return;
+  }
+  timpaniStroke(ctx, dest, at, note, vel, s, bank, rng, 1);
+}
+
+function timpaniStroke(ctx: BaseAudioContext, dest: AudioNode, at: number, note: number, vel: number, s: TimpaniSettings, bank: NoiseBank, rng: () => number, ring: number): void {
+  const f = midiHz(note);
+  const peak = s.level * vel;
+  const glide = Math.pow(2, s.glideCents / 1200);
+  for (const [ratio, level, share] of s.modes) {
+    const decay = s.decay * share * ring;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f * ratio * glide, at);
+    osc.frequency.exponentialRampToValueAtTime(f * ratio, at + s.glideTime);
+    const g = strike(ctx, at, peak * level, decay, 0.004);
+    osc.connect(g);
+    g.connect(dest);
+    osc.start(at);
+    stopAt(osc, at + decay + 0.01);
+  }
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = s.noiseCutoff;
+  const thud = strike(ctx, at, peak * s.noise, s.noiseDecay, 0.002);
+  noiseAt(ctx, bank, 'brown', at, at + s.noiseDecay + 0.01, rng).connect(lp);
+  lp.connect(thud);
+  thud.connect(dest);
+}
+
+/** Low brass: detuned sawtooths scooping up into the note, the filter blaring open on the attack; a stab is short. */
+export function playBrass(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, art: string, s: BrassSettings): void {
+  const f = midiHz(note);
+  const len = art === 'stab' ? Math.min(length, s.stab) : length;
+  const end = at + len;
+  const stop = end + s.release;
+  const peak = s.level * vel;
+  const top = s.cutoff + s.envCutoff * vel;
+  const settle = Math.max(s.cutoff, top * s.sustainShare);
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.Q.value = s.q;
+  filter.frequency.setValueAtTime(s.cutoff, at);
+  filter.frequency.exponentialRampToValueAtTime(top, at + s.attack);
+  filter.frequency.exponentialRampToValueAtTime(settle, Math.max(at + s.attack + 0.001, Math.min(end, at + s.attack + s.envDecay)));
+  filter.frequency.setValueAtTime(settle, Math.max(end, at + s.attack + 0.002));
+  filter.frequency.exponentialRampToValueAtTime(s.cutoff, stop + 0.003);
+  const env = ctx.createGain();
+  env.gain.value = 0;
+  env.gain.setValueAtTime(0, at);
+  env.gain.linearRampToValueAtTime(peak, at + s.attack);
+  env.gain.linearRampToValueAtTime(peak * (art === 'stab' ? 0.6 : 0.82), Math.max(at + s.attack + 0.001, end));
+  env.gain.exponentialRampToValueAtTime(FLOOR, stop + 0.002);
+  const voice = ctx.createGain();
+  voice.gain.value = 1 / Math.max(1, s.voices);
+  for (let v = 0; v < s.voices; v++) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = f;
+    const spread = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+    osc.detune.setValueAtTime(spread - s.scoopCents, at);
+    osc.detune.linearRampToValueAtTime(spread, at + s.scoopTime);
+    osc.connect(voice);
+    osc.start(at);
+    stopAt(osc, stop);
+  }
+  voice.connect(filter);
+  filter.connect(env);
+  env.connect(dest);
+}
+
+/** Bowed strings: a short stab, a long note, or a tremolo for the note's length. */
+export function playStrings(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, art: string, s: StringSettings, bank: NoiseBank, rng: () => number): void {
+  const f = midiHz(note);
+  const len = art === 'short' ? Math.min(length, s.short) : length;
+  const end = at + Math.max(len, s.attack + 0.01);
+  const stop = end + s.release;
+  const peak = s.level * vel;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.Q.value = s.q;
+  filter.frequency.value = s.cutoff + s.brightness * vel;
+  const env = ctx.createGain();
+  const g = env.gain;
+  g.value = 0;
+  g.setValueAtTime(0, at);
+  if (art === 'trem') {
+    const gap = 1 / s.tremRate;
+    const strokes = Math.max(1, Math.floor((end - at) / gap));
+    for (let k = 0; k < strokes; k++) {
+      const t = at + k * gap;
+      g.linearRampToValueAtTime(peak, t + gap * 0.25);
+      g.linearRampToValueAtTime(peak * (1 - s.tremDepth), t + gap * 0.95);
+    }
+    g.linearRampToValueAtTime(peak * 0.8, end);
+  } else {
+    g.linearRampToValueAtTime(peak, at + s.attack);
+    g.linearRampToValueAtTime(peak * (art === 'short' ? 0.55 : 0.9), end);
+  }
+  g.linearRampToValueAtTime(0, stop);
+  const voice = ctx.createGain();
+  voice.gain.value = 1 / Math.max(1, s.voices);
+  for (let v = 0; v < s.voices; v++) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = f;
+    osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+    osc.connect(voice);
+    osc.start(at);
+    stopAt(osc, stop);
+  }
+  voice.connect(filter);
+  if (s.bowNoise > 0) {
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = Math.min(ctx.sampleRate * 0.45, f * 4);
+    band.Q.value = 1.5;
+    const bow = ctx.createGain();
+    bow.gain.value = s.bowNoise;
+    noiseAt(ctx, bank, 'pink', at, stop, rng).connect(band);
+    band.connect(bow);
+    bow.connect(filter);
+  }
+  filter.connect(env);
+  env.connect(dest);
+}
+
+/** A hand drum: dum (deep, open) or tek (high, dry). */
+export function playHand(ctx: BaseAudioContext, dest: AudioNode, at: number, vel: number, art: string, s: HandSettings, bank: NoiseBank, rng: () => number): void {
+  const peak = s.level * vel;
+  const tek = art === 'tek';
+  const decay = tek ? s.tekDecay : s.dumDecay;
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(tek ? s.tekHz : s.dumHz, at);
+  osc.frequency.exponentialRampToValueAtTime(tek ? s.tekHz * 0.8 : s.dumEndHz, at + decay * 0.6);
+  const body = strike(ctx, at, peak, decay);
+  osc.connect(body);
+  body.connect(dest);
+  osc.start(at);
+  stopAt(osc, at + decay + 0.01);
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = Math.min(ctx.sampleRate * 0.45, tek ? s.tekHz * 3 : s.dumHz * 6);
+  band.Q.value = 1.2;
+  const slap = strike(ctx, at, peak * s.slap, tek ? 0.03 : 0.05, 0.001);
+  noiseAt(ctx, bank, 'white', at, at + 0.07, rng).connect(band);
+  band.connect(slap);
+  slap.connect(dest);
+}
+
+/** A bell: inharmonic partials ringing for their own times, with a metallic strike. */
+export function playBell(ctx: BaseAudioContext, dest: AudioNode, at: number, note: number, vel: number, s: BellSettings, bank: NoiseBank, rng: () => number): void {
+  const f = midiHz(note);
+  const peak = s.level * vel;
+  const nyquist = ctx.sampleRate / 2;
+  for (const [ratio, level, decay] of s.partials) {
+    if (f * ratio > nyquist * 0.9) continue;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = f * ratio;
+    const g = strike(ctx, at, peak * level, decay, 0.003);
+    osc.connect(g);
+    g.connect(dest);
+    osc.start(at);
+    stopAt(osc, at + decay + 0.01);
+  }
+  if (s.strike > 0) {
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = Math.min(nyquist * 0.8, f * 4);
+    band.Q.value = 3;
+    const g = strike(ctx, at, peak * s.strike, 0.05, 0.001);
+    noiseAt(ctx, bank, 'white', at, at + 0.07, rng).connect(band);
+    band.connect(g);
+    g.connect(dest);
+  }
+}
+
+/** A mechanical anvil hit: hard inharmonic metal over a clank of noise; `note` sets its pitch. */
+export function playAnvil(ctx: BaseAudioContext, dest: AudioNode, at: number, note: number, vel: number, s: AnvilSettings, bank: NoiseBank, rng: () => number): void {
+  const f = midiHz(note);
+  const peak = s.level * vel;
+  const nyquist = ctx.sampleRate / 2;
+  for (const [ratio, level] of s.partials) {
+    if (f * ratio > nyquist * 0.9) continue;
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = f * ratio;
+    const g = strike(ctx, at, (peak * level) / 3, s.decay / Math.sqrt(ratio), 0.001);
+    osc.connect(g);
+    g.connect(dest);
+    osc.start(at);
+    stopAt(osc, at + s.decay + 0.01);
+  }
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = Math.min(nyquist * 0.8, s.noiseHz);
+  band.Q.value = 2;
+  const g = strike(ctx, at, peak * s.noise, 0.06, 0.001);
+  noiseAt(ctx, bank, 'white', at, at + 0.08, rng).connect(band);
+  band.connect(g);
+  g.connect(dest);
 }
