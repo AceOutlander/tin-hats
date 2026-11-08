@@ -23,7 +23,8 @@ Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade l
 8. **Music for every mission and the campaign map** (spec below). Owner's additions: "The combat layer kicks in
    during a big battle, meaning 20 or more soldiers per side fighting close together. Not too grim, not too happy,
    exciting."
-9. **Difficulty overhaul** (spec below), with a population cap of 100 on every difficulty.
+9. **Difficulty overhaul** (spec below), with a population cap of 100 on every difficulty. Insane: same income and cap as
+   the player, made hard by a much smarter, human-like AI (owner, 2026-11-08).
 10. **Medals and the Armoury** (spec below).
 11. **Campaigns**, in this order: the Part 1 foundations from the Soviet spec first, then Soviet Stalingrad, British
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
@@ -148,12 +149,12 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 - Recruit (new, easiest): plays like the current Normal, for new players.
 - Normal: as hard as the current Insane.
 - Hard: close to realistic. Weapons are much deadlier for both sides, accuracy and cover matter more, and attacking in the open is costly.
-- Insane: near one-shot lethality. Almost any hit kills infantry for both sides, and the enemy fields armies the size of a real invasion.
-- Lethality changes apply equally to both sides, so the harder modes stay fair. Hard and Insane add more enemy troops and better setups on top of that.
+- ~~Insane: near one-shot lethality. Almost any hit kills infantry for both sides, and the enemy fields armies the size of a real invasion.~~ (superseded 2026-11-08, see "Insane: same income" below)
+- Lethality changes apply equally to both sides, so the harder modes stay fair. ~~Hard and Insane add more enemy troops and better setups on top of that.~~ (For Insane, superseded 2026-11-08: same income and cap as the player, smarter AI instead.)
 ## Army size
-- ~~The population cap becomes 150 on Recruit, Normal and Hard, and 175 on Insane, for both sides.~~ **Superseded by the owner (2026-11-08): the population cap is 100 for both sides on every difficulty, permanently.** Insane gets its "real invasion" feel from setups, waves and the non-simulated background armies, not a higher cap.
+- ~~The population cap becomes 150 on Recruit, Normal and Hard, and 175 on Insane, for both sides.~~ **Superseded by the owner (2026-11-08): the population cap is 100 for both sides on every difficulty, permanently.** Insane gets its difficulty from a smarter AI (see "Insane: same income" below).
 - Rebalance the economy (income, costs, training times) so reaching a large army is possible, and update the balance tests and the "reasonable player" bot for each difficulty.
-- To make Insane feel like a real invasion, add distant background armies (cheap, non-simulated crowds, vehicles and artillery flashes) and reinforcement waves, rather than only simulating more units.
+- ~~To make Insane feel like a real invasion, add distant background armies (cheap, non-simulated crowds, vehicles and artillery flashes) and reinforcement waves, rather than only simulating more units.~~ (superseded 2026-11-08, see "Insane: same income" below)
 ## Performance
 - The game must stay smooth on a mid-range phone with ~~350~~ **200** units on the field plus effects (owner, 2026-11-08: scaled to the cap of 100 per side). Profile it and optimize: pooling, culling off-screen units, simpler drawing for distant units, and lighter simulation where possible. Add a soak test at full army size on Insane (100 per side, 200 in total).
 - If a phone still can't keep up, add a graphics setting that lowers effects and background detail, not the unit cap."
@@ -161,6 +162,31 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 Decisions already announced to the owner: lethality is a per-difficulty multiplier applied identically to both sides
 (unit stats unchanged; this replaces the old "difficulty never changes unit stats" rule); a mission cleared on the old
 Normal counts as cleared on Recruit.
+
+### Insane: same income, much smarter enemy (owner, 2026-11-08; replaces the earlier Insane notes above)
+
+"## Insane: same income, much smarter enemy
+- On Insane, the enemy gets exactly the same income and population cap as me. No extra money and no bigger army. The near one-shot lethality for both sides stays. Drop the invasion-sized armies idea for Insane.
+- Difficulty comes from intelligence. The Insane AI uses real military tactics:
+  - Combined arms: infantry screen tanks, anti-tank teams follow behind the armour, and machine guns cover advances.
+  - Fire and movement: one group suppresses while another advances, so it never charges everything at once.
+  - Preparation before an assault: artillery, mortars or smoke first, then the attack.
+  - Defence in depth: it holds reserves back for counter-attacks and pulls back to regroup when a push fails, instead of fighting to the last man.
+  - Priority targets: it focuses machine gunners, mortars, commanders and anti-tank teams.
+  - Timing: it attacks when I overextend, retreat or spend heavily, and it scouts and reacts to what I build.
+  - The right tools: flamethrowers and grenades for trenches and pillboxes, anti-tank weapons against tanks, anti-aircraft guns when I use planes.
+  - Smart economy: it balances sappers, units and upgrades sensibly over the mission.
+- It plays like a human:
+  - It uses the same controls I have: army orders, per-unit-type orders and direct control of one unit.
+  - It has human-like reaction times and limits on how many actions it takes, with no instant, perfect reactions.
+  - It only knows what I could know: no reading my units' hidden HP unless it uses a recon plane.
+  - It makes occasional small mistakes, so it doesn't feel robotic.
+- Lower difficulties use the same AI with weaker settings: Recruit is clumsy, Normal is decent, Hard is good, Insane is expert.
+- Tests: the Insane AI must beat the Normal AI in most AI-versus-AI battles with equal income. An "expert player" bot must still win every mission on Insane at least some of the time, so it's never impossible. Hard and Normal must stay comfortably beatable by the "reasonable player" bot."
+
+Superseded by this: the invasion-sized enemy armies, extra enemy troops and the non-simulated background armies for
+Insane (lines struck through above), and extra AI income or population on Insane. The owner's earlier lines on Recruit,
+Normal, Hard, symmetric lethality and performance still stand.
 
 ## Soviet campaign (job 11: Part 1 foundations, then Stalingrad)
 
