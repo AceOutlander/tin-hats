@@ -732,7 +732,7 @@ class AudioEngine implements GameAudio {
       b.sampleRate = done.buffer.sampleRate;
       b.bytes = player.bytes();
       b.buildMs = Math.max(b.buildMs, done.buildMs);
-      b.buildMsTotal += done.buildMs;
+      b.buildMsTotal += done.buildMsTotal;
       b.peak = Math.max(b.peak, done.peak);
       if (b.piecesReady === 1) b.firstMs = now() - started;
       player.tick();

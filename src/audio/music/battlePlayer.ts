@@ -38,6 +38,9 @@ export interface BattlePlayerStats {
   /** Section indices in the order they were played (the last 64). */
   order: number[];
   sting: StingName | null;
+  /** Context time the next section (or rest) starts, -1 when none is scheduled; when the last layer change began. */
+  nextStart: number;
+  fadeAt: number;
 }
 
 interface Playing {
@@ -75,6 +78,7 @@ export class BattleMusicPlayer {
   private crossfades = 0;
   private readonly order: number[] = [];
   private stingPlayed: StingName | null = null;
+  private fadeAt = -1;
   private readonly statsOut: BattlePlayerStats;
 
   constructor(
@@ -98,6 +102,8 @@ export class BattleMusicPlayer {
       crossfades: 0,
       order: [],
       sting: null,
+      nextStart: -1,
+      fadeAt: -1,
     };
   }
 
@@ -252,6 +258,7 @@ export class BattleMusicPlayer {
     this.target = 'build';
     this.active = 'build';
     this.stingPlayed = null;
+    this.fadeAt = -1;
   }
 
   /** Let go of the buffers (sources still playing keep theirs until they stop). */
@@ -299,6 +306,8 @@ export class BattleMusicPlayer {
     s.crossfades = this.crossfades;
     s.order = this.order.slice(-64);
     s.sting = this.stingPlayed;
+    s.nextStart = this.next ? this.next.start : -1;
+    s.fadeAt = this.fadeAt;
     return s;
   }
 
@@ -419,7 +428,10 @@ export class BattleMusicPlayer {
     let blend: MusicLayer | null = fresh ? null : this.blend;
     if (!CALM.includes(target)) blend = null;
     else if (fresh && this.rng() < B.chance && this.has(section, B.layer) && B.layer !== target) blend = B.layer;
-    if (target !== this.active) this.crossfades++;
+    if (target !== this.active) {
+      this.crossfades++;
+      this.fadeAt = at;
+    }
     this.active = target;
     this.blend = blend;
     const fade = this.P.crossfade[target];

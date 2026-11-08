@@ -48,6 +48,25 @@ describe('music around the campaign and the battles', () => {
     expect(app.musicIntensity).not.toBe(null);
   });
 
+  it('lets go of the menu theme in a battle and renders it again when the title comes back', () => {
+    const { app, audio } = makeApp();
+    app.onScreen('title');
+    expect(audio.prepared).not.toContain('menu');
+    app.startMission(1, 'normal');
+    app.onScreen('battle');
+    // Only the mission's music is held in a battle.
+    expect(audio.releasedMusic).toContain('menu');
+    app.onScreen('campaign');
+    expect(audio.prepared).not.toContain('menu');
+    app.onScreen('title');
+    expect(audio.prepared.filter((n) => n === 'menu').length).toBe(1);
+    expect(audio.music).toBe('menu');
+    // Once is enough: the title again without a battle in between renders nothing new.
+    app.onScreen('campaign');
+    app.onScreen('title');
+    expect(audio.prepared.filter((n) => n === 'menu').length).toBe(1);
+  });
+
   it('asks the music for a layer during the battle, ends it with the battle and frees it on leaving', () => {
     const { app, view, audio } = makeApp();
     app.onScreen('campaign');

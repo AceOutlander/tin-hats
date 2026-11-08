@@ -264,6 +264,13 @@ export const MUSIC_BATTLE = {
     startDelayMs: 900,
     /** ...and between pieces, so the page keeps drawing while the music is made. */
     gapMs: 24,
+    /**
+     * A piece's notes are added to its graph this many seconds of music at a time, each chunk while the render is
+     * suspended `chunkLead` seconds before it (ahead of humanised and grace-note starts), so a busy section is never
+     * one long main-thread task.
+     */
+    chunkSeconds: 2,
+    chunkLead: 0.25,
   },
   budget: {
     /** Bytes of Float32 samples one mission's music may hold, every layer and sting together. */

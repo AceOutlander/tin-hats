@@ -162,6 +162,30 @@ describe('the battle-music intensity rules', () => {
     expect(o.layer).toBe('tense');
   });
 
+  it('keeps counting the fight while the HQ is threatened, so combat after the threat needs 20 a side again', () => {
+    const m = new MusicIntensity();
+    const h = fight(30, 30);
+    play(m, h, 30);
+    expect(m.layer).toBe('combat');
+    // An enemy at the HQ: tense, and the fight is still counted meanwhile.
+    h.add(1, 1, R.tense.enterDistance - 10, R.tense.enterDistance - 10);
+    play(m, h, R.escalateHold + R.confirm.tense + 2);
+    expect(m.layer).toBe('tense');
+    // The fight dies down to 5 a side (below the exit count), then builds back up to 16: between exit and enter.
+    h.clear(0).add(0, 5, 2700, 3000);
+    play(m, h, 10);
+    expect(m.fighting[0]).toBe(5);
+    h.clear(0).add(0, 16, 2700, 3000);
+    play(m, h, 10);
+    // The threat goes: 16 a side never reached 20 again, so the music calms to build instead of falling back to combat.
+    h.units = h.units.filter((u) => !(u.side === 1 && u.x < 1000));
+    const layers = play(m, h, R.hold.tense + R.confirm.build + 10);
+    expect(layers).toEqual(['tense', 'build']);
+    expect(m.changes.map((c) => c.to)).toEqual(['combat', 'tense', 'build']);
+    expect(m.changes[0].fighting).toEqual([30, 30]);
+    expect(m.changes[1].near).toBe(true);
+  });
+
   it('turns tense when a survival or deadline clock is nearly out', () => {
     const m = new MusicIntensity();
     const f = new Field();

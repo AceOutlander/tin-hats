@@ -45,7 +45,7 @@ describe('debug hooks', () => {
 
   it('report the sound engine state', () => {
     const { api } = setup();
-    expect(api.audio()).toEqual({ state: 'running', played: 0, dropped: 0, muted: false });
+    expect(api.audio()).toEqual({ state: 'running', played: 0, dropped: 0, muted: false, rendered: 0 });
   });
 
   it('describe the field before and during a battle', () => {

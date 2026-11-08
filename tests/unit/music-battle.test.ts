@@ -445,7 +445,7 @@ describe('battle music in the engine: rendered lazily, one mission at a time', (
       wait: () => Promise.resolve(),
       renderPiece: (def, piece, rate): Promise<RenderedPiece> => {
         rendered.push(piece);
-        return Promise.resolve({ piece, buffer: fakeBuffer(pieceFrames(def, piece, rate), rate, piece.sting ?? `${piece.section}/${piece.layer}`) as unknown as AudioBuffer, buildMs: 1, renderMs: 2, peak: 0.5 });
+        return Promise.resolve({ piece, buffer: fakeBuffer(pieceFrames(def, piece, rate), rate, piece.sting ?? `${piece.section}/${piece.layer}`) as unknown as AudioBuffer, buildMs: 1, buildMsTotal: 1, renderMs: 2, peak: 0.5 });
       },
     });
     const flush = async (): Promise<void> => {

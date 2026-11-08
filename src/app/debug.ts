@@ -6,10 +6,12 @@
 import { createAudio, type BattleMusicStats, type GameAudio, type MusicStats } from '../audio';
 import { measureBattleMix, type BattleMixReport, type MixedLayer } from '../audio/music/battleMix';
 import { db, measureMix, peakOf, rmsOf, seamOf, sectionTimes, type MixReport, type SeamReport } from '../audio/music';
-import { findOfflineContext } from '../audio/render';
+import { BattleMusicPlayer } from '../audio/music/battlePlayer';
+import { seededRandom } from '../audio/dsp';
+import { findOfflineContext, startRendering } from '../audio/render';
 import { APP } from '../data/app';
 import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
-import type { MusicLayer } from '../data/musicBattle';
+import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
@@ -21,6 +23,7 @@ import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
 import type { App } from './app';
 import { MENU_MUSIC, type MenuStormStats } from './menuStorm';
+import type { LayerChange } from './musicIntensity';
 import { newTally, type EventTally } from './session';
 
 export interface ScreenPoint {
@@ -157,7 +160,7 @@ export interface DebugApi {
   /** Rounds in flight. */
   projectiles(): ProjectileInfo[];
   /** Sound engine state: 'running' once a first gesture has unlocked it, and how many sounds have played. */
-  audio(): { state: string; played: number; dropped: number; muted: boolean };
+  audio(): { state: string; played: number; dropped: number; muted: boolean; rendered: number };
   /** Centre the camera on world x. */
   lookAt(x: number): void;
   field(): FieldInfo | null;
@@ -223,6 +226,26 @@ export interface BattlePieceAnalysis {
   seconds: number;
   peakDb: number;
   rmsDb: number;
+  /** The first sample (a piece must start from silence) and the peak of its last 5 ms (its tail must have died away). */
+  startAbs: number;
+  endPeakDb: number;
+}
+
+/**
+ * The battle player run offline over the rendered pieces, with layer changes at set times: the largest sample step
+ * within 1.5 ms of each seam (a section starting, a crossfade beginning or ending) over the largest step in the 40 ms
+ * around it, and the same at the bar lines that are not seams (the music's own downbeats), for comparison.
+ */
+export interface BattleSeamReport {
+  seconds: number;
+  sections: number;
+  crossfades: number;
+  seams: number;
+  /** Largest seam ratio and where; largest bar-line ratio away from the seams. */
+  seamRatio: number;
+  seamAt: number;
+  barRatio: number;
+  peak: number;
 }
 
 export interface BattleMusicHooks {
@@ -231,12 +254,14 @@ export interface BattleMusicHooks {
   force(layer: MusicLayer | null): void;
   /** The prep phase hook. */
   setPrep(on: boolean): void;
-  /** The intensity rules now: the layer asked for and the armed soldiers of each side in the fight. */
-  intensity(): { layer: MusicLayer; fighting: [number, number] } | null;
+  /** The intensity rules now: the layer asked for, the armed soldiers of each side in the fight, the latest changes. */
+  intensity(): { layer: MusicLayer; fighting: [number, number]; changes: LayerChange[] } | null;
   /** Every rendered piece measured; null without battle music. */
   analyse(): BattlePieceAnalysis[] | null;
   /** The army of 80 against each layer at default volumes; null until every piece is rendered. */
   mix(): Promise<BattleMixReport | null>;
+  /** Clicks at the seams (BattleSeamReport); null until every piece is rendered. */
+  seams(seconds?: number): Promise<BattleSeamReport | null>;
 }
 
 export interface MenuStormHooks {
@@ -307,7 +332,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     audio() {
       const stats = audio.getStats();
-      return { state: stats.state, played: stats.played, dropped: stats.dropped, muted: audio.isMuted() };
+      return { state: stats.state, played: stats.played, dropped: stats.dropped, muted: audio.isMuted(), rendered: stats.rendered };
     },
 
     lookAt: (x) => view.camera.setCenter(x, true),
@@ -601,7 +626,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       setPrep: (on) => app.setPrepPhase(on),
       intensity() {
         const i = app.musicIntensity;
-        return i ? { layer: i.layer, fighting: [i.fighting[0], i.fighting[1]] } : null;
+        return i ? { layer: i.layer, fighting: [i.fighting[0], i.fighting[1]], changes: structuredClone(i.changes) } : null;
       },
       analyse() {
         const player = audio.battleMusic();
@@ -610,7 +635,8 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         const add = (section: string, layer: string, buffer: AudioBuffer | null): void => {
           if (!buffer) return;
           const data = buffer.getChannelData(0);
-          out.push({ section, layer, seconds: buffer.duration, peakDb: db(peakOf(data)), rmsDb: db(rmsOf(data)) });
+          const end = Math.max(0, data.length - Math.round(0.005 * buffer.sampleRate));
+          out.push({ section, layer, seconds: buffer.duration, peakDb: db(peakOf(data)), rmsDb: db(rmsOf(data)), startAbs: Math.abs(data[0] ?? 0), endPeakDb: db(peakOf(data, end, data.length)) });
         };
         player.def.sections.forEach((s, i) => {
           for (const layer of player.layers) add(s.name, layer, player.buffer(i, layer));
@@ -637,6 +663,85 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         const rate = player.buffer(0, 'build')?.sampleRate ?? 16000;
         const stingPeak = Math.max(...(['victory', 'defeat'] as const).map((n) => { const b = player.sting(n); return b ? peakOf(b.getChannelData(0)) : 0; }));
         return measureBattleMix(Offline, createAudio, player.def, { build: join('build'), combat: join('combat'), tense: join('tense') }, rate, stingPeak);
+      },
+      async seams(seconds = 150) {
+        const live = audio.battleMusic();
+        const Offline = findOfflineContext();
+        const first = live?.buffer(0, 'build') ?? null;
+        if (!live || !Offline || !first || audio.battleMusicStats().state !== 'ready') return null;
+        const rate = first.sampleRate;
+        const ctx = new Offline(1, Math.ceil(seconds * rate), rate);
+        const player = new BattleMusicPlayer(live.def, seededRandom(4242));
+        live.def.sections.forEach((_, i) => {
+          for (const layer of live.layers) {
+            const b = live.buffer(i, layer);
+            if (b) player.add({ section: i, layer, sting: null }, b);
+          }
+        });
+        player.attach(ctx, ctx.destination);
+        const plan: [number, MusicLayer][] = [
+          [seconds * 0.2, 'combat'],
+          [seconds * 0.45, 'tense'],
+          [seconds * 0.6, 'combat'],
+          [seconds * 0.8, 'build'],
+        ];
+        const seamTimes = new Set<number>();
+        const fades = new Set<number>();
+        const step = 0.25;
+        const look = (): void => {
+          const st = player.stats();
+          if (st.nextStart >= 0) seamTimes.add(Math.round(st.nextStart * rate));
+          if (st.fadeAt >= 0) fades.add(st.fadeAt);
+        };
+        player.tick();
+        look();
+        for (let t = step; t < seconds - 1; t += step) {
+          const at = t;
+          void ctx.suspend(at).then(() => {
+            for (const [when, layer] of plan) if (Math.abs(when - at) < step / 2) player.setTarget(layer);
+            player.tick();
+            look();
+            void ctx.resume();
+          });
+        }
+        const out = await startRendering(ctx);
+        const st = player.stats();
+        const data = out.getChannelData(0);
+        for (const f of fades) {
+          seamTimes.add(Math.round(f * rate));
+          seamTimes.add(Math.round((f + MUSIC_BATTLE.player.crossfade[st.active]) * rate));
+        }
+        const near = Math.round(0.0015 * rate);
+        const around = Math.round(0.04 * rate);
+        const ratio = (n: number): number => {
+          let a = 0;
+          let b = 1e-6;
+          for (let i = Math.max(1, n - around); i < Math.min(data.length, n + around); i++) {
+            const d = Math.abs(data[i] - data[i - 1]);
+            if (Math.abs(i - n) <= near) a = Math.max(a, d);
+            else b = Math.max(b, d);
+          }
+          return a / b;
+        };
+        let seamRatio = 0;
+        let seamAt = 0;
+        for (const n of seamTimes) {
+          if (n <= 0 || n >= data.length) continue;
+          const r = ratio(n);
+          if (r > seamRatio) {
+            seamRatio = r;
+            seamAt = n / rate;
+          }
+        }
+        // Bar lines on the music's own grid (it starts 0.08 s in) that are not seams.
+        const bar = Math.round(((live.def.beatsPerBar * 60) / live.def.bpm) * rate);
+        let barRatio = 0;
+        for (let n = Math.round(0.08 * rate) + bar; n < data.length - around; n += bar) {
+          let seam = false;
+          for (const m of seamTimes) if (Math.abs(m - n) < around) seam = true;
+          if (!seam) barRatio = Math.max(barRatio, ratio(n));
+        }
+        return { seconds, sections: st.sectionsPlayed, crossfades: st.crossfades, seams: seamTimes.size, seamRatio, seamAt, barRatio, peak: peakOf(data) };
       },
     },
   };

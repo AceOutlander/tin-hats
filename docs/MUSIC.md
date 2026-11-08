@@ -43,7 +43,8 @@ notes), `step` (scale steps). Orchestration is the part you put it in. The Sovie
 
 ## Layer rules (`MUSIC_BATTLE.intensity`, `src/app/musicIntensity.ts`)
 
-- combat: 20 or more armed soldiers on each side within 450 wu of the other front (ends below 14 a side).
+- combat: 20 or more armed soldiers on each side within 450 wu of the other front (ends below 14 a side). The fight is
+  counted at every check, also while the music is tense, so combat after a threat needs 20 a side again.
 - tense: player HQ hit in the last 8 s, an enemy within 650 wu of it (clear beyond 900), or a clock under 60 s.
 - prep: `app.setPrepPhase(true)`; build otherwise. Tense outranks combat outranks prep.
 - A change must be wanted 1 to 6 s (`confirm`); calming down waits the layer's `hold` (10 to 20 s), rising waits
@@ -57,7 +58,11 @@ notes), `step` (scale steps). Orchestration is the part you put it in. The Sovie
 - At most 30 MB of samples per mission, at least 180 s of distinct material. Arras: 25.4 MB, 334 s.
 - Rendered when the battle loads (0.9 s after), one piece at a time with 24 ms between pieces; the build layer starts
   as soon as the opening section's build piece is ready. Whole track at most 45 s in headless Chromium, no piece's graph
-  build over 60 ms of main thread. Only the current mission's music is held; it is freed when the battle is left.
+  build over 60 ms of main thread: a piece's notes are added to its graph 2 s of music at a time
+  (`render.chunkSeconds`), each chunk while the offline render is suspended just before it, so a busy section is never
+  one long task. Only the current mission's music is held; it is freed when the battle is left. The menu theme and the
+  map track are let go of when a battle starts too (the title and the map render theirs again), and the reverb's room
+  is kept for the current track only.
 - Mix: the army of 80 over each layer at default sliders, full range and phone speaker: build 12 to 22 LU, combat
   8 to 18, tense 10 to 20 (`MUSIC_BATTLE.mix`, enforced by `tests/e2e/battle-music.spec.ts`).
 - The map track ("Between the Lines", `src/data/musicMap.ts`) renders when the campaign screen first opens and is freed

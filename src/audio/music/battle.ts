@@ -5,7 +5,7 @@
  * layer is ready long before the rest. Every piece keeps `tail` seconds past its end: the player starts the next
  * section on the bar line while the last one's tail is still ringing.
  */
-import type { BattleInstrument, BattleTrackDef, MusicLayer, MusicPart } from '../../data/musicBattle';
+import type { BattleInstrument, BattleTrackDef, MusicEvent, MusicLayer, MusicPart } from '../../data/musicBattle';
 import { MUSIC_BATTLE } from '../../data/musicBattle';
 import { seededRandom } from '../dsp';
 import { startRendering, type OfflineContextCtor } from '../render';
@@ -104,25 +104,38 @@ export function distinctSeconds(def: BattleTrackDef): number {
   return s;
 }
 
-/** The reverb's impulse, made once per track and rate (it is the same room for every piece). */
-const impulses = new WeakMap<BattleTrackDef, Map<number, AudioBuffer>>();
+/**
+ * The reverb's impulse, made once for the track being rendered (it is the same room for every piece). Only the latest
+ * track's is kept: the track definitions live for the whole session, so a cache keyed by them would keep one impulse for
+ * every mission played.
+ */
+let impulse: { def: BattleTrackDef; rate: number; buffer: AudioBuffer } | null = null;
 
 function impulseFor(ctx: BaseAudioContext, def: BattleTrackDef): AudioBuffer {
-  let byRate = impulses.get(def);
-  if (!byRate) {
-    byRate = new Map();
-    impulses.set(def, byRate);
-  }
-  let buffer = byRate.get(ctx.sampleRate);
-  if (!buffer) {
-    buffer = makeImpulse(ctx, def.reverb, 1);
-    byRate.set(ctx.sampleRate, buffer);
-  }
+  if (impulse && impulse.def === def && impulse.rate === ctx.sampleRate) return impulse.buffer;
+  const buffer = makeImpulse(ctx, def.reverb, 1);
+  impulse = { def, rate: ctx.sampleRate, buffer };
   return buffer;
 }
 
-/** Build a piece's notes into `ctx`: instruments on their buses, the buses into the dry mix and the reverb. */
-export function buildBattlePiece(ctx: BaseAudioContext, out: AudioNode, def: BattleTrackDef, parts: readonly MusicPart[], bank: NoiseBank, seed: number): void {
+/** One note of a piece with its instrument, for building the graph in time order. */
+export interface PieceNote {
+  inst: BattleInstrument;
+  e: MusicEvent;
+}
+
+/** Every note of a piece in time order (stable: notes struck together keep the order they were written in). */
+export function pieceNotes(parts: readonly MusicPart[]): PieceNote[] {
+  const out: PieceNote[] = [];
+  for (const p of parts) for (const e of p.events) out.push({ inst: p.inst, e });
+  return out.sort((a, b) => a.e.at - b.e.at);
+}
+
+/**
+ * A piece's graph without its notes: the buses, the dry mix and the reverb into `out`. Returns the function that adds
+ * one note, so the notes can be added a few seconds at a time (renderBattlePiece) instead of in one long task.
+ */
+export function battleGraph(ctx: BaseAudioContext, out: AudioNode, def: BattleTrackDef, bank: NoiseBank, seed: number): (n: PieceNote) => void {
   const rng = seededRandom(seed);
   const top = ctx.createBiquadFilter();
   top.type = 'lowpass';
@@ -160,63 +173,104 @@ export function buildBattlePiece(ctx: BaseAudioContext, out: AudioNode, def: Bat
   const H = def.humanize;
   const human = (t: number): number => Math.max(0, t + (rng() * 2 - 1) * H.time);
   const velocity = (v: number): number => Math.max(0.05, Math.min(1, v * (1 + (rng() * 2 - 1) * H.velocity)));
-  for (const p of parts) {
-    const dest = bus(p.inst);
-    for (const e of p.events) {
-      const at = human(e.at * spb);
-      const len = Math.max(0, e.len * spb);
-      const vel = velocity(e.vel);
-      const art = e.art ?? '';
-      switch (p.inst) {
-        case 'strings':
-          playStrings(ctx, dest, at, len, e.note, vel, art || 'short', I.strings, bank, rng);
-          break;
-        case 'brass':
-          playBrass(ctx, dest, at, len, e.note, vel, art || 'long', I.brass);
-          break;
-        case 'horn':
-          playHorn(ctx, dest, at, len, e.note, vel, I.horn, bank, rng);
-          break;
-        case 'pad':
-          // Chords keep their written time: the pad swells across the bar line, it does not stumble.
-          playPad(ctx, dest, e.at * spb, len, e.note, I.pad.level * vel, I.pad);
-          break;
-        case 'timpani':
-          playTimpani(ctx, dest, at, len, e.note, vel, art || 'hit', I.timpani, bank, rng);
-          break;
-        case 'snare':
-          playSnare(ctx, dest, at, len, vel, art || 'hit', I.snare, bank, rng);
-          break;
-        case 'hand':
-          playHand(ctx, dest, at, vel, art || 'dum', I.hand, bank, rng);
-          break;
-        case 'bell':
-          playBell(ctx, dest, at, e.note, vel, I.bell, bank, rng);
-          break;
-        case 'anvil':
-          playAnvil(ctx, dest, at, e.note, vel, I.anvil, bank, rng);
-          break;
-      }
+  return ({ inst, e }) => {
+    const dest = bus(inst);
+    const at = human(e.at * spb);
+    const len = Math.max(0, e.len * spb);
+    const vel = velocity(e.vel);
+    const art = e.art ?? '';
+    switch (inst) {
+      case 'strings':
+        playStrings(ctx, dest, at, len, e.note, vel, art || 'short', I.strings, bank, rng);
+        break;
+      case 'brass':
+        playBrass(ctx, dest, at, len, e.note, vel, art || 'long', I.brass);
+        break;
+      case 'horn':
+        playHorn(ctx, dest, at, len, e.note, vel, I.horn, bank, rng);
+        break;
+      case 'pad':
+        // Chords keep their written time: the pad swells across the bar line, it does not stumble.
+        playPad(ctx, dest, e.at * spb, len, e.note, I.pad.level * vel, I.pad);
+        break;
+      case 'timpani':
+        playTimpani(ctx, dest, at, len, e.note, vel, art || 'hit', I.timpani, bank, rng);
+        break;
+      case 'snare':
+        playSnare(ctx, dest, at, len, vel, art || 'hit', I.snare, bank, rng);
+        break;
+      case 'hand':
+        playHand(ctx, dest, at, vel, art || 'dum', I.hand, bank, rng);
+        break;
+      case 'bell':
+        playBell(ctx, dest, at, e.note, vel, I.bell, bank, rng);
+        break;
+      case 'anvil':
+        playAnvil(ctx, dest, at, e.note, vel, I.anvil, bank, rng);
+        break;
     }
-  }
+  };
+}
+
+/** Build a piece's notes into `ctx` all at once: instruments on their buses, the buses into the dry mix and the reverb. */
+export function buildBattlePiece(ctx: BaseAudioContext, out: AudioNode, def: BattleTrackDef, parts: readonly MusicPart[], bank: NoiseBank, seed: number): void {
+  const add = battleGraph(ctx, out, def, bank, seed);
+  for (const n of pieceNotes(parts)) add(n);
 }
 
 export interface RenderedPiece {
   piece: BattlePiece;
   buffer: AudioBuffer;
-  /** Main-thread milliseconds building the graph, and the whole render's wall-clock milliseconds. */
+  /** The longest main-thread task building the graph (ms), all of them together, and the whole render's wall clock. */
   buildMs: number;
+  buildMsTotal: number;
   renderMs: number;
   peak: number;
 }
 
-/** Render one piece. Rejects when the browser cannot render; the engine then carries on without battle music. */
+/**
+ * Render one piece. The graph is built `chunkSeconds` of music at a time: the first chunk before the render starts,
+ * each later one while the render is suspended a little before it (`chunkLead`), so no single main-thread task builds
+ * more than a few seconds of notes, however busy the section. A browser without OfflineAudioContext.suspend gets the
+ * whole graph at once. Rejects when the browser cannot render; the engine then carries on without battle music.
+ */
 export async function renderBattlePiece(def: BattleTrackDef, piece: BattlePiece, Offline: OfflineContextCtor, rate: number, now: () => number = () => performance.now(), bank: NoiseBank = createNoiseBank()): Promise<RenderedPiece> {
+  const R = MUSIC_BATTLE.render;
   const started = now();
   const ctx = new Offline(1, pieceFrames(def, piece, rate), rate);
   const index = battlePieces(def).findIndex((p) => p.section === piece.section && p.layer === piece.layer && p.sting === piece.sting);
-  buildBattlePiece(ctx, ctx.destination, def, pieceParts(def, piece), bank, def.seed + 7919 * (index + 1));
-  const buildMs = now() - started;
+  const add = battleGraph(ctx, ctx.destination, def, bank, def.seed + 7919 * (index + 1));
+  const notes = pieceNotes(pieceParts(def, piece));
+  const spb = secondsPerBeat(def);
+  const chunked = typeof ctx.suspend === 'function';
+  let next = 0;
+  /** Add the notes that start before `until` seconds; returns the main-thread milliseconds it took. */
+  const build = (until: number): number => {
+    const t0 = now();
+    while (next < notes.length && notes[next].e.at * spb < until) add(notes[next++]);
+    return now() - t0;
+  };
+  let buildMs = chunked ? build(R.chunkSeconds) : build(Infinity);
+  // Everything up to here (the context, the buses, the reverb's room and the first notes) is one task.
+  buildMs = now() - started;
+  let buildMsTotal = buildMs;
+  if (chunked) {
+    for (let t = R.chunkSeconds; next < notes.length && t < pieceSeconds(def, piece) + R.tail; t += R.chunkSeconds) {
+      const until = t + R.chunkSeconds;
+      const at = Math.max(0, t - R.chunkLead);
+      ctx.suspend(at).then(
+        () => {
+          const ms = build(until);
+          buildMs = Math.max(buildMs, ms);
+          buildMsTotal += ms;
+          void ctx.resume();
+        },
+        () => {
+          // A refused suspend (a time past the end): its notes are left out rather than stalling the render.
+        },
+      );
+    }
+  }
   const buffer = await startRendering(ctx);
   const data = buffer.getChannelData(0);
   let peak = 0;
@@ -224,5 +278,5 @@ export async function renderBattlePiece(def: BattleTrackDef, piece: BattlePiece,
     const a = Math.abs(data[i]);
     if (a > peak) peak = a;
   }
-  return { piece, buffer, buildMs, renderMs: now() - started, peak };
+  return { piece, buffer, buildMs, buildMsTotal, renderMs: now() - started, peak };
 }

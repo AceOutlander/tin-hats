@@ -36,7 +36,7 @@ import { createBattle } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
 import { buildCampaignView, buildResult } from './campaignView';
 import { GameLoop } from './loop';
-import { MenuStormDirector } from './menuStorm';
+import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
 import { MusicIntensity } from './musicIntensity';
 import { BattleSession } from './session';
 import { TipMemory, Tutorial } from './tutorial';
@@ -86,6 +86,8 @@ export class App implements AppApi {
   musicIntensity: MusicIntensity | null = null;
   /** The campaign map track is on. */
   private mapMusic = false;
+  /** A battle let go of the menu theme's buffer: the title renders it again. */
+  private menuReleased = false;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
   private readonly storage: StorageLike | null;
@@ -156,6 +158,10 @@ export class App implements AppApi {
       this.mapMusic = false;
       this.audio.stopMusic();
     }
+    if (screen === 'title' && this.menuReleased) {
+      this.menuReleased = false;
+      this.audio.prepareMusic(MENU_MUSIC);
+    }
     if (screen === 'title') this.storm.start();
     else if (!(screen === 'settings' && this.storm.running)) this.storm.stop();
     if (map && !this.mapMusic) {
@@ -222,8 +228,11 @@ export class App implements AppApi {
     this.loop.reset();
     // A new battle always starts at normal speed; only the debug hooks change it.
     this.loop.timeScale = 1;
-    // The battle music: the map track lets go of its buffer, and the mission's track renders in the background.
+    // The battle music: the map track and the menu theme let go of their buffers (only the mission's music is held in
+    // a battle), and the mission's track renders in the background.
     this.audio.releaseMusic(MAP_MUSIC);
+    this.audio.releaseMusic(MENU_MUSIC);
+    this.menuReleased = true;
     this.musicIntensity = new MusicIntensity();
     this.audio.setBattleLayer('build');
     this.audio.prepareBattleMusic(mission.music);

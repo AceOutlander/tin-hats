@@ -20,6 +20,22 @@ import type { BattleState } from '../sim';
 /** The part of the battle state the rules read. */
 export type IntensityState = Pick<BattleState, 'time' | 'units' | 'unitCount' | 'sides' | 'timer' | 'over'>;
 
+/** One layer change, kept for the debug hooks and the tests: when, from what to what, and the battle at that check. */
+export interface LayerChange {
+  time: number;
+  from: MusicLayer;
+  to: MusicLayer;
+  /** Armed soldiers of each side in the fight. */
+  fighting: [number, number];
+  /** The tense conditions: HQ hit lately, an enemy near it, a clock nearly out. */
+  hit: boolean;
+  near: boolean;
+  clock: boolean;
+}
+
+/** Layer changes kept (the most recent). */
+const CHANGES_KEPT = 64;
+
 /** How urgent each layer is: a change up waits only escalateHold. */
 const RANK: Record<MusicLayer, number> = { build: 0, prep: 0, combat: 1, tense: 2 };
 
@@ -28,6 +44,8 @@ export class MusicIntensity {
   layer: MusicLayer = 'build';
   /** Armed soldiers of each side in the fight at the last check (debug hooks). */
   readonly fighting: [number, number] = [0, 0];
+  /** The latest layer changes, oldest first (allocated only when the layer changes). */
+  readonly changes: LayerChange[] = [];
   private changedAt = 0;
   private pending: MusicLayer | null = null;
   private pendingSince = 0;
@@ -35,6 +53,8 @@ export class MusicIntensity {
   private nearOn = false;
   private hqHp = -1;
   private hitAt = -Infinity;
+  private hit = false;
+  private clock = false;
   private prep = false;
   private forced: MusicLayer | null = null;
   private nextCheck = 0;
@@ -77,6 +97,8 @@ export class MusicIntensity {
     // Rising to a more urgent layer only waits a short hold; calming down waits the layer's full hold.
     const hold = RANK[wish] > RANK[this.layer] ? this.rules.escalateHold : this.rules.hold[this.layer];
     if (t - this.changedAt >= hold && t - this.pendingSince >= this.rules.confirm[wish]) {
+      this.changes.push({ time: t, from: this.layer, to: wish, fighting: [this.fighting[0], this.fighting[1]], hit: this.hit, near: this.nearOn, clock: this.clock });
+      if (this.changes.length > CHANGES_KEPT) this.changes.shift();
       this.layer = wish;
       this.changedAt = t;
       this.pending = null;
@@ -86,8 +108,10 @@ export class MusicIntensity {
 
   /** The layer the battle calls for right now, before confirm and hold times (combat and threat keep their hysteresis). */
   wish(state: IntensityState): MusicLayer {
+    // Both are measured at every check, so the fight's count and its hysteresis stay current while the HQ is threatened.
+    const combat = this.combat(state);
     if (this.tense(state)) return 'tense';
-    if (this.combat(state)) return 'combat';
+    if (combat) return 'combat';
     return this.prep ? 'prep' : 'build';
   }
 
@@ -126,9 +150,11 @@ export class MusicIntensity {
     const t = state.time;
     const timer = state.timer;
     const clock = timer !== null && timer.secondsLeft <= T.timerSeconds;
+    this.clock = clock;
     const hq = state.sides[0].hq;
     if (!hq || !hq.alive) {
       this.nearOn = false;
+      this.hit = false;
       return clock;
     }
     if (this.hqHp >= 0 && hq.hp < this.hqHp) this.hitAt = t;
@@ -141,6 +167,7 @@ export class MusicIntensity {
       if (u.alive && !u.inside && u.side === 1 && Math.abs(u.x - hq.x) <= reach) near = true;
     }
     this.nearOn = near;
-    return clock || near || t - this.hitAt <= T.damageSeconds;
+    this.hit = t - this.hitAt <= T.damageSeconds;
+    return clock || near || this.hit;
   }
 }

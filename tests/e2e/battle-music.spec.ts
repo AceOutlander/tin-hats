@@ -68,7 +68,9 @@ test.describe('battle music', () => {
     await expect.poll(async () => (await battle(page)).player?.fade ?? 0, { timeout: 15_000 }).toBeGreaterThan(0.95);
     const p = (await battle(page)).player;
     expect(p?.gains.build).toBeGreaterThan(0);
-    expect(p?.gains.combat).toBe(0);
+    // Build is the layer up; combat is at most the soft blend a calm section sometimes carries (MUSIC_BATTLE.player.blend).
+    expect(p?.active).toBe('build');
+    expect(p?.gains.combat ?? 0).toBeLessThanOrEqual(def.layerLevel.combat * MUSIC_BATTLE.player.blend.level + 1e-6);
     expect(problems).toEqual([]);
   });
 
