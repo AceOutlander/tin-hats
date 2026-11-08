@@ -7,7 +7,7 @@ import { APP } from '../data/app';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
 import { MEDALS } from '../data/medals';
-import type { Difficulty, FactionDef, MissionDef, SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
+import type { Difficulty, FactionId, MissionDef, SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
 import {
   canBuy,
   canBuyItem,
@@ -110,27 +110,21 @@ export function buildCampaignView(save: SaveData, missions: readonly MissionDef[
   };
 }
 
-/** "Bren Gunner / MG34 Gunner": every nation's name for a type, each once. */
-function nationNames(pick: (f: FactionDef) => string): string {
-  const names: string[] = [];
-  for (const f of Object.values(FACTIONS)) {
-    const name = pick(f);
-    if (!names.includes(name)) names.push(name);
-  }
-  return names.join(' / ');
-}
-
-/** The Armoury: the free types first, then everything for sale in the data's order. */
-export function buildArmoury(save: SaveData): ArmouryItemView[] {
-  const british = FACTIONS.british;
+/**
+ * The Armoury: the free types first, then everything for sale in the data's order. Names and blurbs are those of the
+ * nation the player commands in the current campaign; other nations' names are never shown (owner, 2026-11-08).
+ * Every campaign so far is played as the British; a campaign of another nation passes its own.
+ */
+export function buildArmoury(save: SaveData, nation: FactionId = 'british'): ArmouryItemView[] {
+  const own = FACTIONS[nation];
   const out: ArmouryItemView[] = [];
   for (const kind of MEDALS.free) {
     out.push({
       id: kind,
       type: 'unit',
       kind,
-      name: nationNames((f) => f.unitNames[kind]),
-      blurb: british.unitBlurbs[kind],
+      name: own.unitNames[kind],
+      blurb: own.unitBlurbs[kind],
       price: 0,
       isNew: false,
       free: true,
@@ -144,8 +138,8 @@ export function buildArmoury(save: SaveData): ArmouryItemView[] {
       id: item.id,
       type: item.type,
       kind: item.id,
-      name: unit ? nationNames((f) => f.unitNames[item.id as UnitKind]) : nationNames((f) => f.supportNames[item.id as SupportKind]),
-      blurb: unit ? british.unitBlurbs[item.id as UnitKind] : APP.supportBlurbs[item.id as SupportKind],
+      name: unit ? own.unitNames[item.id as UnitKind] : own.supportNames[item.id as SupportKind],
+      blurb: unit ? own.unitBlurbs[item.id as UnitKind] : APP.supportBlurbs[item.id as SupportKind],
       price: item.price,
       isNew: item.isNew,
       free: false,
