@@ -5,11 +5,17 @@
 import type { BattleTrackDef } from '../musicBattle';
 import type { BattleTrackName } from '../schema';
 import { ARRAS } from './arras';
+import { ARNHEM } from './arnhem';
+import { HILL112 } from './hill112';
+import { REICHSWALD } from './reichswald';
 
 export type { BattleTrackName };
 
 export const BATTLE_TRACKS: Record<BattleTrackName, BattleTrackDef> = {
   arras: ARRAS,
+  hill112: HILL112,
+  arnhem: ARNHEM,
+  reichswald: REICHSWALD,
 };
 
 export const BATTLE_TRACK_NAMES = Object.keys(BATTLE_TRACKS) as BattleTrackName[];
