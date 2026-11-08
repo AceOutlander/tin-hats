@@ -14,6 +14,8 @@ import {
   chooseDeathVariant,
   createFigureAnim,
   createFigureInput,
+  J_CHEST,
+  J_HIP,
   createFigureLayout,
   layoutFigure,
   resetFigureAnim,
@@ -41,6 +43,7 @@ import { createRng, mixSeed, type Rng01 } from '../fx';
 import { lookStyle } from '../meta/looks';
 import type { BattleState, UnitState } from '../sim';
 import type { SpriteRegistry } from './atlas';
+import { BloodPools, type PoolImage } from './blood';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE } from './sprites';
 
@@ -249,6 +252,8 @@ class FigureView extends UnitViewBase {
   readonly input: FigureInput;
   readonly parts: FigurePart[];
   readonly death: FigureDeath = { variant: 'crumple', time: 0, dir: -1 };
+  /** Index of this body's blood pool in UnitViews.blood, or -1 (see ./blood.ts). */
+  blood = -1;
   appliedShade = 1;
   /** How this sapper moves supplies (upgrade looks); 'crate' for everyone else. */
   haul: SapperStyle = 'crate';
@@ -409,6 +414,13 @@ class FigureView extends UnitViewBase {
       placePart(img, x, y, s, k, p.x, p.y, p.rotation, p.scaleX * q, p.scaleY * q);
     }
     this.placeShadow(U.figureShadowW, U.figureShadowH);
+  }
+
+  /** World x of the middle of the torso (hip to chest) as last drawn: where a body's blood pool lies. */
+  torsoX(): number {
+    const j = this.anim.joints;
+    const k = this.turnK < 0 ? Math.min(this.turnK, -U.turnMinK) : Math.max(this.turnK, U.turnMinK);
+    return this.x + k * this.s * 0.5 * (j[J_HIP * 2] + j[J_CHEST * 2]);
   }
 
   muzzle(out: { x: number; y: number }): void {
@@ -659,6 +671,8 @@ export class UnitViews {
   private relaxed = new Float64Array(64);
   /** Looks of each side (upgrade gear), from setLooks; null = no gear. */
   private readonly looks: (SideLooks | null)[] = [null, null];
+  /** Blood pools under the bodies of soldiers killed by gunfire (the "Show blood" setting). */
+  readonly blood: BloodPools;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -676,6 +690,14 @@ export class UnitViews {
     this.ringHigh = addImage(scene, layers.byName.markers, ring.frame);
     this.ringHigh.visible = false;
     this.ringScale = RENDER.marker.ringScale / ring.scale;
+    const pool = reg.get(RENDER_KEYS.blood);
+    const images: Img[] = [];
+    for (let i = 0; i < RENDER.blood.maxPools; i++) {
+      const img = addImage(scene, layers.blood[0], pool.frame);
+      img.visible = false;
+      images.push(img);
+    }
+    this.blood = new BloodPools(images, (img: PoolImage, row: number) => layers.blood[row].add(img as Img), 1 / pool.scale);
   }
 
   /** Start a battle: drop every view, and every side's looks (call setLooks again after this). */
@@ -690,6 +712,7 @@ export class UnitViews {
     this.looks[1] = null;
     this.reg.removeGroup(GEAR_GROUP);
     this.seed = seed;
+    this.blood.reset();
     this.controlledId = -1;
     this.ring.visible = false;
     this.ringHigh.visible = false;
@@ -793,6 +816,10 @@ export class UnitViews {
 
   private release(v: UnitView): void {
     v.setShown(false);
+    if (v instanceof FigureView && v.blood >= 0) {
+      this.blood.end(v.blood, v.unitId);
+      v.blood = -1;
+    }
     if (v.state === STATE_DYING) {
       const i = this.dying.indexOf(v);
       if (i >= 0) {
@@ -829,6 +856,9 @@ export class UnitViews {
     if (v instanceof FigureView) {
       const fromFront = dir !== 0 && dir === -v.facing;
       v.death.variant = chooseDeathVariant(cause ?? 'bullet', fromFront, this.rng());
+      v.blood = this.blood.onDeath(unitId, v.row, v.kind, cause, v.haul === 'truck');
+      // Where it will lie (hidden until the fall is over), so it has a place even while the body is off screen.
+      if (v.blood >= 0) this.blood.place(v.blood, unitId, 0, v.x, v.y + v.sink, v.s, 1);
       v.death.time = 0;
       v.death.dir = dir === 0 ? -1 : dir * v.facing;
       v.input.death = v.death;
@@ -1064,6 +1094,7 @@ export class UnitViews {
     if (!visible) {
       v.setShown(false);
       if (v instanceof FigureView) v.death.time = v.deadTime;
+      if (v instanceof FigureView && v.blood >= 0) this.blood.hide(v.blood, v.unitId);
       return;
     }
     v.shown = true;
@@ -1075,6 +1106,7 @@ export class UnitViews {
       v.input.fired = false;
       v.input.hit = false;
       v.draw(dt);
+      if (v.blood >= 0) this.blood.place(v.blood, v.unitId, v.deadTime, v.torsoX(), v.y + v.sink, v.s, v.alpha);
     } else {
       v.draw(true);
     }

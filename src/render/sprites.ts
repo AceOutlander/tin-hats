@@ -3,6 +3,7 @@
  * plain white square used (tinted and scaled) for bars, pips and overlays.
  */
 import type { SpriteSpec } from '../art/types';
+import { RENDER } from '../data/render';
 
 export const RENDER_KEYS = {
   /** Soft black ellipse, 64 x 16 wu, origin at its centre. */
@@ -15,6 +16,8 @@ export const RENDER_KEYS = {
   streak: 'rd/streak',
   /** A soft white disc fading to nothing at its rim (GLOW_SIZE wu across, origin at its centre): cold light, tinted. */
   glow: 'rd/glow',
+  /** A small, flat, dark-red pool (RENDER.blood.spriteW x spriteH wu, origin at its centre): see ./blood.ts. */
+  blood: 'rd/blood',
 } as const;
 
 export const SHADOW_W = 64;
@@ -141,5 +144,34 @@ export function renderSprites(): SpriteSpec[] {
         ctx.fillRect(0, 0, GLOW_SIZE, GLOW_SIZE);
       },
     },
+    bloodSprite(),
   ];
+}
+
+/** The blood pool: a few overlapping flat lobes, solid dark red in the middle and soft at the rim. */
+function bloodSprite(): SpriteSpec {
+  const B = RENDER.blood;
+  return {
+    key: RENDER_KEYS.blood,
+    w: B.spriteW,
+    h: B.spriteH,
+    ax: 0.5,
+    ay: 0.5,
+    draw(ctx) {
+      for (const [cx, rx, ry] of B.lobes) {
+        ctx.save();
+        ctx.translate(cx * B.spriteW, B.spriteH / 2);
+        ctx.scale(rx * B.spriteW, ry * B.spriteH);
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        g.addColorStop(0, B.core);
+        g.addColorStop(B.coreStop, B.core);
+        g.addColorStop(1, B.edge);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    },
+  };
 }

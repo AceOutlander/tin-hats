@@ -97,6 +97,7 @@ export class BattleViewImpl implements BattleView {
   /** The menu scene was asked for before the scene existed. */
   private menuWanted = false;
   private reducedFlashing = false;
+  private showBlood = true;
   private nightTint: Phaser.GameObjects.Image | null = null;
   /** The night tint's alpha for the mission's own time of day, and how far setDarkness() has pushed it toward full night. */
   private nightAlpha = 0;
@@ -217,6 +218,7 @@ export class BattleViewImpl implements BattleView {
     }
     this.backdrop = new BackdropView(scene, layers);
     this.units = new UnitViews(scene, layers, reg);
+    this.units.blood.setEnabled(this.showBlood);
     this.structures = new StructureViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
@@ -564,6 +566,16 @@ export class BattleViewImpl implements BattleView {
     if (this.weatherView) this.weatherView.reduced = on;
   }
 
+  /** Debug hooks: the blood pool started last (see BloodPools.newest). */
+  newestBlood(): { x: number; y: number; alpha: number; width: number } | null {
+    return this.units?.blood.newest() ?? null;
+  }
+
+  setShowBlood(on: boolean): void {
+    this.showBlood = on;
+    this.units?.blood.setEnabled(on);
+  }
+
   setMenuScene(on: boolean): void {
     this.menuWanted = on;
     if (on && this.battle) return;
@@ -637,6 +649,7 @@ export class BattleViewImpl implements BattleView {
     for (const [name, layer] of Object.entries(layers.byName)) count(name, layer);
     layers.rows.forEach((layer, i) => count(`unitRow${i}`, layer));
     layers.pips.forEach((layer, i) => count(`pipsRow${i}`, layer));
+    layers.blood.forEach((layer, i) => count(`bloodRow${i}`, layer));
     count('glow', layers.glow);
     count('lit', layers.lit);
     count('grade', layers.grade);
@@ -670,6 +683,7 @@ export class BattleViewImpl implements BattleView {
       for (const l of Object.values(this.layers.byName)) count(l.getChildren());
       for (const l of this.layers.rows) count(l.getChildren());
       for (const l of this.layers.pips) count(l.getChildren());
+      for (const l of this.layers.blood) count(l.getChildren());
       count(this.layers.glow.getChildren());
       count(this.layers.lit.getChildren());
       count(this.layers.grade.getChildren());
@@ -680,6 +694,9 @@ export class BattleViewImpl implements BattleView {
       afterStepMs: this.afterStepMs,
       unitViews: this.units?.count() ?? 0,
       unitViewsDrawn: this.units?.drawn ?? 0,
+      bloodPools: this.units?.blood.count() ?? 0,
+      bloodDeaths: this.units?.blood.bleedingDeaths ?? 0,
+      bloodDrawn: this.units?.blood.drawn() ?? 0,
       images,
       imagesVisible: visible,
       tracers: this.effects?.ctx.tracers.count ?? 0,
@@ -725,6 +742,10 @@ export interface PerfHook {
   quality(): { level: number; name: string; avgMs: number; drops: number; raises: number };
   /** Pin a quality level (0 = best), or null to let the frame times decide. */
   forceQuality(level: number | null): void;
+  /** Inspection only (close-up pictures): magnify the battlefield mul times around world y = centerY (1 = normal). */
+  zoom(mul: number, centerY?: number): void;
+  /** The blood pool started last: world position, opacity and width (wu), or null. */
+  newestBlood(): { x: number; y: number; alpha: number; width: number } | null;
 }
 
 function perfHook(view: BattleViewImpl): PerfHook {
@@ -741,6 +762,8 @@ function perfHook(view: BattleViewImpl): PerfHook {
       raises: view.quality.raises,
     }),
     forceQuality: (level) => view.quality.force(level),
+    zoom: (mul, centerY) => view.setDebugZoom(mul, centerY),
+    newestBlood: () => view.newestBlood(),
   };
 }
 

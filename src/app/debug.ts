@@ -12,6 +12,7 @@ import { findOfflineContext, startRendering } from '../audio/render';
 import { APP } from '../data/app';
 import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
+import { RENDER } from '../data/render';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
@@ -181,6 +182,8 @@ export interface DebugApi {
   forceWeather(w: WeatherMode): void;
   forceThunder(): void;
   weatherStats(): WeatherStats;
+  /** Blood pools on the ground now and drawn on screen, the cap, the soldiers killed by gunfire this battle, and the "Show blood" setting. */
+  blood(): { pools: number; drawn: number; cap: number; deaths: number; shown: boolean };
   buttonRects(): unknown;
   /** `cssPerWu` converts a world distance to CSS px on screen: screen x = (world x - left) * cssPerWu. */
   camera(): { centerX: number; left: number; viewWidthWu: number; length: number; cssPerWu: number };
@@ -531,6 +534,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     },
     forceThunder: () => view.forceThunder(),
     weatherStats: () => view.weatherStats(),
+    blood() {
+      const stats = view.getStats();
+      return { pools: stats.bloodPools, drawn: stats.bloodDrawn, cap: RENDER.blood.maxPools, deaths: stats.bloodDeaths, shown: app.save.settings.showBlood };
+    },
 
     buttonRects: () => ui.getHudButtonRects(),
 

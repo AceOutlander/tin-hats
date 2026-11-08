@@ -24,6 +24,8 @@ export { FACTION_FIGURE_KEYS, allFigureSprites, figureSpriteMap } from './parts'
 export {
   FigureAnim,
   JOINT_NAMES,
+  J_CHEST,
+  J_HIP,
   N_JOINTS,
   createFigureAnim,
   createFigureInput,

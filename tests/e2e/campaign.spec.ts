@@ -244,6 +244,7 @@ test.describe('campaign', () => {
           ambienceVolume: META.defaultAmbienceVolume,
           sfxVolume: META.defaultSfxVolume,
           reduceFlash: META.defaultReduceFlash,
+          showBlood: META.defaultShowBlood,
         });
         await tap(page, 'play');
         await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
@@ -274,7 +275,7 @@ test.describe('campaign', () => {
       expect(migrated.version).toBe(META.saveVersion);
       expect(migrated.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
       expect(migrated.upgrades).toEqual({ rifleHealth: 1 });
-      // The volumes and reduce flashing did not exist in version 1: they come in at their defaults.
+      // The volumes, reduce flashing and show blood did not exist in version 1: they come in at their defaults.
       expect(migrated.settings).toEqual({
         muted: true,
         difficulty: 'hard',
@@ -283,6 +284,7 @@ test.describe('campaign', () => {
         ambienceVolume: META.defaultAmbienceVolume,
         sfxVolume: META.defaultSfxVolume,
         reduceFlash: META.defaultReduceFlash,
+        showBlood: META.defaultShowBlood,
       });
       await tap(page, 'play');
       expect(await pinStates(page)).toEqual(['cleared', 'cleared', 'open', ...Array<string>(7).fill('locked')]);

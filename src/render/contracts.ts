@@ -93,6 +93,11 @@ export interface RenderStats {
   /** Unit views alive (including dying bodies) and how many were laid out this frame (on screen). */
   unitViews: number;
   unitViewsDrawn: number;
+  /** Blood pools on the ground now (at most RENDER.blood.maxPools), and the gunfire deaths of soldiers this battle (pools or not). */
+  bloodPools: number;
+  bloodDeaths: number;
+  /** Blood pools drawn last frame (on screen). */
+  bloodDrawn: number;
   /** Game objects in the scene (all layers) and how many are visible. */
   images: number;
   imagesVisible: number;
@@ -149,6 +154,8 @@ export interface BattleView {
   weatherStats(): WeatherStats;
   /** "Reduce flashing": lightning in battle and on the title screen only swells into a slow soft glow, with no bolt. */
   setReducedFlashing(on: boolean): void;
+  /** "Show blood": a small dark pool under each soldier killed by gunfire. Off removes every pool at once and starts no more. */
+  setShowBlood(on: boolean): void;
   /**
    * The title screen's storm scene (src/render/weather/menuStorm.ts): on puts up the French fields under a storm light
    * (building the backdrop when a battle replaced it), off takes it down. A battle attach takes it down too.

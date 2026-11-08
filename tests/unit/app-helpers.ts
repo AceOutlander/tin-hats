@@ -31,6 +31,7 @@ export interface FakeView extends BattleView {
   menuScene: boolean;
   menuFrames: { dt: number; fade: number; flash: number }[];
   reducedFlashing: boolean;
+  showBlood: boolean;
 }
 
 export function createFakeView(): FakeView {
@@ -54,6 +55,9 @@ export function createFakeView(): FakeView {
     afterStepMs: 0,
     unitViews: 0,
     unitViewsDrawn: 0,
+    bloodPools: 0,
+    bloodDeaths: 0,
+    bloodDrawn: 0,
     images: 0,
     imagesVisible: 0,
     tracers: 0,
@@ -81,6 +85,7 @@ export function createFakeView(): FakeView {
     menuScene: false,
     menuFrames: [],
     reducedFlashing: false,
+    showBlood: true,
     onTapUnit: null,
     onTapGround: null,
     attach(battle, opts) {
@@ -117,6 +122,9 @@ export function createFakeView(): FakeView {
     weatherStats: () => ({ raining: false, checksMade: 0, strikes: 0 }),
     setReducedFlashing(on) {
       view.reducedFlashing = on;
+    },
+    setShowBlood(on) {
+      view.showBlood = on;
     },
     setMenuScene(on) {
       view.menuScene = on;

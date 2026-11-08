@@ -20,6 +20,11 @@ export interface Layers {
    */
   readonly pips: Phaser.GameObjects.Layer[];
   /**
+   * Blood pools of the bodies on row r (src/render/blood.ts), just under that row (DEPTH.unitRow0 + r + RENDER.blood.rowDrop):
+   * under every body and man of the row, over the ground, its decals, the shadows and the farther rows.
+   */
+  readonly blood: Phaser.GameObjects.Layer[];
+  /**
    * Additive (glow) effects: muzzle flashes, sparks and blast flares. They sit above the night tint, so they
    * stay bright against it, and in their own layer so blend changes do not break up the effects batch.
    */
@@ -40,6 +45,7 @@ export function createLayers(scene: Phaser.Scene): Layers {
   }
   const rows: Phaser.GameObjects.Layer[] = [];
   const pips: Phaser.GameObjects.Layer[] = [];
+  const blood: Phaser.GameObjects.Layer[] = [];
   for (let r = 0; r < VIEW.rows; r++) {
     const layer = scene.add.layer();
     layer.setDepth(DEPTH.unitRow0 + r);
@@ -47,6 +53,9 @@ export function createLayers(scene: Phaser.Scene): Layers {
     const pipLayer = scene.add.layer();
     pipLayer.setDepth(DEPTH.unitRow0 + r + RENDER.unit.pipRowLift);
     pips.push(pipLayer);
+    const bloodLayer = scene.add.layer();
+    bloodLayer.setDepth(DEPTH.unitRow0 + r + RENDER.blood.rowDrop);
+    blood.push(bloodLayer);
   }
   const glow = scene.add.layer();
   glow.setDepth(DEPTH.nightTint + 0.5);
@@ -54,7 +63,7 @@ export function createLayers(scene: Phaser.Scene): Layers {
   lit.setDepth(DEPTH.nightTint + 0.25);
   const grade = scene.add.layer();
   grade.setDepth((DEPTH.nearBackdrop + DEPTH.ground) / 2);
-  return { byName, rows, pips, glow, lit, grade };
+  return { byName, rows, pips, blood, glow, lit, grade };
 }
 
 /** Make an Image that is not on any display list yet, then add it to `layer`. */

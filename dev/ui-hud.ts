@@ -238,7 +238,7 @@ const emptyCampaign: CampaignView = {
   pointsSpent: 0,
   pointsAvailable: 0,
   upgrades: [],
-  settings: { muted: false, difficulty: 'normal', hints: true, musicVolume: 100, ambienceVolume: 100, sfxVolume: 100, reduceFlash: false },
+  settings: { muted: false, difficulty: 'normal', hints: true, musicVolume: 100, ambienceVolume: 100, sfxVolume: 100, reduceFlash: false, showBlood: true },
   difficulties: [],
 };
 

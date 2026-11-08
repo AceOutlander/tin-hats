@@ -139,6 +139,7 @@ export class App implements AppApi {
     this.audio.setVolume('sfx', s.sfxVolume / 100);
     this.view.setReducedFlashing(s.reduceFlash);
     this.storm.setReduced(s.reduceFlash);
+    this.view.setShowBlood(s.showBlood);
   }
 
   /** Hand over the UI (it is created after the app, because it needs the AppApi). */
@@ -448,6 +449,9 @@ export class App implements AppApi {
       case 'reduceFlash':
         this.view.setReducedFlashing(settings.reduceFlash);
         this.storm.setReduced(settings.reduceFlash);
+        break;
+      case 'showBlood':
+        this.view.setShowBlood(settings.showBlood);
         break;
       default:
         break;

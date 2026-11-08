@@ -136,6 +136,45 @@ export const RENDER = {
     kneelSalt: 0x6b1e3d,
   },
 
+  /**
+   * Minor, non-graphic blood (src/render/blood.ts, the "Show blood" setting): a soldier killed by gunfire gets one small
+   * dark-red pool that spreads on the ground under his body and fades out with it. No splatter; never for explosive or
+   * anti-tank deaths, vehicles or buildings.
+   */
+  blood: {
+    /** Most pools alive at once (pooled images, made up front); a new death past the cap takes over the oldest pool. */
+    maxPools: 24,
+    /**
+     * The pools of depth row r draw at DEPTH.unitRow0 + r + rowDrop: under every body and man of their own row, over
+     * the ground, its decals, the shadows and the farther rows.
+     */
+    rowDrop: -0.25,
+    /** Seconds after the death before the pool starts (the fall), then the seconds it takes to spread to full size. */
+    delay: 0.45,
+    spreadTime: 1,
+    /** Size when it starts (fraction of full); it eases out to full size, which varies per soldier by +-sizeSpread. */
+    startScale: 0.2,
+    sizeSpread: 0.15,
+    sizeSalt: 0x3b10d5,
+    /** Opacity of a full pool (it fades with the body: times the body's own alpha). */
+    alpha: 0.82,
+    /** Where it lies: this far (wu at row scale 1) below the ground line, so its near edge peeks out in front of the body. */
+    dropY: 0.8,
+    /** The pool sprite (wu): a flat, soft-edged blob. Colours: the dark core and the slightly lighter edge. */
+    spriteW: 34,
+    spriteH: 7,
+    core: 'rgba(74, 8, 10, 1)',
+    edge: 'rgba(96, 14, 14, 0)',
+    /** Lobes of the blob: x centre and half width (fractions of the sprite width), half height (fraction of its height). */
+    lobes: [
+      [0.5, 0.36, 0.46],
+      [0.32, 0.2, 0.36],
+      [0.67, 0.22, 0.38],
+    ] as readonly (readonly [number, number, number])[],
+    /** Share of each lobe's radius that is solid core before it softens to the edge colour. */
+    coreStop: 0.62,
+  },
+
   /** Structures. */
   structure: {
     /** HQ damage states by health fraction: above `damaged` = intact, above 0 = damaged, destroyed = ruin. */

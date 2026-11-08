@@ -29,6 +29,8 @@ export interface SaveSettings {
   sfxVolume: number;
   /** Lightning as a slow soft glow instead of sharp flashes (title screen and battles). */
   reduceFlash: boolean;
+  /** A small dark pool under each soldier killed by gunfire (on by default). */
+  showBlood: boolean;
 }
 
 /** The volume settings, by key. */
@@ -45,6 +47,7 @@ export function defaultSettings(): SaveSettings {
     ambienceVolume: META.defaultAmbienceVolume,
     sfxVolume: META.defaultSfxVolume,
     reduceFlash: META.defaultReduceFlash,
+    showBlood: META.defaultShowBlood,
   };
 }
 
@@ -150,6 +153,11 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
     if (s.sfxVolume === v3.sfx) s.sfxVolume = META.defaultSfxVolume;
     doc.settings = s;
   },
+  // 4 -> 5: "Show blood" joins the settings, on (its default) for every older save.
+  4: (doc) => {
+    if (!isRecord(doc.settings)) return;
+    doc.settings = { ...doc.settings, showBlood: META.defaultShowBlood };
+  },
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -240,6 +248,7 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
     settings.difficulty = cleanSetting('difficulty', s.difficulty);
     for (const key of VOLUME_KEYS) settings[key] = cleanSetting(key, s[key]);
     settings.reduceFlash = cleanSetting('reduceFlash', s.reduceFlash);
+    settings.showBlood = cleanSetting('showBlood', s.showBlood);
   }
   return out;
 }

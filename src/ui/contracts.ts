@@ -175,6 +175,8 @@ export interface SettingsView {
   sfxVolume: number;
   /** Lightning as a slow soft glow instead of sharp flashes, for photosensitive players. */
   reduceFlash: boolean;
+  /** "Show blood": a small dark pool under each soldier killed by gunfire (on by default). */
+  showBlood: boolean;
 }
 
 /**

@@ -49,6 +49,8 @@ test.describe('debug hooks', () => {
       [
         'audio',
         'autopilot',
+        'battleMusic',
+        'blood',
         'buttonRects',
         'camera',
         'field',

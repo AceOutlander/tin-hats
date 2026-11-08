@@ -74,6 +74,7 @@ export interface StoredSave {
     ambienceVolume: number;
     sfxVolume: number;
     reduceFlash: boolean;
+    showBlood: boolean;
   };
 }
 

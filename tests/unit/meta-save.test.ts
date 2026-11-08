@@ -49,7 +49,7 @@ describe('save data', () => {
     recordClear(save, 1, 'hard');
     recordClear(save, 2, 'normal');
     save.upgrades = { sapperDrill: 2, riflemanHealth: 3 };
-    save.settings = { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 0, sfxVolume: 72, reduceFlash: true };
+    save.settings = { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 0, sfxVolume: 72, reduceFlash: true, showBlood: false };
     expect(writeSave(storage, save)).toBe(true);
 
     const loaded = loadSave(storage);
@@ -175,9 +175,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     settings: { muted: true, difficulty: 'hard', hints: false },
   };
 
-  it('is behind the current version, 4 (the default volumes moved in version 4)', () => {
-    expect(META.saveVersion).toBe(4);
-    expect(defaultSave().version).toBe(4);
+  it('is behind the current version, 5 ("Show blood" joined the settings in version 5)', () => {
+    expect(META.saveVersion).toBe(5);
+    expect(defaultSave().version).toBe(5);
   });
 
   it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
@@ -189,6 +189,7 @@ describe('version 3: the volume sliders and reduce flashing', () => {
       ambienceVolume: META.defaultAmbienceVolume,
       sfxVolume: META.defaultSfxVolume,
       reduceFlash: false,
+      showBlood: true,
     });
     for (const v of [META.defaultMusicVolume, META.defaultAmbienceVolume, META.defaultSfxVolume]) {
       expect(Number.isInteger(v) && v >= 0 && v <= 100).toBe(true);
@@ -198,7 +199,7 @@ describe('version 3: the volume sliders and reduce flashing', () => {
   it('migrates a version 2 save step by step and keeps what the player had set', () => {
     const migrated = migrateSave(v2);
     expect(migrated?.version).toBe(META.saveVersion);
-    expect(migrated?.settings).toEqual({ ...v2.settings, musicVolume: META.defaultMusicVolume, ambienceVolume: META.defaultAmbienceVolume, sfxVolume: META.defaultSfxVolume, reduceFlash: false });
+    expect(migrated?.settings).toEqual({ ...v2.settings, musicVolume: META.defaultMusicVolume, ambienceVolume: META.defaultAmbienceVolume, sfxVolume: META.defaultSfxVolume, reduceFlash: false, showBlood: true });
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v2) }));
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
@@ -280,7 +281,7 @@ describe('version 4: the menu mix moved the default volumes', () => {
   it('moves sliders a player never touched (still at the old defaults) to the new defaults', () => {
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v3({ musicVolume: old.music, ambienceVolume: old.ambience, sfxVolume: old.sfx })) }));
     expect(loaded.status).toBe('ok');
-    expect(loaded.data.version).toBe(4);
+    expect(loaded.data.version).toBe(META.saveVersion);
     expect(loaded.data.settings).toEqual({ ...defaultSettings(), reduceFlash: true });
     // Everything else in the save is untouched.
     expect(loaded.data.cleared).toEqual({ '1': ['normal'] });
@@ -305,6 +306,74 @@ describe('version 4: the menu mix moved the default volumes', () => {
 
   it('does not change the document it migrates', () => {
     const doc = v3({ musicVolume: old.music, ambienceVolume: 20, sfxVolume: old.sfx });
+    const copy = structuredClone(doc);
+    migrateSave(doc);
+    expect(doc).toEqual(copy);
+  });
+});
+
+describe('version 5: "Show blood"', () => {
+  const v4 = (settings: Record<string, unknown>) => ({
+    version: 4,
+    cleared: { '1': ['normal'], '2': ['hard'] },
+    upgrades: { rifleHealth: 1 },
+    lastMission: 2,
+    settings: { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, ...settings },
+  });
+
+  it('is on in a fresh save', () => {
+    expect(META.defaultShowBlood).toBe(true);
+    expect(defaultSettings().showBlood).toBe(true);
+    expect(defaultSave().settings.showBlood).toBe(true);
+  });
+
+  it('turns blood on for a version 4 save and keeps everything else as it was', () => {
+    const migrated = migrateSave(v4({}));
+    expect(migrated?.version).toBe(5);
+    expect(migrated?.settings).toEqual({ ...v4({}).settings, showBlood: true });
+    const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v4({})) }));
+    expect(loaded.status).toBe('ok');
+    expect(loaded.data.version).toBe(5);
+    expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: true });
+    expect(loaded.data.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
+    expect(loaded.data.upgrades).toEqual({ rifleHealth: 1 });
+    expect(loaded.data.lastMission).toBe(2);
+  });
+
+  it('turns blood on for every older save, whatever an older copy of the game wrote there', () => {
+    // A version 4 save has no "showBlood"; anything found there is from before the setting existed.
+    expect(sanitizeSave(v4({ showBlood: false }))?.settings.showBlood).toBe(true);
+    for (const version of [1, 2, 3]) {
+      expect(sanitizeSave({ version, cleared: {}, upgrades: {}, settings: { muted: false, difficulty: 'normal', hints: true } })?.settings.showBlood).toBe(true);
+    }
+  });
+
+  it('migrates a version 4 save without settings without failing', () => {
+    expect(sanitizeSave({ ...v4({}), settings: undefined })?.settings).toEqual(defaultSettings());
+    expect(sanitizeSave({ ...v4({}), settings: 'gory' })?.settings).toEqual(defaultSettings());
+  });
+
+  it('round-trips blood turned off', () => {
+    const storage = createMemoryStorage();
+    const save = defaultSave();
+    save.settings.showBlood = false;
+    expect(writeSave(storage, save)).toBe(true);
+    const loaded = loadSave(storage);
+    expect(loaded.status).toBe('ok');
+    expect(loaded.data.settings.showBlood).toBe(false);
+  });
+
+  it('accepts only true or false, anything else is the default (on)', () => {
+    const doc = (v: unknown) => ({ version: 5, settings: { showBlood: v } });
+    expect(sanitizeSave(doc(true))?.settings.showBlood).toBe(true);
+    expect(sanitizeSave(doc(false))?.settings.showBlood).toBe(false);
+    for (const bad of ['off', 0, 1, null, {}, [], undefined]) expect(sanitizeSave(doc(bad))?.settings.showBlood).toBe(true);
+    expect(cleanSetting('showBlood', false)).toBe(false);
+    expect(cleanSetting('showBlood', 'no')).toBe(true);
+  });
+
+  it('does not change the document it migrates', () => {
+    const doc = v4({});
     const copy = structuredClone(doc);
     migrateSave(doc);
     expect(doc).toEqual(copy);
@@ -469,7 +538,8 @@ function expectUsable(data: SaveData, rules: { missionIds: readonly number[]; up
     expect(v).toBeLessThanOrEqual(100);
   }
   expect(typeof data.settings.reduceFlash).toBe('boolean');
-  expect(Object.keys(data.settings).sort()).toEqual(['ambienceVolume', 'difficulty', 'hints', 'musicVolume', 'muted', 'reduceFlash', 'sfxVolume']);
+  expect(typeof data.settings.showBlood).toBe('boolean');
+  expect(Object.keys(data.settings).sort()).toEqual(['ambienceVolume', 'difficulty', 'hints', 'musicVolume', 'muted', 'reduceFlash', 'sfxVolume', 'showBlood']);
   expect(Object.getPrototypeOf(data.upgrades)).toBe(Object.prototype);
   expect(Object.getPrototypeOf(data.cleared)).toBe(Object.prototype);
   expect(Object.keys(data).sort()).toEqual(['cleared', 'lastMission', 'settings', 'upgrades', 'version']);
