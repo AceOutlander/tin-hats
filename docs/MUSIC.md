@@ -66,6 +66,40 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
   high cluster tremolo (tense), a slow metallic clank (prep), the choir and a draught through the halls (quiet).
   25.8 MB, 339 s distinct, rendered in 15.7 s (longest graph build 28 ms). For comparison, same machine: Arras 25.4 MB
   in 19.4 s, Dunkirk 27.3 MB in 20.8 s.
+- `brest` ("Four in the Morning", D minor, 112 BPM): Brest Fortress at dawn, the one summer morning. Its groove is a
+  3 + 3 + 2 grouping under every layer. A single high violin tremolo over distant timpani (the four-bar opening), a cold
+  pulse of open fifths struck together (build), a driving snare with low brass stabs in the grouping and the motif on
+  unison brass (combat), the high tremolo in octaves over a low pedal (tense), a ticking rim in the grouping over a
+  string pedal that climbs a step every two bars (prep), the muted horn (darker horn settings) alone with the motif and
+  its answer over choir and smoke (quiet, six bars); the defeat sting ends on a bare D-A fifth. 27.2 MB, 360 s
+  distinct, rendered in 14.0 s (longest graph build 24 ms). Mix (army over it, full / phone): build 18.9 / 19.2, combat
+  12.2 / 16.3, tense 15.0 / 19.0 LU.
+- `dubno` ("Iron in the Rye", A minor, 132 BPM): the tank battle, heavy and mechanical. The tracks: a low string
+  ostinato in sixteenths grinding on the root and the semitone above it, accented every third step against the bar,
+  with the anvil clanking on the same three-step cycle (combat); idling in eighths under a heat shimmer of high strings
+  on a narrower, quicker tremolo (build); a half-time backbeat and pounding timpani under the motif augmented to six
+  bars on unison brass in octaves (combat); the treads breaking up under a high semitone shimmer and a ticking anvil
+  (tense); the engines warming (prep); choir and wind at dusk (quiet). 26.5 MB, 349 s distinct, rendered in 12.9 s
+  (longest graph build 16 ms). Mix: build 19.0 / 19.5, combat 11.1 / 15.7, tense 14.6 / 18.4 LU.
+- `klin` ("Forty Below", F# minor, A major in the section "Klin", 126 BPM): the coldest and brightest. A gallop (an
+  eighth and two sixteenths) on sleigh-like bells (short rings, a harder strike) over a pad of open fifths (build); the
+  snare and timpani take the gallop up as a march that swells through each section while the low brass climb the
+  motif's answer a step at a time (combat); the bells frozen to single strokes in the blizzard (tense); the forming-up
+  in the forest, one bell a bar and the timpani breathing (prep); choir and wind in the birches (quiet, six bars). The
+  brightest room (2.6 s, `brightHz` 6000). 26.6 MB, 350 s distinct, rendered in 9.7 s (longest graph build 17 ms).
+  Mix: build 19.9 / 17.9, combat 12.0 / 15.3, tense 15.1 / 18.7 LU.
+- `volga` ("The Far Bank", C minor, 118 BPM): the night crossing. The oars: a deep hand-drum stroke every two beats and
+  two light ones on the recovery, under a low pad and the strings' slow measured tremolo swelling with each stroke, and
+  far timpani falling irregularly like guns across the river (build, timpani further back in the room); the oars
+  doubled, urgent bariolage strings, a running snare and the motif torn into three-note fragments thrown between brass
+  and horn as well as whole on the strings (combat); a clock-like rim on every beat with a tick-tock on the bell (tense);
+  dawn on the bank, a far chime every two bars (prep); choir and wind halfway across (quiet). The longest room (2.8 s).
+  Its low register falls below a phone speaker, so its layers sit higher (`layerLevel` build 1.7, combat 1.12, tense
+  1.5, prep 1.6). 27.0 MB, 358 s distinct, rendered in 14.5 s (longest graph build 19 ms). Mix: build 16.4 / 19.7,
+  combat 13.1 / 16.2, tense 16.0 / 18.4 LU.
+- The four later tracks share their small writing helpers (`leads`, `rep`, `spanBeats`, `windBand`) in
+  `musicTracks/sovietParts.ts`. Render times are from one machine under load (the same track varies by up to 4 s from
+  run to run); all are a third of the 45 s budget or less.
 - `stalingradMap` ("Versts of Snow", `src/data/musicMapSoviet.ts`, A minor, 60 BPM, 128 s): the campaign map track,
   the motif on a glassy high piano, then the horn with its answer, once in C major, inverted at the end. 11.9 MB at
   22.05 kHz, rendered in 14.9 s ("Between the Lines": 10.9 MB in 16.3 s). Registered in `MUSIC_TRACKS`; the campaign
@@ -73,6 +107,9 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
 - Which mission plays which: `STALINGRAD_MUSIC` in `src/data/musicCampaigns.ts` (`missions[id]` today, `planned[id]`
   for the brief's own track still to be written; see `docs/campaigns/STALINGRAD_BUILD.md`). A mission file sets
   `music: STALINGRAD_MUSIC.missions[1003]`.
+- Every Stalingrad mission gets a track of its own: `tests/unit/music-soviet.test.ts` fails if two missions on their
+  own tracks share one, if a mission file plays anything but its row of `STALINGRAD_MUSIC.missions`, or if two cold
+  tracks fight on the same instruments in nearly the same groove (combat onsets per sixteenth, L1 distance under 0.2).
 - Checks: `x.cmd npx vitest run tests/unit/music-soviet.test.ts`, the battle report as above, and for a looping track
   `x.cmd npx tsx tools/battle-music-report.ts stalingradMap --loop` (or `dev/music-preview.html?loop=stalingradMap`).
 

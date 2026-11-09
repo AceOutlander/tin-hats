@@ -1,3 +1,4 @@
+import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
@@ -282,5 +283,5 @@ export const M1004: MissionDef = {
   },
   // The design's 24 to 28 minutes assume deep snow, the night phases and the hold posture (STALINGRAD_BUILD.md).
   expectedMinutes: [13, 28],
-  music: 'reichswald',
+  music: STALINGRAD_MUSIC.missions[1004],
 };

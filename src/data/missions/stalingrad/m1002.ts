@@ -1,3 +1,4 @@
+import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
@@ -218,5 +219,5 @@ export const M1002: MissionDef = {
   },
   // The design's 20 to 24 minutes include the 600 s hold at the crossroads (STALINGRAD_BUILD.md).
   expectedMinutes: [12, 24],
-  music: 'arras',
+  music: STALINGRAD_MUSIC.missions[1002],
 };

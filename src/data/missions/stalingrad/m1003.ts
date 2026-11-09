@@ -1,3 +1,4 @@
+import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
@@ -234,5 +235,5 @@ export const M1003: MissionDef = {
     firstAttackAfter: 720,
   },
   expectedMinutes: [16, 23],
-  music: 'hill112',
+  music: STALINGRAD_MUSIC.missions[1003],
 };

@@ -1,3 +1,4 @@
+import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
@@ -248,6 +249,5 @@ export const M1001: MissionDef = {
     firstAttackAfter: 9999,
   },
   expectedMinutes: [12, 12.2],
-  // Stand-in until the `brest` track exists (STALINGRAD_BUILD.md).
-  music: 'dunkirk',
+  music: STALINGRAD_MUSIC.missions[1001],
 };

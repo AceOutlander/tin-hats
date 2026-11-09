@@ -1,3 +1,4 @@
+import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
@@ -271,5 +272,5 @@ export const M1005: MissionDef = {
   },
   // The design's 20 to 23 minutes include the 180 s landing hold and the 240 s station hold (STALINGRAD_BUILD.md).
   expectedMinutes: [9, 23],
-  music: 'arnhem',
+  music: STALINGRAD_MUSIC.missions[1005],
 };

@@ -9,6 +9,7 @@ import { playBattleChoir, playWind } from '../../src/audio/music/instruments';
 import type { NoiseBank } from '../../src/audio/synth';
 import { CAMPAIGNS } from '../../src/data/campaigns';
 import { MINOR_SCALE, MUSIC_TRACKS } from '../../src/data/music';
+import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { MUSIC_BATTLE, type BattleTrackDef } from '../../src/data/musicBattle';
 import { STALINGRAD_MUSIC, type StalingradMissionId } from '../../src/data/musicCampaigns';
 import { STALINGRAD_MAP } from '../../src/data/musicMapSoviet';
@@ -130,6 +131,7 @@ describe('the cold battle tracks', () => {
   it('are registered, at least one for the 1941 snow and one for the Stalingrad ruins', () => {
     expect(SOVIET).toContain('volokolamsk');
     expect(SOVIET).toContain('factories');
+    for (const name of ['brest', 'dubno', 'klin', 'volga']) expect(SOVIET).toContain(name);
   });
 
   for (const name of SOVIET) {
@@ -302,10 +304,83 @@ describe('the Stalingrad music table', () => {
       expect(BATTLE_TRACK_NAMES, `${id}`).toContain(name);
       expect(BATTLE_TRACKS[name].theme, `${id}`).toBe('sovietWinter');
     }
-    // The 1941 snow plays the snow track, the city the ruins track.
+    // The brief's own tracks, where written.
+    expect(STALINGRAD_MUSIC.missions[1001]).toBe('brest');
+    expect(STALINGRAD_MUSIC.missions[1002]).toBe('dubno');
     expect(STALINGRAD_MUSIC.missions[1003]).toBe('volokolamsk');
+    expect(STALINGRAD_MUSIC.missions[1004]).toBe('klin');
+    expect(STALINGRAD_MUSIC.missions[1005]).toBe('volga');
     expect(STALINGRAD_MUSIC.missions[1008]).toBe('factories');
     // A planned track is never one that is already registered (it would be in `missions` instead).
     for (const planned of Object.values(STALINGRAD_MUSIC.planned)) expect(BATTLE_TRACK_NAMES).not.toContain(planned);
+  });
+
+  it('gives every Stalingrad mission a track of its own: no two share one, a stand-in only while its own is planned', () => {
+    const ids = CAMPAIGNS.stalingrad.missionIds as readonly StalingradMissionId[];
+    const own = ids.filter((id) => STALINGRAD_MUSIC.planned[id] === undefined);
+    const tracks = own.map((id) => STALINGRAD_MUSIC.missions[id]);
+    // Missions on their own tracks never share one.
+    expect(new Set(tracks).size, tracks.join(', ')).toBe(tracks.length);
+    // A mission still on a stand-in borrows another mission's own track, and the track it is to get is unique too, so
+    // once every planned track is written all ten are different.
+    for (const id of ids.filter((i) => STALINGRAD_MUSIC.planned[i] !== undefined)) expect(tracks, `${id}`).toContain(STALINGRAD_MUSIC.missions[id]);
+    const finalTracks = ids.map((id) => STALINGRAD_MUSIC.planned[id] ?? STALINGRAD_MUSIC.missions[id]);
+    expect(new Set(finalTracks).size, finalTracks.join(', ')).toBe(ids.length);
+    // Every new track written for a mission is that mission's alone.
+    for (const name of ['brest', 'dubno', 'klin', 'volga'] as const) expect(ids.filter((id) => STALINGRAD_MUSIC.missions[id] === name).length, name).toBe(1);
+  });
+
+  it('is what every Stalingrad mission file plays', () => {
+    expect(STALINGRAD_MISSIONS.length).toBe(10);
+    for (const m of STALINGRAD_MISSIONS) expect(m.music, `${m.id}`).toBe(STALINGRAD_MUSIC.missions[m.id as StalingradMissionId]);
+  });
+});
+
+describe('the cold tracks sound different from one another', () => {
+  const cold = SOVIET.map((n) => BATTLE_TRACKS[n]);
+  /** The instruments that carry at least 8% of a track's combat notes. */
+  const profile = (d: BattleTrackDef): string => {
+    const count = new Map<string, number>();
+    for (const s of d.sections) for (const p of s.layers.combat) count.set(p.inst, (count.get(p.inst) ?? 0) + p.events.length);
+    const total = [...count.values()].reduce((a, b) => a + b, 0);
+    return [...count.entries()]
+      .filter(([, k]) => k / total >= 0.08)
+      .map(([inst]) => inst)
+      .sort()
+      .join('+');
+  };
+  /** The groove: where in the bar (sixteenths) the combat drums, brass and strings strike, weighted by velocity. */
+  const groove = (d: BattleTrackDef): number[] => {
+    const h = Array<number>(16).fill(0);
+    for (const s of d.sections) {
+      for (const p of s.layers.combat) {
+        if (!['snare', 'hand', 'anvil', 'timpani', 'brass', 'strings'].includes(p.inst)) continue;
+        for (const e of p.events) if (Math.abs(e.at * 4 - Math.round(e.at * 4)) < 1e-6) h[Math.round(e.at * 4) % 16] += e.vel;
+      }
+    }
+    const total = h.reduce((a, b) => a + b, 0);
+    return h.map((x) => x / total);
+  };
+
+  it('each has its own tempo or key, title and seed', () => {
+    expect(new Set(cold.map((d) => `${d.bpm}/${d.tonic}`)).size).toBe(cold.length);
+    expect(new Set(cold.map((d) => d.title)).size).toBe(cold.length);
+    expect(new Set(cold.map((d) => d.seed)).size).toBe(cold.length);
+  });
+
+  it('no two fight on the same instruments in the same groove', () => {
+    // Two tracks whose combat layers lean on the same instruments must put their weight on different sixteenths:
+    // at least a fifth of it (L1 distance 0.2; British tracks of one kit are mostly 0.1 to 0.2 apart).
+    const clashes: string[] = [];
+    for (let i = 0; i < cold.length; i++) {
+      for (let j = i + 1; j < cold.length; j++) {
+        if (profile(cold[i]) !== profile(cold[j])) continue;
+        const a = groove(cold[i]);
+        const b = groove(cold[j]);
+        const dist = a.reduce((s, x, k) => s + Math.abs(x - b[k]), 0);
+        if (dist < 0.2) clashes.push(`${cold[i].title} and ${cold[j].title}: ${profile(cold[i])}, groove ${dist.toFixed(2)} apart`);
+      }
+    }
+    expect(clashes).toEqual([]);
   });
 });

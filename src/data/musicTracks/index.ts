@@ -16,6 +16,10 @@ import { HILL112 } from './hill112';
 import { REICHSWALD } from './reichswald';
 import { VOLOKOLAMSK } from './volokolamsk';
 import { FACTORIES } from './factories';
+import { BREST } from './brest';
+import { DUBNO } from './dubno';
+import { KLIN } from './klin';
+import { VOLGA } from './volga';
 
 export type { BattleTrackName };
 
@@ -32,6 +36,10 @@ export const BATTLE_TRACKS: Record<BattleTrackName, BattleTrackDef> = {
   reichswald: REICHSWALD,
   volokolamsk: VOLOKOLAMSK,
   factories: FACTORIES,
+  brest: BREST,
+  dubno: DUBNO,
+  klin: KLIN,
+  volga: VOLGA,
 };
 
 export const BATTLE_TRACK_NAMES = Object.keys(BATTLE_TRACKS) as BattleTrackName[];

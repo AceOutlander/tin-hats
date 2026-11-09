@@ -679,7 +679,11 @@ export type BattleTrackName =
   | 'sword'
   // The Soviet campaign (src/data/musicCampaigns.ts says which Stalingrad mission plays which).
   | 'volokolamsk'
-  | 'factories';
+  | 'factories'
+  | 'brest'
+  | 'dubno'
+  | 'klin'
+  | 'volga';
 
 export interface MissionDef {
   id: number;
