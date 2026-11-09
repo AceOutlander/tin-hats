@@ -233,8 +233,10 @@ export const SCENES: Record<string, Scene> = {
       { side: 0, kind: 'rifle', x: 1760, row: 0 },
       { side: 1, kind: 'rifle', x: 2080, row: 1 },
       { side: 1, kind: 'rifle', x: 2130, row: 2 },
+      // A German flamethrower behind the trench, to check his mask too (cam 2230 at a close zoom).
+      { side: 1, kind: 'flame', x: 2260, row: 1 },
     ],
-    tick(t, k) {
+    tick(_t, k) {
       k.shootCycle(0, 0.6, 0.45, 2070, 1, 'flamer');
       k.shootCycle(1, 0.9, 0.5, 2020, 2, 'flamer');
       k.shootCycle(2, 0.4, 1.6, 2080, 1);
@@ -242,6 +244,7 @@ export const SCENES: Record<string, Scene> = {
       k.trench(4, 0);
       k.face(3, -1);
       k.face(4, -1);
+      k.face(5, -1);
     },
   },
 

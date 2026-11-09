@@ -156,12 +156,14 @@ function headSpec(key: string, color: string, grow: number): SpriteSpec {
   );
 }
 
-const MASK_RUBBER = '#5a5541';
-const MASK_SNOUT = '#47432f';
-const MASK_STRAP = '#2c2a21';
-const MASK_CAN = '#6e6750';
-const MASK_CAN_DARK = '#38342a';
-const MASK_RING = '#a39a80';
+// Light rubber and a pale canister so the mask reads against the black silhouette at phone size.
+const MASK_RUBBER = '#8f8a72';
+const MASK_RUBBER_EDGE = '#5d5947';
+const MASK_SNOUT = '#77725d';
+const MASK_STRAP = '#4a4637';
+const MASK_CAN = '#a59c7b';
+const MASK_CAN_DARK = '#5a5442';
+const MASK_RING = '#cfc6a6';
 
 /**
  * The flamethrower's head: the plain head wearing a gas mask (rubber face piece, one round lens glowing with the fire
@@ -171,7 +173,7 @@ function headMaskSpec(key: string): SpriteSpec {
   const hr = FIGURE.headRadius;
   const L = B.neck;
   const k = hr / 5;
-  return makeSpec(key, Math.min(-NECK_R, L - 9.2 * k), -hr - 0.6, L + hr + 0.4, 8.6 * k, (ctx) => {
+  return makeSpec(key, Math.min(-NECK_R, L - 11 * k), -hr - 0.6, L + hr + 0.4, 10.8 * k, (ctx) => {
     fillPath(ctx, C.body, () => {
       capsule(ctx, L * 0.6, NECK_R, NECK_R);
       ctx.moveTo(L + hr, 0);
@@ -181,26 +183,36 @@ function headMaskSpec(key: string): SpriteSpec {
     ctx.translate(L, 0);
     ctx.rotate(Math.PI / 2);
     ctx.scale(k, k);
-    line(ctx, MASK_STRAP, 0.7, [0.6, -2.7, -4.3, -3.3]);
-    line(ctx, MASK_STRAP, 0.7, [-0.2, 2.8, -4.5, 1.6]);
-    solid(ctx, MASK_RUBBER, () => {
-      ctx.moveTo(0.6, -3.3);
-      ctx.quadraticCurveTo(3.8, -3.6, 4.9, -2.2);
-      ctx.quadraticCurveTo(5.7, -0.2, 5.3, 1.6);
-      ctx.quadraticCurveTo(4.6, 4.2, 2.6, 4.6);
-      ctx.quadraticCurveTo(0.4, 4.6, -0.6, 3.4);
-      ctx.quadraticCurveTo(-1.5, 0.2, 0.6, -3.3);
+    line(ctx, MASK_STRAP, 0.9, [0.6, -2.7, -4.3, -3.3]);
+    line(ctx, MASK_STRAP, 0.9, [-0.2, 2.8, -4.5, 1.6]);
+    // Face piece, with a darker rim so it separates from the head.
+    const face = (): void => {
+      ctx.moveTo(0.3, -3.6);
+      ctx.quadraticCurveTo(3.9, -3.9, 5.1, -2.3);
+      ctx.quadraticCurveTo(6.0, -0.2, 5.6, 1.7);
+      ctx.quadraticCurveTo(4.8, 4.5, 2.6, 4.9);
+      ctx.quadraticCurveTo(0.2, 4.9, -0.9, 3.5);
+      ctx.quadraticCurveTo(-1.8, 0.2, 0.3, -3.6);
       ctx.closePath();
-    });
-    // Snout and the filter canister hanging from it.
-    solid(ctx, MASK_SNOUT, () => poly(ctx, [3.9, 0.9, 5.9, 1.7, 6.7, 3.3, 5.1, 4.1, 3.6, 3.0]));
+    };
+    solid(ctx, MASK_RUBBER_EDGE, face);
     ctx.save();
-    ctx.translate(6.1, 5.6);
-    ctx.rotate(-0.28);
-    solid(ctx, MASK_CAN, () => rrect(ctx, -1.7, -2.0, 3.4, 4.2, 0.9));
-    line(ctx, MASK_CAN_DARK, 0.45, [-1.6, -0.6, 1.6, -0.6]);
-    line(ctx, MASK_CAN_DARK, 0.45, [-1.6, 0.8, 1.6, 0.8]);
-    solid(ctx, MASK_CAN_DARK, () => rrect(ctx, -1.5, 1.7, 3.0, 0.8, 0.3));
+    ctx.translate(2.4, 0.6);
+    ctx.scale(0.86, 0.86);
+    ctx.translate(-2.4, -0.6);
+    solid(ctx, MASK_RUBBER, face);
+    ctx.restore();
+    // Snout and the round filter canister hanging from it.
+    solid(ctx, MASK_SNOUT, () => poly(ctx, [3.6, 0.8, 6.2, 1.5, 7.3, 3.5, 5.5, 4.8, 3.4, 3.3]));
+    line(ctx, MASK_RUBBER_EDGE, 0.5, [4.4, 1.5, 6.2, 4.2]);
+    ctx.save();
+    ctx.translate(6.6, 6.6);
+    ctx.rotate(-0.3);
+    solid(ctx, MASK_CAN_DARK, () => rrect(ctx, -2.5, -2.9, 5.0, 5.9, 1.4));
+    solid(ctx, MASK_CAN, () => rrect(ctx, -2.1, -2.5, 4.2, 5.1, 1.1));
+    line(ctx, MASK_CAN_DARK, 0.55, [-2.1, -0.7, 2.1, -0.7]);
+    line(ctx, MASK_CAN_DARK, 0.55, [-2.1, 1.0, 2.1, 1.0]);
+    solid(ctx, MASK_CAN_DARK, () => rrect(ctx, -1.8, 2.3, 3.6, 0.9, 0.35));
     ctx.restore();
     // The lens: a steel ring round glass that glows orange with the flames.
     dot(ctx, MASK_RING, 3.4, -1.0, 1.75);
