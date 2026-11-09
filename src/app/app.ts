@@ -13,7 +13,7 @@ import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MISSIONS } from '../data/missions';
 import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { MusicTrackName } from '../data/music';
-import type { MusicLayer } from '../data/musicBattle';
+import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
@@ -118,6 +118,8 @@ export class App implements AppApi {
   private mapMusic = false;
   /** A battle let go of the menu theme's buffer: the title renders it again. */
   private menuReleased = false;
+  /** Counts battle-music loads; a load whose number is no longer current was let go of or taken over. */
+  private loadToken = 0;
   private readonly view: BattleView;
   private readonly audio: GameAudio;
   private readonly storage: StorageLike | null;
@@ -189,6 +191,11 @@ export class App implements AppApi {
    */
   onScreen(screen: ScreenId): void {
     if (screen !== 'battle' && screen !== 'result') this.endSession();
+    // Back on the map or the title with no battle: a briefing's battle music (loaded or loading) is let go of.
+    if (!this.session && (screen === 'campaign' || screen === 'title')) {
+      this.loadToken++;
+      this.audio.releaseBattleMusic();
+    }
     // The campaign map track: on the map, the briefing and the Quartermaster (and behind Settings from them).
     const map = MAP_SCREENS.includes(screen) || (screen === 'settings' && this.mapMusic);
     if (!map && this.mapMusic) {
@@ -236,9 +243,9 @@ export class App implements AppApi {
   }
 
   private launch(mission: MissionDef, difficulty: Difficulty, seed: number, armoury = false): void {
-    // A restart of the same mission keeps its rendered music and starts it again from the top.
-    const sameMusic = this.session !== null && this.session.mission.music === mission.music;
-    this.endSession(sameMusic);
+    // The battle music held stays for prepareBattleMusic below: this mission's track (a restart, a replay, or the one
+    // loaded for it) plays again from the top; any other is let go of there.
+    this.endSession(true);
     const campaign = this.missions.some((m) => m.id === mission.id);
     // The map opens on the mission last played (the sandbox grounds are not part of the campaign).
     if (campaign && this.save.lastMission !== mission.id) {
@@ -275,12 +282,14 @@ export class App implements AppApi {
     // A new battle always starts at normal speed; only the debug hooks change it.
     this.loop.timeScale = 1;
     // The battle music: the map track and the menu theme let go of their buffers (only the mission's music is held in
-    // a battle), and the mission's track renders in the background.
+    // a battle), and the mission's track, rendered before the battle (loadMission), starts. Nothing renders from here
+    // on: a battle started without a load (the debug hooks) plays without music.
     this.audio.releaseMusic(MAP_MUSIC);
     this.audio.releaseMusic(MENU_MUSIC);
     this.menuReleased = true;
     this.musicIntensity = new MusicIntensity();
     this.audio.setBattleLayer('build');
+    this.loadToken++;
     this.audio.prepareBattleMusic(mission.music);
     this.audio.resume();
     this.ui?.show('battle', { missionId: mission.id });
@@ -447,6 +456,32 @@ export class App implements AppApi {
 
   campaign(): CampaignView {
     return buildCampaignView(this.save, this.missions, this.upgradeDefs, this.unlockedAll);
+  }
+
+  /**
+   * Render a mission's battle music, every layer, before its battle: the briefing starts it when it opens and its Begin
+   * waits on it, as do the result screen's Replay and the title's Basic Training. Resolves true when the battle may
+   * start (the music is in, could not be made, or took over MUSIC_BATTLE.render.loadTimeoutMs, and then the battle
+   * starts without it); false when the load was let go of first (back to the map) or a later call took over. Never
+   * rejects. The track already held (a replay, a restart) resolves at once. `onProgress` hears 0..1.
+   */
+  loadMission(id: number, onProgress?: (fraction: number) => void): Promise<boolean> {
+    const mission = id === BASIC_TRAINING_ID ? trainingMission() : this.missions.find((m) => m.id === id);
+    if (!mission) return Promise.resolve(true);
+    const token = ++this.loadToken;
+    const report = onProgress ? (ready: number, total: number): void => onProgress(total > 0 ? Math.min(1, ready / total) : 1) : undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, MUSIC_BATTLE.render.loadTimeoutMs);
+    });
+    const music = this.audio.loadBattleMusic(mission.music, report).then(
+      () => undefined,
+      () => undefined,
+    );
+    return Promise.race([music, timeout]).then(() => {
+      clearTimeout(timer);
+      return token === this.loadToken;
+    });
   }
 
   /** Start a campaign mission on a difficulty. The difficulty is remembered as the one the briefing starts on. */

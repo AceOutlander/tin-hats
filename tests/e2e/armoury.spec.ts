@@ -8,7 +8,7 @@
 import type { Page } from '@playwright/test';
 import type { DebugApi } from '../../src/app/debug';
 import { MEDALS } from '../../src/data/medals';
-import { arrived, expect, lastResult, memorySave, open, playToEnd, savedGame, shot, state, tap, tapIn, test, type Hooked } from './helpers';
+import { BATTLE_LOAD_MS, arrived, expect, lastResult, memorySave, open, playToEnd, savedGame, shot, state, tap, tapIn, test, type Hooked } from './helpers';
 
 /** The medals in the stored save (the shared StoredSave type predates them). */
 async function storedMedals(page: Page): Promise<number | undefined> {
@@ -69,7 +69,7 @@ test.describe('armoury', () => {
     await expect(page.getByTestId('briefing-loans')).toContainText('On loan for this mission');
     await shot(page, 'armoury-briefing-loan');
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await expect(page.getByTestId('train-lmg')).toBeVisible();
     await expect(page.getByTestId('train-assault')).toHaveCount(0);
     expect((await state(page)).units[0].assault).toBeGreaterThan(0);
@@ -83,7 +83,7 @@ test.describe('armoury', () => {
     await tap(page, 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     const end = await playToEnd(page, true);
     expect(end.winner).toBe(0);
     await expect(arrived(page, 'result')).toBeVisible({ timeout: 20_000 });

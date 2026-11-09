@@ -13,6 +13,7 @@ import type { MissionDef, MissionEventDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
 import { UNITS } from '../../src/data/units';
 import {
+  BATTLE_LOAD_MS,
   arrived,
   expect,
   fastForward,
@@ -114,7 +115,7 @@ for (const m of MISSIONS) {
       await shot(page, `campaign-briefing-${pad(m.id)}`);
     }
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
 
     // --- The HUD describes this mission ---------------------------------------------------------------------------

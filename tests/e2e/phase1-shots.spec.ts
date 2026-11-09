@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { MISSIONS } from '../../src/data/missions';
 import {
+  BATTLE_LOAD_MS,
   expect,
   field,
   grantSupplies,
@@ -60,7 +61,7 @@ test.describe('phase 1 screenshots', () => {
     await p1(page, 'briefing');
 
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
     await waitForState(page, 'the battle to run for a second', (s) => s.tick > 45);
     await p1(page, 'battle-start');

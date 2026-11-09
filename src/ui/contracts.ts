@@ -320,6 +320,12 @@ export interface ResultView {
 export interface AppApi {
   campaign(): CampaignView;
   startMission(id: number, difficulty: Difficulty): void;
+  /**
+   * Make a mission's battle music before its battle (Basic Training's too, by its id): the start buttons wait on it,
+   * showing `onProgress` (0..1). True when the battle may start (also when the music failed or took too long: the
+   * battle then has none), false when the load was let go of first. Optional so older stand-ins of the app still fit.
+   */
+  loadMission?(id: number, onProgress?: (fraction: number) => void): Promise<boolean>;
   buyUpgrade(id: string): void;
   /** Buy a unit type or plane call-in in the Armoury (optional so older stand-ins of the app still fit). */
   buyArmoury?(id: string): void;

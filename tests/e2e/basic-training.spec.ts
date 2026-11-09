@@ -10,6 +10,7 @@ import type { DebugApi } from '../../src/app/debug';
 import { MEDALS } from '../../src/data/medals';
 import { BASIC_TRAINING, BASIC_TRAINING_ID } from '../../src/data/missions/training';
 import {
+  BATTLE_LOAD_MS,
   SHOT_DIR,
   arrived,
   expect,
@@ -94,7 +95,7 @@ test.describe('Basic Training', () => {
     test.setTimeout(900_000);
     await open(page);
     await tap(page, 'basic-training');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     expect((await state(page)).missionId).toBe(BASIC_TRAINING_ID);
     expect((await state(page)).difficulty).toBe('normal');
     await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
@@ -258,7 +259,7 @@ test.describe('Basic Training', () => {
     await expect(arrived(page, 'title')).toBeVisible();
     await expect(page.getByTestId('training-offer')).toBeHidden();
     await tap(page, 'basic-training');
-    await expect.poll(async () => (await state(page)).missionId).toBe(BASIC_TRAINING_ID);
+    await expect.poll(async () => (await state(page)).missionId, { timeout: BATTLE_LOAD_MS }).toBe(BASIC_TRAINING_ID);
     // A replay runs the whole course again.
     await waitForLesson(page, 'welcome');
     await setTimeScale(page, 40);
@@ -280,7 +281,7 @@ test.describe('Basic Training', () => {
   test('quits back to the title screen it was started from, paying nothing', async ({ page }) => {
     await open(page);
     await tap(page, 'basic-training');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await waitForLesson(page, 'welcome');
     await tap(page, 'pause');
     await tap(page, 'quit');

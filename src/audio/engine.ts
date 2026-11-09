@@ -111,7 +111,11 @@ export interface MusicStats {
 export interface BattleMusicStats {
   /** The track asked for, or null. */
   track: BattleTrackName | null;
-  /** 'idle', 'waiting' (the render starts shortly after the battle loads), 'rendering', 'ready', 'failed' or 'unavailable'. */
+  /**
+   * 'idle', 'rendering' (loadBattleMusic, before the battle), 'ready', 'partial' (a battle started before the load
+   * finished: it plays what is in), 'skipped' (a battle started on a track never loaded: silent), 'failed' or
+   * 'unavailable'.
+   */
   state: string;
   piecesReady: number;
   piecesTotal: number;
@@ -196,8 +200,15 @@ export interface GameAudio {
   /** Let go of a looping track's buffer (fading it out first if it plays); asked for again, it is rendered again. */
   releaseMusic(name: MusicTrackName): void;
   /**
-   * Start rendering a battle track in the background, a piece at a time, a moment after the battle loads (any earlier
-   * battle music is released first). Its build layer fades in as soon as the first section is ready.
+   * Render a battle track before its battle, a piece at a time (any other battle music is released first). Resolves
+   * true once every piece is in, false when it failed, cannot render here, or was cut short by a release or by a
+   * battle starting; it never rejects. The same track again resolves at once (or joins the render under way, or
+   * finishes the pieces a cut-short load left out). `onProgress` hears pieces ready of the total.
+   */
+  loadBattleMusic(name: BattleTrackName, onProgress?: (ready: number, total: number) => void): Promise<boolean>;
+  /**
+   * The battle starts with this track: what loadBattleMusic rendered plays from the top, its build layer fading in.
+   * Nothing is rendered from here on (a load still under way stops): a track that was not loaded stays silent.
    */
   prepareBattleMusic(name: BattleTrackName): void;
   /** The layer the battle asks for; it crossfades on the next bar line. */
@@ -318,6 +329,11 @@ class AudioEngine implements GameAudio {
   private readonly wait: (ms: number) => Promise<void>;
   private battle: BattleMusicPlayer | null = null;
   private battleGen = 0;
+  /** The load under way (loadBattleMusic): its generation, its promise and the hand that settles it early. */
+  private battleLoad: { gen: number; promise: Promise<boolean>; settle: (ok: boolean) => void } | null = null;
+  private battleProgress: ((ready: number, total: number) => void) | null = null;
+  /** A battle has started on the held track (prepareBattleMusic): only then does it play. */
+  private battleLive = false;
   private battleLayer: MusicLayer = 'build';
   private readonly battleOut: BattleMusicStats = {
     track: null,
@@ -664,24 +680,74 @@ class AudioEngine implements GameAudio {
 
   // --- battle music ------------------------------------------------------------
 
-  prepareBattleMusic(name: BattleTrackName): void {
-    const same = this.battle;
-    if (same && this.battleOut.track === name && this.battleOut.state !== 'failed') {
-      // The same track again (a restart): keep what is rendered, start from the top.
-      same.restart();
-      same.setTarget(this.battleLayer);
-      return;
-    }
-    this.releaseBattleMusic();
-    const def = BATTLE_TRACKS[name];
-    const gen = ++this.battleGen;
-    const player = new BattleMusicPlayer(def, seededRandom(Math.floor(this.rng() * 0x7fffffff)));
-    this.battle = player;
-    if (this.ctx && this.musicBus) player.attach(this.ctx, this.musicBus);
-    player.setTarget(this.battleLayer);
+  loadBattleMusic(name: BattleTrackName, onProgress?: (ready: number, total: number) => void): Promise<boolean> {
     const b = this.battleOut;
+    const held = this.battle !== null && b.track === name && b.state !== 'failed';
+    if (held && (b.state === 'ready' || b.state === 'unavailable')) {
+      // Rendered already (a replay or a restart of the same mission), or never renderable here.
+      onProgress?.(b.piecesReady, b.piecesTotal);
+      return Promise.resolve(b.state === 'ready');
+    }
+    this.battleProgress = onProgress ?? null;
+    if (held && this.battleLoad) {
+      onProgress?.(b.piecesReady, b.piecesTotal);
+      return this.battleLoad.promise;
+    }
+    if (!held) {
+      this.releaseBattleMusic();
+      this.battleProgress = onProgress ?? null;
+      const def = BATTLE_TRACKS[name];
+      const player = new BattleMusicPlayer(def, seededRandom(Math.floor(this.rng() * 0x7fffffff)));
+      this.battle = player;
+      if (this.ctx && this.musicBus) player.attach(this.ctx, this.musicBus);
+      player.setTarget(this.battleLayer);
+      this.resetBattleStats(name);
+      b.prepared++;
+    }
+    const player = this.battle;
+    const Offline = findOfflineContext();
+    const render = this.renderPiece ?? (Offline ? (d: BattleTrackDef, p: BattlePiece, rate: number) => renderBattlePiece(d, p, Offline, rate, now, this.bank) : null);
+    if (!player || !render) {
+      b.state = 'unavailable';
+      return Promise.resolve(false);
+    }
+    const gen = ++this.battleGen;
+    let settle: (ok: boolean) => void = ignore;
+    const promise = new Promise<boolean>((resolve) => {
+      settle = resolve;
+    });
+    const load = { gen, promise, settle };
+    this.battleLoad = load;
+    b.state = 'rendering';
+    onProgress?.(b.piecesReady, b.piecesTotal);
+    void this.renderBattle(gen, player.def, player, render).then(
+      (ok) => this.finishLoad(load, ok),
+      () => this.finishLoad(load, false),
+    );
+    return promise;
+  }
+
+  private finishLoad(load: { gen: number; settle: (ok: boolean) => void }, ok: boolean): void {
+    if (this.battleLoad === load) {
+      this.battleLoad = null;
+      this.battleProgress = null;
+    }
+    load.settle(ok);
+  }
+
+  /** Stop a load under way: what it rendered stays, nothing more lands, and whoever waits on it hears false. */
+  private stopLoading(): void {
+    this.battleGen++;
+    const load = this.battleLoad;
+    if (load) this.finishLoad(load, false);
+  }
+
+  /** Fresh stats for a track about to be loaded (or started without music). */
+  private resetBattleStats(name: BattleTrackName): void {
+    const b = this.battleOut;
+    const def = BATTLE_TRACKS[name];
     b.track = name;
-    b.state = 'waiting';
+    b.state = 'rendering';
     b.piecesReady = 0;
     b.piecesTotal = battlePieces(def).length;
     b.bytes = 0;
@@ -692,26 +758,38 @@ class AudioEngine implements GameAudio {
     b.buildMsTotal = 0;
     b.peak = 0;
     b.sampleRate = 0;
-    b.prepared++;
-    const Offline = findOfflineContext();
-    const render = this.renderPiece ?? (Offline ? (d: BattleTrackDef, p: BattlePiece, rate: number) => renderBattlePiece(d, p, Offline, rate, now, this.bank) : null);
-    if (!render) {
-      b.state = 'unavailable';
-      return;
-    }
-    void this.renderBattle(gen, def, player, render);
   }
 
-  /** Render the pieces one at a time, a short wait between them; anything that arrives after a release is dropped. */
-  private async renderBattle(gen: number, def: BattleTrackDef, player: BattleMusicPlayer, render: (d: BattleTrackDef, p: BattlePiece, rate: number) => Promise<RenderedPiece>): Promise<void> {
+  prepareBattleMusic(name: BattleTrackName): void {
+    // The battle is starting: from here on nothing renders.
+    this.stopLoading();
+    const b = this.battleOut;
+    const same = this.battle;
+    if (same && b.track === name) {
+      this.battleLive = true;
+      // Loaded before the battle (or a restart): play what is rendered, from the top.
+      same.restart();
+      same.setTarget(this.battleLayer);
+      if (b.state === 'rendering') b.state = b.piecesReady === b.piecesTotal ? 'ready' : 'partial';
+      return;
+    }
+    // Never loaded (the debug hooks start battles straight away): the battle plays without music.
+    this.releaseBattleMusic();
+    this.resetBattleStats(name);
+    b.state = this.renderPiece || findOfflineContext() ? 'skipped' : 'unavailable';
+  }
+
+  /**
+   * Render the pieces not yet in, one at a time with a short wait between them (the loading screen keeps drawing);
+   * anything that arrives after a release or a battle start is dropped. True once every piece is in.
+   */
+  private async renderBattle(gen: number, def: BattleTrackDef, player: BattleMusicPlayer, render: (d: BattleTrackDef, p: BattlePiece, rate: number) => Promise<RenderedPiece>): Promise<boolean> {
     const R = MUSIC_BATTLE.render;
     const b = this.battleOut;
-    await this.wait(R.startDelayMs);
-    if (gen !== this.battleGen) return;
-    b.state = 'rendering';
-    const started = now();
-    let rate: number = R.sampleRate;
+    const started = now() - b.renderMs;
+    let rate: number = b.sampleRate > 0 ? b.sampleRate : R.sampleRate;
     for (const piece of battlePieces(def)) {
+      if (player.holds(piece)) continue;
       let done: RenderedPiece | null = null;
       for (let attempt = 0; attempt < 2 && !done; attempt++) {
         try {
@@ -722,10 +800,10 @@ class AudioEngine implements GameAudio {
           rate = R.fallbackRate;
         }
       }
-      if (gen !== this.battleGen) return;
+      if (gen !== this.battleGen) return false;
       if (!done) {
         b.state = 'failed';
-        return;
+        return false;
       }
       player.add(piece, done.buffer);
       b.piecesReady++;
@@ -734,13 +812,15 @@ class AudioEngine implements GameAudio {
       b.buildMs = Math.max(b.buildMs, done.buildMs);
       b.buildMsTotal += done.buildMsTotal;
       b.peak = Math.max(b.peak, done.peak);
-      if (b.piecesReady === 1) b.firstMs = now() - started;
-      player.tick();
+      b.renderMs = now() - started;
+      if (b.piecesReady === 1) b.firstMs = b.renderMs;
+      this.battleProgress?.(b.piecesReady, b.piecesTotal);
       await this.wait(R.gapMs);
-      if (gen !== this.battleGen) return;
+      if (gen !== this.battleGen) return false;
     }
     b.renderMs = now() - started;
     b.state = 'ready';
+    return true;
   }
 
   setBattleLayer(layer: MusicLayer): void {
@@ -749,7 +829,7 @@ class AudioEngine implements GameAudio {
   }
 
   tickBattleMusic(): void {
-    this.battle?.tick();
+    if (this.battleLive) this.battle?.tick();
   }
 
   endBattleMusic(won: boolean, sting: boolean): boolean {
@@ -759,8 +839,9 @@ class AudioEngine implements GameAudio {
   }
 
   releaseBattleMusic(): void {
-    this.battleGen++;
+    this.stopLoading();
     this.battleLayer = 'build';
+    this.battleLive = false;
     const player = this.battle;
     this.battle = null;
     const b = this.battleOut;

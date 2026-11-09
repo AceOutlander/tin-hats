@@ -3,9 +3,11 @@
  * src/app/menuStorm.ts). A few raindrops run down the front of the plate, drawn on a small canvas over it that never
  * takes a touch; they are faint and small so the lettering and both buttons stay fully readable.
  */
+import { BASIC_TRAINING_ID } from '../../data/missions/training';
 import type { PanelDropsState } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
 import { helmetIcon } from '../shell/icons';
+import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import type { ScreenFactory } from '../shell/types';
 
 /** Size (px) of the pre-drawn drop head and trail images. */
@@ -90,18 +92,20 @@ export const titleScreen: ScreenFactory = (ctx) => {
   play.dataset.primary = '';
   // Basic Training, the standalone tutorial: always here to replay; offered with a line of its own until it has been
   // finished or turned down (an app without it shows no button).
+  // It starts once its battle music is made (missionLoad shows the progress on the button).
   const startTraining = ctx.app.startTraining?.bind(ctx.app);
+  let starter: MissionStarter | null = null;
   const training = startTraining
     ? button({
         testid: 'basic-training',
         label: 'Basic Training',
         className: 'th-btn-big th-btn-training',
         onTap: () => {
-          ctx.app.uiSound('confirm');
-          startTraining();
+          if (starter?.start(BASIC_TRAINING_ID, startTraining)) ctx.app.uiSound('confirm');
         },
       })
     : null;
+  if (training) starter = missionStarter(ctx.app, training);
   const settings = button({
     testid: 'settings',
     label: 'Settings',
@@ -193,5 +197,5 @@ export const titleScreen: ScreenFactory = (ctx) => {
     measure();
   }
 
-  return { el: root, mounted: measure, resize: measure, drops: drawDrops, refresh };
+  return { el: root, mounted: measure, resize: measure, drops: drawDrops, refresh, destroy: () => starter?.cancel() };
 };

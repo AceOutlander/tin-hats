@@ -15,6 +15,7 @@ import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { RENDER } from '../data/render';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
+import { BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
@@ -285,6 +286,12 @@ export interface BattleSeamReport {
 
 export interface BattleMusicHooks {
   stats(): BattleMusicStats;
+  /**
+   * Render a battle's music before starting it, as the briefing does (startMission and the other start hooks start at
+   * once and render nothing, so without this their battle is silent): a mission id (campaign or Basic Training) or
+   * 'sandbox' for the proving ground. True once every piece is in.
+   */
+  load(mission: number | 'sandbox'): Promise<boolean>;
   /** Hold the music on a layer (null hands it back to the battle), as the intensity rules would ask for it. */
   force(layer: MusicLayer | null): void;
   /** The prep phase hook. */
@@ -694,6 +701,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     battleMusic: {
       stats: () => JSON.parse(JSON.stringify(audio.battleMusicStats())) as BattleMusicStats,
+      load(mission) {
+        const def = mission === 'sandbox' ? SANDBOX : mission === BASIC_TRAINING_ID ? trainingMission() : app.missions.find((m) => m.id === mission);
+        return def ? audio.loadBattleMusic(def.music) : Promise.resolve(false);
+      },
       force: (layer) => app.forceMusicLayer(layer),
       setPrep: (on) => app.setPrepPhase(on),
       intensity() {

@@ -113,6 +113,12 @@ export class BattleMusicPlayer {
     else if (piece.layer) this.buffers[piece.section][MUSIC_LAYERS.indexOf(piece.layer)] = buffer;
   }
 
+  /** True when this piece is rendered and held (a load cut short carries on from the first missing one). */
+  holds(piece: BattlePiece): boolean {
+    if (piece.sting) return this.stings[piece.sting] !== null;
+    return piece.layer ? this.has(piece.section, piece.layer) : false;
+  }
+
   /** A rendered layer of a section, or null (debug hooks and the preview page). */
   buffer(section: number, layer: MusicLayer): AudioBuffer | null {
     return this.buffers[section]?.[MUSIC_LAYERS.indexOf(layer)] ?? null;

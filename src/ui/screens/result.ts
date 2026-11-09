@@ -2,6 +2,7 @@
 import type { MedalResultView } from '../contracts';
 import { add, button, el, formatCount, formatTime, stencil } from '../shell/dom';
 import { glyph, helmetIcon } from '../shell/icons';
+import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import type { ScreenFactory } from '../shell/types';
 
 /** "1:30 / 2:00" style figures of one score line, and the marks it earned. */
@@ -92,15 +93,18 @@ export const resultScreen: ScreenFactory = (ctx) => {
       ctx.go('campaign');
     },
   });
+  // The same mission again keeps its rendered music, so this is normally at once (missionLoad shows any wait).
+  let starter: MissionStarter | null = null;
   const retry = button({
     testid: 'result-retry',
     label: won ? 'Replay' : 'Retry',
     onTap: () => {
       if (!result) return;
-      ctx.app.uiSound('confirm');
-      ctx.app.startMission(result.missionId, result.difficulty);
+      const { missionId, difficulty } = result;
+      if (starter?.start(missionId, () => ctx.app.startMission(missionId, difficulty))) ctx.app.uiSound('confirm');
     },
   });
+  starter = missionStarter(ctx.app, retry);
   retry.disabled = !result;
   add(actions, map, retry);
   const nextId = result && won ? result.nextMissionId : null;
@@ -146,6 +150,9 @@ export const resultScreen: ScreenFactory = (ctx) => {
     el: root,
     back() {
       ctx.go('campaign');
+    },
+    destroy() {
+      starter?.cancel();
     },
   };
 };

@@ -10,6 +10,7 @@
 import { MISSIONS } from '../../src/data/missions';
 import type { DebugApi } from '../../src/app/debug';
 import {
+  BATTLE_LOAD_MS,
   audioStats,
   camera,
   expect,
@@ -411,7 +412,7 @@ test.describe('whole battles at high speed', () => {
     await expect(page.getByTestId(`mission-pin-${MISSIONS[0].id}`)).toBeVisible();
     await tap(page, 'mission-start');
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     expect((await state(page)).tick).toBeLessThan(600);
 
     await page.reload();
@@ -478,7 +479,7 @@ test.describe('whole battles at high speed', () => {
         expect((await savedGame(page))?.cleared ?? {}, 'a loss clears nothing').toEqual({});
         // Retry starts the same mission again.
         await tap(page, 'result-retry');
-        await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+        await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
         expect((await state(page)).missionId).toBe(mission.id);
       }
     });

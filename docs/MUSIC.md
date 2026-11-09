@@ -173,13 +173,22 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
 
 - Mono at 16 kHz (22.05 kHz if a browser refuses); each piece (one layer of one section, or a sting) keeps 2 s of tail.
 - At most 30 MB of samples per mission, at least 180 s of distinct material. Arras: 25.4 MB, 334 s.
-- Rendered when the battle loads (0.9 s after), one piece at a time with 24 ms between pieces; the build layer starts
-  as soon as the opening section's build piece is ready. Whole track at most 45 s in headless Chromium, no piece's graph
-  build over 60 ms of main thread: a piece's notes are added to its graph 2 s of music at a time
-  (`render.chunkSeconds`), each chunk while the offline render is suspended just before it, so a busy section is never
-  one long task. Only the current mission's music is held; it is freed when the battle is left. The menu theme and the
-  map track are let go of when a battle starts too (the title and the map render theirs again), and the reverb's room
-  is kept for the current track only.
+- Rendered in full before the battle starts, never while it runs (the owner's lag report): `loadBattleMusic` renders
+  every piece of every layer (prep included) and both stings, one piece at a time with 24 ms between pieces, and
+  `prepareBattleMusic`, called as the battle starts, only plays what is held and stops any load still under way, so no
+  render work is scheduled once the battle runs (`tests/unit/music-battle.test.ts`). The briefing starts the load when
+  it opens; Begin waits for it, its caption showing "Loading 40%" (`src/ui/shell/missionLoad.ts`), as do the result
+  screen's Replay or Retry and the title's Basic Training. Nothing plays until the battle starts; then the build layer
+  fades in. If the render fails, or is not done within 60 s (`render.loadTimeoutMs`), the battle starts anyway with
+  whatever is in (silent if nothing); a battle started straight from the debug hooks without `battleMusic.load` is
+  silent. Whole track at most 45 s in headless Chromium (8 to 16 s seen), no piece's graph build over 60 ms of main
+  thread: a piece's notes are added to its graph 2 s of music at a time (`render.chunkSeconds`), each chunk while the
+  offline render is suspended just before it, so a busy section is never one long task.
+- Only the current mission's music is held. A restart and the result screen's Replay or Retry keep it (nothing is
+  rendered again; a load cut short carries on from the first missing piece); it is freed when the battle is left for
+  the map, and going back to the map or the title from a briefing frees a briefing's load. The menu theme and the map
+  track are let go of when a battle starts too (the title and the map render theirs again), and the reverb's room is
+  kept for the current track only. Muting and the Music slider act on the Music bus and are untouched by any of this.
 - Mix: the army of 80 over each layer at default sliders, full range and phone speaker: build 12 to 22 LU, combat
   8 to 18, tense 10 to 20 (`MUSIC_BATTLE.mix`, enforced by `tests/e2e/battle-music.spec.ts`).
 - The map track (`src/data/musicMap.ts`, below) renders when the campaign screen first opens and is freed when a battle

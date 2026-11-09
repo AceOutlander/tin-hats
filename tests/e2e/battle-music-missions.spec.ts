@@ -1,11 +1,12 @@
 /**
  * The battle music of every mission in the built game, one mission after another as a player would go through them:
- * nothing renders at startup; each mission's own track renders after its battle has started (the battle runs
- * meanwhile), within the memory and time budgets, without a long main-thread task; only that mission's music stays
- * in memory (V8 backing stores after a forced GC do not grow from mission to mission); every piece starts from silence
- * and has died away by its end; the player's seams and crossfades add no click; and every track sits under the army
- * of 80. A second test does the render on a 4x slowed CPU (a phone-like estimate), a third plays a real battle with
- * the autopilot and checks which layer the battle asked for, and when.
+ * nothing renders at startup; each mission's own track renders in full before its battle starts (as its briefing does
+ * it, the last battle paused), within the memory and time budgets, without a long main-thread task, and nothing more
+ * renders once the battle runs; only that mission's music stays in memory (V8 backing stores after a forced GC do not
+ * grow from mission to mission); every piece starts from silence and has died away by its end; the player's seams and
+ * crossfades add no click; and every track sits under the army of 80. A second test does the render on a 4x slowed
+ * CPU (a phone-like estimate), a third plays a real battle with the autopilot and checks which layer the battle asked
+ * for, and when.
  */
 import type { CDPSession, Page } from '@playwright/test';
 import type { BattleSeamReport } from '../../src/app/debug';
@@ -14,7 +15,7 @@ import type { BattleMusicStats } from '../../src/audio';
 import type { BattleMixReport } from '../../src/audio/music/battleMix';
 import { MISSIONS } from '../../src/data/missions';
 import { MUSIC_BATTLE } from '../../src/data/musicBattle';
-import { expect, open, setTimeScale, state, test, type Hooked } from './helpers';
+import { expect, open, setTimeScale, state, tap, test, type Hooked } from './helpers';
 
 const battle = (page: Page): Promise<BattleMusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.stats() as BattleMusicStats);
 const db = (x: number): number => 20 * Math.log10(Math.max(x, 1e-9));
@@ -54,37 +55,42 @@ async function touchTheField(page: Page): Promise<void> {
 
 interface Rendered {
   stats: BattleMusicStats;
-  /** Battle seconds played before the music was all rendered. */
-  battleTimeBefore: number;
   longestTask: number;
 }
 
-/** Start a mission and wait for its music: the battle must be running while the music still renders. */
-async function startAndRender(page: Page, id: number): Promise<Rendered> {
+/** A battle still running is paused (as if the player had left it) before the next one's music is rendered. */
+async function pauseIfRunning(page: Page): Promise<void> {
+  const s = await state(page);
+  if (s.screen !== 'battle' || s.over || s.paused) return;
+  await tap(page, 'pause');
+  await expect.poll(async () => (await state(page)).paused).toBe(true);
+}
+
+/**
+ * Render a mission's music as its briefing does (a battle still on screen paused first, as if it had been left), then
+ * start the battle: the whole track is in before it, and a few seconds in, nothing more has been rendered.
+ */
+async function loadAndStart(page: Page, id: number): Promise<Rendered> {
+  await pauseIfRunning(page);
+  const from = await page.evaluate(() => performance.now());
+  const loaded = await page.evaluate((k) => (window as unknown as Hooked).__TH?.battleMusic.load(k) ?? false, id);
+  expect(loaded, 'the whole track renders before the battle').toBe(true);
+  const ready = await battle(page);
+  expect(ready.track).toBe(MISSIONS[id - 1].music);
+  expect(ready.state).toBe('ready');
+  const longestTask = await longestTaskSince(page, from);
   await page.evaluate((k) => (window as unknown as Hooked).__TH?.startMission(k), id);
   await expect.poll(async () => (await state(page)).screen).toBe('battle');
-  const first = await battle(page);
-  expect(first.track).toBe(MISSIONS[id - 1].music);
-  expect(['waiting', 'rendering'], 'the music renders after the battle starts').toContain(first.state);
-  let battleTimeBefore = 0;
-  await expect
-    .poll(
-      async () => {
-        const [s, b] = await Promise.all([state(page), battle(page)]);
-        if (b.state !== 'ready') battleTimeBefore = Math.max(battleTimeBefore, s.time);
-        return b.state;
-      },
-      { timeout: 300_000, intervals: [250] },
-    )
-    .toBe('ready');
+  await expect.poll(async () => (await state(page)).time, { timeout: 30_000 }).toBeGreaterThan(2);
   const stats = await battle(page);
-  const readyAt = await page.evaluate(() => performance.now());
-  const longestTask = await longestTaskSince(page, readyAt - stats.renderMs - 500);
-  return { stats, battleTimeBefore, longestTask };
+  expect(stats.state).toBe('ready');
+  expect(stats.renderMs, 'nothing renders once the battle runs').toBe(ready.renderMs);
+  expect(stats.player?.started).toBe(true);
+  return { stats, longestTask };
 }
 
 test.describe('battle music, every mission', () => {
-  test('each mission renders its own track after the battle starts, holds only its own music, and stays clean', async ({ page, problems }) => {
+  test('each mission renders its own track before its battle, holds only its own music, and stays clean', async ({ page, problems }) => {
     test.setTimeout(1_500_000);
     const cdp = await page.context().newCDPSession(page);
     await open(page);
@@ -114,7 +120,7 @@ test.describe('battle music, every mission', () => {
     const rows: string[] = [`baseline: backing stores ${mb(base.backing)} MB, heap ${mb(base.used)} MB, menu theme ${mb(menuBytes)} MB, ${rendered} sound buffers`];
     const held: number[] = [];
     for (const m of MISSIONS) {
-      const r = await startAndRender(page, m.id);
+      const r = await loadAndStart(page, m.id);
       const s = r.stats;
       expect(s.piecesReady).toBe(s.piecesTotal);
       expect(s.bytes).toBe(s.budgetBytes);
@@ -122,7 +128,6 @@ test.describe('battle music, every mission', () => {
       expect(s.renderMs).toBeLessThanOrEqual(MUSIC_BATTLE.budget.maxRenderMs);
       expect(s.buildMs, 'no long graph build').toBeLessThanOrEqual(MUSIC_BATTLE.budget.maxBuildMs);
       expect(r.longestTask, 'no long main-thread task while the music renders').toBeLessThanOrEqual(200);
-      expect(r.battleTimeBefore, 'the battle runs while the music renders').toBeGreaterThan(1);
       expect(db(s.peak)).toBeLessThanOrEqual(MUSIC_BATTLE.mix.maxPeakDb);
       // Every piece: music in it, starting from silence, died away by its end (no cut-off tail at the seam).
       const pieces = (await page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.analyse() ?? null)) ?? [];
@@ -161,7 +166,7 @@ test.describe('battle music, every mission', () => {
       rows.push(
         `${String(m.id).padStart(2)} ${m.music.padEnd(10)} ${s.piecesTotal} pieces ${mb(s.bytes)} MB; backing stores +${mb(h.backing - base.backing)} MB, heap +${mb(h.used - base.used)} MB; ` +
           `render ${(s.renderMs / 1000).toFixed(1)} s, first ${s.firstMs.toFixed(0)} ms, build max ${s.buildMs.toFixed(0)} ms, longest task ${r.longestTask.toFixed(0)} ms; ` +
-          `battle ${r.battleTimeBefore.toFixed(1)} s in before ready; peak ${db(s.peak).toFixed(1)} dBFS; tails <= ${worstEnd.toFixed(0)} dBFS, starts <= ${worstStart.toExponential(1)}; ` +
+          `peak ${db(s.peak).toFixed(1)} dBFS; tails <= ${worstEnd.toFixed(0)} dBFS, starts <= ${worstStart.toExponential(1)}; ` +
           `seams ${seam.seamRatio.toFixed(2)} (bar lines ${seam.barRatio.toFixed(2)}, ${seam.seams} seams, ${seam.crossfades} fades); ` +
           `army over ${mix.layers.map((l) => `${l.layer} ${l.armyOverFull.toFixed(1)}/${l.armyOverPhone.toFixed(1)}`).join(' ')} LU`,
       );
@@ -184,7 +189,7 @@ test.describe('battle music, every mission', () => {
     expect(problems).toEqual([]);
   });
 
-  test('renders on a 4x slowed CPU without long tasks, and the battle starts first', async ({ page, problems }) => {
+  test('renders on a 4x slowed CPU without long tasks, all of it before the battle starts', async ({ page, problems }) => {
     test.setTimeout(1_200_000);
     const cdp = await page.context().newCDPSession(page);
     await open(page);
@@ -193,15 +198,14 @@ test.describe('battle music, every mission', () => {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     const rows: string[] = [];
     for (const id of [1, 2, 6, 10]) {
-      const r = await startAndRender(page, id);
+      const r = await loadAndStart(page, id);
       const s = r.stats;
       rows.push(
         `${MISSIONS[id - 1].music.padEnd(10)} 4x CPU: render ${(s.renderMs / 1000).toFixed(1)} s, first piece ${s.firstMs.toFixed(0)} ms, build max ${s.buildMs.toFixed(0)} ms ` +
-          `(${s.buildMsTotal.toFixed(0)} ms in all), longest task ${r.longestTask.toFixed(0)} ms, battle ${r.battleTimeBefore.toFixed(1)} s in before ready`,
+          `(${s.buildMsTotal.toFixed(0)} ms in all), longest task ${r.longestTask.toFixed(0)} ms`,
       );
       expect(s.piecesReady).toBe(s.piecesTotal);
       expect(r.longestTask, 'no long main-thread task while the music renders').toBeLessThanOrEqual(250);
-      expect(r.battleTimeBefore).toBeGreaterThan(1);
       expect(s.player?.started).toBe(true);
     }
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
@@ -218,14 +222,26 @@ test.describe('battle music, every mission', () => {
     const log: string[] = [];
     let combats = 0;
     // The symmetric proving ground (two big armies, the player's played by the bot), then Arnhem (a survival clock).
-    const battles: { name: string; start: () => Promise<unknown> }[] = [
-      { name: 'proving ground', start: () => page.evaluate(() => (window as unknown as Hooked).__TH?.startSandbox(11, true)) },
-      { name: `mission 9 (${MISSIONS[8].music})`, start: () => page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(9)) },
+    const battles: { name: string; load: () => Promise<unknown>; start: () => Promise<unknown> }[] = [
+      {
+        name: 'proving ground',
+        load: () => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.load('sandbox')),
+        start: () => page.evaluate(() => (window as unknown as Hooked).__TH?.startSandbox(11, true)),
+      },
+      {
+        name: `mission 9 (${MISSIONS[8].music})`,
+        load: () => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.load(9)),
+        start: () => page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(9)),
+      },
     ];
     for (const fight of battles) {
+      // Rendered before the battle, as the briefing does it.
+      await pauseIfRunning(page);
+      expect(await fight.load()).toBe(true);
+      expect((await battle(page)).state).toBe('ready');
       await fight.start();
       await expect.poll(async () => (await state(page)).screen).toBe('battle');
-      await expect.poll(async () => (await battle(page)).state, { timeout: 300_000 }).toBe('ready');
+      expect((await battle(page)).state).toBe('ready');
       // Event sounds (the sting) only play up to this speed.
       await setTimeScale(page, 4);
       let peak: [number, number] = [0, 0];

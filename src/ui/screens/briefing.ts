@@ -6,6 +6,7 @@ import type { Difficulty } from '../../data/schema';
 import type { MissionCard } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
 import { glyph, supportIcon, unitIcon } from '../shell/icons';
+import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import { withScrollCue } from '../shell/scrollCue';
 import type { ScreenCtx, ScreenFactory } from '../shell/types';
 
@@ -186,6 +187,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
       ctx.go('campaign');
     },
   });
+  // The battle starts once its music is made (begun when the briefing opens); Begin shows the progress meanwhile.
+  let starter: MissionStarter | null = null;
+  let preload = 0;
   const begin = button({
     testid: 'begin',
     label: 'Begin',
@@ -195,10 +199,11 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         ctx.app.uiSound('deny');
         return;
       }
-      ctx.app.uiSound('confirm');
-      ctx.app.startMission(mission.id, difficulty);
+      const id = mission.id;
+      if (starter?.start(id, () => ctx.app.startMission(id, difficulty))) ctx.app.uiSound('confirm');
     },
   });
+  starter = missionStarter(ctx.app, begin);
   begin.dataset.primary = '';
   begin.disabled = !mission || !mission.unlocked;
   add(actions, back, begin);
@@ -220,6 +225,14 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         reveal(0);
         raf = requestAnimationFrame(tick);
       }
+      // The battle music renders while the orders are read (after the screen change has let go of the last battle's).
+      if (mission && mission.unlocked && ctx.app.loadMission) {
+        const id = mission.id;
+        preload = window.setTimeout(() => {
+          preload = 0;
+          void ctx.app.loadMission?.(id);
+        }, 0);
+      }
     },
     resize() {
       sheetCue.update();
@@ -231,6 +244,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
     destroy() {
       if (raf !== 0) cancelAnimationFrame(raf);
       raf = 0;
+      if (preload !== 0) window.clearTimeout(preload);
+      preload = 0;
+      starter?.cancel();
       sheetCue.destroy();
       newsCue.destroy();
     },

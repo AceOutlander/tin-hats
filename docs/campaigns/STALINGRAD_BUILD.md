@@ -103,7 +103,12 @@ What each part of the campaign has today, and what waits for which foundation fe
 
 - The campaign select job: play `STALINGRAD_MUSIC.map` on the Stalingrad map screen (today `MAP_MUSIC` in
   src/app/app.ts is always the British "Between the Lines").
-- The prep phase (FOUNDATIONS): every cold track has a prep layer, heard once `app.setPrepPhase(true)` is called.
-- Owner's lag report: battle music must be fully rendered at mission load, never mid-battle. Today the engine still
-  renders a track after the battle starts (MUSIC.md, Budgets); moving that to the load screen is the engine's job and
-  applies to these tracks unchanged.
+- The prep phase (FOUNDATIONS): every cold track has a prep layer, heard once `app.setPrepPhase(true)` is called. It
+  is already rendered with the rest before the battle (below), so the prep wiring needs no music change.
+
+**Done since** (owner's lag report): battle music is fully rendered at mission load, never mid-battle, for every
+campaign. The briefing renders the mission's whole track (every layer, the prep layer included, and both stings) and
+Begin waits for it with its progress on the button ("Loading 40%"); the battle only plays what is held, and no render
+work is scheduled once it runs (`tests/unit/music-battle.test.ts`). A restart, Replay or Retry renders nothing again.
+A failed or over-long render (60 s) starts the battle without music. MUSIC.md, Budgets, has the details; the cold
+tracks were not changed.

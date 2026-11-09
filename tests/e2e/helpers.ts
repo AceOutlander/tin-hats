@@ -17,6 +17,11 @@ export type Hooked = { __TH?: DebugApi };
 
 export const SHOT_DIR = resolve('docs', 'screenshots');
 export const SAVE_KEY = 'tinhats.save';
+/**
+ * How long a start button (Begin, Retry, Basic Training) may take to reach the battle: it waits for the mission's
+ * battle music to be rendered (src/ui/shell/missionLoad.ts), 8 to 16 s in headless Chromium.
+ */
+export const BATTLE_LOAD_MS = 90_000;
 
 /** A test whose page must stay clean: any console error, uncaught exception, failed request or HTTP error fails it. */
 export const test = base.extend<{ problems: string[] }>({
@@ -271,7 +276,7 @@ export async function playThroughMenus(page: Page, missionId: number, shots: boo
     await shot(page, 'briefing');
   }
   await tap(page, 'begin');
-  await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
 }
 

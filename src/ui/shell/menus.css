@@ -328,6 +328,13 @@
   transform: none;
 }
 
+/* Waiting for the battle music (src/ui/shell/missionLoad.ts): the caption shows the progress. */
+.th-btn.is-loading {
+  cursor: progress;
+  filter: saturate(0.7);
+  font-variant-numeric: tabular-nums;
+}
+
 .th-btn-primary {
   color: var(--th-ink);
   background: linear-gradient(180deg, #e3c06c 0%, var(--th-brass) 50%, #a5802c 100%);

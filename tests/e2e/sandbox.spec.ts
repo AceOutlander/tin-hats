@@ -7,6 +7,7 @@
 import type { Page } from '@playwright/test';
 import type { SupportKind, UnitKind } from '../../src/data/schema';
 import {
+  BATTLE_LOAD_MS,
   Fingers,
   buttonRects,
   camera,
@@ -47,7 +48,7 @@ const VIEWPORTS = [
 async function begin(page: Page, seed: number): Promise<void> {
   await open(page);
   expect(await startSandbox(page, seed)).toBe(true);
-  await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('order-hold')).toBeVisible({ timeout: 20_000 });
 }
 

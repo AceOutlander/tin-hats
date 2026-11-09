@@ -11,6 +11,7 @@ import { MISSIONS } from '../../src/data/missions';
 import { MEDALS } from '../../src/data/medals';
 import { UPGRADES, UPGRADE_MEDALS_PER_LEVEL } from '../../src/data/upgrades';
 import {
+  BATTLE_LOAD_MS,
   arrived,
   expect,
   lastResult,
@@ -77,7 +78,7 @@ test.describe('campaign', () => {
     await tap(page, 'mission-start');
     await expect(page.getByTestId('begin')).toBeVisible();
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     const first = await playToEnd(page, true);
     expect(first.winner, 'a keen player wins mission 1').toBe(0);
     await expect(page.getByTestId('result-points')).toBeVisible({ timeout: 30_000 });
@@ -100,7 +101,7 @@ test.describe('campaign', () => {
     await expect(page.getByTestId('begin')).toBeVisible();
     await tap(page, 'difficulty-hard');
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     expect((await state(page)).difficulty).toBe('hard');
     const again = await playToEnd(page, true);
     expect(again.winner, 'a keen player also wins mission 1 on Hard').toBe(0);
@@ -191,7 +192,7 @@ test.describe('campaign', () => {
     await page.waitForTimeout(600);
     await shot(page, 'campaign-briefing');
     await tapIn(page, 'briefing', 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     const battle = await state(page);
     expect(battle.missionId).toBe(SECOND);
     expect(battle.difficulty).toBe('hard');

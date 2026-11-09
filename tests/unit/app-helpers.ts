@@ -161,6 +161,8 @@ export interface FakeAudio extends GameAudio {
   /** Looping tracks let go of, the battle track asked for (null once released), the layers asked for, battle ends. */
   releasedMusic: string[];
   battleTrack: string | null;
+  /** Battle tracks asked to be rendered before their battle (loadBattleMusic), in order. */
+  battleLoads: string[];
   battleLayers: string[];
   battleEnds: [boolean, boolean][];
 }
@@ -244,8 +246,14 @@ export function createFakeAudio(): FakeAudio {
       audio.releasedMusic.push(name);
     },
     battleTrack: null,
+    battleLoads: [],
     battleLayers: [],
     battleEnds: [],
+    loadBattleMusic(name, onProgress) {
+      audio.battleLoads.push(name);
+      onProgress?.(1, 1);
+      return Promise.resolve(true);
+    },
     prepareBattleMusic(name) {
       audio.battleTrack = name;
     },

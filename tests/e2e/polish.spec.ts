@@ -4,7 +4,7 @@
  * that must never fire a navigation or a purchase twice. Pictures: docs/screenshots/e2e-polish-*.png
  */
 import type { Page } from '@playwright/test';
-import { arrived, expect, open, playThroughMenus, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
+import { BATTLE_LOAD_MS, arrived, expect, open, playThroughMenus, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
 
 const SIZES: Array<[number, number]> = [
   [568, 320],
@@ -133,7 +133,7 @@ test.describe('menus and HUD at every phone size', () => {
         await tapIn(page, 'campaign', 'mission-start');
         await settled(page);
         await tapIn(page, 'briefing', 'begin');
-        await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: BATTLE_LOAD_MS });
         await expect(page.getByTestId('tip')).toBeVisible({ timeout: 20_000 });
         await expectClean(page, 'battle with a tip');
         await tap(page, 'pause');
@@ -241,7 +241,7 @@ test.describe('rapid taps', () => {
     await expect(page.locator('.th-screen[data-screen="briefing"]')).toHaveCount(1);
 
     await doubleTap(page, 'begin', 'briefing');
-    await expect.poll(async () => (await state(page)).screen).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['campaign', 'briefing', 'battle']);
     // The second tap landed where the Advance button now is: it must not have given an order.
@@ -308,7 +308,7 @@ test.describe('rapid taps', () => {
     await page.waitForTimeout(600);
     await watchScreens(page);
     await doubleTap(page, 'result-retry', 'result');
-    await expect.poll(async () => (await state(page)).screen).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['battle']);
   });

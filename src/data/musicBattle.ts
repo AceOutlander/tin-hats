@@ -311,10 +311,13 @@ export const MUSIC_BATTLE = {
     fallbackRate: 22050,
     /** Seconds rendered past each section for its tails (they ring over the start of whatever comes next). */
     tail: 2,
-    /** Milliseconds after the battle loads before the first piece is rendered (the first frames stay smooth)... */
-    startDelayMs: 900,
-    /** ...and between pieces, so the page keeps drawing while the music is made. */
+    /**
+     * The whole track is rendered before its battle starts (on the briefing, the start waiting for it), never while
+     * the battle runs. Milliseconds between pieces, so the page and its loading progress keep drawing meanwhile.
+     */
     gapMs: 24,
+    /** A load still unfinished after this many milliseconds is given up on: the battle starts without music. */
+    loadTimeoutMs: 60_000,
     /**
      * A piece's notes are added to its graph this many seconds of music at a time, each chunk while the render is
      * suspended `chunkLead` seconds before it (ahead of humanised and grace-note starts), so a busy section is never

@@ -1,9 +1,10 @@
 /**
- * The battle and campaign map music in the built game: nothing of the battle music is rendered at startup; starting
- * mission 1 renders its track after the battle has loaded, piece by piece within the memory and time budgets, the
- * build layer fades in, a switch to combat through the debug hook crossfades on the bar grid without errors, the
- * music sits under the army of 80 at default sliders (full range and phone speaker), leaving the battle frees it,
- * and the map track renders when the campaign screen opens and plays there.
+ * The battle and campaign map music in the built game: nothing of the battle music is rendered at startup; mission 1's
+ * track is rendered in full before its battle starts (as its briefing does it), piece by piece within the memory and
+ * time budgets, and nothing more is rendered once the battle runs; the build layer fades in with the battle, a switch
+ * to combat through the debug hook crossfades on the bar grid without errors, the music sits under the army of 80 at
+ * default sliders (full range and phone speaker), leaving the battle frees it, and the map track renders when the
+ * campaign screen opens and plays there.
  */
 import type { Page } from '@playwright/test';
 import type { MusicAnalysis } from '../../src/app/debug';
@@ -24,31 +25,43 @@ async function touchTheField(page: Page): Promise<void> {
   await page.touchscreen.tap(24, size.height - 24);
 }
 
-async function startMissionOne(page: Page): Promise<void> {
+/** Render mission 1's music as its briefing does, then start the battle. Returns the stats as the battle starts. */
+async function startMissionOne(page: Page): Promise<BattleMusicStats> {
   await open(page);
   await touchTheField(page);
-  // Nothing of the battle music exists before a battle asks for it.
+  // Nothing of the battle music exists before a briefing asks for it.
   const before = await battle(page);
   expect(before.state).toBe('idle');
   expect(before.prepared).toBe(0);
   expect(before.bytes).toBe(0);
+  const loaded = await page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.load(1) ?? false);
+  expect(loaded, 'the whole track renders before the battle').toBe(true);
+  const ready = await battle(page);
+  expect(ready.state).toBe('ready');
+  // Nothing plays before the battle.
+  expect(ready.player?.started).toBe(false);
   await page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(1));
   await expect.poll(async () => (await state(page)).screen).toBe('battle');
+  return ready;
 }
 
 test.describe('battle music', () => {
-  test('mission 1 renders its track after the battle loads, within budget, and the build layer fades in', async ({ page, problems }) => {
-    await startMissionOne(page);
+  test('mission 1 renders its track before the battle, within budget, nothing during it, and the build layer fades in', async ({ page, problems }) => {
+    const loaded = await startMissionOne(page);
     const def = BATTLE_TRACKS[M01.music];
     const first = await battle(page);
     expect(first.track).toBe('arras');
-    expect(['waiting', 'rendering']).toContain(first.state);
-    // The build layer starts as soon as its first section is in, long before the rest.
-    await expect.poll(async () => (await battle(page)).player?.started ?? false, { timeout: 30_000 }).toBe(true);
+    expect(first.state).toBe('ready');
+    // The build layer starts with the battle.
+    await expect.poll(async () => (await battle(page)).player?.started ?? false, { timeout: 10_000 }).toBe(true);
     const early = await battle(page);
     expect(early.player?.active).toBe('build');
-    await expect.poll(async () => (await battle(page)).state, { timeout: 180_000 }).toBe('ready');
+    // A few seconds of battle: not one piece more was rendered.
+    await expect.poll(async () => (await state(page)).time, { timeout: 30_000 }).toBeGreaterThan(3);
     const s = await battle(page);
+    expect(s.state).toBe('ready');
+    expect(s.renderMs, 'nothing renders once the battle runs').toBe(loaded.renderMs);
+    expect(s.buildMsTotal).toBe(loaded.buildMsTotal);
     console.log(
       `${def.title}: ${s.piecesReady} pieces at ${s.sampleRate} Hz, ${(s.bytes / 1e6).toFixed(1)} MB (budget ${(MUSIC_BATTLE.budget.maxBytes / 1e6).toFixed(0)} MB); ` +
         `rendered in ${(s.renderMs / 1000).toFixed(1)} s, the first piece after ${s.firstMs.toFixed(0)} ms; graph builds ${s.buildMs.toFixed(1)} ms at most, ${s.buildMsTotal.toFixed(0)} ms in all; ` +
