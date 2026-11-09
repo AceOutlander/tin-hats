@@ -300,10 +300,9 @@ export const MEDALS: MedalTunables = {
     // landing as scripted barrages, the bot wins it with no call-in, and the mission introduces a unit, not a call-in.
     // 1006 lends nothing since its tuning (DECISIONS 433): the far bank's guns and rocket batteries fire for the climb
     // and the hold as scripted barrages, and the mission introduces units (the sniper, the AA gun), not a call-in.
-    1007: [
-      { kind: 'artillery', count: 6 },
-      { kind: 'katyusha', count: 1 },
-    ],
+    // 1007 lends only the brief's rocket battery for the last night since its tuning (DECISIONS 434): the far bank's
+    // guns fire on the square for the tank attacks as scripted barrages, and the bot holds the house with no call-in.
+    1007: [{ kind: 'katyusha', count: 1 }],
     1008: [
       { kind: 'artillery', count: 14 },
       { kind: 'katyusha', count: 5 },

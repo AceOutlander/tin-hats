@@ -414,7 +414,7 @@ Every new save (and every save converted to version 11) starts with 3 smoke and 
 | 1004 Klin | Il-2 2 (DECISIONS 431; was artillery 8, smoke 4, Katyusha 4, Il-2 4) |
 | 1005 Volga | (none) (DECISIONS 432; was artillery 11, Katyusha 3) |
 | 1006 Mamayev Kurgan | (none) (DECISIONS 433; was artillery 8, smoke 5, Katyusha 4) |
-| 1007 Pavlov's House | artillery 6, Katyusha 1 |
+| 1007 Pavlov's House | Katyusha 1 (DECISIONS 434; was artillery 6, Katyusha 1) |
 | 1008 Tractor Factory | artillery 14, Katyusha 5 |
 | 1009 Uranus | artillery 14, Katyusha 6, smoke 5, Il-2 3, Po-2 5 |
 | 1010 Ring | artillery 9, Katyusha 3, Il-2 6, Pe-2 3, Po-2 10, smoke 2 |

@@ -819,12 +819,16 @@ Expected 15 to 24 minutes (DECISIONS 433).
    - German snipers in B2.
    - Flares.
 4. **"Day two: the tanks"** (survive 300 s).
-   - 30 s and 180 s: 2 Panzer III J or StuG plus 8 infantry.
+   - 30 s: 2 Panzer III J plus 8 riflemen; 180 s: 1 Panzer III J and 2 StuG III F plus 8 riflemen (the intel's 3 and 2);
+     every 60 s from 60 s, 5 riflemen and 2 MP40 troopers (DECISIONS 434).
+   - The far bank's heavy guns shell the square (x 4,000) as each tank attack crosses it, at 112 s and 262 s, 8 shells
+     over 24 s each (scripted, DECISIONS 434).
    - Hint: "The anti-tank rifle on the top floor fires down on the thin roof of a tank's turret."
    - Gives men on floor 4 of B1 an `at` bonus vs vehicles x1.3 (building height rule, data `topFloorVsVehicles`).
 5. **"The last night"** (survive 300 s). Weather `snow` over 60 s (November).
-   - 60 s and 200 s: pioneers with flamethrowers (4) plus MP40 troopers (8).
-   - 260 s: final mixed assault.
+   - 60 s and 200 s: pioneers with flamethrowers (4) plus MP40 troopers (8; the second also 6 riflemen); 130 s: a raid
+     of 4 MP40 troopers between them (DECISIONS 434).
+   - 260 s: final mixed assault (2 Panzer III J, 2 MG teams, 6 MP40 troopers, 8 riflemen; DECISIONS 434).
    - At the end, announce "The guns to the north have opened. The counter-offensive has begun."
 
 ### Side objectives

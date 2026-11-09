@@ -277,12 +277,13 @@ export const M1007: MissionDef = {
       ],
       announce: 'Tanks on the square!',
     },
-    { type: 'wave', when: { every: 60, from: 720, until: 940 }, side: 1, forces: [{ kind: 'rifle', count: 5 }] },
+    { type: 'wave', when: { every: 60, from: 720, until: 940 }, side: 1, forces: [{ kind: 'rifle', count: 5 }, { kind: 'assault', count: 2 }] },
     {
       type: 'wave',
       when: { at: 840 },
       side: 1,
       forces: [
+        { kind: 'tank', count: 1 },
         { kind: 'tank', count: 2, look: 'stug3f' },
         { kind: 'rifle', count: 8 },
       ],
@@ -307,6 +308,7 @@ export const M1007: MissionDef = {
       forces: [
         { kind: 'flame', count: 4 },
         { kind: 'assault', count: 8 },
+        { kind: 'rifle', count: 6 },
       ],
       announce: 'Flamethrowers again, from the left-hand block!',
     },
@@ -315,13 +317,19 @@ export const M1007: MissionDef = {
       when: { at: 1220 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1 },
+        { kind: 'tank', count: 2 },
         { kind: 'lmg', count: 2 },
-        { kind: 'assault', count: 4 },
+        { kind: 'assault', count: 6 },
         { kind: 'rifle', count: 8 },
       ],
       announce: 'Everything they have left.',
     },
+    // The heavy guns on the far bank (the intel's 'guns from the far bank') fire on the square as each tank attack crosses it,
+    // one shell at a time (a lent call-in no longer stands in for them).
+    { id: 'farBankTanks1', type: 'barrage', when: { phase: 'dayTwo', delay: 112 }, side: 0, x: 4000, spread: 400, rounds: 8, duration: 24, weapon: 'artilleryShell', warning: 'The far bank is firing on the square.' },
+    { id: 'farBankTanks2', type: 'barrage', when: { phase: 'dayTwo', delay: 262 }, side: 0, x: 4000, spread: 400, rounds: 8, duration: 24, weapon: 'artilleryShell', warning: 'The far bank is firing on the square.' },
+    // A small raid between the two pioneer attacks, so the last night has no quiet minute.
+    { type: 'wave', when: { at: 1090 }, side: 1, forces: [{ kind: 'assault', count: 4 }] },
     { type: 'announce', when: { at: 1290 }, text: 'The guns to the north have opened. The counter-offensive has begun.' },
     {
       type: 'hint',
