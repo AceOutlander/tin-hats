@@ -18,12 +18,8 @@ What each part of the campaign has today, and what waits for which foundation fe
 
 **Waits for**:
 
-- Era-by-date names and looks (`NationEraDef`, FOUNDATIONS 5.1): today one set of 1942 to 1943 names (PPSh Trooper,
-  PTRD Team, T-60, Universal Carrier). Missions 1001 to 1004 (1941) need the era table for PPD, militia, "Tank
-  Hunters" until 1941-11, T-26 and BT-7, KV-2, the I-16 and the pilotka and ushanka looks.
-- Per-force look and tags (`ForceDef.look`, `tags: ['skis']`) and `SideStart.rosterNation`: Romanians in 1009 field as
-  German troops until the Romanian nation exists.
-- The equipment test (`src/data/equipment.ts`, FOUNDATIONS 5.2).
+- Unit tags (`ForceDef.tags: ['skis']`; Klin's ski troops have the `skiTroops` look but no deep-snow rule yet) and the
+  Romanian nation (1009's Romanians field as German troops in the Romanian look, see "Era-correct forces" below).
 - Buildings for the Katyusha's second counter (explosive x0.7 inside).
 - The campaign select screen, campaign map (bounds lon 22 to 47, lat 46 to 57.5), theme and map music fields.
 
@@ -57,15 +53,47 @@ What each part of the campaign has today, and what waits for which foundation fe
 
 **Drawn and registered for a later job to select** (no data selects them yet):
 
-- The 1941 and winter looks: the pilotka, the ushanka, the helmet over the ushanka, the telogreika, the snow smock and
-  hood. The headgear and clothing setters exist; the era table (`NationEraDef`, FOUNDATIONS 5.1) or a weather or
-  mission field must call them per unit (for example the snow smock for snipers and scouts in the winter missions).
-- The KV-2 (1941, Dubno): `KV2_KEYS` (turret and 152 mm howitzer, worn on the KV-1 rig) with `KV2_TURRET` (turret box,
-  trunnion in turret space, gun length). Fielding it needs a vehicle look that swaps turret, trunnion and barrel.
 - The BM-13 Katyusha launcher on the ZiS-6 (`KATYUSHA_LAUNCHER_KEY`, `BM13_LAYOUT`: rail pivot, angle and length); in
   the vehicle atlas. The salvo still flies in from off screen; showing the trucks is the call-in's job.
-- Not drawn: the 1941 T-26, BT-7 and I-16, the PPD, the RGD-33 grenade, the ROKS flamethrower (the shared flamethrower
-  stands in), the 37 mm 61-K AA gun (the AA crew works the DP), and the 1943 looks (shoulder boards, camouflage suits).
+- Not drawn: the RGD-33 grenade, the ROKS flamethrower (the shared flamethrower stands in), the 37 mm 61-K AA gun (the
+  AA crew works the DP), the T-70 and KV-1S (the T-60 and T-34 stand in, under their own names), and the 1943 looks
+  (shoulder boards, camouflage suits).
+
+## Era-correct forces by date (FOUNDATIONS 5.1 and 5.2)
+
+**In** (`src/data/eras.ts`, `src/data/equipment.ts`; DECISIONS 287 to 294; `tests/unit/eras.test.ts` and
+`tests/unit/art-era.test.ts` guard it). Screenshots in `docs/screenshots/stalingrad-era-*.png` (local only).
+
+- The era table `NATION_ERAS` for every nation: missions carry `dateIso` and `climate`, and each nation's names and
+  looks merge by date over its defaults. Missions without a date (the British campaign, the proving ground, Basic
+  Training) are unchanged. The HUD, mission cards, admin panel, unit portraits, figures, tanks and planes read it.
+- Soviet 1941 (1001 to 1004): PPD Trooper (the PPD-40), Militia Squad, ROKS-2, the I-16 fighter; "Tank Hunters" (a
+  Mosin and a petrol bottle) until October, the PTRD Team from November; the BT-7 as the summer light tank (T-60 from
+  October); the T-26 and the KV-2 at Dubno by force look. 1942 (1005 to 1010): today's names, the ROKS-3.
+- Soviet looks by date and climate: the pilotka for the rear kinds in summer 1941 and 1942; in the winter missions (1003,
+  1004, 1009, 1010) the helmet over the ushanka at the front, the ushanka behind, the telogreika for all, snipers in
+  the snow smock and hood, Klin's ski troops (`skiTroops`) in white.
+- German 1939 to 1941: the short Panzer IV, the Panzer III Ausf. E (`lightTank`), the Ausf. H with the short 5 cm and
+  the StuG III Ausf. B by force look (Brest's battery, Dubno, Volokolamsk, Klin). Mid-1942 on: the later Panzer III
+  (Ausf. L: long 5 cm, spaced plates on mantlet and bow, no skirts) is the era's tank; the Panzer IV Ausf. G (long
+  7.5 cm) and the StuG III Ausf. F by force look. The anti-tank kind is the PzB 39 Team until October 1943 (no
+  Panzerschreck). Infantry: no winter kit in 1941; white helmet covers and the white winter suit (front-line kinds) in
+  November 1942; covered helmets only in the pocket (1010).
+- `ForceDef.look` (vehicle variants and infantry looks), `ForceDef.nation` and `SideStart.rosterNation` reach the units
+  (`UnitState.look`, `UnitState.faction`); names and art only. The Romanian line of 1009 fields as German troops in the
+  Romanian look (khaki-brown greatcoat, Adrian helmet, Romanian names); its R-2s are the `panzer3h` stand-in.
+- The equipment table: the service window of every vehicle, small-arms, aircraft and infantry look; the test resolves
+  every Stalingrad mission's rosters, forces, waves and call-ins for both sides.
+- Art: the T-26 (./t26) and BT-7 (./bt7) rigs; the KV-2, Panzer III Ausf. H and L, Panzer IV Ausf. G and StuG III
+  Ausf. B and F (./germanEra) on their rigs' running gear (`VEHICLE_LOOK_RIG`); the I-16 (`aircraftLookKey`); the PPD,
+  the PzB 39 and the bottle (src/art/figure/eraWeapons.ts); the German helmet cover, the Adrian helmet and the
+  Romanian greatcoat. Dev previews: `dev/art-structures.html?sec=tanks&looks=t26,bt7,kv2`,
+  `dev/art-figures.html?mode=sheet&nations=soviet,german&mission=1004`.
+
+**Waits for**: the Romanian nation (its R-2, ZB vz. 30, its own HQ), the Pak and Flak 88 gun-crew looks (`pak36`,
+`pak40`, the 8.8 cm in the ground role), the Pz 38(t), Opel Blitz and MG42 looks, per-battle atlas pages for the era
+sprites (they add about 4.8 MB to the boot atlas), unit tags (`skis`), and era looks for the British (no British
+mission has a date yet).
 
 ## Music (theme, battle tracks, map track)
 

@@ -992,5 +992,5 @@ Sources fetched or found in this pass (in addition to those in section 1):
 - https://en.wikipedia.org/wiki/Hafthohlladung
 
 Still open after this pass: the StuG model at Brest; KV-1S at Uranus; the water tanks on Mamayev Kurgan; the mill
-trench at Pavlov's House; the nail factory by the station; day-by-day weather at Dubno; a `t26` look for the T-26
-(mission 1002 now fields two; NATIONS.md lists the T-26 for 1941 but names no look).
+trench at Pavlov's House; the nail factory by the station; day-by-day weather at Dubno. (The `t26` look for the T-26
+is drawn since; mission 1002 fields two, see STALINGRAD_BUILD.md, era-correct forces.)

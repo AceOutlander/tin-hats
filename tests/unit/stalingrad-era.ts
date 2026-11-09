@@ -1,9 +1,8 @@
 /**
- * Era table for the Stalingrad mission tests (not a test file itself). Until the equipment test of FOUNDATIONS 5.2
- * (src/data/equipment.ts, per look and weapon) exists, this checks rosters per unit kind: each kind stands for its
- * nation's period equipment (NATIONS.md, HISTORY.md), and a mission may field it only inside that equipment's service
- * window. The names shown for some kinds are still the 1942 to 1943 set (docs/campaigns/STALINGRAD_BUILD.md, era
- * names); the windows below are those of the period equipment the kind stands for on the mission's date.
+ * Era table for the Stalingrad mission tests (not a test file itself). This checks rosters per unit kind: each kind
+ * stands for its nation's period equipment (NATIONS.md, HISTORY.md), and a mission may field it only inside that
+ * equipment's service window. The equipment test per look and weapon (FOUNDATIONS 5.2, src/data/equipment.ts) is
+ * tests/unit/eras.test.ts; the names and looks by date come from src/data/eras.ts.
  */
 import type { FactionId, MissionDef, Side, SupportKind, UnitKind } from '../../src/data/schema';
 
