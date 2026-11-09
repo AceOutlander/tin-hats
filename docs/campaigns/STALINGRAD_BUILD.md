@@ -234,6 +234,12 @@ theatre (`art-backdrops.test.ts`), and the 1009 case of `sim-budget.test.ts`. Ho
 | 1009 Uranus | steppe winter | fog at dawn (no air); clear and day from the steppe (the Il-2 window); blizzard at 500 s; night at the bridge (the Po-2 only); green flares over Sovetsky |
 | 1010 Ring | steppe winter, then stalingrad winter for the city | snow, overcast; blizzard 300 to 420 s at Gumrak; clear in the ruins; dusk at the Univermag |
 
+**Balance with the weather** (2026-11-09; missions, missions-design, stalingrad-m1001-1005, medals, missions-smoke and
+difficulty all pass): bot wins over 16 seeds and median minutes 1001 16 (12.8), 1002 16 (19.1), 1003 15 (17.7), 1004 16
+(14.1), 1005 16 (13.3), 1006 16 (18.4), 1007 16 (23.0), 1008 16 (22.0), 1009 16 (12.5), 1010 16 (13.9); the idle
+commander loses every seed. 1009 and 1010 got quicker (20.8 and 20.0 before): the defenders' long sight is cut by fog,
+snow and blizzard. 1001 needed the wave fix (DECISIONS E4-5), 1005 the dawn clock (E4-6).
+
 **Waits for**: searchlights (Seelow) and flares as a call-in (FOUNDATIONS 4.7); breath puffs on figures and the snow
 on figures' shoulders; the sound of wind and snow (ambience by weather); the stalingrad theatre's own Klin (a small
 Russian town in snow rather than the city's ruins).
