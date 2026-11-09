@@ -33,7 +33,7 @@ export const M1003: MissionDef = {
     'Dig in at the railway halt, wire the approaches and set the steel obstacles across the road. Hold until our tanks come up from the rear, then throw the Germans back to the edge of the wood.',
   ],
   // The win: the last phase takes the wood's edge (capture point P2) and holds it.
-  objective: 'Hold the railway halt, then retake the wood\'s edge and destroy the German HQ.',
+  objective: "Hold the railway halt, then retake the wood's edge and hold it.",
   intel: {
     enemy: [
       '2nd Panzer Division, out of the birch wood',

@@ -119,6 +119,12 @@ describe.each(MINE)('mission %i on the mission director', (_id, m) => {
     expect(bad).toEqual([]);
   });
 
+  it('promises in its objective line only an HQ that a phase asks the player to destroy', () => {
+    // The briefing's objective line and the HUD plate show it: it must not name a German HQ the phases never ask for.
+    const asksHq = (m.phases ?? []).some((p) => p.objectives.some((o) => o.type === 'destroyHq' || o.type === 'surrender'));
+    if (!asksHq) expect(m.objective, m.key).not.toMatch(/\b(HQ|headquarters)\b/i);
+  });
+
   it('plays the same battle twice from the same seed', () => {
     const run = (): string => {
       const b = createBattle({ mission: m, difficulty: 'normal', seed: 4, upgrades: {}, commanders: ['bot', 'ai'] });

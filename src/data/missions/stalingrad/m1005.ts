@@ -33,8 +33,7 @@ export const M1005: MissionDef = {
     'There are not enough boats and not enough rifles. Some of you will land with grenades and nothing else; take a rifle from the first man who no longer needs it. The guns on this bank and the rocket batteries will fire for us. The boats will keep coming, one load at a time.',
     'Get off the sand and up the bank before it is light. Clear the houses along the river, then take the railway station and hold it. Every hour we hold the centre, another regiment gets across.',
   ],
-  // Today's win rule: the German HQ beyond the station (the station hold's timer waits for the director).
-  objective: 'Land, clear the river bank, take the central station and destroy the German HQ.',
+  objective: 'Land, clear the river bank, then take the central station and hold it.',
   intel: {
     enemy: [
       '71st Infantry Division holds the bank and the station',

@@ -7,8 +7,8 @@
  *   x.cmd npm run build                     (or build somewhere else, see --dist)
  *   x.cmd npx tsx tools/perf.ts [flags]
  *
- * --scene=mission|sandbox   mission (default) plays the campaign mission --mission=10; sandbox is the proving ground
- * --mission=10 --seed=1 --difficulty=normal
+ * --scene=mission|sandbox   mission (default) plays the campaign mission --mission=1010; sandbox is the proving ground
+ * --mission=1010 --seed=1 --difficulty=normal
  * --units=80      fast-forward (effects off) until this many units are alive ...
  * --fighting=4    ... this many of them are aiming, firing or reloading ...
  * --gap=450       ... and the two front lines are within this many wu of each other; then play at real speed
@@ -164,7 +164,7 @@ function printAllocs(head: AllocNode, seconds: number): void {
 async function main(): Promise<number> {
   const flags = parseFlags();
   const scene = flags.get('scene') ?? 'mission';
-  const missionId = Number(flags.get('mission') ?? 10);
+  const missionId = Number(flags.get('mission') ?? 1010);
   const seed = Number(flags.get('seed') ?? 1);
   const difficulty = (flags.get('difficulty') ?? 'normal') as Difficulty;
   const wantUnits = Number(flags.get('units') ?? 80);

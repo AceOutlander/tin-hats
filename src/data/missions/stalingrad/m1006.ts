@@ -6,7 +6,7 @@ import type { MissionDef } from '../../schema';
  * Rifle Division crossed the night before and goes straight up Height 102.0: the railway cutting at the foot (trench
  * 2), two shell-hole positions on the eastern slope (trenches 3 and 4) behind wire, and on the summit the two water
  * tanks the Germans turned into blockhouses (buildings B1 and B2) with a trench between them (trench 5). When the
- * summit falls the 295th Infantry Division comes back at it four times; then the western slope and the German HQ.
+ * summit falls the 295th Infantry Division comes back at it four times; holding it wins.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): a hold in four phases. Take the
  * railway cutting (P1, held through trench 2, a forward spawn once ours), then the two shell-hole positions on the
@@ -34,9 +34,9 @@ export const M1006: MissionDef = {
   briefing: [
     'From the top of Height 102 you can see the whole city, the river and every boat that crosses it. While the Germans sit up there, nothing moves on the Volga by day. We crossed last night and we go straight up, before they understand that a whole division has come over.',
     'The slope is bare and churned with shell holes, and the railway curls round its foot. Use the holes as trenches. On the crest stand two water tanks the Germans have turned into blockhouses; grenades and the flamethrowers will open them. Their mortars sit behind the crest, so let ours and the sniper answer them before we climb.',
-    'Once the crest is ours, dig in at once. They will come back at us with everything, assault guns first, and the guns on the far bank will help only if we are still on top to tell them where. Hold the summit, then follow them down the western slope to their headquarters.',
+    'Once the crest is ours, dig in at once. They will come back at us with everything, assault guns first, and the guns on the far bank will help only if we are still on top to tell them where. Hold the summit until the counter-attacks break.',
   ],
-  objective: 'Take the summit of Mamayev Kurgan, hold it, and destroy the German HQ.',
+  objective: 'Take the summit of Mamayev Kurgan and hold it.',
   intel: {
     enemy: [
       '295th Infantry Division on the slopes and the summit',

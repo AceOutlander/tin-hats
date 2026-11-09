@@ -130,6 +130,24 @@ describe('save version 10: the British placeholder missions removed', () => {
     expect(data.training).toEqual({ done: false, skipped: false });
   });
 
+  it.each([
+    ['version 1 (v0.1)', { version: 1, cleared: { '1': ['normal', 'hard'], '2': ['normal'], '3': ['normal'] }, upgrades: { rifleHealth: 2 }, settings: { muted: true, difficulty: 'hard', hints: false } }],
+    ['version 5 (points)', { version: 5, cleared: { '1': ['normal', 'hard'], '2': ['normal'], '3': ['normal'] }, upgrades: { rifleHealth: 2 }, lastMission: 3, settings: { ...SETTINGS } }],
+  ])('brings a %s save with British clears all the way to version 10 without losing them', (_name, doc) => {
+    const data = sanitizeSave(doc, RULES);
+    if (!data) throw new Error('not loaded');
+    expect(data.version).toBe(10);
+    // The upgrade bought with the points stays, and the clears and their wins are archived, not dropped.
+    expect(data.upgrades.rifleHealth).toBe(2);
+    expect(data.legacy?.cleared).toEqual({ '1': ['normal', 'hard'], '2': ['normal'], '3': ['normal'] });
+    expect(data.legacy?.wins).toEqual({ '1': { normal: 1, hard: 1 }, '2': { normal: 1 }, '3': { normal: 1 } });
+    expect(data.cleared).toEqual({});
+    expect(data.lastMission).toBe(0);
+    // Missions 1 to 3 cleared and mission 4 reached: their types stay unlocked.
+    expect(data.armoury).toEqual(['lmg', 'assault', 'mortar']);
+    expect(data.medals).toBeGreaterThanOrEqual(0);
+  });
+
   it('keeps the types of the mission a player had reached but not cleared', () => {
     // Missions 1 to 4 won: mission 5 was open, so its sniper and lieutenant were unlocked; mission 6's medic was not.
     const partial = { ...v9(), cleared: { '1': ['normal'], '2': ['normal'], '3': ['normal'], '4': ['normal'] }, armoury: [] };
