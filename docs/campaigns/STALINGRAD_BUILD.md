@@ -412,7 +412,7 @@ Every new save (and every save converted to version 11) starts with 3 smoke and 
 | 1002 Dubno | artillery 6 |
 | 1003 Volokolamsk | artillery 6, Katyusha 2, smoke 1 |
 | 1004 Klin | Il-2 2 (DECISIONS 431; was artillery 8, smoke 4, Katyusha 4, Il-2 4) |
-| 1005 Volga | artillery 11, Katyusha 3 |
+| 1005 Volga | (none) (DECISIONS 432; was artillery 11, Katyusha 3) |
 | 1006 Mamayev Kurgan | artillery 8, smoke 5, Katyusha 4 |
 | 1007 Pavlov's House | artillery 6, Katyusha 1 |
 | 1008 Tractor Factory | artillery 14, Katyusha 5 |

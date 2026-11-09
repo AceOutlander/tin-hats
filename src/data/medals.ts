@@ -252,7 +252,9 @@ export const MEDALS: MedalTunables = {
     // Retuned with the mission (DECISIONS 431): about 0.8 of the bot's median between unlimited calls (16 min) and the loan
     // only (21 min).
     1004: { targetSeconds: 900, roughSeconds: 1900, targetLost: 58, roughLost: 290, loans: [], expects: STAL_1004 },
-    1005: { targetSeconds: 510, roughSeconds: 1260, targetLost: 47, roughLost: 235, loans: [], expects: STAL_1005 },
+    // Retuned with the mission (DECISIONS 432): about 0.8 of the bot's median between unlimited calls (16.5 min) and no
+    // call-in (22.7 min).
+    1005: { targetSeconds: 940, roughSeconds: 2000, targetLost: 47, roughLost: 235, loans: [], expects: STAL_1005 },
     // A hold scored on time, as the brief asks.
     1006: { targetSeconds: 870, roughSeconds: 2160, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006, scoring: 'timed' },
     // Fixed: HQ health 0.2 and the house itself 0.2 (held at the end).
@@ -293,10 +295,8 @@ export const MEDALS: MedalTunables = {
     // 1004 lends only the brief's Il-2s since its tuning (DECISIONS 431): the division's guns and the 8th Tank Brigade
     // prepare Klin, and two sorties let a player meet the call-in the mission introduces.
     1004: [{ kind: 'airStrike', count: 2 }],
-    1005: [
-      { kind: 'artillery', count: 11 },
-      { kind: 'katyusha', count: 3 },
-    ],
+    // 1005 lends nothing since its tuning (DECISIONS 432): the east bank's guns and rocket batteries fire for the
+    // landing as scripted barrages, the bot wins it with no call-in, and the mission introduces a unit, not a call-in.
     1006: [
       { kind: 'artillery', count: 8 },
       { kind: 'smoke', count: 5 },

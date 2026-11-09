@@ -529,7 +529,7 @@ Expected 15 to 24 minutes: about 16 with every call-in, about 21 with none (DECI
 ## Mission 5: Crossing the Volga
 
 - **Id** 1005, key `volga`. **Date** night of 14 to 15 September 1942 (`1942-09-15`). **Place** the central landing
-  stage, Stalingrad, 48.709 N, 44.527 E. **Mode** special (river crossing, then assault and hold). **Length** about 21
+  stage, Stalingrad, 48.709 N, 44.527 E. **Mode** special (river crossing, then assault and hold). **Length** about 16 to 23
   minutes. **Map** 12,000 wu. **Theatre** `stalingrad` (autumn variant).
 - **History**:
   - The 13th Guards Rifle Division (Major General Alexander Rodimtsev, about 10,000 men, about 1,000 of them without
@@ -575,7 +575,8 @@ Expected 15 to 24 minutes: about 16 with every call-in, about 21 with none (DECI
 
 - **Player**: 3 sappers (east bank). At the landing: 10 riflemen, 4 PPSh troopers (`assault`), 1 DP gunner.
   120 Money; `incomeMul` 0.75. Trained units cross with the ferry. Supports: artillery and Katyusha from the east bank.
-- **Loans**: 4 PPSh troopers (start); 2 PTRD teams (phase 3); 1 flamethrower (phase 2, ROKS-3).
+- **Loans**: 4 PPSh troopers (start); 3 PTRD teams (phase 3); 1 flamethrower (phase 2, ROKS-3). No lent call-in
+  charges (DECISIONS 432): the east bank's guns and rockets are scripted.
 - **Enemy**:
   - HQ (71st Infantry Division), `incomeMul` 0.7. Start: B1 and B2 (6 riflemen, 2 MG42 each), the station (8 riflemen,
     2 MG), B6 (4 riflemen, 1 mortar).
@@ -591,12 +592,18 @@ Expected 15 to 24 minutes: about 16 with every call-in, about 21 with none (DECI
    - Hint: "New troops arrive with each boat. Hold the landing until the battalion is ashore."
 2. **"The high bank"** (capture P2).
    - Phase start: hint "Buildings work like trenches and pillboxes. Grenades and flamethrowers clear them."
-   - 120 s: Nebelwerfer barrage on B2.
-3. **"The station"** (capture B5). Time to dawn over 120 s, then the Stukas begin.
-   - 90 s: 2 Panzer III J plus 8 riflemen.
-   - 200 s: StuG plus 6 MP40.
+   - 25 s: Nebelwerfer barrage on the blocks, 10 rockets one by one over 12 s (DECISIONS 432; was 120 s, after the bot
+     had already taken B2).
+3. **"The station"** (take B5 and keep it for 150 s, DECISIONS 432). Time to dawn over 120 s, then the Stukas begin.
+   - 6 s: the 3 PTRD teams come up through P2 and join the attack.
+   - 15 s: the east bank's guns shell the station, 10 rounds one by one over 25 s; from 90 s, every 150 s, a Katyusha
+     salvo on the station (12 rockets over 10 s).
+   - 70 s: 2 Panzer III J plus 8 riflemen.
+   - 170 s: StuG plus 6 MP40.
 4. **"Hold the station"**: prep 45 s (sandbags in the windows, wire); hold B5 for 240 s.
-   - 30 s, 120 s and 200 s: counter-attacks, with 2 tanks in the second.
+   - 30 s, 120 s and 200 s: counter-attacks, with 2 tanks in the second; from 300 s, every 100 s, 4 riflemen and an MG
+     team (only if the hold has started again).
+   - From 125 s, every 120 s: the east bank's guns on the station square (10 rounds over 20 s).
 
 ### Side objectives
 
@@ -621,7 +628,7 @@ Timed: target 22 minutes, target casualties 45.
 3. Deploy at P2. Mortars on the station; riflemen go in behind grenade attacks.
 4. PTRDs in the station windows for the tanks. Use the prep to wire the doors.
 
-Expected 20 to 23 minutes.
+Expected 15 to 26 minutes: about 16 with every call-in, about 19 to 23 with none (DECISIONS 432).
 
 ---
 

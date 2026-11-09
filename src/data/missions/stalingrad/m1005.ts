@@ -9,8 +9,10 @@ import type { MissionDef } from '../../schema';
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1005): a special mission of four phases.
  * Hold the landing (P1, held through trench 1, the forward spawn and the ferry landing: FOUNDATIONS.md 4.4, a boat
  * every 40 s from the east bank brings over the men trained or sent since the last) for 180 s, lost if it falls; take the high bank (the riverside apartment blocks B1 to B4, FOUNDATIONS.md 4.3; P2 is held through B2, a
- * forward spawn once ours, with a Nebelwerfer salvo on it); take the station (B5; the Stukas come with daylight); then
- * a 45 s prep phase and hold the station for 240 s against three counter-attacks. B6 is the nail factory hall, the HQ a
+ * forward spawn once ours, with a Nebelwerfer salvo on it); take the station (B5) and keep it for 150 s against the
+ * panzers and the StuG (the Stukas come with daylight); then a 45 s prep phase and hold the station for 240 s against
+ * three counter-attacks. The east bank's guns and rocket batteries fire for the assault and the hold as scripted
+ * barrages, one round at a time (DECISIONS 432). B6 is the nail factory hall, the HQ a
  * log dugout (`hqLook`). The Volga is water: waded at a crawl, and no vehicle crosses it. The free reinforcement waves
  * go on the boats too, and the barrage on the river at 66 s sinks 30% of the boat then crossing; the side objective
  * "the whole battalion ashore" fails at two loads hit. Sandbags go in the station's windows in the last prep. The ground
@@ -116,7 +118,7 @@ export const M1005: MissionDef = {
     { id: 3, x: 6950, width: 150, floors: 3, slotsPerFloor: 3, hpMul: 1, owner: -1, look: 'apartment' },
     { id: 4, x: 5600, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1, owner: 0, look: 'apartment' },
     // B5 the central station, B6 the nail factory hall.
-    { id: 5, x: 10200, width: 230, floors: 2, slotsPerFloor: 6, hpMul: 1.5, owner: 1, look: 'station' },
+    { id: 5, x: 10200, width: 230, floors: 2, slotsPerFloor: 10, hpMul: 1.5, owner: 1, look: 'station' },
     { id: 6, x: 11000, width: 170, floors: 1, slotsPerFloor: 6, hpMul: 1.2, owner: 1, look: 'factoryHall' },
   ],
   pillboxes: [],
@@ -177,7 +179,9 @@ export const M1005: MissionDef = {
     {
       id: 'station',
       title: 'The station',
-      objectives: [{ id: 'station', type: 'capture', point: { building: 5 }, text: 'Take the station' }],
+      // Taken and kept for 150 s (DECISIONS 432): a station rushed in a minute no longer skips the panzers sent to retake
+      // it, and the phase cannot end with the station back in German hands.
+      objectives: [{ id: 'station', type: 'hold', point: { building: 5 }, seconds: 150, text: 'Take the station and keep it' }],
       next: 'holdStation',
     },
     {
@@ -190,7 +194,7 @@ export const M1005: MissionDef = {
   ],
   events: [
     // The director's events: the Nebelwerfer on the high bank, the Stukas once it is light.
-    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'bank', delay: 120 }, side: 1, x: 7400, spread: 220, rounds: 10, duration: 3, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'bank', delay: 25 }, side: 1, x: 7000, spread: 300, rounds: 10, duration: 12, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
     // Flares over the landing while it is held, dawn at the station, then day (FOUNDATIONS.md 4.7).
     { id: 'landingFlares', type: 'flare', when: { phaseEvery: 40, phase: 'landing', from: 10 }, side: 1, x: 4800 },
     { id: 'dawn', type: 'time', when: { phase: 'station' }, to: 'dawn', over: 120 },
@@ -293,7 +297,7 @@ export const M1005: MissionDef = {
       type: 'wave',
       when: { phase: 'station', delay: 6 },
       side: 0,
-      forces: [{ kind: 'at', count: 3, buildingId: 2, behaviour: 'garrison' }],
+      forces: [{ kind: 'at', count: 3, at: { point: 'P2' } }],
       announce: 'Three PTRD teams have come up to the high bank.',
     },
     {
@@ -303,7 +307,7 @@ export const M1005: MissionDef = {
     },
     {
       type: 'wave',
-      when: { phase: 'station', delay: 90 },
+      when: { phase: 'station', delay: 70 },
       side: 1,
       forces: [
         { kind: 'tank', count: 2, x: 11400, behaviour: 'assault' },
@@ -313,7 +317,7 @@ export const M1005: MissionDef = {
     },
     {
       type: 'wave',
-      when: { phase: 'station', delay: 200 },
+      when: { phase: 'station', delay: 170 },
       side: 1,
       forces: [
         { kind: 'tank', count: 1, x: 11400, behaviour: 'assault', look: 'stug3f' },
@@ -321,6 +325,13 @@ export const M1005: MissionDef = {
       ],
       announce: 'An assault gun with sub-machine gunners.',
     },
+    // The east bank's guns and rockets prepare the station one round at a time (the briefing: "the guns on this bank and
+    // the rocket batteries will fire for us"), so the assault is not left to the player's own call-ins (DECISIONS 432).
+    { id: 'stationShelled', type: 'barrage', when: { phase: 'station', delay: 15 }, side: 0, x: 10200, spread: 250, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns on the east bank are shelling the station.' },
+    { id: 'stationRockets', type: 'barrage', when: { phaseEvery: 150, phase: 'station', from: 90 }, side: 0, x: 10600, spread: 450, rounds: 12, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the station!' },
+    // The east bank's guns keep firing on the station square while it is held: on the panzers' approach as they come,
+    // and on the station itself if it falls again (friendly fire spares our own men).
+    { id: 'squareShelled', type: 'barrage', when: { phaseEvery: 120, phase: 'holdStation', from: 125 }, side: 0, x: 10800, spread: 350, rounds: 10, duration: 20, weapon: 'artilleryShell', warning: 'Our guns are shelling the station square.' },
     // Phase 4, "Hold the station".
     { type: 'announce', when: { pointCapturedBy: 0, point: { building: 5 } }, text: 'The station is ours. Hold it.' },
     {
@@ -350,6 +361,17 @@ export const M1005: MissionDef = {
       ],
       announce: 'Their pioneers are coming with flamethrowers.',
     },
+    // If the station changes hands and the hold starts again, the 71st keeps coming (DECISIONS 432): no quiet minutes.
+    {
+      type: 'wave',
+      when: { phaseEvery: 100, phase: 'holdStation', from: 300 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 4, behaviour: 'assault' },
+        { kind: 'lmg', count: 1, behaviour: 'assault' },
+      ],
+      announce: 'More of the 71st are coming for the station.',
+    },
     {
       type: 'hint',
       when: { hqHpBelow: 0.5, side: 0 },
@@ -361,10 +383,10 @@ export const M1005: MissionDef = {
     build: [
       { kind: 'rifle', count: 6, after: 0 },
       { kind: 'lmg', count: 2, after: 60 },
-      { kind: 'rifle', count: 10, after: 240 },
+      { kind: 'rifle', count: 6, after: 240 },
       { kind: 'at', count: 2, after: 300 },
     ],
-    firstAttackAfter: 900,
+    firstAttackAfter: 1500,
   },
   bot: {
     sappers: 4,
@@ -379,7 +401,8 @@ export const M1005: MissionDef = {
     ],
     firstAttackAfter: 185,
   },
-  // The design's 20 to 23 minutes include the 180 s landing hold and the 240 s station hold (STALINGRAD_BUILD.md).
-  expectedMinutes: [9, 23],
+  // The 180 s landing hold, the station taken and kept 150 s against the panzers, and the 240 s station hold: the bot's
+  // median is 16.5 min with unlimited calls and 22.7 with none (DECISIONS 432).
+  expectedMinutes: [15, 26],
   music: STALINGRAD_MUSIC.missions[1005],
 };
