@@ -53,80 +53,87 @@ export function kvSide(ctx: Ctx, P: TankPalette): void {
   for (const x of [-55, -29, -2.5, 24, 50.5]) rimRect(ctx, x - 3, -30, 6, 7, 1.2, P.panel, P.rim, 0.7);
 }
 
-/** Track guards, the box hull with its glacis, the engine deck, stowage and fittings. */
+/**
+ * Track guards, the box hull with its glacis, the engine deck, stowage and fittings. The side plate stands about as
+ * tall above the guards as the track below them (the KV's deep, slab-sided hull), and taller than the turret.
+ */
 export function kvHull(ctx: Ctx, P: TankPalette): void {
   // Exhaust pipes out of the rear plate, under the deck edge.
-  rimRect(ctx, -106, -61, 9, 4, 1.8, mix(C.rust, C.ink, 0.4), P.rim, 0.9);
-  rimRect(ctx, -106, -55, 9, 4, 1.8, mix(C.rust, C.ink, 0.4), P.rim, 0.9);
+  rimRect(ctx, -106, -65, 9, 4, 1.8, mix(C.rust, C.ink, 0.4), P.rim, 0.9);
+  rimRect(ctx, -106, -59, 9, 4, 1.8, mix(C.rust, C.ink, 0.4), P.rim, 0.9);
   // Long track guards, turned down at both ends.
   rimPoly(ctx, [-107, -41, -104, -45.5, 101, -45.5, 107, -41, 105, -39.8, -105, -39.8], P.body, P.rim, 1);
   // The hull: rear plate, a short step down to the engine deck, the flat roof, the upper glacis and the nose.
-  const hull = [-102, -45, -100, -58, -96, -62, -86, -62, -84, -64.5, 66, -64.5, 98, -50, 102, -45];
+  const hull = [-102, -45, -100, -64, -96, -68, -86, -68, -84, -70.5, 66, -70.5, 98, -54, 102, -45];
   rimPoly(ctx, hull, P.body, P.rim, 1.4);
   // The vertical side plate, lit, with its lower edge in shadow and a weld line under the roof.
-  fillPoly(ctx, [-97, -47.5, -95.5, -57.5, -92, -59.5, -82, -59.5, -80, -61.5, 64, -61.5, 92, -49, 95, -47.5], P.panel);
+  fillPoly(ctx, [-97, -47.5, -95.5, -63.5, -92, -65.5, -82, -65.5, -80, -67.5, 64, -67.5, 92, -53, 95, -47.5], P.panel);
   fillPoly(ctx, [-97, -47.5, 95, -47.5, 94, -45.6, -98, -45.6], rgba(C.ink, 0.35));
-  strokeLine(ctx, [-80, -61, 64, -61], rgba(P.rim, 0.45), 0.8);
+  strokeLine(ctx, [-80, -67, 64, -67], rgba(P.rim, 0.45), 0.8);
   // Bolt heads along the side, where the 1941 hull plates join.
   ctx.fillStyle = rgba(P.rim, 0.55);
-  for (let x = -76; x <= 56; x += 11) ctx.fillRect(x, -58.6, 1.1, 1.1);
+  for (let x = -76; x <= 56; x += 11) ctx.fillRect(x, -64.6, 1.1, 1.1);
   // The raised engine-deck grating behind the turret, its slots, and the deck hatch.
-  rimRect(ctx, -84, -67, 30, 2.8, 0.8, P.body, P.rim, 0.8);
+  rimRect(ctx, -84, -73, 30, 2.8, 0.8, P.body, P.rim, 0.8);
   ctx.fillStyle = P.bodyDark;
-  for (let i = 0; i < 6; i++) ctx.fillRect(-82 + i * 4.6, -66.2, 2.4, 1.6);
-  rimRect(ctx, -50, -66.6, 9, 2.4, 0.8, P.bodyDark, P.rim, 0.8);
-  // Stowage boxes on the track guard and a tow cable looped along the side.
+  for (let i = 0; i < 6; i++) ctx.fillRect(-82 + i * 4.6, -72.2, 2.4, 1.6);
+  rimRect(ctx, -50, -72.6, 9, 2.4, 0.8, P.bodyDark, P.rim, 0.8);
+  // Stowage boxes on the track guard and a tow cable clipped straight along the side, an eye at each end (a sagging
+  // cable read as a smile across the hull at battle zoom).
   rimRect(ctx, -72, -52, 30, 6.6, 1, P.panelLit, P.rim, 0.9);
   strokeLine(ctx, [-57, -52, -57, -45.6], rgba(C.ink, 0.5), 0.8);
   rimRect(ctx, 24, -51.5, 22, 6, 1, P.panelLit, P.rim, 0.9);
+  strokeLine(ctx, [-30, -58.6, 20, -58.6], P.bodyDark, 1.3);
   ctx.strokeStyle = P.bodyDark;
-  ctx.lineWidth = 1.4;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(-30, -56.5);
-  ctx.quadraticCurveTo(0, -51.5, 30, -56.5);
-  ctx.stroke();
+  ctx.lineWidth = 1;
+  for (const x of [-32.4, 22.4]) {
+    ctx.beginPath();
+    ctx.arc(x, -58.6, 2.2, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.fillStyle = rgba(P.rim, 0.6);
+  for (const x of [-14, 4]) ctx.fillRect(x, -60, 1.4, 2.8);
   // The driver's visor block on the glacis, the hull machine gun in its ball mount, headlamp and tow hook.
   ctx.save();
-  ctx.translate(76, -60.5);
-  ctx.rotate(Math.atan2(14.5, 32));
+  ctx.translate(76, -65.8);
+  ctx.rotate(Math.atan2(16.5, 32));
   rimRect(ctx, -6, -2.6, 12, 4.2, 1, P.bodyDark, P.rim, 0.9);
   ctx.fillStyle = C.void;
   ctx.fillRect(-3.5, -1.2, 7, 1.2);
   ctx.restore();
-  strokeLine(ctx, [90, -54, 97, -54], C.ink, 1.5);
-  disc(ctx, 89.6, -54, 2.7, P.rim);
-  disc(ctx, 89.9, -53.7, 2, P.bodyDark);
-  disc(ctx, 100, -47.5, 1.7, P.rim);
+  strokeLine(ctx, [90, -58.5, 97, -58.5], C.ink, 1.5);
+  disc(ctx, 89.6, -58.5, 2.7, P.rim);
+  disc(ctx, 89.9, -58.2, 2, P.bodyDark);
+  disc(ctx, 100, -49.5, 1.7, P.rim);
   rimRect(ctx, 101, -43.5, 4.4, 2.6, 1, P.bodyDark, P.rim, 0.7);
 }
 
 /** The welded 1941 turret: flat sides, the rear overhang with its ball-mounted DT, the boxy mantlet. */
 export function kvTurret(ctx: Ctx, P: TankPalette): void {
-  rimPoly(ctx, [-38, 0, -47, -6, -45, -25, -37, -29, 22, -29, 29, -23, 31, -5, 28, 0], P.body, P.rim, 1.4);
-  fillPoly(ctx, [-36, -3.4, -43.6, -7.4, -42, -23.6, -35.6, -26.4, 20.6, -26.4, 26.4, -21.6, 28, -5.4, 26, -3.4], P.panel);
+  rimPoly(ctx, [-38, 0, -47, -6, -45, -21, -37, -25, 22, -25, 29, -19.5, 31, -5, 28, 0], P.body, P.rim, 1.4);
+  fillPoly(ctx, [-36, -3.4, -43.6, -7.4, -42, -19.6, -35.6, -22.4, 20.6, -22.4, 26.4, -18.1, 28, -5.4, 26, -3.4], P.panel);
   // The overhang's underside in shadow, and the rear machine gun's ball mount in the back wall.
   fillPoly(ctx, [-47, -6, -38, -6, -36, -0.6, -40, -0.6], rgba(C.ink, 0.5));
-  disc(ctx, -45.4, -15, 2.6, P.rim);
-  disc(ctx, -45.1, -14.7, 1.9, P.bodyDark);
+  disc(ctx, -45.4, -13, 2.6, P.rim);
+  disc(ctx, -45.1, -12.7, 1.9, P.bodyDark);
   // Weld seams of the plates and their bolt heads.
-  strokeLine(ctx, [-42, -12.5, 27, -12.5], rgba(C.ink, 0.35), 0.8);
+  strokeLine(ctx, [-42, -11, 27, -11], rgba(C.ink, 0.35), 0.8);
   ctx.fillStyle = rgba(P.rim, 0.6);
-  for (let x = -38; x <= 22; x += 10) ctx.fillRect(x, -24, 1.2, 1.2);
+  for (let x = -38; x <= 22; x += 10) ctx.fillRect(x, -20.5, 1.2, 1.2);
   // The roof hatch over the rear, the periscope ahead of it.
-  rimPoly(ctx, [-32, -28.6, -30, -32.5, -12, -32.5, -10, -28.6], P.bodyDark, P.rim, 1);
-  rimRect(ctx, 6, -32.4, 6, 3.8, 0.8, P.bodyDark, P.rim, 0.8);
+  rimPoly(ctx, [-32, -24.6, -30, -28.5, -12, -28.5, -10, -24.6], P.bodyDark, P.rim, 1);
+  rimRect(ctx, 6, -28.4, 6, 3.8, 0.8, P.bodyDark, P.rim, 0.8);
   // Vision slit, pistol port, lifting hooks.
   ctx.fillStyle = C.void;
-  ctx.fillRect(10, -19.5, 8, 1.4);
-  disc(ctx, -24, -8, 1.6, P.bodyDark);
+  ctx.fillRect(10, -16.5, 8, 1.4);
+  disc(ctx, -24, -7, 1.6, P.bodyDark);
   ctx.fillStyle = rgba(P.rim, 0.6);
-  for (const x of [-34, 18]) ctx.fillRect(x, -30.4, 1.4, 1.4);
-  redStar(ctx, -7, -16, 6);
+  for (const x of [-34, 18]) ctx.fillRect(x, -26.4, 1.4, 1.4);
+  redStar(ctx, -7, -13.5, 5.6);
   // The cast mantlet, its rounded box round the gun, and the coaxial DT's port.
-  rimPoly(ctx, [28, -22.5, 38, -23.5, 44, -19, 44, -8.5, 38, -4, 28, -5], P.body, P.rim, 1.1);
-  strokeLine(ctx, [31, -21.5, 31, -6], rgba(C.ink, 0.4), 0.8);
-  disc(ctx, 41.5, -7.6, 0.9, C.void);
+  rimPoly(ctx, [28, -19.5, 38, -20.5, 44, -16.5, 44, -7.5, 38, -3.5, 28, -4.5], P.body, P.rim, 1.1);
+  strokeLine(ctx, [31, -18.5, 31, -5.5], rgba(C.ink, 0.4), 0.8);
+  disc(ctx, 41.5, -6.6, 0.9, C.void);
 }
 
 /** The 76.2 mm ZiS-5: a recoil sleeve at the breech, then a plain tube with a slight lip at the muzzle. Origin = trunnion. */

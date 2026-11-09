@@ -296,11 +296,11 @@ const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'carrierSoviet'>, TankGearAr
   kv1: {
     hullPad: [6, 12, 0],
     turretPad: [0, 9, 12],
-    links: { x: 70, y: -62.5, dx: 6.4, dy: 3.6, n: 3, w: 4.8, h: 6.6 },
-    applique: [-74, -61, 34, 15, -34, -61, 34, 15, 6, -61, 34, 15],
-    sandbags: { x: -88, y: -66, dx: 10.5, dy: 0, n: 4, w: 10.5, h: 5.6 },
-    stowage: [-60, -22, 12, 15],
-    cupolaMg: { x: -16, y: -30, len: 15, post: 4, angle: 0 },
+    links: { x: 70, y: -68.4, dx: 6.4, dy: 3.3, n: 3, w: 4.8, h: 6.6 },
+    applique: [-74, -66.5, 34, 20, -34, -66.5, 34, 20, 6, -66.5, 34, 20],
+    sandbags: { x: -88, y: -72, dx: 10.5, dy: 0, n: 4, w: 10.5, h: 5.6 },
+    stowage: [-60, -20, 12, 14],
+    cupolaMg: { x: -16, y: -26.5, len: 15, post: 4, angle: 0 },
     longGun: { extra: 16, brakeLen: 0, brakeHalf: 0 },
   },
   // T-34: spare links on the glacis, plates on the sloped hull side, sandbags on the engine deck, a box on the turret

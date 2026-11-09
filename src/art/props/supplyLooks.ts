@@ -583,18 +583,33 @@ function paintBm13(ctx: Ctx, P: Pal): void {
   ctx.save();
   ctx.translate(L.railPivot.x, L.railPivot.y);
   ctx.rotate(-L.railAngle);
-  // The rockets riding on top of the rails (the rows behind, darker, peeking over the near one).
+  // The rockets riding on top of the rails at their breech end (the rows behind, darker, peeking over the near one).
   const len = 24;
-  m13(ctx, P, 9, -7, len, 0.25);
-  m13(ctx, P, 5, -5.3, len, 0.1);
-  // The package of rails: I-beams seen end to end, flanges and the cross members.
-  rimRect(ctx, 0, -3.6, L.railLength, 7.2, 0.8, P.bodyDark, P.rim, 1);
+  const R = L.railLength;
+  m13(ctx, P, 9, -6.4, len, 0.25);
+  m13(ctx, P, 5, -4.6, len, 0.1);
+  // The open girder under the rails, sky showing through its lattice (a solid package read as a gun barrel): the lower
+  // chord, the zigzag web, the end posts.
+  ctx.strokeStyle = P.bodyDark;
+  ctx.lineWidth = 1.1;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(30, 1.4);
+  for (let d = 30; d + 8 <= R - 4; d += 8) {
+    ctx.lineTo(d + 4, 8.2);
+    ctx.lineTo(d + 8, 1.4);
+  }
+  ctx.stroke();
+  rimRect(ctx, 28, 7.4, R - 34, 2, 0.6, P.bodyDark, P.rim, 0.7);
+  for (const d of [28, R - 7]) rimRect(ctx, d, 0, 2, 9, 0.4, P.bodyDark, P.rim, 0.6);
+  // The near rail: a slim I-beam, its flanges lit and dark, the clamp bands of the cross members.
+  rimRect(ctx, 0, -1.9, R, 3.8, 0.6, P.bodyDark, P.rim, 1);
   ctx.fillStyle = P.body;
-  ctx.fillRect(1, -1.4, L.railLength - 2, 2.8);
+  ctx.fillRect(1, -0.6, R - 2, 1.2);
   ctx.fillStyle = P.bodyDark;
-  for (const d of [18, 46, 74]) ctx.fillRect(d, -4.6, 2.2, 9.2);
-  // And the rockets hanging under them.
-  m13(ctx, P, 5, 5.3, len, 0.1);
+  for (const d of [18, 46, 74]) ctx.fillRect(d, -2.8, 2, 5.6);
+  // And the rockets hanging under the rails, behind the girder.
+  m13(ctx, P, 5, 4.6, len, 0.1);
   ctx.restore();
   // Cab and bonnet of the ZiS-6 (the GAZ shape, longer chassis), its window shutter let down for the salvo.
   ctx.save();
