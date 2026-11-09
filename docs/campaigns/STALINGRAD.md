@@ -348,7 +348,8 @@ Expected 15 to 22 minutes (the bot wins in about 19).
 
 - **Player**: 3 sappers; 10 riflemen in T2; 2 DP gunners in T2; 1 PTRD team; 1 sniper; 350 Money. Supports:
   artillery, smoke, and the Katyusha (Soviet signature) from phase 2.
-- **Loans**: 4 PTRD teams (start); 2 mortar teams (start); 1 medic.
+- **Loans**: 4 PTRD teams (start); 2 mortar teams (start); 1 medic. Lent charges: 2 Katyusha salvoes only (the
+  mission's new call-in); artillery and smoke are the player's own charges (DECISIONS 430).
 - **Enemy**:
   - HQ, income at most the player's. Start: T3 garrison (6 riflemen, 2 MG34).
   - Waves from 2nd Panzer Division: Panzer III with 5 cm (`tank` look `pz3h`), Panzer III Ausf. E (`lightTank`),
@@ -360,21 +361,23 @@ Expected 15 to 22 minutes (the bot wins in about 19).
 0. **Prep (60 s)**: wire, foxholes, tank traps (the steel "hedgehogs" of the Moscow defences), a trench; zone
    3,000 to 6,400.
 1. **"The morning attack"**: survive 360 s; lose if P1 is lost.
-   - 0 s: German barrage on T2.
-   - 30 s: 4 tanks (2 Panzer III, 1 Panzer III E, 1 Panzer IV) plus 8 riflemen.
-   - 60 s: Stuka.
-   - 150 s: 2 StuG plus 6 MP40.
-   - 250 s: 3 tanks plus 2 MG plus 8 riflemen.
+   - 0 s: German barrage on T2, 6 rounds one by one over 15 s.
+   - 30 s: 2 tanks (a Panzer III with the 5 cm gun, a Panzer III E) plus 8 riflemen.
+   - 60 s: Stuka (on the rear trench).
+   - 150 s: a StuG plus 6 MP40.
+   - 250 s: 2 tanks plus 2 MG plus 6 riflemen.
    - Hints: PTRD teams kill tanks from the side; tank traps stop vehicles.
 2. **"They come again"**: survive 360 s; lose if P1 is lost.
    - Phase start: weather `snow` over 60 s; Katyusha enabled, hint "The Katyusha rocket battery: a salvo over a
      wide area, slow to reload."
-   - 40 s: 6 tanks plus 10 infantry.
+   - 40 s: 3 tanks plus 10 infantry.
    - 160 s: Pak 38s and mortars set up at 8,000 (`posture: 'hold'`) to shell the halt.
-   - 260 s: the last big push, 5 tanks plus 12 infantry.
-3. **"Katukov's tanks"** (capture P2).
-   - Phase start: wave side 0 at x 2,500: 3 T-34/76 and 1 KV-1, announce "Tanks of the 1st Guards Tank Brigade are up
-     from the rear."
+   - 260 s: the last big push, 3 tanks plus 12 infantry. (About 13 German tanks in all, the counter-attack's two
+     included, as the intel says.)
+3. **"Katukov's tanks"** (capture P2, then hold it 150 s).
+   - Phase start: wave side 0 at x 2,500: 3 T-34/76 and 1 KV-1 with 6 PPD tank riders, announce "Tanks of the 1st
+     Guards Tank Brigade are up from the rear."
+   - 25 s: the division's guns shell the wood's edge, 10 rounds one by one over 25 s (DECISIONS 430).
    - Time to dusk over 120 s.
    - The German posture turns to `counterattack` at P2 when it falls (90 s).
 
@@ -403,7 +406,7 @@ casualties 40.
 4. Save the Katyusha for the massed infantry behind the tanks.
 5. When the T-34s arrive, advance behind them with the PTRDs to take the wood's edge.
 
-Expected 20 to 23 minutes.
+Expected 17 to 23 minutes (the bot wins in a median 16.8; DECISIONS 430).
 
 ---
 

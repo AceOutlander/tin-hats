@@ -285,11 +285,9 @@ export const MEDALS: MedalTunables = {
   // 416; the mission tuning pass should cut these as missions are retuned around bought charges).
   chargeLoans: {
     // 1002 lends nothing since its tuning (DECISIONS 429): the bot wins it with no call-in at all.
-    1003: [
-      { kind: 'artillery', count: 6 },
-      { kind: 'katyusha', count: 2 },
-      { kind: 'smoke', count: 1 },
-    ],
+    // 1003 lends only the brief's new rocket battery since its tuning (DECISIONS 430): the bot wins it with no call-in,
+    // and two salvoes let a player meet the Katyusha the mission introduces.
+    1003: [{ kind: 'katyusha', count: 2 }],
     1004: [
       { kind: 'artillery', count: 8 },
       { kind: 'smoke', count: 4 },

@@ -11,7 +11,8 @@ import type { MissionDef } from '../../schema';
  * first: wire, foxholes, a trench, road blocks and the steel tank traps of the Moscow defences (FOUNDATIONS.md 4.8;
  * the bot puts the traps across the road at x 6,000 and wire at 5,900); phases 1 and 2 hold the halt (P1, held through trench 2) for 360 s each and are lost
  * if it falls; the German barrage on the halt, the Stuka and the Pak 38 and mortar posture are scripted; the Katyusha
- * is offered from phase 2; phase 3 brings Katukov's tanks and takes the wood's edge (P2, through trench 3, a forward
+ * is offered from phase 2; phase 3 brings Katukov's tanks with PPD tank riders, behind the division's guns shelling the
+ * wood's edge one round at a time (DECISIONS 430), and takes the wood's edge (P2, through trench 3, a forward
  * spawn once ours), where the Germans counter-attack 90 s after it falls; it is held for 150 s. The ground is snow, the
  * birch wood forest. The halt hut (B1) and two izbas of the hamlet are buildings (FOUNDATIONS.md 4.3) and the HQ is a
  * log dugout (`hqLook`).
@@ -45,7 +46,7 @@ export const M1003: MissionDef = {
     friendly: [
       '316th Rifle Division: 10 riflemen, 2 DP gunners, a sniper',
       '5 PTRD teams with the new anti-tank rifles, 2 mortar crews',
-      'Katukov\'s tanks later: 3 T-34s and a KV-1',
+      'Katukov\'s tanks later: 3 T-34s and a KV-1, with PPD tank riders',
       'Artillery, smoke and the first Katyusha salvoes',
     ],
   },
@@ -182,8 +183,10 @@ export const M1003: MissionDef = {
   ],
   events: [
     // The director's events: the barrage on the halt, the Stuka, the rocket battery, the German posture.
-    { id: 'openingBarrage', type: 'barrage', when: { phase: 'morning' }, side: 1, x: 5600, spread: 400, rounds: 5, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on the halt!' },
+    { id: 'openingBarrage', type: 'barrage', when: { phase: 'morning' }, side: 1, x: 5600, spread: 400, rounds: 6, duration: 15, weapon: 'artilleryShell', warning: 'Artillery on the halt!' },
     // The Stuka goes for the rear trench and the road behind the halt (on the halt itself it broke the hold, DECISIONS 357).
+    // The division's guns prepare Katukov's attack on the wood's edge, one shell at a time (DECISIONS 430).
+    { id: 'woodShelled', type: 'barrage', when: { phase: 'katukov', delay: 25 }, side: 0, x: 9900, spread: 350, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: "Our guns are shelling the wood's edge." },
     { id: 'firstSnow', type: 'weather', when: { phase: 'again' }, to: 'snow', over: 60 },
     { id: 'dusk', type: 'time', when: { phase: 'katukov' }, to: 'dusk', over: 120 },
     { id: 'stuka', type: 'airRaid', when: { phase: 'morning', delay: 60 }, side: 1, support: 'airStrike', x: 4200 },
@@ -297,6 +300,8 @@ export const M1003: MissionDef = {
       forces: [
         { kind: 'tank', count: 3, x: 2500 },
         { kind: 'heavyTank', count: 1, x: 2300 },
+        // Tank riders: PPD troopers on the hulls, to clear the wood's edge trench behind the tanks (DECISIONS 430).
+        { kind: 'assault', count: 6, x: 2400 },
       ],
       announce: 'Tanks of the 1st Guards Tank Brigade are up from the rear.',
     },
@@ -330,7 +335,6 @@ export const M1003: MissionDef = {
       { kind: 'mortar', count: 1, after: 150 },
       { kind: 'rifle', count: 10, after: 300 },
       { kind: 'tank', count: 1, after: 720 },
-      { kind: 'at', count: 2, after: 500 },
     ],
     firstAttackAfter: 900,
   },
@@ -348,6 +352,7 @@ export const M1003: MissionDef = {
     ],
     firstAttackAfter: 720,
   },
-  expectedMinutes: [16, 23],
+  // A minute of prep, two 6-minute holds, then 4 to 10 minutes at the wood's edge: the bot wins in about 17 (DECISIONS 430).
+  expectedMinutes: [15, 23],
   music: STALINGRAD_MUSIC.missions[1003],
 };

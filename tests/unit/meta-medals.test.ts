@@ -251,7 +251,7 @@ describe('the Shop: call-in charges', () => {
     for (const k of ['smoke', 'artillery', 'recon', 'fighter'] as const) expect(toggleLoadout(save, k)).toBe(true);
     expect(toggleLoadout(save, 'bomber')).toBe(false);
     expect(save.loadout).toHaveLength(MEDALS.loadoutSlots);
-    // 1003 lends the Katyusha (and artillery and smoke): it comes on top of the four chosen, with the save's own charges and the lent ones.
+    // 1003 lends the Katyusha: it comes on top of the four chosen, with the save's own charges and the lent ones.
     const r = missionRoster(save, mission(1003));
     expect(r.supports.sort()).toEqual(['artillery', 'fighter', 'katyusha', 'recon', 'smoke']);
     expect(r.charges.katyusha).toBe(2 + (MEDALS.chargeLoans[1003]?.find((l) => l.kind === 'katyusha')?.count ?? 0));
