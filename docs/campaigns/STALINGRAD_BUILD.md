@@ -4,7 +4,7 @@ What each part of the campaign has today, and what waits for which foundation fe
 
 ## The mission director (FOUNDATIONS.md 3.1 to 3.4)
 
-**In** (`src/sim/director.ts`, types in `src/data/schema.ts`; DECISIONS E1-1 to E1-12; tests
+**In** (`src/sim/director.ts`, types in `src/data/schema.ts`; DECISIONS 309 to 320; tests
 `tests/unit/sim-director.test.ts`, `tests/unit/hud-phase.test.ts`, `tests/unit/stalingrad-director.test.ts`, the 1009 case
 of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build on; how to write a mission with it:
 
@@ -57,22 +57,22 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1003 Volokolamsk | hold | 2 x 360 s holds, Katukov's tanks | pointLost (the halt), barrage, Stuka, Katyusha from phase 2, AI hold and counter-attack postures, capture + hold 150 s; no tank at the halt (until phase 3), ten tanks; timed from phase 3 |
 | 1004 Klin | assault | village, forest, highway (+ hold 120 s), Klin | forward spawns (`at`), frozen panzers (leash 0), counter-attack posture, Il-2 from phase 3, hold for 240 s then free, artillery, the last counter-attack; the station, the highway in 20 min |
 | 1005 Volga | special | landing (hold 180 s), high bank, station, hold the station | pointLost (landing), Nebelwerfer, Stukas, a 45 s prep at phase 4; battalion ashore (lost < 10), nail factory |
-| 1006 Kurgan | hold | foot, slope, water tanks + summit, summit hold | destroy (pillboxes), 45 s prep at phase 4 with a zone, Stukas, Nebelwerfer, banner, AI hold on the summit; both tanks by 12 min, no assault gun survives |
+| 1006 Kurgan | hold | foot, slope, water tanks + summit, summit hold | destroy (the water tanks, buildings), 45 s prep at phase 4 with a zone, Stukas, Nebelwerfer, banner, AI hold on the summit; both tanks by 12 min, no assault gun survives |
 | 1007 Pavlov's House | survival | take the house, day one, night one, day two, last night | capture with a 180 s deadline, prep after phase 0, pointLost (day one), Stuka raid, Katyusha for the last night, artillery cooldown 90 s; the trench stays open, no German inside; house health in the score |
 | 1008 Tractor Factory | survival (scored as the brief's delay) | 3 x 420 s under the clock | enemyReached x 2,000 count 6, barrage, Stukas, heavy bomb, Nebelwerfer; machine shops at dark (`atEnd`), 25 tanks; kill bonus |
 | 1009 Uranus | assault | Siren, steppe, Kalach bridge, Sovetsky | side 0's free barrages and Katyusha, Il-2 and Po-2 from phase 2, disguise, forward spawns, green flares on the objective; the bridge in 180 s (`withinPhase`), fifteen tanks |
 | 1010 Ring | assault (surrender) | guns, Gumrak, ruins, Univermag | five free barrages, frozen tanks, German artillery cooldown 180 s, nests (hold postures), Nebelwerfer, last counter-attack, surrender at 25% with the closing words; Pitomnik in 8 min, Gumrak without a tank lost, under 28 min |
 
 **Waits for** (other jobs build these on the director; capture points, forward spawns and Fall Back to them are in,
-see the next section); buildings and floors (4.3: 1008's heavy bomb knocking off a floor, 1007's top
-floor bonus, `StructureRef.building`); bridges, demolition and the ford (4.4: 1009's bridge, 1005's ferry loads);
+see "The long-map battlefield", and so are buildings and floors, see "Buildings, rubble and cover props"); bridges,
+demolition and the ford (4.4: 1009's bridge, 1005's ferry loads);
 weather and time-of-day events (4.7: snow, blizzard, fog, flares); loans by phase (7.2); `unlockKind`, `demolish` and
 `spawnPointState` events; the AI aiming a counter-attack at its `point`; per-mission medal numbers tuned on real play;
-mid-mission autosave and resume (FOUNDATIONS section 2, DECISIONS E1-12).
+mid-mission autosave and resume (FOUNDATIONS section 2, DECISIONS 320).
 
 ## The long-map battlefield (FOUNDATIONS.md 4.1, 4.2 and 4.5)
 
-**In** (`src/data/ground.ts`, `src/sim/points.ts`, the ground tables in `src/sim/world.ts`; DECISIONS E2-1 to E2-10;
+**In** (`src/data/ground.ts`, `src/sim/points.ts`, the ground tables in `src/sim/world.ts`; DECISIONS 321 to 330;
 tests `tests/unit/sim-battlefield.test.ts`, `tests/unit/hud-battlefield.test.ts`). How a mission uses it:
 
 - **`MissionDef.sectors: SectorDef[]`**, left to right: `{ from, to, ground, backdrop?, label?, heightBonus? }`. `ground`
@@ -86,13 +86,14 @@ tests `tests/unit/sim-battlefield.test.ts`, `tests/unit/hud-battlefield.test.ts`
 - **`ForceDef.tags: ['skis']`**: deep snow does not slow these units (1004's ski troopers).
 - **`MissionDef.capturePoints: CapturePointDef[]`**: `{ id: 'P1', x, width, label, owner (-1 nobody), captureTime (s;
   0 = at once), spawn, spawnFor?, contestRadius, structure? }`. Armed units alone in the zone for `captureTime` take
-  it; with `structure: { trench }` (or `{ building }`, held through that trench id until buildings exist) it goes with
-  the structure. Name it in the director as `{ point: 'P1' }` (capture, hold, pointLost, pointCapturedBy, setOwner,
+  it; with `structure: { trench }` or `{ building }` (MissionDef.buildings, held through the building's slot record)
+  it goes with the structure. Name it in the director as `{ point: 'P1' }` (capture, hold, pointLost, pointCapturedBy, setOwner,
   assume, `ForceDef.at`).
 - **Forward spawns**: an owned, uncontested spawn point with the enemy's front still ahead of it is where trained units
   walk out (the default is the forward-most one, else the HQ; the AI and the test bot use the default). The player picks
   with the "Deploy at" chip on the training bar (auto, HQ, each spawn point); sappers always use the HQ.
-- **The hold line** is the forward-most owned trench or point (a trench in or ahead of the point's zone wins).
+- **The hold line** is the forward-most owned trench, building or point (a trench or building in or ahead of the
+  point's zone wins; a cover prop is never a line).
 - **Fall Back** goes to the nearest available rally (spawn) point behind each man, or into the HQ within 2,500 wu of it.
 - **Art and HUD**: snow, deep snow, rubble and steppe ground styles, a 200 wu blend between sectors, a flagpole with the
   holder's colours and a capture bar for each point, minimap shading by sector with the points' flags, the "Deploy at"
@@ -105,17 +106,78 @@ tests `tests/unit/sim-battlefield.test.ts`, `tests/unit/hud-battlefield.test.ts`
 | 1001 Brest | cobbles, Kholm Gate rubble, the bridge (road), South Island forest and grass | none |
 | 1002 Dubno | fields, oak wood, Dubno's cobbles, the Ikva road | P1 the crossroads (15 s, open ground, forward spawn) |
 | 1003 Volokolamsk | snow, the halt, frozen fields, birch wood | P1 the halt (trench 2), P2 the wood's edge (trench 3) |
-| 1004 Klin | deep snow, fir forest, highway, Klin's rubble and cobbles | P1 the village (trench 1, building B2 later), P2 forest edge, P3 highway (10 s); ski troopers |
-| 1005 Volga | sand, the Volga (water), the high bank (slope), rubble, the station | P1 the landing (trench 1), P2 the riverside blocks (trench 3, building later) |
+| 1004 Klin | deep snow, fir forest, highway, Klin's rubble and cobbles | P1 the village (building B2), P2 forest edge, P3 highway (10 s); ski troopers |
+| 1005 Volga | sand, the Volga (water), the high bank (slope), rubble, the station | P1 the landing (trench 1), P2 the riverside blocks (building B2) |
 | 1006 Kurgan | rubble, the eastern slope, the summit (rock, heightBonus 1.1), the western slope | P1 the railway cutting (trench 2), P2 the summit (10 s, not a spawn) |
 | 1007 Pavlov's House | the mill's rubble, the communication trench, 9 January Square | P1 the communication trench (trench 1) |
-| 1008 Tractor Factory | rubble throughout (cliffs, halls, yard) | P2 the machine shops (trench 2, building B3 later): forward spawn and Fall Back's rally point |
-| 1009 Uranus (30,000 wu) | snow, the open steppe, the Don hills (slope), the Don, Kalach bridge (road), the road to Sovetsky | P1 to P3 Soviet spawns only (`spawnFor: 0`): the Romanian line (trench 3), Perelazovsky (trench 4, building later), the Don hills (10 s); P4 Sovetsky (trench 6, building later, not a spawn) |
+| 1008 Tractor Factory | rubble throughout (cliffs, halls, yard) | P2 the machine shops (building B3): forward spawn and Fall Back's rally point |
+| 1009 Uranus (30,000 wu) | snow, the open steppe, the Don hills (slope), the Don, Kalach bridge (road), the road to Sovetsky | P1 to P3 Soviet spawns only (`spawnFor: 0`): the Romanian line (trench 3), Perelazovsky (building B2), the Don hills (10 s); P4 Sovetsky (trench 6: the map has no buildings in Sovetsky; not a spawn) |
 | 1010 Ring | snow, the steppe, Pitomnik, Gumrak, the western ruins, the central square | P1 Pitomnik, P2 Gumrak, P3 the ruins (10 s each, open ground) |
 
-**Waits for**: buildings (cluster 3): the points marked "building later" switch from their stand-in trench to
-`{ building }`, rubble from a fallen building calls `setGround`; the backdrop crossfade for `SectorDef.backdrop`;
-bridges (water stops vehicles at the bank, FOUNDATIONS 4.4).
+**Waits for**: the backdrop crossfade for `SectorDef.backdrop`; bridges (water stops vehicles at the bank,
+FOUNDATIONS 4.4). Buildings are in (next section): the points that were "building later" are held through their
+building, and a fallen building's footprint becomes rubble ground (DECISIONS 340).
+
+## Buildings, rubble and cover props (FOUNDATIONS.md 4.3; DECISIONS 331 to 339)
+
+**In.** The engine is `src/sim/buildings.ts`, its numbers `BUILDINGS` in `src/data/buildings.ts`, the art
+`src/art/structures/buildings.ts` and `hqBuildings.ts` (layouts in `src/data/looksBuilding.ts`), the views
+`src/render/buildings.ts`. Tests: `tests/unit/buildings.test.ts`, `art-buildings.test.ts`, the new columns in
+`sim-matrix.test.ts`, and 1010 in `sim-budget.test.ts` (0.031 ms a tick; 1009 0.023 ms).
+
+- **`MissionDef.buildings: BuildingDef[]`**: `id`, `x`, `width`, `floors` (1 to 4), `slotsPerFloor`, `hpMul` (x
+  `BUILDINGS.hp` 1500), `owner` (-1 = nobody), `look`, optional `spawn` and `collapse` (`'rubble'` default, `'none'` =
+  the walls take no damage). Looks: casemate, church, izba, house, apartment, station, factoryHall, waterTank, mill,
+  store, hangar, sheds.
+- **Occupancy** is the trench code's: each building's window slots are a slot record in `state.trenches` (id
+  `BUILDINGS.idBase` 10000 + the building's id, `TrenchState.building` its index), appended after the mission's
+  trenches. So infantry take it by entering it empty, `ForceDef.buildingId` seats men (with `behaviour: 'garrison'` they
+  hold it), vehicles never enter, it is a hold line for the AI, the bot and Fall Back, and the bot and AI clear and take
+  it as they do a trench. Slots fill the ground floor first; anti-tank teams climb to the top floor.
+- **Points and structures**: `{ building: id }` is a `PointRef` (capture, hold, pointLost, `at` spawns, setOwner,
+  `pointCapturedBy`) and a `StructureRef` (destroyed = taken from its first owner, or rubble; its health feeds
+  `structureWeight`). New loss `{ type: 'contested', point }`: side 1 infantry inside a point side 0 holds
+  (`BuildingState.contested`, `inside`).
+- **Damage**: target classes `infantryBuilding` (bullet 0.15, explosive 0.7, antiTank 0.5) and `rubbleCover` (bullet
+  0.4, explosive 0.9, antiTank 0.15) in `src/data/damage.ts`; every weapon's `targets` lists them with the infantry
+  classes; the grenade and the mortar's dug-in preference count men in buildings as dug in. Fire (the flamethrower) on
+  men at the windows is x1.8 (`FIRE_DAMAGE`) and burns them out of their slots. This is the Katyusha's second counter:
+  its rockets do x0.7 to men inside.
+- **Floors**: range x1.08 from floor 2 up (`upperFloorRange`); anti-tank weapons on the top floor of a building with 3
+  or more floors standing do x1.3 to vehicles (`topFloorVsVehicles`, 1007).
+- **Walls**: explosions damage the walls of buildings their side does not own (explosive x0.35, anti-tank x0.25 of the
+  blast, bullets and fire nothing; the heavy bomb x6 and siege shell x3 more). The top floor falls each time health drops
+  below its share (a 2-floor building loses its upper floor below half), hurting its men, who drop to a floor below if
+  there is room. At 0 hp it is rubble: everyone is thrown out and hurt, and half the slots (at least one) give
+  `rubbleCover`. `onCollapse(w, b)` then turns its footprint to `rubble` ground through `setGround` (slower going and
+  bullet cover in the open, as a rubble sector; a mission with no sectors gets ground tables at that moment).
+- **Cover props**: `MissionDef.props: CoverPropDef[]` (`wagons`, `ju52Wreck`, `he111Wreck`): rubble cover from the
+  start, no damage, taken by entering, never a hold line; ids share the buildings' id space.
+- **HQ look**: `SideStart.hqLook` draws the HQ as a Quartermaster style (`dugout`, `logDugout`, `bunkerGerman`, ...) or
+  a mission building (`casemate`, `mill`, `store`, three damage states each). Names and art only.
+- **Rendering**: dark interior strips under the men, a facade per standing floor and the roof over them, so men show at
+  their floor's windows; damaged pieces at 60% health, a broken top once a floor falls, rubble stumps and a heap; the
+  admin overlay marks buildings. Gallery: `dev/art-structures.html?sec=buildings`.
+
+**The missions on it** (the stand-ins in each header are gone):
+
+| Mission | Buildings, props, HQ look |
+| --- | --- |
+| 1001 Brest | B1 ring barracks and B3 Kholm Gate (casemates), B2 the club (church), 2 floors each; HQ casemate |
+| 1002 Dubno | B1 to B4 houses (B3 held); HQ dugout |
+| 1003 Volokolamsk | B1 the halt hut (station look), B2 and B3 izbas; HQ log dugout |
+| 1004 Klin | V1's izbas B1 and B2 (P1 is B2), Klin's houses B3 to B5 and B8, church B6, station B7 (side objective); HQs log dugout and German bunker |
+| 1005 Volga | riverside apartment blocks B1 to B4 (P2 is B2), station B5, nail factory B6; HQ log dugout |
+| 1006 Kurgan | the water tanks B1 and B2 (were pillboxes; "take the water tanks"); HQ log dugout |
+| 1007 Pavlov's House | B1 Pavlov's House, 4 floors x 7, two Germans inside; enemy blocks B2 to B4 (snipers in B2); `contested` side objective; the Stuka on the house; HQ the mill |
+| 1008 Tractor Factory | assembly hall B1 (spawn), foundry B2, machine shops B3 (the heavy bomb takes its upper floor); wagons prop; HQ log dugout |
+| 1009 Uranus | Perelazovsky B1 to B3 (P2 is B2, B3 the Romanian corps HQ), Kalach B4 and B5; HQ log dugout |
+| 1010 Ring | Pitomnik hangar B1 and the Ju 52 and He 111 wrecks, Gumrak station B2 and sheds B3, ruins B4 to B9, the square B10 to B12; German HQ the Univermag (store) |
+
+**Waits for**: `BuildingDef.spawn` is stored but not read: a building that is a forward spawn is a capture point with
+`structure: { building }` (1004 P1, 1005 P2, 1008 P2, 1009 P2), and 1008's assembly hall has no point yet (DECISIONS
+341); direct fire at walls (only blasts hurt them); men drawn at the windows of the mission HQ buildings (the HQ is not
+a building with slots).
 
 ## Soviet nation data (shared by every mission)
 
@@ -133,9 +195,8 @@ bridges (water stops vehicles at the bank, FOUNDATIONS 4.4).
 
 **Waits for**:
 
-- Unit tags (`ForceDef.tags: ['skis']`; Klin's ski troops have the `skiTroops` look but no deep-snow rule yet) and the
-  Romanian nation (1009's Romanians field as German troops in the Romanian look, see "Era-correct forces" below).
-- Buildings for the Katyusha's second counter (explosive x0.7 inside).
+- The Romanian nation (1009's Romanians field as German troops in the Romanian look, see "Era-correct forces" below).
+  Unit tags are in (`ForceDef.tags: ['skis']`, see "The long-map battlefield").
 - The campaign theme field (`theme: 'sovietWinter'`; the map music field is in, see "Campaign select" below).
 
 ## Campaign select, the campaign map and the unlocks

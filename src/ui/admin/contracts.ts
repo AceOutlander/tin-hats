@@ -106,6 +106,8 @@ export const MARK_HQ = 0;
 export const MARK_EDGE = 1;
 export const MARK_WAVE = 2;
 export const MARK_TRENCH = 3;
+/** A building or cover prop (FOUNDATIONS.md 4.3): its slot record in state.trenches. */
+export const MARK_BUILDING = 4;
 
 export interface AdminDebugFrame {
   boxes: Float32Array;

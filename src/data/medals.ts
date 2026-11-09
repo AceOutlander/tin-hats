@@ -187,7 +187,7 @@ export const MEDALS: MedalTunables = {
       loans: [],
       expects: STAL_1007,
       hqHealthWeight: 0.2,
-      structureWeight: { ref: { trench: 2 }, weight: 0.2 },
+      structureWeight: { ref: { building: 1 }, weight: 0.2 },
     },
     // The brief's delay: fixed, with a kill bonus.
     1008: {

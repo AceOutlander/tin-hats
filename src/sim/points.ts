@@ -3,7 +3,7 @@
  *
  * A point without a structure changes hands when one side's armed units stand in its zone with none of the other
  * side's for its captureTime (progress builds while that lasts, stops while both sides are in it, and drains while
- * nobody, or only the owner, is). A point with a structure (a trench, or a building's stand-in trench) simply follows
+ * nobody, or only the owner, is). A point with a structure (a trench, or a building's slot record) simply follows
  * that structure's owner. While owned and uncontested (no armed enemy within contestRadius), a spawn point is where
  * trained units may deploy (SideState.deploy) and where Fall Back rallies. Both sides are counted before any point
  * changes hands, so the order of the unit pool never favours a side.
@@ -11,14 +11,18 @@
 import { CONFIG } from '../data/config';
 import { POINT_RULES } from '../data/ground';
 import type { MissionDef } from '../data/schema';
+import { refTrenchId } from './buildings';
 import { KIND_SAPPER } from './tables';
 import { DEPLOY_HQ, type CapturePointState, type TrenchState, type UnitState } from './types';
 import type { World } from './world';
 
-/** The points of a mission, as battle state. A structure resolves to its trench (a building to its stand-in trench). */
+/**
+ * The points of a mission, as battle state. A structure resolves to its slot record in `trenches`: a trench's own, or
+ * a building's (src/sim/buildings.ts), so the buildings' records must already be there.
+ */
 export function createPoints(mission: MissionDef, trenches: readonly TrenchState[]): CapturePointState[] {
   return (mission.capturePoints ?? []).map((p) => {
-    const id = p.structure ? ('trench' in p.structure ? p.structure.trench : p.structure.building) : null;
+    const id = p.structure ? refTrenchId(p.structure) : null;
     const trench = id === null ? -1 : trenches.findIndex((t) => t.id === id);
     return {
       id: p.id,

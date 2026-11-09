@@ -324,7 +324,8 @@ describe('the admin controller', () => {
       boxCount: 0,
       ranges: new Float32Array(1000),
       rangeCount: 0,
-      marks: new Float32Array(60),
+      // Room for 1010's trenches, buildings and cover props (each a slot record) and its wave marks.
+      marks: new Float32Array(300),
       markCount: 0,
       groundY: 0,
     };

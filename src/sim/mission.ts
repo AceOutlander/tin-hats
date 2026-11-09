@@ -4,6 +4,7 @@
  */
 import { CONFIG } from '../data/config';
 import type { ForceDef, MissionEventDef, Side } from '../data/schema';
+import { buildingTrenchId, refTrenchId } from './buildings';
 import { checkDirector, directorTrigger, endBattle, enterPhase, fireDirectorEvent, pointOwner, setOwner, updateDirector } from './director';
 import { inPrep, missionTime } from './prep';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
@@ -15,7 +16,8 @@ import type { World } from './world';
 /**
  * Spawn one group of units. Where they appear:
  * - `x` given: there, one spacing apart going back;
- * - `trenchId` given: seated in that trench's free slots (taking it for the side), the rest just behind it;
+ * - `trenchId` (or `buildingId`) given: seated in that trench's (building's) free slots (taking it for the side), the
+ *   rest just behind it;
  * - otherwise at the HQ door, or at the map edge for a side with no HQ.
  * At mission start, army units with no position stand ready in the hold formation instead.
  * Units of a side with no HQ (survival attackers) default to 'assault': they always advance.
@@ -38,22 +40,26 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let step = (dir * CONFIG.spacing) / 2;
   let inFormation = atStart && behaviour === 'army' && side.hq !== null;
   let trench = -1;
+  // A building's window slots are its slot record's (src/sim/buildings.ts).
+  const seatId = force.trenchId ?? (force.buildingId !== undefined ? buildingTrenchId(force.buildingId) : undefined);
   // A forward spawn point the side holds (ForceDef.at): just behind it, going back.
-  if (force.x === undefined && force.trenchId === undefined && force.at !== undefined && pointOwner(s, force.at) === si) {
+  if (force.x === undefined && seatId === undefined && force.at !== undefined && pointOwner(s, force.at) === si) {
     const at = force.at;
-    if ('trench' in at) {
-      for (let i = 0; i < s.trenches.length; i++) {
-        if (s.trenches[i].id === at.trench) baseX = s.trenches[i].x - dir * (w.trenchHalf[i] + CONFIG.trenchFormGap);
-      }
-    } else {
+    if ('point' in at) {
       // A capture point: just behind its zone, where trained units deploy.
       const k = s.points.findIndex((p) => p.id === at.point);
       if (k >= 0) baseX = deployX(w, si, k);
+    } else {
+      // A trench, or a building by its slot record (src/sim/buildings.ts).
+      const atId = refTrenchId(at);
+      for (let i = 0; i < s.trenches.length; i++) {
+        if (s.trenches[i].id === atId) baseX = s.trenches[i].x - dir * (w.trenchHalf[i] + CONFIG.trenchFormGap);
+      }
     }
     step = -dir * CONFIG.spacing;
     inFormation = false;
   }
-  if (force.x === undefined && force.trenchId === undefined && !atStart) {
+  if (force.x === undefined && seatId === undefined && !atStart) {
     // The same rule for a wave at the HQ door, the map edge or a spawn point (the 1004 counter-attack): if its leading
     // man would stand at or behind the other side's line, the wave forms up just ahead of that line, going back, and
     // is cut off when there is no ground left.
@@ -80,10 +86,10 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     }
     step = -dir * CONFIG.spacing;
     inFormation = false;
-  } else if (force.trenchId !== undefined) {
+  } else if (seatId !== undefined) {
     // Seated in the trench's slots; whoever does not fit (or cannot use a trench) stands just behind it.
     for (let i = 0; i < s.trenches.length; i++) {
-      if (s.trenches[i].id === force.trenchId) trench = i;
+      if (s.trenches[i].id === seatId) trench = i;
     }
     if (trench >= 0) baseX = s.trenches[trench].x - dir * (w.trenchHalf[trench] + CONFIG.trenchFormGap);
     step = -dir * CONFIG.spacing;

@@ -11,7 +11,8 @@ import type { MissionDef } from '../../schema';
  * if it falls; the German barrage on the halt, the Stuka and the Pak 38 and mortar posture are scripted; the Katyusha
  * is offered from phase 2; phase 3 brings Katukov's tanks and takes the wood's edge (P2, through trench 3, a forward
  * spawn once ours), where the Germans counter-attack 90 s after it falls; it is held for 150 s. The ground is snow, the
- * birch wood forest; the tank traps wait for their feature.
+ * birch wood forest. The halt hut (B1) and two izbas of the hamlet are buildings (FOUNDATIONS.md 4.3) and the HQ is a
+ * log dugout (`hqLook`). The tank traps wait for their feature.
  */
 export const M1003: MissionDef = {
   id: 1003,
@@ -68,6 +69,7 @@ export const M1003: MissionDef = {
       hasHq: true,
       supplies: 350,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 3,
       forces: [
@@ -101,6 +103,12 @@ export const M1003: MissionDef = {
     { id: 2, x: 5600, width: 230, slots: 10, owner: 0 },
     // T3 at the wood's edge (P2).
     { id: 3, x: 9800, width: 180, slots: 7, owner: 1 },
+  ],
+  // The halt hut behind T2, and two izbas of the hamlet behind the battalion (FOUNDATIONS.md 4.3).
+  buildings: [
+    { id: 1, x: 5150, width: 120, floors: 1, slotsPerFloor: 4, hpMul: 0.7, owner: 0, look: 'station' },
+    { id: 2, x: 1500, width: 120, floors: 1, slotsPerFloor: 3, hpMul: 0.6, owner: 0, look: 'izba' },
+    { id: 3, x: 2250, width: 120, floors: 1, slotsPerFloor: 3, hpMul: 0.6, owner: 0, look: 'izba' },
   ],
   pillboxes: [],
   // The prep phase's wire in front of the halt, laid before the battle until the prep phase exists.
@@ -161,7 +169,7 @@ export const M1003: MissionDef = {
   events: [
     // The director's events: the barrage on the halt, the Stuka, the rocket battery, the German posture.
     { id: 'openingBarrage', type: 'barrage', when: { phase: 'morning' }, side: 1, x: 5600, spread: 400, rounds: 5, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on the halt!' },
-    // The Stuka goes for the rear trench and the road behind the halt (on the halt itself it broke the hold, DECISIONS E1).
+    // The Stuka goes for the rear trench and the road behind the halt (on the halt itself it broke the hold, DECISIONS 318).
     { id: 'stuka', type: 'airRaid', when: { phase: 'morning', delay: 60 }, side: 1, support: 'airStrike', x: 4200 },
     { id: 'katyusha', type: 'support', when: { phase: 'again' }, side: 0, kind: 'katyusha', enabled: true },
     { id: 'pakHold', type: 'posture', when: { phase: 'again', delay: 160 }, side: 1, posture: 'hold' },

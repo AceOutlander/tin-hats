@@ -4,10 +4,14 @@
  * hit rolls, projectile launches, and the deferred damage queue.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import { FIRE_DAMAGE } from '../data/damage';
+import { damageBuilding } from './buildings';
 import { LAUNCH, launch } from './projectiles';
 import {
+  CLASS_BUILDING,
   CLASS_FORT,
   CLASS_HQ,
+  CLASS_VEHICLE,
   DAMAGE_TYPES,
   DUG_IN_NONE,
   DUG_IN_ONLY,
@@ -30,6 +34,7 @@ import {
   unitClass,
 } from './tables';
 import {
+  TARGET_BUILDING,
   TARGET_HQ,
   TARGET_NONE,
   TARGET_PILLBOX,
@@ -45,6 +50,8 @@ import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, GROUND_INV_CELL, type W
 
 /** Index of the bullet damage type (a bullet in the back ignites a flamethrower). */
 const BULLET = DAMAGE_TYPES.indexOf('bullet');
+/** Fire on men at a building's windows, in place of the matrix value (FIRE_DAMAGE in src/data/damage.ts). */
+const FIRE_BUILDING = FIRE_DAMAGE.infantryBuilding ?? 1;
 
 /** Weight of the preference rank against distance when scoring targets: rank always wins. */
 const RANK_WEIGHT = 1e7;
@@ -117,7 +124,8 @@ function search(w: World, m: MountState, side: number): boolean {
   const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   const mask = WEAPON_MASK[wi];
-  let range = weapon.range;
+  // A man on a building's upper floor sees further (m.rangeMul; 1 everywhere else).
+  let range = weapon.range * m.rangeMul;
   // Fired from high ground (SectorDef.heightBonus, 1006's summit), it reaches further.
   const g = w.ground;
   if (g !== null) {
@@ -273,7 +281,7 @@ function targetValid(w: World, m: MountState): boolean {
       return false;
   }
   const d = tx > x ? tx - x : x - tx;
-  let range = weapon.range;
+  let range = weapon.range * m.rangeMul;
   const g = w.ground;
   if (g !== null) {
     let c = (x * GROUND_INV_CELL) | 0;
@@ -385,7 +393,8 @@ function fireShot(
     LAUNCH[2] = m.damageMul;
     LAUNCH[3] = 0;
     LAUNCH[4] = 1;
-    LAUNCH[5] = 1;
+    // An anti-tank round fired down from a tall building's top floor (m.vehicleMul; 1 everywhere else).
+    LAUNCH[5] = m.vehicleMul;
     LAUNCH[6] = 0;
     launch(w, side, wi, row, trow, shooter, source);
   } else if (target !== 'ground') {
@@ -397,6 +406,8 @@ function fireShot(
       const flush = WEAPON_FLUSH[wi] === 1;
       let amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
       if (flush && cls === CLASS_FORT) amount *= SPECIALS.flamePillboxMul;
+      else if (flush && cls === CLASS_BUILDING) amount = weapon.damage * FIRE_BUILDING * m.damageMul;
+      if (cls === CLASS_VEHICLE) amount *= m.vehicleMul;
       w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir, flush ? DMG_FLUSH : 0);
     }
   }
@@ -598,6 +609,10 @@ export function applyDamage(w: World): void {
         }
         break;
       }
+      case TARGET_BUILDING:
+        // Its walls: floors fall and it may become rubble (damage to the men inside is queued behind this one).
+        damageBuilding(w, q.targetIndex[i], amount, by, dtype, dir);
+        break;
       default:
         break;
     }

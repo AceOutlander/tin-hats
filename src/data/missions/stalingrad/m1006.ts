@@ -5,15 +5,16 @@ import type { MissionDef } from '../../schema';
  * Stalingrad mission 6 (1006): Mamayev Kurgan, 19 September 1942 (docs/campaigns/STALINGRAD.md, mission 6). The 95th
  * Rifle Division crossed the night before and goes straight up Height 102.0: the railway cutting at the foot (trench
  * 2), two shell-hole positions on the eastern slope (trenches 3 and 4) behind wire, and on the summit the two water
- * tanks the Germans turned into blockhouses (pillboxes 1 and 2) with a trench between them (trench 5). When the summit
- * falls the 295th Infantry Division comes back at it four times; then the western slope and the German HQ.
+ * tanks the Germans turned into blockhouses (buildings B1 and B2) with a trench between them (trench 5). When the
+ * summit falls the 295th Infantry Division comes back at it four times; then the western slope and the German HQ.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): a hold in four phases. Take the
  * railway cutting (P1, held through trench 2, a forward spawn once ours), then the two shell-hole positions on the
- * slope (trenches 3 and 4), then destroy the water tanks (pillboxes 1 and 2) and take the summit between them (P2, open
- * ground taken by holding it 10 s), then a 45 s prep phase and hold the summit for 360 s against four counter-attacks.
- * The ground is rubble at the foot, the slope up, the summit's rock (heightBonus 1.1: the crest outranges the slope)
- * and the slope down. The Stukas and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
+ * slope (trenches 3 and 4), then take the water tanks (buildings B1 and B2, FOUNDATIONS.md 4.3, a German section in
+ * each) and the summit between them (P2, open ground taken by holding it 10 s), then a 45 s prep phase and hold the
+ * summit for 360 s against four counter-attacks. The ground is rubble at the foot, the slope up, the summit's rock
+ * (heightBonus 1.1: the crest outranges the slope) and the slope down. The HQ is a log dugout (`hqLook`). The Stukas
+ * and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
  * and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and, by look, the StuG III Ausf. F; the
  * `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
  */
@@ -69,6 +70,7 @@ export const M1006: MissionDef = {
       hasHq: true,
       supplies: 450,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1.2,
       sappers: 3,
       forces: [
@@ -101,6 +103,11 @@ export const M1006: MissionDef = {
         // The summit between the two water tanks.
         { kind: 'rifle', count: 6, trenchId: 5, behaviour: 'garrison' },
         { kind: 'lmg', count: 1, trenchId: 5, behaviour: 'garrison' },
+        // The water tanks, held as blockhouses.
+        { kind: 'rifle', count: 3, buildingId: 1, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 1, behaviour: 'garrison' },
+        { kind: 'rifle', count: 3, buildingId: 2, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 2, behaviour: 'garrison' },
         { kind: 'sniper', count: 2, x: 11300, behaviour: 'guard' },
         { kind: 'mortar', count: 2, x: 11700, behaviour: 'guard' },
       ],
@@ -113,11 +120,12 @@ export const M1006: MissionDef = {
     { id: 4, x: 7800, width: 120, slots: 4, owner: 1 },
     { id: 5, x: 10500, width: 180, slots: 8, owner: 1 },
   ],
-  pillboxes: [
-    // The two water tanks on the crest, held as blockhouses.
-    { id: 1, x: 10100, side: 1, hpMul: 1.6 },
-    { id: 2, x: 10900, side: 1, hpMul: 1.6 },
+  // The two water tanks on the crest, held as blockhouses: concrete, hard to bring down.
+  buildings: [
+    { id: 1, x: 10100, width: 130, floors: 1, slotsPerFloor: 6, hpMul: 1.6, owner: 1, look: 'waterTank' },
+    { id: 2, x: 10900, width: 130, floors: 1, slotsPerFloor: 6, hpMul: 1.6, owner: 1, look: 'waterTank' },
   ],
+  pillboxes: [],
   wire: [{ id: 1, x: 8600, width: 140, owner: 1 }],
   // The brief's sectors (FOUNDATIONS.md 4.1): rubble at the foot, the climb, the summit's reach (heightBonus 1.1:
   // whoever holds the crest outranges the slope) and the way down the far side.
@@ -145,7 +153,7 @@ export const M1006: MissionDef = {
         {
           id: 'waterTanks',
           text: 'Both water tanks by 12 minutes',
-          objective: { id: 'tanksFast', type: 'destroy', structures: [{ pillbox: 1 }, { pillbox: 2 }] },
+          objective: { id: 'tanksFast', type: 'destroy', structures: [{ building: 1 }, { building: 2 }] },
           within: 720,
           bonus: 0.15,
         },
@@ -166,7 +174,7 @@ export const M1006: MissionDef = {
       title: 'The water tanks',
       // The summit trench between the tanks is taken with them, so the hold (and its counter-attacks) starts on it.
       objectives: [
-        { id: 'waterTanksDown', type: 'destroy', structures: [{ pillbox: 1 }, { pillbox: 2 }], text: 'Water tanks destroyed' },
+        { id: 'waterTanksDown', type: 'destroy', structures: [{ building: 1 }, { building: 2 }], text: 'Take the water tanks' },
         { id: 'summitTaken', type: 'capture', point: { point: 'P2' }, text: 'Take the summit' },
       ],
       next: 'summit',

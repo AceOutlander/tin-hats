@@ -4,16 +4,17 @@ import type { MissionDef } from '../../schema';
 /**
  * Stalingrad mission 9 (1009): Operation Uranus, 19 to 23 November 1942 (docs/campaigns/STALINGRAD.md, mission 9). An
  * armoured breakthrough: a brigade of the 26th Tank Corps breaks the Romanian line out of the Serafimovich bridgehead
- * in fog (trenches 2 and 3), races across the steppe to Perelazovsky (trench 4), beats off the 22nd Panzer Division and
- * the Romanian armour in the Don hills (trench 5), rushes the Kalach bridge (its guard post is pillbox 2) and drives on
- * to Sovetsky (trench 6) and the German supply depot (the enemy HQ).
+ * in fog (trenches 2 and 3), races across the steppe to Perelazovsky (buildings B1 to B3), beats off the 22nd Panzer
+ * Division and the Romanian armour in the Don hills (trench 5), rushes the Kalach bridge (its guard post is pillbox 2)
+ * and drives on to Sovetsky (trench 6) and the German supply depot (the enemy HQ).
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu in four phases.
  * Siren: the free opening barrage and a Katyusha salvo on the Romanian line, which is taken (P1, held through trench
- * 3); the steppe: Perelazovsky (P2, through trench 4, its buildings' stand-in) and the Don hills (P3, open ground taken
- * by holding it 10 s), with the Il-2 and the Po-2 offered from here; the Kalach bridge: its guard post (pillbox 2) is
- * destroyed while the column drives in disguised for 40 s; Sovetsky (P4, through trench 6), whose capture closes the
- * ring with the green flares. Trained units deploy at the positions taken (P1 to P3 are the Soviet forward spawns,
+ * 3); the steppe: Perelazovsky (P2, held through its house B2; B3 is the Romanian corps headquarters; FOUNDATIONS.md
+ * 4.3) and the Don hills (P3, open ground taken by holding it 10 s), with the Il-2 and the Po-2 offered from here; the
+ * Kalach bridge: its guard post (pillbox 2) is destroyed while the column drives in disguised for 40 s; Sovetsky (P4,
+ * through trench 6, past the houses of Kalach, B4 and B5), whose capture closes the ring with the green flares. The HQ
+ * is a log dugout (`hqLook`). Trained units deploy at the positions taken (P1 to P3 are the Soviet forward spawns,
  * spawnFor 0), and the loaned carriers, PTRDs and mortars come up at P1. The ground is the brief's sectors (snow, the
  * steppe under snow, the climb into the Don hills, the Kalach bridge as road until bridges exist). The Romanians field
  * as German troops in the `romanian` look (khaki-brown greatcoat, Adrian helmet; no Romanian nation yet); every German
@@ -77,6 +78,7 @@ export const M1009: MissionDef = {
       hasHq: true,
       supplies: 800,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 4,
       forces: [
@@ -108,10 +110,12 @@ export const M1009: MissionDef = {
         { kind: 'at', count: 1, trenchId: 3, look: 'romanian' },
         // A Romanian R-2 light tank behind the second trench.
         { kind: 'tank', count: 1, x: 5900, behaviour: 'guard', look: 'panzer3h' },
-        // Perelazovsky, with a Romanian corps headquarters.
-        { kind: 'rifle', count: 4, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
-        { kind: 'lmg', count: 1, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
-        { kind: 'assault', count: 2, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
+        // Perelazovsky, with a Romanian corps headquarters (B3).
+        { kind: 'rifle', count: 4, buildingId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'lmg', count: 1, buildingId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'assault', count: 2, buildingId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'rifle', count: 2, buildingId: 3, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'lmg', count: 1, buildingId: 3, behaviour: 'garrison', look: 'romanian' },
         // The 22nd Panzer Division's screen in the Don hills: tank-hunting grenadiers with magnetic charges.
         { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 5, behaviour: 'garrison' },
@@ -130,16 +134,21 @@ export const M1009: MissionDef = {
     // The Romanian line.
     { id: 2, x: 4200, width: 200, slots: 8, owner: 1 },
     { id: 3, x: 5600, width: 200, slots: 8, owner: 1 },
-    // Perelazovsky.
-    { id: 4, x: 13000, width: 220, slots: 8, owner: 1 },
     // The Don hills.
     { id: 5, x: 21000, width: 180, slots: 6, owner: 1 },
     // Sovetsky.
     { id: 6, x: 28800, width: 200, slots: 8, owner: 1 },
   ],
+  buildings: [
+    // Perelazovsky: an izba, the village houses (P2) and the Romanian corps headquarters.
+    { id: 1, x: 12550, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.6, owner: -1, look: 'izba' },
+    { id: 2, x: 13000, width: 200, floors: 2, slotsPerFloor: 4, hpMul: 1, owner: 1, look: 'house' },
+    { id: 3, x: 13400, width: 160, floors: 2, slotsPerFloor: 3, hpMul: 1, owner: 1, look: 'house' },
+    // Kalach, on the road to Sovetsky.
+    { id: 4, x: 27900, width: 150, floors: 2, slotsPerFloor: 3, hpMul: 0.8, owner: -1, look: 'house' },
+    { id: 5, x: 28350, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.6, owner: -1, look: 'izba' },
+  ],
   pillboxes: [
-    // The Romanian corps headquarters in Perelazovsky.
-    { id: 1, x: 13250, side: 1, hpMul: 1 },
     // The guard post at the Kalach bridge.
     { id: 2, x: 24300, side: 1, hpMul: 1.2 },
   ],
@@ -162,13 +171,13 @@ export const M1009: MissionDef = {
     { from: 24400, to: 25000, ground: 'snow', label: 'The Don at Kalach' },
     { from: 25000, to: 30000, ground: 'road', label: 'Road to Sovetsky' },
   ],
-  // The capture points and forward spawns (4.5): the Romanian line and Perelazovsky are held through their trenches
-  // (trench 4 stands in for the village's buildings), the Don hills are open ground taken by holding it, and Sovetsky
-  // is held through trench 6 (its buildings' stand-in) until buildings exist. They are the Soviet forward spawns
-  // (spawnFor 0): the 22nd Panzer's reserves come from its own depot, not the Romanian trenches.
+  // The capture points and forward spawns (4.5): the Romanian line is held through its trench and Perelazovsky through
+  // its house B2, the Don hills are open ground taken by holding it, and Sovetsky is held through trench 6 (the town
+  // has no buildings of its own on this map). P1 to P3 are the Soviet forward spawns (spawnFor 0): the 22nd Panzer's
+  // reserves come from its own depot, not the Romanian trenches.
   capturePoints: [
     { id: 'P1', x: 5600, width: 300, label: 'Romanian line', owner: 1, captureTime: 0, spawn: true, spawnFor: 0, contestRadius: 600, structure: { trench: 3 } },
-    { id: 'P2', x: 13000, width: 320, label: 'Perelazovsky', owner: 1, captureTime: 0, spawn: true, spawnFor: 0, contestRadius: 600, structure: { trench: 4 } },
+    { id: 'P2', x: 13000, width: 320, label: 'Perelazovsky', owner: 1, captureTime: 0, spawn: true, spawnFor: 0, contestRadius: 600, structure: { building: 2 } },
     { id: 'P3', x: 21000, width: 400, label: 'Don hills', owner: 1, captureTime: 10, spawn: true, spawnFor: 0, contestRadius: 600 },
     { id: 'P4', x: 28800, width: 300, label: 'Sovetsky', owner: 1, captureTime: 0, spawn: false, contestRadius: 600, structure: { trench: 6 } },
   ],

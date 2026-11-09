@@ -154,7 +154,7 @@ allows about 5 MB per origin, shared with nothing else under `/tin-hats/`).
 **Built** (Stalingrad core branch): `src/sim/director.ts`; the data as built, its differences from the sketch below (points
 and structures as references, events kept in `MissionDef.events` with phase triggers, `MissionDef.timer` kept beside the
 phases, `atEnd` and `withinPhase` side objectives) and the missions that use it are in
-`docs/campaigns/STALINGRAD_BUILD.md`, "The mission director"; the judgement calls are DECISIONS E1-1 to E1-12.
+`docs/campaigns/STALINGRAD_BUILD.md`, "The mission director"; the judgement calls are DECISIONS 309 to 320.
 
 ### 3.1 Model
 

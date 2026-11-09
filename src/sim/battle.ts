@@ -8,6 +8,7 @@ import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
 import { applyAdmin, cheatSupplies, cheatTraining, inspectAi } from './admin';
+import { createBuildings, layoutBuildings, updateBuildings } from './buildings';
 import { applyDamage } from './combat';
 import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
@@ -157,6 +158,7 @@ function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
     alive: true,
     garrison: 0,
     gun,
+    look: mission.start[side].hqLook ?? '',
   };
 }
 
@@ -244,7 +246,10 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     owner: t.owner,
     occupants: 0,
     capturedAt: -1,
+    building: -1,
   }));
+  // Buildings and cover props: their slot records go after the mission's trenches (FOUNDATIONS.md 4.3).
+  const buildings = createBuildings(mission, trenches);
   const pillboxes: PillboxState[] = mission.pillboxes.map((p) => {
     const gun = createMount();
     resetMount(gun, CONFIG.pillboxGunWeapon, p.x);
@@ -278,7 +283,9 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     trenches,
     pillboxes,
     wires,
+    // After the buildings: a point that is a building follows the building's slot record.
     points: createPoints(mission, trenches),
+    buildings,
     dumps: [
       hq0 ? { side: 0, x: hq0.doorX + CONFIG.dumpDistance } : null,
       hq1 ? { side: 1, x: hq1.doorX - CONFIG.dumpDistance } : null,
@@ -337,6 +344,7 @@ class BattleImpl implements Battle, World {
   trenchHalf: Float64Array;
   slotX: Float64Array;
   slotUnit: Int32Array;
+  slotFloor: Int8Array;
   trenchInside: Int32Array;
   readonly cluster = new Uint8Array(CONFIG.maxUnits);
   readonly clusterOrder: [Int32Array, Int32Array] = [new Int32Array(CONFIG.maxUnits), new Int32Array(CONFIG.maxUnits)];
@@ -390,15 +398,18 @@ class BattleImpl implements Battle, World {
     this.cells = [new Uint8Array(cellCount), new Uint8Array(cellCount)];
     this.state = createState(config, this.mods);
     this.ground = buildGroundField(mission);
-    const trenchCount = mission.trenches.length;
-    const slots = slotCount(mission.trenches);
+    // The mission's trenches, then the slot records of its buildings and cover props.
+    const trenchCount = this.state.trenches.length;
+    const slots = slotCount(this.state.trenches);
     this.trenchSlot0 = new Int32Array(trenchCount);
     this.trenchTaken = new Int32Array(trenchCount);
     this.trenchHalf = new Float64Array(trenchCount);
     this.trenchInside = new Int32Array(trenchCount * 2);
     this.slotX = new Float64Array(slots);
     this.slotUnit = new Int32Array(slots);
+    this.slotFloor = new Int8Array(slots);
     layoutTrenches(this);
+    layoutBuildings(this);
 
     this.phases = normalPhases(mission);
     this.missionEvents = directorEvents(mission, this.phases);
@@ -411,7 +422,8 @@ class BattleImpl implements Battle, World {
 
     computeFronts(this); // hold lines, needed to place the starting formation
     placeStartingForces(this);
-    updatePoints(this, 0); // points that are trenches take their garrisons' owner; where each side deploys
+    updateBuildings(this); // the men placed in buildings
+    updatePoints(this, 0); // points that are trenches or buildings take their garrisons' owner; where each side deploys
     computeFronts(this);
     // The first phase begins with the forces in place (garrisons own their trenches).
     startDirector(this);
@@ -440,6 +452,7 @@ class BattleImpl implements Battle, World {
     moveUnits(this); // wire slows and is crushed here
     updateCarriers(this); // men climb into APCs, loaded APCs unload at the front
     updateTrenches(this); // drop into slots, captures
+    updateBuildings(this); // who holds and who is inside each building
     updatePoints(this, this.dt); // capture points change hands; contested points; where each side deploys
     updateProjectiles(this); // rounds already in flight land on the new positions
     updateAuras(this); // each side's commander

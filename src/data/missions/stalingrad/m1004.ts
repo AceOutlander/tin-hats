@@ -7,12 +7,13 @@ import type { MissionDef } from '../../schema';
  * frozen: the 1st Panzer Division holds the town with a few Panzer IIIs and IVs, two of them frozen in place.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1004): four phases on the brief's capture
- * points (FOUNDATIONS.md 4.5): take the first village (P1, held through its izbas, trench 1), then the forest edge (P2)
- * past the forest trench (with a scripted counter-attack from it), cut the highway (P3) and hold it for 120 s (the Il-2
- * is offered from then on), then Klin, where the Germans wait in the houses for 240 s before their own judgement takes
- * over. Trained units deploy at the positions taken (the points are forward spawns), the PTRD loan comes up at the
- * village; the two frozen panzers in Klin cannot move (leash 0). Deep snow slows everyone but the ski troops (the
- * `skis` tag); the blizzard, the flare and the night-to-day changes wait for their features.
+ * points (FOUNDATIONS.md 4.5): take the first village (P1, held through its izba B2), then the forest edge (P2) past
+ * the forest trench (with a scripted counter-attack from it), cut the highway (P3) and hold it for 120 s (the Il-2 is
+ * offered from then on), then Klin, where the Germans wait in the houses for 240 s before their own judgement takes
+ * over. The village's izbas and Klin's houses, church and station are buildings (B1 to B8, 4.3). Trained units deploy
+ * at the positions taken (the points are forward spawns), the PTRD loan comes up at the village; the two frozen panzers
+ * in Klin cannot move (leash 0). Deep snow slows everyone but the ski troops (the `skis` tag); the blizzard, the flare
+ * and the night-to-day changes wait for their features.
  */
 export const M1004: MissionDef = {
   id: 1004,
@@ -70,6 +71,7 @@ export const M1004: MissionDef = {
       hasHq: true,
       supplies: 600,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 4,
       forces: [
@@ -90,12 +92,14 @@ export const M1004: MissionDef = {
       hasHq: true,
       supplies: 150,
       hqHpMul: 1,
+      hqLook: 'bunkerGerman',
       incomeMul: 0.7,
       sappers: 2,
       forces: [
-        // V1, the first village (izbas).
-        { kind: 'rifle', count: 8, trenchId: 1 },
-        { kind: 'lmg', count: 1, trenchId: 1 },
+        // V1, the first village: its two izbas.
+        { kind: 'rifle', count: 4, buildingId: 1 },
+        { kind: 'rifle', count: 4, buildingId: 2 },
+        { kind: 'lmg', count: 1, buildingId: 2 },
         // T1 in the fir forest.
         { kind: 'rifle', count: 6, trenchId: 2, behaviour: 'garrison' },
         { kind: 'lmg', count: 1, trenchId: 2, behaviour: 'garrison' },
@@ -104,12 +108,13 @@ export const M1004: MissionDef = {
         { kind: 'rifle', count: 6, trenchId: 3, behaviour: 'garrison' },
         { kind: 'lmg', count: 2, trenchId: 3, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 3, behaviour: 'garrison' },
-        // Klin: houses, the church and the station.
-        { kind: 'rifle', count: 6, trenchId: 4, behaviour: 'garrison' },
-        { kind: 'lmg', count: 1, trenchId: 4, behaviour: 'garrison' },
-        { kind: 'rifle', count: 6, trenchId: 5, behaviour: 'garrison' },
-        { kind: 'lmg', count: 1, trenchId: 5, behaviour: 'garrison' },
-        { kind: 'at', count: 1, trenchId: 5, behaviour: 'garrison' },
+        // Klin: the houses at the edge of town (B3), the church (B6) and the station (B7).
+        { kind: 'rifle', count: 6, buildingId: 3, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 3, behaviour: 'garrison' },
+        { kind: 'rifle', count: 2, buildingId: 6, behaviour: 'garrison' },
+        { kind: 'rifle', count: 4, buildingId: 7, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 7, behaviour: 'garrison' },
+        { kind: 'at', count: 1, buildingId: 7, behaviour: 'garrison' },
         { kind: 'mortar', count: 2, x: 24200, behaviour: 'guard' },
         // The 1st Panzer Division's tanks in Klin: a Panzer III and a Panzer IV frozen in place, one Panzer IV running.
         { kind: 'lightTank', count: 1, x: 24600, behaviour: 'guard', look: 'panzer3h', leash: 0 },
@@ -119,15 +124,22 @@ export const M1004: MissionDef = {
     },
   ],
   trenches: [
-    // V1, the first village (P1).
-    { id: 1, x: 7000, width: 190, slots: 8, owner: 1 },
     // T1 in the fir forest (near P2, the forest edge).
     { id: 2, x: 11000, width: 180, slots: 7, owner: 1 },
     // T2 on the highway (P3).
     { id: 3, x: 16500, width: 190, slots: 8, owner: 1 },
-    // Klin: the houses at the edge of town and the church by the station.
-    { id: 4, x: 21000, width: 190, slots: 8, owner: 1 },
-    { id: 5, x: 23500, width: 200, slots: 8, owner: 1 },
+  ],
+  buildings: [
+    // V1, the first village: two izbas (B2 is P1).
+    { id: 1, x: 6650, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.6, owner: 1, look: 'izba' },
+    { id: 2, x: 7050, width: 150, floors: 1, slotsPerFloor: 5, hpMul: 0.6, owner: 1, look: 'izba' },
+    // Klin: houses at the edge of town, more houses, the church, the railway station (the side objective) and a house.
+    { id: 3, x: 20950, width: 170, floors: 2, slotsPerFloor: 4, hpMul: 1, owner: 1, look: 'house' },
+    { id: 4, x: 21450, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.8, owner: 1, look: 'house' },
+    { id: 5, x: 22150, width: 140, floors: 2, slotsPerFloor: 3, hpMul: 0.8, owner: 1, look: 'house' },
+    { id: 6, x: 23000, width: 160, floors: 2, slotsPerFloor: 3, hpMul: 1.2, owner: 1, look: 'church' },
+    { id: 7, x: 23550, width: 200, floors: 2, slotsPerFloor: 4, hpMul: 1.2, owner: 1, look: 'station' },
+    { id: 8, x: 24350, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.8, owner: 1, look: 'house' },
   ],
   pillboxes: [],
   wire: [{ id: 1, x: 15000, width: 120, owner: 1 }],
@@ -140,10 +152,10 @@ export const M1004: MissionDef = {
     { from: 19000, to: 22500, ground: 'rubble', label: 'Klin' },
     { from: 22500, to: 26000, ground: 'cobble', label: 'Klin' },
   ],
-  // The capture points and forward spawns (4.5): the village is held through its izbas (trench 1 stands in for the
-  // building B2 until buildings exist), the forest edge and the highway are open ground taken by holding it.
+  // The capture points and forward spawns (4.5): the village is held through its izba B2, the forest edge and the
+  // highway are open ground taken by holding it.
   capturePoints: [
-    { id: 'P1', x: 7000, width: 300, label: 'The village', owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 1 } },
+    { id: 'P1', x: 7000, width: 300, label: 'The village', owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { building: 2 } },
     { id: 'P2', x: 13200, width: 400, label: 'Forest edge', owner: -1, captureTime: 10, spawn: true, contestRadius: 600 },
     { id: 'P3', x: 17000, width: 400, label: 'The highway', owner: -1, captureTime: 10, spawn: true, contestRadius: 600 },
   ],
@@ -155,7 +167,7 @@ export const M1004: MissionDef = {
       title: 'Night approach',
       objectives: [{ id: 'village', type: 'capture', point: { point: 'P1' }, text: 'Take the first village' }],
       sideObjectives: [
-        { id: 'station', text: 'The station', objective: { id: 'stationTaken', type: 'capture', point: { trench: 5 } }, bonus: 0.1 },
+        { id: 'station', text: 'The station', objective: { id: 'stationTaken', type: 'capture', point: { building: 7 } }, bonus: 0.1 },
         { id: 'fast', text: 'The highway inside 20 minutes', objective: { id: 'highwayFast', type: 'capture', point: { point: 'P3' } }, within: 1200, bonus: 0.15 },
       ],
       next: 'forest',
@@ -284,7 +296,7 @@ export const M1004: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 20 },
+      when: { pointCapturedBy: 0, point: { building: 3 }, delay: 20 },
       side: 1,
       forces: [
         { kind: 'rifle', count: 6, behaviour: 'assault' },

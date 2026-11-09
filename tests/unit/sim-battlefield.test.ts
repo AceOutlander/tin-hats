@@ -203,11 +203,14 @@ describe('capture points', () => {
     expect(left.state.points[0].progress).toBeLessThan(half);
   });
 
-  it('that are a structure go with it (a building id held through its stand-in trench)', () => {
-    const trench = { id: 4, x: 3000, width: 160, slots: 6, owner: 1 as const };
-    const m = pointField([P({ structure: { building: 4 }, captureTime: 30 })], [{ kind: 'rifle', count: 3, x: 2700 }], [], { trenches: [trench] });
+  it('that are a structure go with it (a building, held through its slot record, not a trench of the same id)', () => {
+    // A trench with the building's id behind our men: `{ building: 4 }` must not resolve to it.
+    const trench = { id: 4, x: 1500, width: 160, slots: 6, owner: 0 as const };
+    const house = { id: 4, x: 3000, width: 160, floors: 1 as const, slotsPerFloor: 6, hpMul: 1, owner: 1 as const, look: 'house' as const };
+    const m = pointField([P({ structure: { building: 4 }, captureTime: 30 })], [{ kind: 'rifle', count: 3, x: 2700 }], [], { trenches: [trench], buildings: [house] });
     const b = makeBattle({ mission: m });
-    expect(b.state.points[0].trench).toBe(0);
+    expect(b.state.points[0].trench).toBe(1);
+    expect(b.state.trenches[1].building).toBe(0);
     expect(b.state.points[0].owner).toBe(1);
     b.command(0, { type: 'order', order: 'advance' });
     const events = collect(b, 15, 'pointCaptured', 'trenchCaptured');
@@ -401,8 +404,9 @@ describe('the campaign missions on the battlefield', () => {
       expect(p.x + p.width / 2, p.id).toBeLessThan(m.length);
       expect(p.captureTime, p.id).toBeGreaterThanOrEqual(0);
       if (p.structure) {
-        const id = 'trench' in p.structure ? p.structure.trench : p.structure.building;
-        const t = m.trenches.find((x) => x.id === id);
+        const ref = p.structure;
+        const t =
+          'trench' in ref ? m.trenches.find((x) => x.id === ref.trench) : [...(m.buildings ?? []), ...(m.props ?? [])].find((x) => x.id === ref.building);
         expect(t, `${p.id} structure`).toBeDefined();
         // A point that is a structure stands on it.
         expect(Math.abs(t!.x - p.x), p.id).toBeLessThanOrEqual(p.width / 2);

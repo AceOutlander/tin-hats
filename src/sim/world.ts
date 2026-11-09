@@ -503,8 +503,10 @@ export interface World {
   trenchHalf: Float64Array;
   /** Per slot: world x. */
   slotX: Float64Array;
-  /** Per slot: pool index of the unit holding or walking to it, -1 if free. */
+  /** Per slot: pool index of the unit holding or walking to it, -1 if free, SLOT_SEALED if it is gone (a fallen floor). */
   slotUnit: Int32Array;
+  /** Per slot: its floor (0 = ground; always 0 in a trench). */
+  slotFloor: Int8Array;
   /** Scratch, per trench and side: infantry standing inside it this tick ([trench * 2 + side]). */
   trenchInside: Int32Array;
   /** Per unit pool index: units of its side (itself included) within config.clusterRadius, 0 if not on the field. */

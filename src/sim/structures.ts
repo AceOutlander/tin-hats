@@ -9,10 +9,10 @@ import type { World } from './world';
 
 /**
  * The line a side's army holds under Hold: the forward-most trench (or building) or capture point it owns
- * (FOUNDATIONS.md 4.5), or holdLineOffset in front of its HQ, or its map edge if it has none.
+ * (FOUNDATIONS.md 4.5), or holdLineOffset in front of its HQ, or its map edge if it has none. A cover prop is no line.
  * Also sets the side's hold trench or hold point, the base its formation forms up behind
  * (behind the trench's rear edge when the line is a trench, from the zone's forward edge back when it is a point)
- * and the line's forward edge. A trench inside or ahead of a point's zone is the stronger line and wins.
+ * and the line's forward edge. A trench (or building) inside or ahead of a point's zone is the stronger line and wins.
  */
 function holdLineOf(w: World, side: number): void {
   const s = w.state;
@@ -21,6 +21,7 @@ function holdLineOf(w: World, side: number): void {
   for (let i = 0; i < s.trenches.length; i++) {
     const t = s.trenches[i];
     if (t.owner !== side) continue;
+    if (t.building >= 0 && s.buildings[t.building].prop) continue;
     if (best < 0 || (t.x - s.trenches[best].x) * dir > 0) best = i;
   }
   let point = -1;

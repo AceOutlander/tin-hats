@@ -38,6 +38,10 @@ import {
 } from '../src/art/structures';
 import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, TANK_KEYS, TANK_LOOKS, VEHICLE_LOOKS, aircraftLookKey, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
 import type { SpriteSpec } from '../src/art/types';
+import { buildingKey, buildingSpecs, coverPropSpecs, propKey, windowXs, type BuildingPiece } from '../src/art/structures/buildings';
+import { missionHqKey, missionHqSpecs } from '../src/art/structures/hqBuildings';
+import { BUILDING_LAYOUT, MISSION_HQ_STYLES } from '../src/data/looksBuilding';
+import type { BuildingLook, CoverPropLook } from '../src/data/schema';
 
 declare global {
   interface Window {
@@ -97,7 +101,7 @@ function put(ctx: Ctx, key: string, x: number, y: number, rot = 0, flip = false,
 // Options
 // ---------------------------------------------------------------------------
 
-type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags' | 'soviet';
+type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags' | 'soviet' | 'buildings';
 const SCENES: { id: SceneId; h: number }[] = [
   { id: 'hq', h: 560 },
   { id: 'field', h: 620 },
@@ -105,7 +109,105 @@ const SCENES: { id: SceneId; h: number }[] = [
   { id: 'air', h: 560 },
   { id: 'flags', h: 340 },
   { id: 'soviet', h: 560 },
+  { id: 'buildings', h: 1840 },
 ];
+
+/** The building types the buildings scene shows: look, width, slots per floor, floors. */
+const BUILDING_SHOW: [BuildingLook, number, number, number][] = [
+  ['casemate', 160, 6, 2],
+  ['church', 140, 5, 2],
+  ['izba', 130, 4, 1],
+  ['house', 150, 3, 2],
+  ['apartment', 220, 7, 4],
+  ['station', 200, 4, 2],
+  ['factoryHall', 210, 8, 2],
+  ['waterTank', 130, 6, 1],
+  ['hangar', 220, 6, 1],
+  ['sheds', 180, 5, 1],
+  ['apartment', 180, 3, 3],
+  ['mill', 200, 5, 3],
+  ['store', 240, 6, 3],
+];
+const PROP_SHOW: [CoverPropLook, number][] = [
+  ['wagons', 150],
+  ['ju52Wreck', 190],
+  ['he111Wreck', 170],
+];
+
+function buildingSpecList(): SpriteSpec[] {
+  const out: SpriteSpec[] = [];
+  const seen = new Set<string>();
+  for (const [look, w, n] of BUILDING_SHOW) {
+    const k = buildingKey(look, w, n, 'ground');
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(...buildingSpecs(look, w, n));
+  }
+  for (const [look, w] of PROP_SHOW) out.push(...coverPropSpecs(look, w));
+  for (const style of MISSION_HQ_STYLES) out.push(...missionHqSpecs(style, 'soviet'));
+  return out;
+}
+
+/** A building as the battle draws it: interior, facades (a man at some windows), roof; `standing` floors left. */
+function building(ctx: Ctx, look: BuildingLook, w: number, n: number, floors: number, x: number, gy: number, damaged: boolean, standing: number): void {
+  const L = BUILDING_LAYOUT;
+  const key = (p: BuildingPiece): string => buildingKey(look, w, n, p);
+  if (standing <= 0) {
+    put(ctx, key('rubbleBack'), x, gy);
+    figure(ctx, x - 10, gy + VIEW.trenchDepth * 1.6, 1, 1, 'stand');
+    put(ctx, key('rubbleFront'), x, gy);
+    return;
+  }
+  ctx.fillStyle = '#15130f';
+  ctx.fillRect(x - w / 2, gy - standing * L.floorH, w, standing * L.floorH);
+  const xs = windowXs(w, n);
+  for (let f = 0; f < standing; f++) {
+    for (let i = 0; i < xs.length; i++) if ((i + f) % 2 === 0) figure(ctx, x + xs[i], gy + L.occupantDy - f * L.floorH, 1, 1, 'stand');
+  }
+  for (let f = 0; f < standing; f++) put(ctx, key(f === 0 ? (damaged ? 'groundDamaged' : 'ground') : damaged ? 'upperDamaged' : 'upper'), x, gy - f * L.floorH);
+  put(ctx, key(standing < floors ? 'roofBroken' : 'roof'), x, gy - standing * L.floorH);
+}
+
+function buildingsScene(ctx: Ctx): void {
+  const rows = [300, 600, 900, 1200, 1500, 1800];
+  rows.forEach((gy, r) => stage(ctx, r === 0 ? 0 : rows[r - 1] + 1, gy + 20, gy));
+  let x = 60;
+  let row = 0;
+  for (const [look, w, n, floors] of BUILDING_SHOW) {
+    if (x + w > SCENE_W - 20) {
+      x = 60;
+      row++;
+    }
+    building(ctx, look, w, n, floors, x + w / 2, rows[row], false, floors);
+    label(ctx, `${look} (${floors} x ${n})`, x + w / 2, rows[row] + 16);
+    x += w + 40;
+  }
+  // Damage, a fallen floor, rubble.
+  row = 3;
+  building(ctx, 'apartment', 220, 7, 4, 150, rows[row], true, 4);
+  label(ctx, 'damaged', 150, rows[row] + 16);
+  building(ctx, 'apartment', 220, 7, 4, 420, rows[row], true, 2);
+  label(ctx, 'two floors fallen', 420, rows[row] + 16);
+  building(ctx, 'apartment', 220, 7, 4, 680, rows[row], true, 0);
+  label(ctx, 'rubble cover', 680, rows[row] + 16);
+  building(ctx, 'izba', 130, 4, 1, 900, rows[row], true, 1);
+  building(ctx, 'factoryHall', 210, 8, 2, 1080, rows[row], true, 1);
+  row = 4;
+  x = 100;
+  for (const [look, w] of PROP_SHOW) {
+    put(ctx, propKey(look, w, 'back'), x + w / 2, rows[row]);
+    figure(ctx, x + w / 2, rows[row] + VIEW.trenchDepth * 1.6, 1, 1, 'stand');
+    put(ctx, propKey(look, w, 'front'), x + w / 2, rows[row]);
+    label(ctx, look, x + w / 2, rows[row] + 16);
+    x += w + 40;
+  }
+  x = 220;
+  for (const style of MISSION_HQ_STYLES) {
+    put(ctx, missionHqKey(style, 'soviet', 'intact'), x, rows[5]);
+    label(ctx, `HQ ${style}`, x, rows[5] + 16);
+    x += 380;
+  }
+}
 
 const params = new URLSearchParams(location.search);
 const num = (name: string, fallback: number): number => {
@@ -659,6 +761,9 @@ function render(t: number): void {
     case 'soviet':
       sovietScene(ctx);
       break;
+    case 'buildings':
+      buildingsScene(ctx);
+      break;
   }
 }
 
@@ -678,7 +783,7 @@ function buildNav(): void {
 }
 
 function boot(): void {
-  const specs = [...structureSpecs(), ...vehicleSpecs(), ...propSpecs(), ...FACTION_IDS.flatMap((f) => truckSpecs(f))];
+  const specs = [...structureSpecs(), ...vehicleSpecs(), ...propSpecs(), ...FACTION_IDS.flatMap((f) => truckSpecs(f)), ...buildingSpecList()];
   for (const spec of specs) rasters.set(spec.key, rasterise(spec));
   window.__stats = { sprites: specs.length };
   buildNav();

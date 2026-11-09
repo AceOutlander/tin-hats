@@ -18,6 +18,7 @@ import { maxLevel, sanitizeSave } from '../meta';
 import type { BattleView } from '../render/contracts';
 import type { AdminAction, UnitState } from '../sim';
 import {
+  MARK_BUILDING,
   MARK_EDGE,
   MARK_HQ,
   MARK_TRENCH,
@@ -490,7 +491,7 @@ export class AdminController implements AdminApi {
         if (hq) mark(out, (hq.doorX - left) * k, MARK_HQ, si);
         else mark(out, ((si === 0 ? 0 : s.length) - left) * k, MARK_EDGE, si);
       }
-      for (const t of s.trenches) mark(out, (t.x - left) * k, MARK_TRENCH, t.owner);
+      for (const t of s.trenches) mark(out, (t.x - left) * k, t.building >= 0 ? MARK_BUILDING : MARK_TRENCH, t.owner);
       for (const ev of session.mission.events) {
         if (ev.type !== 'wave') continue;
         for (const f of ev.forces) if (f.x !== undefined) mark(out, (f.x - left) * k, MARK_WAVE, ev.side);

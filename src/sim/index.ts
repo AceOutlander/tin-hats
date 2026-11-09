@@ -46,6 +46,7 @@ export type {
   BattleState,
   BarrageState,
   BuildSiteState,
+  BuildingState,
   Behaviour,
   CapturePointState,
   Command,

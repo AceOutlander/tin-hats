@@ -8,8 +8,11 @@
  * Damage goes through the deferred damage queue like every other hit.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import { FIRE_DAMAGE } from '../data/damage';
 import type { Side } from '../data/schema';
+import { splashWalls } from './buildings';
 import {
+  CLASS_BUILDING,
   CLASS_FORT,
   CLASS_HQ,
   CLASS_VEHICLE,
@@ -25,6 +28,8 @@ import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './wo
 
 /** Index of 'explosive' in DAMAGE_TYPES: only explosive splash hurts wire. */
 const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
+/** Fire on men at a building's windows, in place of the matrix value (FIRE_DAMAGE in src/data/damage.ts). */
+const FIRE_BUILDING = FIRE_DAMAGE.infantryBuilding ?? 1;
 
 /**
  * Inputs of launch() that are doubles (passed in a typed array so nothing is boxed, see the
@@ -152,7 +157,8 @@ function explode(w: World, pi: number): void {
     const cls = unitClass(t);
     const mul = cls === CLASS_VEHICLE ? p.damageMul * p.vehicleMul : p.damageMul;
     let amount = weapon.damage * mul * falloff * damageFactor(dtype, cls);
-    if (flush && t.trenchId >= 0) amount *= SPECIALS.flameTrenchMul;
+    if (flush && cls === CLASS_BUILDING) amount = weapon.damage * mul * falloff * FIRE_BUILDING;
+    else if (flush && t.trenchId >= 0) amount *= SPECIALS.flameTrenchMul;
     const flags = direct && d <= 0 ? base | flew : base;
     w.damage.push(TARGET_UNIT, i, t.id, amount, side, dtype, t.x >= x ? 1 : -1, flags);
   }
@@ -178,6 +184,9 @@ function explode(w: World, pi: number): void {
       w.damage.push(TARGET_HQ, enemy, -1, amount, side, dtype, hq.x >= x ? 1 : -1, base);
     }
   }
+
+  // The walls of the buildings it lands among (not the flamethrower's: fire burns the men, not the brick).
+  if (!flush && s.buildings.length > 0) splashWalls(w, side, wi, x, r, weapon.damage * p.damageMul, x >= p.fromX ? 1 : -1);
 
   if (dtype === EXPLOSIVE) {
     const wires = s.wires;

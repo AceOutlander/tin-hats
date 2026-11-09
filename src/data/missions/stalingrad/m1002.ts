@@ -7,12 +7,13 @@ import type { MissionDef } from '../../schema';
  * two T-26s (the light tanks are the majority, as in the 34th Tank Division).
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1002): a delay. Phase 1 takes the
- * crossroads (the capture point P1, taken by holding it 15 s; trench 3 is a house in it); phase 2 holds it for 600 s
- * and destroys twelve tanks, counted over the whole mission, with the supply road cut (income x0.4), a Stuka raid and
- * artillery on Dubno; if the clock runs out before the twelfth tank the phase goes on with a panzer wave every 60 s.
- * Eight enemies past x 10,000 lose it (past x 5,000 in phase 1, the group's start line, so an idle commander loses
- * too). Dubno's houses are trenches and the two Flak 88s are anti-tank teams on guard (no German gun kind engages tanks
- * yet).
+ * crossroads (the capture point P1, taken by holding it 15 s; trench 3 is a dug-in position in it); phase 2 holds it
+ * for 600 s and destroys twelve tanks, counted over the whole mission, with the supply road cut (income x0.4), a Stuka
+ * raid and artillery on Dubno; if the clock runs out before the twelfth tank the phase goes on with a panzer wave every
+ * 60 s. Eight enemies past x 10,000 lose it (past x 5,000 in phase 1, the group's start line, so an idle commander
+ * loses too). Dubno's western houses are buildings B1 to B4 (FOUNDATIONS.md 4.3; B3 held by riflemen, the others
+ * empty), the HQ is a dugout (`hqLook`), and the two Flak 88s are anti-tank teams on guard (no German gun kind engages
+ * tanks yet).
  */
 export const M1002: MissionDef = {
   id: 1002,
@@ -62,6 +63,7 @@ export const M1002: MissionDef = {
       hasHq: true,
       supplies: 400,
       hqHpMul: 1,
+      hqLook: 'dugout',
       incomeMul: 1,
       sappers: 3,
       forces: [
@@ -95,8 +97,8 @@ export const M1002: MissionDef = {
         { kind: 'lightTank', count: 4, x: 6200, behaviour: 'guard' },
         // The Flak 88 pair on the crossroads approach.
         { kind: 'at', count: 2, x: 8600, behaviour: 'guard' },
-        // Dubno: riflemen and an MG in the houses.
-        { kind: 'rifle', count: 3, trenchId: 2, behaviour: 'garrison' },
+        // Dubno: riflemen in a house and an MG at the crossroads.
+        { kind: 'rifle', count: 3, buildingId: 3, behaviour: 'garrison' },
         { kind: 'rifle', count: 3, trenchId: 3, behaviour: 'garrison' },
         { kind: 'lmg', count: 1, trenchId: 3, behaviour: 'garrison' },
         // The column park's guard.
@@ -107,11 +109,17 @@ export const M1002: MissionDef = {
   ],
   trenches: [
     { id: 1, x: 7500, width: 170, slots: 6, owner: 1 },
-    // Dubno's houses until buildings exist: the western edge and the crossroads (P1).
-    { id: 2, x: 13400, width: 170, slots: 6, owner: 1 },
+    // The crossroads (P1) until capture points exist.
     { id: 3, x: 14500, width: 190, slots: 8, owner: 1 },
     // The supply column park's guard on the Ikva road.
     { id: 4, x: 20200, width: 170, slots: 6, owner: 1 },
+  ],
+  // Dubno's western houses, German-held: riflemen in B3, the others empty.
+  buildings: [
+    { id: 1, x: 12550, width: 140, floors: 1, slotsPerFloor: 4, hpMul: 0.8, owner: 1, look: 'house' },
+    { id: 2, x: 12950, width: 150, floors: 2, slotsPerFloor: 3, hpMul: 1, owner: 1, look: 'house' },
+    { id: 3, x: 13400, width: 170, floors: 2, slotsPerFloor: 3, hpMul: 1, owner: 1, look: 'house' },
+    { id: 4, x: 13950, width: 140, floors: 1, slotsPerFloor: 4, hpMul: 0.8, owner: 1, look: 'house' },
   ],
   pillboxes: [],
   wire: [],
@@ -214,7 +222,7 @@ export const M1002: MissionDef = {
     {
       type: 'hint',
       when: { trenchCapturedBy: 0, trenchId: 1, delay: 3 },
-      text: 'Riflemen in the houses of Dubno are as good as a trench. Take the western edge, then the crossroads.',
+      text: 'Riflemen in the houses of Dubno shrug off rifle fire: shell them out. Take the western edge, then the crossroads.',
     },
     { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P1' } }, text: 'The crossroads are ours. The road behind us is cut; fuel and shells will be short.' },
     {
@@ -302,6 +310,9 @@ export const M1002: MissionDef = {
       { kind: 'tank', count: 2, after: 120 },
       { kind: 'rifle', count: 12, after: 200 },
       { kind: 'at', count: 6, after: 300 },
+      // The crossroads held, the money left buys more tanks and riflemen for the hold (the houses make it a longer fight).
+      { kind: 'tank', count: 5, after: 480 },
+      { kind: 'rifle', count: 20, after: 480 },
     ],
     firstAttackAfter: 20,
   },
