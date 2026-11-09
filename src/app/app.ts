@@ -338,6 +338,7 @@ export class App implements AppApi {
     const played = armoury && campaign ? applyRoster(shown, missionRoster(this.save, mission, p.unlocked)) : shown;
     this.launched = { mission, armoury };
     this.lastMedals = null;
+    const __t0 = performance.now(); const __T = (n: string): void => console.log('[T]', n, (performance.now() - __t0).toFixed(0));
     const battle = createBattle({
       mission: played,
       difficulty,
@@ -346,7 +347,9 @@ export class App implements AppApi {
       commanders: [this.autopilot ? 'bot' : 'human', 'ai'],
       upgradeDefs: this.upgradeDefs,
     });
+    __T('createBattle');
     this.view.attach(battle, { playerSide: 0, weather: this.weatherMode, visualSeed: seed + APP.visualSeedOffset });
+    __T('attach');
     this.view.setAudio(this.audio);
     this.view.setDarkness(0);
     this.darkness = 0;
@@ -376,7 +379,9 @@ export class App implements AppApi {
     this.loadToken++;
     this.audio.prepareBattleMusic(mission.music);
     this.audio.resume();
+    __T('session+music');
     this.ui?.show('battle', { missionId: mission.id });
+    __T('ui');
   }
 
   /** Throw the current battle away without recording anything; its music is let go of too, unless `keepMusic`. */

@@ -10,7 +10,7 @@ export function rasteriseBackdropLayer(layer: BackdropLayerSpec & { scale: numbe
   const canvas = document.createElement('canvas');
   canvas.width = Math.ceil(layer.w * scale);
   canvas.height = Math.ceil(layer.h * scale);
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error(`no 2D context for backdrop layer ${layer.key}`);
   ctx.scale(scale, scale);
   layer.draw(ctx);
