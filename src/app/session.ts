@@ -9,7 +9,7 @@ import { APP } from '../data/app';
 import { PREP } from '../data/prep';
 import type { BuildableId, Difficulty, MissionDef, SupportKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
-import { buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
+import { airGrounded, buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
 import type { BattleCamera, PlacingGhost } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel, nextDeploy, type HpShownQuery } from './hudModel';
@@ -489,6 +489,8 @@ export class BattleSession {
     if (this.ended) return;
     const side = this.battle.state.sides[0];
     if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0) return;
+    // Grounded by the weather or the night: nothing to aim.
+    if (airGrounded(this.battle.state, 0, kind) !== null) return;
     this.targeting = kind;
     this.view.setTargeting(kind);
   }

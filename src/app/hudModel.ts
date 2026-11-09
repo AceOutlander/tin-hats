@@ -13,7 +13,7 @@ import type { Side } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { THEATRES } from '../data/theatres';
 import { UNITS, UNIT_KINDS } from '../data/units';
-import { DEPLOY_AUTO, DEPLOY_HQ, orderCost, orderPop, type Battle, type BattleState, type ObjectiveState } from '../sim';
+import { DEPLOY_AUTO, DEPLOY_HQ, airGrounded, orderCost, orderPop, type Battle, type BattleState, type ObjectiveState } from '../sim';
 import type { ControlState, HudState, MinimapState, PrepHudState, SupportButtonState, TrainButtonState } from '../ui/contracts';
 
 /** Whose unit health the player may see (the battle view's HpReveal). */
@@ -136,7 +136,7 @@ export class HudModel {
       const kind = SUPPORT_KINDS[k];
       if (!me.supportAvailable[kind]) continue;
       key |= 1 << k;
-      const btn: SupportButtonState = { kind, name: this.era.supportNames[kind], charge: 1, secondsLeft: 0 };
+      const btn: SupportButtonState = { kind, name: this.era.supportNames[kind], charge: 1, secondsLeft: 0, grounded: null };
       st.supports.push(btn);
     }
     this.supportsKey = key;
@@ -262,6 +262,8 @@ export class HudModel {
       const total = me.supportCooldownFull[b.kind];
       b.secondsLeft = left;
       b.charge = left <= 0 || total <= 0 ? 1 : Math.max(0, 1 - left / total);
+      // Fog, a blizzard or the night keeps the aircraft on the ground (FOUNDATIONS.md 4.7).
+      b.grounded = airGrounded(s, 0, b.kind);
     }
 
     // The phase's own clock first, then the mission's, then a phase's "hold out" objective as a countdown.

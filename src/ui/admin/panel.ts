@@ -6,6 +6,8 @@
 import { ADMIN, type AdminEntryDef, type AdminTabId } from '../../data/admin';
 import { DIFFICULTY_LIST } from '../../data/difficulty';
 import type { Difficulty, UnitKind } from '../../data/schema';
+import { TIMES_OF_DAY } from '../../data/theatres';
+import { WEATHER_KINDS } from '../../data/weather';
 import { UNIT_KINDS } from '../../data/units';
 import { add, el } from '../shell/dom';
 import type { AdminApi, AdminCommand, AdminInfo, AdminSide, OverlayLayer, SpawnSpec } from './contracts';
@@ -254,9 +256,13 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
           ),
         ),
       );
+      // The sim's scripted weather (visibility, aircraft, the blizzard), changed over 10 s.
+      if (info.battle) out.append(row(...WEATHER_KINDS.map((k) => btn(k[0].toUpperCase() + k.slice(1), () => run({ type: 'sky', weather: k })))));
     },
     timeOfDay(info, out) {
       out.append(row(...ADMIN.timesOfDay.map((t) => btn(t.label, () => run({ type: 'timeOfDay', darkness: t.darkness }), { pressed: info.darkness === t.darkness }))));
+      // The sim's time of day (night visibility, aircraft), changed over 10 s.
+      if (info.battle) out.append(row(...TIMES_OF_DAY.map((t) => btn(t[0].toUpperCase() + t.slice(1), () => run({ type: 'sky', time: t })))));
     },
 
     // --- Units ----------------------------------------------------------------

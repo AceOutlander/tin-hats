@@ -861,6 +861,14 @@
   visibility: hidden;
 }
 
+/* Grounded by the weather or the night: a short word in place of the clock. */
+.th-sbtn.is-grounded .th-sbtn-sec {
+  font-size: calc(var(--sbtn) * 0.26);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--th-paper-dim);
+}
+
 .th-sbtn:not(.is-ready) .th-sbtn-name {
   color: var(--th-paper-dim);
 }

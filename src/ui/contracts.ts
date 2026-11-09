@@ -40,6 +40,8 @@ export interface SupportButtonState {
   /** 0..1, 1 = ready. */
   charge: number;
   secondsLeft: number;
+  /** Aircraft that cannot fly now (scripted weather or night, FOUNDATIONS.md 4.7): why, or null. Not ready while set. */
+  grounded: 'fog' | 'blizzard' | 'night' | null;
 }
 
 export interface ControlState {

@@ -15,7 +15,20 @@ import { FX_SPRITES } from '../../data/fx';
 import type { MissionDef, TimeOfDay, WeatherKind } from '../../data/schema';
 import { VIEW } from '../../data/view';
 import { FLARE_LOOK, WEATHER_LOOKS, type DriftFieldLook } from '../../data/weather';
-import { DriftField, createRng, landTint, mixSeed, nightTintAlpha, rgbInt, weatherVeils, weatherWeight, type Rgb01, type Rng01, type Veil } from '../../fx';
+import {
+  DriftField,
+  createRng,
+  landTint,
+  missionWeathers,
+  mixSeed,
+  nightTintAlpha,
+  rgbInt,
+  weatherVeils,
+  weatherWeight,
+  type Rgb01,
+  type Rng01,
+  type Veil,
+} from '../../fx';
 import { timeBlend, weatherBlend, type BattleState } from '../../sim';
 import type { SpriteRegistry } from '../atlas';
 import type { EffectContext } from '../effects';
@@ -50,28 +63,6 @@ interface FieldView {
   /** Per image: the drawn size over the sprite's size, before the texture scale. */
   scale: number[];
   shown: boolean;
-}
-
-/** The weather kinds a mission can show: its start and every weather event's. */
-export function missionWeathers(m: MissionDef): WeatherKind[] {
-  const out = new Set<WeatherKind>([m.weather ?? 'clear']);
-  const scan = (events: MissionDef['events']): void => {
-    for (const e of events) if (e.type === 'weather') out.add(e.to);
-  };
-  scan(m.events);
-  for (const p of m.phases ?? []) scan(p.onEnter ?? []);
-  return [...out];
-}
-
-/** The times of day a mission passes through: its start and every time event's, in order of first appearance. */
-export function missionTimes(m: MissionDef): TimeOfDay[] {
-  const out: TimeOfDay[] = [m.timeOfDay];
-  const scan = (events: MissionDef['events']): void => {
-    for (const e of events) if (e.type === 'time' && !out.includes(e.to)) out.push(e.to);
-  };
-  scan(m.events);
-  for (const p of m.phases ?? []) scan(p.onEnter ?? []);
-  return out;
 }
 
 export class SkyView {
@@ -137,7 +128,7 @@ export class SkyView {
   /** The weathers' fields for a view `viewW` wide (rebuilt when the width changes). */
   private ensureFields(viewW: number): void {
     const width = viewW + 2 * MARGIN;
-    if (this.fields.length > 0 && Math.abs(width - this.fieldW) < 2) return;
+    if (this.fieldW > 0 && Math.abs(width - this.fieldW) < 2) return;
     for (const f of this.fields) for (const img of f.images) img.destroy();
     this.fields.length = 0;
     this.fieldW = width;
@@ -169,7 +160,8 @@ export class SkyView {
     if (!this.attached) return;
     const sky = s.sky;
     // The time of day: the skies crossfade, the land darkens, the night tint follows.
-    if (this.timed) {
+    // (A time change made from the admin panel on a mission without scripted time shows too, on its one sky.)
+    if (this.timed || sky.timeOver > 0 || sky.time !== this.baseTime) {
       const k = timeBlend(s);
       const from = sky.timeOver > 0 ? sky.timeFrom : sky.time;
       const to = sky.timeOver > 0 ? sky.timeTo : sky.time;
@@ -181,6 +173,12 @@ export class SkyView {
     const wk = weatherBlend(s);
     const wFrom = sky.weatherOver > 0 ? sky.weatherFrom : sky.weather;
     const wTo = sky.weatherOver > 0 ? sky.weatherTo : sky.weather;
+    // A weather the mission did not list (the admin panel's) gets its fields too.
+    for (const k of [wFrom, wTo]) {
+      if (this.kinds.includes(k)) continue;
+      this.kinds.push(k);
+      this.fieldW = 0;
+    }
     weatherVeils(wFrom, wTo, wk, this.sky, this.scene);
     const m = MARGIN;
     this.veil(this.skyVeil, this.sky, camLeft - m, viewW + 2 * m);

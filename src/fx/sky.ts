@@ -4,7 +4,7 @@
  * fog banks). View only: it reads the sim's sky state and never writes it; its randomness is the view's own. No
  * Phaser, no DOM.
  */
-import type { TimeOfDay, WeatherKind } from '../data/schema';
+import type { MissionDef, TimeOfDay, WeatherKind } from '../data/schema';
 import { TIME_GRADES } from '../data/theatres';
 import { VIEW } from '../data/view';
 import { WEATHER_LOOKS, type DriftFieldLook } from '../data/weather';
@@ -183,4 +183,43 @@ export class DriftField {
       this.x[i] = x;
     }
   }
+}
+
+/** The weather kinds a mission can show: its start and every weather event's (its own and its phases'). */
+export function missionWeathers(m: MissionDef): WeatherKind[] {
+  const out = new Set<WeatherKind>([m.weather ?? 'clear']);
+  const scan = (events: MissionDef['events']): void => {
+    for (const e of events) if (e.type === 'weather') out.add(e.to);
+  };
+  scan(m.events);
+  for (const p of m.phases ?? []) scan(p.onEnter ?? []);
+  return [...out];
+}
+
+/** The times of day a mission passes through: its start and every time event's, in order of first appearance. */
+export function missionTimes(m: MissionDef): TimeOfDay[] {
+  const out: TimeOfDay[] = [m.timeOfDay];
+  const scan = (events: MissionDef['events']): void => {
+    for (const e of events) if (e.type === 'time' && !out.includes(e.to)) out.push(e.to);
+  };
+  scan(m.events);
+  for (const p of m.phases ?? []) scan(p.onEnter ?? []);
+  return out;
+}
+
+/** Width (wu) of the crossfade between the two theatres of a mission (FOUNDATIONS.md 4.1). */
+export const SECOND_BLEND = 600;
+
+/** Share (0..1) of the second theatre showing for a camera centred on x: 1 inside its spans, eased over SECOND_BLEND. */
+export function secondWeight(spans: readonly { from: number; to: number }[], x: number): number {
+  let w = 0;
+  const half = SECOND_BLEND / 2;
+  for (const s of spans) {
+    const a = Math.min(1, Math.max(0, (x - (s.from - half)) / SECOND_BLEND));
+    const b = Math.min(1, Math.max(0, (s.to + half - x) / SECOND_BLEND));
+    const k = Math.min(a, b);
+    const eased = k * k * (3 - 2 * k);
+    if (eased > w) w = eased;
+  }
+  return w;
 }

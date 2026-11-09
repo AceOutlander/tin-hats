@@ -26,6 +26,7 @@ import {
 import type { TheatreId, TimeOfDay } from '../data/schema';
 import { type GroundStyle, type TheatreVariant } from '../data/theatres';
 import { variantDef } from '../art/backdrops/scene';
+import { secondWeight } from '../fx';
 import type { LayerName, Layers } from './layers';
 
 /** Alpha above which a texture pixel counts as solid when a layer's skyline is measured. */
@@ -36,8 +37,6 @@ const GROUND_BLEND = 200;
 const EXTRA_GROUND_TILE = 1024;
 /** Images kept ready per sector overlay (each covers one tile; a wide view needs a few). */
 const BAND_POOL = 4;
-/** Width (wu) of the crossfade between the two theatres of a mission (FOUNDATIONS.md 4.1). */
-export const SECOND_BLEND = 600;
 
 /** What a mission adds to its backdrop (all optional; none = the plain backdrop as before). */
 export interface BackdropExtras {
@@ -49,19 +48,7 @@ export interface BackdropExtras {
   second?: { theatre: TheatreId; variant: TheatreVariant; spans: readonly { from: number; to: number }[] };
 }
 
-/** Share (0..1) of the second theatre showing for a camera centred on x: 1 inside its spans, eased over SECOND_BLEND. */
-export function secondWeight(spans: readonly { from: number; to: number }[], x: number): number {
-  let w = 0;
-  const half = SECOND_BLEND / 2;
-  for (const s of spans) {
-    const a = Math.min(1, Math.max(0, (x - (s.from - half)) / SECOND_BLEND));
-    const b = Math.min(1, Math.max(0, (s.to + half - x) / SECOND_BLEND));
-    const k = Math.min(a, b);
-    const eased = k * k * (3 - 2 * k);
-    if (eased > w) w = eased;
-  }
-  return w;
-}
+
 
 /** A stretch of the field drawn in one ground style (the mission's sectors, merged where neighbours match). */
 export interface GroundBand {

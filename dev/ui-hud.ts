@@ -109,6 +109,7 @@ const supports: SupportButtonState[] = supportDefs.map((s) => ({
   name: british.supportNames[s.kind],
   charge: s.charge,
   secondsLeft: (1 - s.charge) * s.cooldown,
+  grounded: null,
 }));
 
 function makeControl(kind: UnitKind): ControlState {

@@ -136,7 +136,9 @@ export type AdminAction =
   /** Fire the mission's scripted event with this index now (a one-shot event will not fire again). */
   | { type: 'fireEvent'; index: number }
   /** The mission director moves to the phase with this id now, after putting its PhaseDef.assume in place. */
-  | { type: 'jumpPhase'; phase: string };
+  | { type: 'jumpPhase'; phase: string }
+  /** Scripted weather and time of day change now, over `over` seconds (default 0), as the weather and time events. */
+  | { type: 'sky'; weather?: WeatherKind; time?: TimeOfDay; over?: number };
 
 /** What an AI commander is up to, for the admin panel's debug view. Null from battle.inspectAi for a human side. */
 export interface AiReport {

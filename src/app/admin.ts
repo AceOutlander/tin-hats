@@ -289,6 +289,9 @@ export class AdminController implements AdminApi {
       case 'timeOfDay':
         app.adminDarkness = command.darkness === null ? null : Math.min(1, Math.max(0, command.darkness));
         break;
+      case 'sky':
+        this.act({ type: 'sky', weather: command.weather, time: command.time, over: 10 });
+        break;
       case 'place':
         this.placing = command.spec && app.session ? { ...command.spec } : null;
         if (this.placing) this.picking = false;
