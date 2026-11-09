@@ -40,6 +40,15 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let trench = -1;
   if (force.x !== undefined) {
     baseX = force.x;
+    // A wave never appears behind the other side's line (the two lines never pass through each other): one placed
+    // where the enemy already stands comes in just ahead of it instead.
+    if (!atStart) {
+      const gap = CONFIG.spacing * 2;
+      if (si === 1 && baseX <= w.front[0] + gap) baseX = w.front[0] + gap;
+      else if (si === 0 && baseX >= w.front[1] - gap) baseX = w.front[1] - gap;
+      // No ground left in front of the enemy: the wave is cut off and never arrives.
+      if (baseX < CONFIG.mapMargin || baseX > s.length - CONFIG.mapMargin) return 0;
+    }
     step = -dir * CONFIG.spacing;
     inFormation = false;
   } else if (force.trenchId !== undefined) {
