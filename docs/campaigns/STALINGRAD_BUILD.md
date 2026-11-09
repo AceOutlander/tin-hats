@@ -56,7 +56,7 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1002 Dubno | delay | strike, hold the crossroads | capture, survive 600 + kill 12, enemyReached (x 5,000, then x 10,000), income x0.4, Stuka raid, artillery, overtime waves; Dubno by 6 min, twenty tanks |
 | 1003 Volokolamsk | hold | 2 x 360 s holds, Katukov's tanks | pointLost (the halt), barrage, Stuka, Katyusha from phase 2, AI hold and counter-attack postures, capture + hold 150 s; no tank at the halt (until phase 3), ten tanks; timed from phase 3 |
 | 1004 Klin | assault | village, forest, highway (+ hold 120 s), Klin | forward spawns (`at`), frozen panzers (leash 0), counter-attack posture, Il-2 from phase 3, hold for 240 s then free, artillery, the last counter-attack; the station, the highway in 20 min |
-| 1005 Volga | special | landing (hold 180 s), high bank, station, hold the station | pointLost (landing), Nebelwerfer, Stukas, a 45 s prep at phase 4; battalion ashore (lost < 10), nail factory |
+| 1005 Volga | special | landing (hold 180 s), high bank, station, hold the station | pointLost (landing), Nebelwerfer, Stukas, a 45 s prep at phase 4; battalion ashore (fewer than two boat loads hit, `ferryLoads`), nail factory |
 | 1006 Kurgan | hold | foot, slope, water tanks + summit, summit hold | destroy (the water tanks, buildings), 45 s prep at phase 4 with a zone, Stukas, Nebelwerfer, banner, AI hold on the summit; both tanks by 12 min, no assault gun survives |
 | 1007 Pavlov's House | survival | take the house, day one, night one, day two, last night | capture with a 180 s deadline, prep after phase 0, pointLost (day one), Stuka raid, Katyusha for the last night, artillery cooldown 90 s; the trench stays open, no German inside; house health in the score |
 | 1008 Tractor Factory | survival (scored as the brief's delay) | 3 x 420 s under the clock | enemyReached x 2,000 count 6, barrage, Stukas, heavy bomb, Nebelwerfer; machine shops at dark (`atEnd`), 25 tanks; kill bonus |
@@ -64,10 +64,10 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1010 Ring | assault (surrender) | guns, Gumrak, ruins, Univermag | five free barrages, frozen tanks, German artillery cooldown 180 s, nests (hold postures), Nebelwerfer, last counter-attack, surrender at 25% with the closing words; Pitomnik in 8 min, Gumrak without a tank lost, under 28 min |
 
 **Waits for** (other jobs build these on the director; capture points, forward spawns and Fall Back to them are in,
-see "The long-map battlefield", and so are buildings and floors, see "Buildings, rubble and cover props"); bridges,
-demolition and the ford (4.4: 1009's bridge, 1005's ferry loads);
-weather and time-of-day events (4.7: snow, blizzard, fog, flares); loans by phase (7.2); `unlockKind`, `demolish` and
-`spawnPointState` events; the AI aiming a counter-attack at its `point`; per-mission medal numbers tuned on real play;
+see "The long-map battlefield", and so are buildings and floors, see "Buildings, rubble and cover props", and bridges, the
+`demolish` event, the ford and the ferry, see "Obstacles and water");
+weather and time-of-day events (4.7: snow, blizzard, fog, flares); loans by phase (7.2); `unlockKind` and `spawnPointState`
+events; the AI aiming a counter-attack at its `point`; per-mission medal numbers tuned on real play;
 mid-mission autosave and resume (FOUNDATIONS section 2, DECISIONS 320).
 
 ## The long-map battlefield (FOUNDATIONS.md 4.1, 4.2 and 4.5)
@@ -103,7 +103,7 @@ tests `tests/unit/sim-battlefield.test.ts`, `tests/unit/hud-battlefield.test.ts`
 
 | Mission | Sectors | Capture points |
 | --- | --- | --- |
-| 1001 Brest | cobbles, Kholm Gate rubble, the bridge (road), South Island forest and grass | none |
+| 1001 Brest | cobbles, Kholm Gate rubble, the bridge foot, the Mukhavets (water, under bridge 1), South Island forest and grass | none |
 | 1002 Dubno | fields, oak wood, Dubno's cobbles, the Ikva road | P1 the crossroads (15 s, open ground, forward spawn) |
 | 1003 Volokolamsk | snow, the halt, frozen fields, birch wood | P1 the halt (trench 2), P2 the wood's edge (trench 3) |
 | 1004 Klin | deep snow, fir forest, highway, Klin's rubble and cobbles | P1 the village (building B2), P2 forest edge, P3 highway (10 s); ski troopers |
@@ -111,11 +111,11 @@ tests `tests/unit/sim-battlefield.test.ts`, `tests/unit/hud-battlefield.test.ts`
 | 1006 Kurgan | rubble, the eastern slope, the summit (rock, heightBonus 1.1), the western slope | P1 the railway cutting (trench 2), P2 the summit (10 s, not a spawn) |
 | 1007 Pavlov's House | the mill's rubble, the communication trench, 9 January Square | P1 the communication trench (trench 1) |
 | 1008 Tractor Factory | rubble throughout (cliffs, halls, yard) | P2 the machine shops (building B3): forward spawn and Fall Back's rally point |
-| 1009 Uranus (30,000 wu) | snow, the open steppe, the Don hills (slope), the Don, Kalach bridge (road), the road to Sovetsky | P1 to P3 Soviet spawns only (`spawnFor: 0`): the Romanian line (trench 3), Perelazovsky (building B2), the Don hills (10 s); P4 Sovetsky (trench 6: the map has no buildings in Sovetsky; not a spawn) |
+| 1009 Uranus (30,000 wu) | snow, the open steppe, the Don hills (slope), the Don (water, under the Kalach bridge), the road to Sovetsky | P1 to P3 Soviet spawns only (`spawnFor: 0`): the Romanian line (trench 3), Perelazovsky (building B2), the Don hills (10 s); P4 Sovetsky (trench 6: the map has no buildings in Sovetsky; not a spawn); P5 the Kalach bridge (5 s, not a spawn) |
 | 1010 Ring | snow, the steppe, Pitomnik, Gumrak, the western ruins, the central square | P1 Pitomnik, P2 Gumrak, P3 the ruins (10 s each, open ground) |
 
-**Waits for**: the backdrop crossfade for `SectorDef.backdrop`; bridges (water stops vehicles at the bank,
-FOUNDATIONS 4.4). Buildings are in (next section): the points that were "building later" are held through their
+**Waits for**: the backdrop crossfade for `SectorDef.backdrop`. Water stopping vehicles at the bank and the bridges
+are in (see "Obstacles and water"). Buildings are in (next section): the points that were "building later" are held through their
 building, and a fallen building's footprint becomes rubble ground (DECISIONS 340).
 
 ## Buildings, rubble and cover props (FOUNDATIONS.md 4.3; DECISIONS 331 to 339)
@@ -178,6 +178,61 @@ building, and a fallen building's footprint becomes rubble ground (DECISIONS 340
 `structure: { building }` (1004 P1, 1005 P2, 1008 P2, 1009 P2), and 1008's assembly hall has no point yet (DECISIONS
 341); direct fire at walls (only blasts hurt them); men drawn at the windows of the mission HQ buildings (the HQ is not
 a building with slots).
+
+## Obstacles and water (FOUNDATIONS.md 4.4, 4.6 and 4.8; DECISIONS E5-1 to E5-11)
+
+**In.** The engine is `src/sim/obstacles.ts` (tank traps, road blocks), `src/sim/mines.ts` (minefields),
+`src/sim/water.ts` (rivers, bridges, ferries) and `src/sim/clear.ts` (the sappers' Clear job); numbers in
+`src/data/obstacles.ts` (`OBSTACLES`, `MINES`, `WATER`, and `OBSTACLE_ART` for the drawing); the prep buildables in
+`src/data/prep.ts`; the art `src/art/structures/obstacles.ts`, the views `src/render/obstacles.ts`, the gallery
+`dev/art-structures.html?sec=obstacles`. Tests: `tests/unit/sim-obstacles.test.ts`, `tests/unit/stalingrad-obstacles.test.ts`.
+A mission that uses none of it plays exactly as before. How a mission uses it:
+
+- **`MissionDef.obstacles: ObstacleDef[]`**: `{ id, x, width, owner, kind: 'tankTrap' | 'roadBlock' }`. The other side's
+  vehicles stop at its edge whatever their order (a clamp per vehicle in `walk()`); a road block also slows the other
+  side's infantry like wire. It goes when explosive splash (hedgehogs take x0.4), a Clear job or the vehicles held at it
+  with nothing to shoot at (8 hp a second each) wear it down. Ref `{ obstacle: id }`.
+- **`MissionDef.minefields: MinefieldDef[]`**: `{ id, x, width, owner, mines: 'ap' | 'at' | 'mixed', density, marked }`.
+  The other side's men roll per 10 wu moved in it (density x `MINES.chance`) on the battle RNG; a blast hurts the one who
+  set it off and thins the field. Splash breaks mines (by the share of the field it covers). The owner sees it; the
+  other side once marked, set off, shelled, or flown over by its recon plane. Sappers never set mines off. Ref
+  `{ minefield: id }`.
+- **Prep buildables** (list them in `MissionPrepDef.buildables`; the default menu stays wire, foxhole, trench, pillbox):
+  `tankTrap`, `roadBlock`, `minefield` (AP, density 0.5, unmarked) and `sandbags`: on a building the side holds,
+  sandbags in its windows (bullets x0.7, shells x0.85 to the men inside), in the open a 3-man sandbag wall (a trench to
+  the sim: mind that it becomes the hold line when it is the forward-most).
+- **The Clear job**: command `{ type: 'clear', x }` sends the nearest free sapper to the enemy field the side can see,
+  or enemy obstacle, nearest x; a field shrinks from its near edge, an obstacle loses health. The player's "Clear" chip
+  sits on the training bar (above "Deploy at") for the target nearest the middle of the view. The AI and the test bot
+  shell a known field with the artillery and send a sapper when they have two (`clearTheWay`, `AI_CLEAR`).
+- **Rivers**: a `water` sector. Infantry wade at 0.35 (the ford); vehicles stop at the bank (a per-cell `block` table
+  in the ground field), so the AI's tanks wait at the water whatever it orders.
+- **`MissionDef.bridges: BridgeDef[]`**: `{ id, x0, x1, owner, point?, demolition?: { side, wired }, standing?, look?:
+  'bridge' | 'pontoon', hpMul? }`. A standing bridge is road over the water. On a one-dimensional field it must span all
+  the water a tank must cross. Its owner follows its capture point; the other side holding the point cuts the wires.
+  Events: `{ type: 'demolish', bridge }` blows a wired, standing bridge (vehicles on it go into the river), `{ type:
+  'bridge', bridge }` puts one across (the pontoon). Ref `{ bridge: id }` (destroyed = down), so `structureDestroyed`
+  triggers follow a demolition.
+- **Ferries**: a capture point with `batchEvery` and `ferry: { from, crossSeconds?, hitShare? }`. Units deploying there
+  (or at a point beyond it) and waves sent there with `at` wait on the home bank and cross together; a boat lands every
+  `batchEvery` seconds while the side holds the landing. A round of the other side landing on a boat sinks `hitShare` of
+  its load (picked on the battle RNG). Loss `{ type: 'ferryLoads', point, count }` counts the loads hit.
+
+**The missions on it** (the stand-ins in their headers are gone):
+
+| Mission | Obstacles and water |
+| --- | --- |
+| 1001 Brest | the Mukhavets (water, 3,550 to 4,300) under bridge 1; prep wire and sandbags, zone 900 to 3,500 (the bot wires the bridge foot, a sandbag wall behind the gate) |
+| 1003 Volokolamsk | prep tank traps and road blocks with wire, foxholes and a trench, zone 3,000 to 6,400; the bot's traps across the road at 6,010, wire at 5,900; the brief's hint |
+| 1005 Volga | the Volga bars every vehicle; P1 the landing is the ferry's (a boat every 40 s from the east bank, 20 s over); the boats bring the free waves too; the river barrage at 66 s sinks 30% of the second boat; "the whole battalion ashore" fails at two loads hit; sandbags in the last prep (the bot's in the station) |
+| 1006 Kurgan | sandbags in the summit prep |
+| 1007 Pavlov's House | prep wire, AP mines and sandbags (the bot mines the square first) |
+| 1008 Tractor Factory | prep wire, sandbags, AP mines, tank traps and road blocks (the bot mines and traps the yard and sandbags the machine shops) |
+| 1009 Uranus | an AP field at 3,800 under the Romanian wire; the Don (23,600 to 24,400) under the Kalach bridge, German, wired, held through P5; the phase takes P5 (within 180 s for the side objective); at 180 s the Germans blow it unless P5 is ours, infantry wade, and the pontoon comes 180 s later |
+| 1010 Ring | a mixed field (0.6) at 6,600 in place of the wire that stood in; the fifth barrage breaks part of it and shows it; the brief's hint |
+
+**Waits for**: the owner's sappers blowing a bridge themselves, the Bangalore Breach job, flail tanks, ditches and
+causeways, ice. The 1005 brief's flares and the night-to-day change wait for weather and time (4.7).
 
 ## Soviet nation data (shared by every mission)
 
