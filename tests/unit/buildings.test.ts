@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BUILDINGS } from '../../src/data/buildings';
-import { DAMAGE } from '../../src/data/damage';
+import { DAMAGE, FIRE_DAMAGE } from '../../src/data/damage';
+import { WEAPONS } from '../../src/data/weapons';
 import type { BuildingDef, MissionDef, MissionEventDef, UnitKind, UpgradeDef } from '../../src/data/schema';
 import { SLOT_SEALED, buildingTrenchId, rubbleSlotCount } from '../../src/sim/buildings';
 import { CLASS_BUILDING, CLASS_RUBBLE, unitClass } from '../../src/sim/tables';
@@ -333,6 +334,60 @@ describe('the armies and buildings', () => {
     run(b, 40);
     expect(b.state.buildings[0].occupants).toBe(6);
     expect(b.state.sides[1].holdLineX).toBe(4200);
+  });
+
+  it('burns men out of a building\'s windows with fire (x FIRE_DAMAGE, not the matrix), and they stay out a while', () => {
+    const mission = testMission({
+      buildings: [house({ x: 1500, owner: 1, floors: 1, slotsPerFloor: 4, hpMul: 50 })],
+      a: { forces: [{ kind: 'flame', count: 2, x: 1330, behaviour: 'guard' }] },
+      b: { forces: [{ kind: 'rifle', count: 4, buildingId: 1, behaviour: 'garrison' }] },
+    });
+    const b = makeBattle({ mission, ...tough('flame') });
+    expect(unitsOf(b, 1, 'rifle').every((u) => unitClass(u) === CLASS_BUILDING)).toBe(true);
+    let flushed = false;
+    const hits: number[] = [];
+    run(b, 8, (bb) => {
+      checkInvariants(bb);
+      if (unitsOf(bb, 1, 'rifle').some((u) => u.trenchId < 0 && u.flushedUntil > bb.state.time)) flushed = true;
+    });
+    expect(flushed).toBe(true);
+    const again = makeBattle({ mission, ...tough('flame') });
+    for (const e of collect(again, 8, 'unitHit')) if (e.side === 1 && e.cause === 'explosive') hits.push(e.value);
+    const fire = WEAPONS.flamer.damage * (FIRE_DAMAGE.infantryBuilding ?? 0);
+    expect(hits.some((v) => Math.abs(v - fire) < 1e-9)).toBe(true);
+    expect(fire).toBeGreaterThan(WEAPONS.flamer.damage * DAMAGE.explosive.infantryBuilding);
+  });
+
+  it('the test bot takes a building the enemy holds (it clears it and moves in)', () => {
+    const mission = testMission({
+      length: 5000,
+      buildings: [house({ x: 2600, owner: 1, floors: 1, slotsPerFloor: 4 })],
+      a: { supplies: 600, forces: [{ kind: 'rifle', count: 8 }, { kind: 'lmg', count: 2 }, { kind: 'mortar', count: 2 }, { kind: 'flame', count: 1 }] },
+      b: { forces: [{ kind: 'rifle', count: 3, buildingId: 1, behaviour: 'garrison' }] },
+      phases: [{ id: 'take', title: 'Take the house', objectives: [{ id: 'take', type: 'capture', point: { building: 1 } }], next: null }],
+    });
+    const b = makeBattle({ mission, seed: 3, commanders: ['bot', 'idle'] });
+    expect(unitsOf(b, 1, 'rifle').every((u) => u.trenchId === buildingTrenchId(1))).toBe(true);
+    expect(runUntil(b, 240, (battle) => battle.state.buildings[0].owner === 0)).toBe(true);
+    // Taken by a man of side 0 entering it once its garrison was cleared out; that wins the one-phase mission.
+    expect(b.state.buildings[0].inside[0]).toBeGreaterThan(0);
+    expect(unitsOf(b, 1, 'rifle').filter((u) => u.alive)).toHaveLength(0);
+    expect(b.state.over).toBe(true);
+    expect(b.state.winner).toBe(0);
+  });
+
+  it('leaves a mission without buildings exactly as before (no slot records, no building state)', () => {
+    const plain = testMission({ trenches: [{ id: 1, x: 2000, width: 120, slots: 5, owner: -1 }], a: { forces: [{ kind: 'rifle', count: 6 }, { kind: 'mortar', count: 1 }] } });
+    const empty = { ...plain, buildings: [], props: [] };
+    const play = (m: MissionDef): string => {
+      const b = makeBattle({ mission: m, seed: 11, commanders: ['bot', 'ai'] });
+      run(b, 60);
+      return snapshot(b);
+    };
+    const b = makeBattle({ mission: plain });
+    expect(b.state.buildings).toHaveLength(0);
+    expect(b.state.trenches.every((t) => t.building === -1)).toBe(true);
+    expect(play(empty)).toBe(play(plain));
   });
 
   it('plays the same battle twice', () => {
