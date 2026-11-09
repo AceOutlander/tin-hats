@@ -66,12 +66,17 @@ Stalingrad is now worked on in TWO places (keep them apart, merge `stalingrad` i
     test bot plan; missions 1001, 1003, 1007, 1008 use it. Tank traps not yet (need a vehicle blocker).
   - Waves at a fixed x never spawn behind the enemy line (8d2fa7e, DECISIONS 283): Stalingrad balance 11 failures -> 4.
   - Latest `stalingrad` (Soviet art) merged in (bd9e8aa); their DECISIONS 280-282 renumbered 284-286.
+  - Basic Training opens with a 45 s prep phase and teaches building first (3689a98): lesson `prepPhase` points at
+    the Barbed Wire button; tutorial conditions `placed` and `prepOver`. The walkthrough spec now places wire and opens
+    the folded call-ins. basic-training.spec still has 2 failures to look at: the walkthrough's end is flaky (11.6 and
+    33 battle minutes in two runs, limit 10) and "quits back to the title ... paying nothing" finds no training-offer
+    element after quitting. Neither comes from the prep work.
 - Stalingrad still to do (none of it may go live until the owner says push): balance of 1002 (idle once undecided),
   1004 (lines cross near the German HQ at the map's end) and 1005 (bot wins 12/16, needs 14); missions 1006-1010 have
   no balance test yet; campaign select screen and the Stalingrad map/music wiring; era-by-date names and looks; eight
   more cold battle tracks (only `volokolamsk` and `factories` exist); buildings/rubble/snow (FOUNDATIONS); removing the
-  10 placeholder British missions (with a save migration that keeps medals, units, upgrades); Basic Training's prep
-  lesson (TUTORIAL.features.prepPhase is still false); the hunteracedev.com card text.
+  10 placeholder British missions (with a save migration that keeps medals, units, upgrades); the
+  hunteracedev.com card text.
 
 Before this run: live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
 missions lend 2 of every expected type not bought, every bought type usable in every mission), the playtest follow-ups
