@@ -4,8 +4,8 @@ The owner reports stutters/hitches in Chrome on a PC (not a slow average). Owner
 one or two wins within about 30 minutes, push, and leave deeper work for later in the queue; add an FPS counter in
 Settings and a perf test. The measurement workflow was stopped before it finished; only the sim audit completed.
 
-Raw scripts and outputs are in `.perf/` in this worktree (untracked except the small scripts and text reports committed
-with this file). The full sim audit is `.perf/sim-audit.md`.
+Raw scripts and outputs are in `.perf/` in the perf worktree (local only, ignored by git since the follow-up below). The
+full sim audit was `.perf/sim-audit.md`; its findings are summarised here.
 
 ## Measured so far
 
@@ -35,3 +35,12 @@ with this file). The full sim audit is `.perf/sim-audit.md`.
 Not yet measured: the render audit (corpses, blood, decals, effects pooling, planes), and the audio/HUD audit (sfx node
 counts, DOM writes and forced layout). Re-run the stopped workflow script to finish them:
 the workflow script `tin-hats-perf-measure` (session scripts folder), or redo with tools/perf.ts.
+
+## Follow-up (2026-11-08, after the owner's restart)
+
+Most of the lag was the owner's computer (three days without a restart); after a restart the game runs fine, so only
+cheap wins were done: a "Show FPS" setting (save version 7), a cap on bodies and husks lying at once
+(`RENDER.units.maxBodies`; craters and scorch marks were already a ring of `RENDER.fx.decal.max` that fades, blood had
+`RENDER.blood.maxPools`), `countClusters` as a sorted sweep (identical results, tested against the all-pairs count),
+and two budget tests (`tests/unit/sim-budget.test.ts` and `npm run test:perf`, see `docs/AGENT_GUIDE.md`). The
+music, allocation and figure-cost candidates above are left for later.

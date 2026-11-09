@@ -1589,3 +1589,26 @@
     animation: none;
   }
 }
+
+/* "Show FPS": a small readout under the top bar's right end, clear of the objective plate and every button. */
+.th-fps {
+  display: none;
+  position: absolute;
+  top: calc(var(--top-h) + var(--th-safe-top) + 4px);
+  right: var(--sr);
+  padding: 2px 6px;
+  font-family: ui-monospace, 'Consolas', 'Roboto Mono', monospace;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--th-paper);
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.th-hud.has-fps .th-fps {
+  display: block;
+}

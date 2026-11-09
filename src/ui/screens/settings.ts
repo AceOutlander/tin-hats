@@ -1,5 +1,5 @@
 /**
- * Settings screen: sound on or off, the Music, Ambience and Sound effects volumes, reduce flashing, show blood, tutorial hints,
+ * Settings screen: sound on or off, the Music, Ambience and Sound effects volumes, reduce flashing, show blood, tutorial hints, show FPS,
  * the default difficulty, and reset progress behind a confirm step. The controls sit in a scroll area with a cue,
  * so on the smallest phones the last row scrolls into view instead of being cut off.
  */
@@ -89,6 +89,19 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     },
   });
 
+  const fpsState = el('span', 'th-toggle-state');
+  const fps = button({
+    testid: 'setting-fps',
+    className: 'th-toggle',
+    bare: true,
+    content: [el('span', 'th-toggle-label', 'Show FPS'), fpsState, el('span', 'th-switch')],
+    onTap: () => {
+      ctx.app.uiSound('click');
+      ctx.app.setSetting('showFps', !ctx.view().settings.showFps);
+      ctx.reload();
+    },
+  });
+
   const hintsState = el('span', 'th-toggle-state');
   const hints = button({
     testid: 'setting-hints',
@@ -162,7 +175,7 @@ export const settingsScreen: ScreenFactory = (ctx) => {
 
   const grid = el('div', 'th-set-grid th-scroll');
   grid.dataset.scroll = '';
-  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, blood, hints, diffRow, replay, reset);
+  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, blood, hints, fps, diffRow, replay, reset);
   const cue = withScrollCue(grid, 'dark');
   add(plate, head, cue.el);
   root.append(plate);
@@ -180,6 +193,7 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     sfx.set(s.sfxVolume);
     toggle(reduceFlash, flashState, s.reduceFlash);
     toggle(blood, bloodState, s.showBlood);
+    toggle(fps, fpsState, s.showFps);
     const soundOn = !s.muted;
     mute.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
     mute.dataset.state = soundOn ? 'on' : 'off';

@@ -87,6 +87,7 @@ export class HudModel {
       hint: null,
       tip: null,
       minimap: emptyMinimap(CONFIG.maxUnits),
+      fps: null,
     };
   }
 

@@ -28,6 +28,11 @@ export interface AppTunables {
   explosionLargeRadius: number;
   /** Smoothing of the frame-time averages reported by the debug hooks (0..1). */
   perfSmoothing: number;
+  /**
+   * The "Show FPS" readout: it covers the frames of the last windowMs, is refreshed every updateMs, and keeps at most
+   * ring frame times (enough for windowMs at 240 Hz). A frame slower than hitchMs (a missed 30 fps frame) is a hitch.
+   */
+  fps: { windowMs: number; updateMs: number; ring: number; hitchMs: number };
   /** Visual seeds are the battle seed plus this. */
   visualSeedOffset: number;
   /**
@@ -79,6 +84,7 @@ export const APP: AppTunables = {
   explosionMediumRadius: 45,
   explosionLargeRadius: 100,
   perfSmoothing: 0.1,
+  fps: { windowMs: 1000, updateMs: 250, ring: 256, hitchMs: 1000 / 30 },
   visualSeedOffset: 7919,
   follow: { deadZone: 0.14, settle: 0.5, lead: 0.1 },
   abilityNames: { assault: 'Grenade', tank: 'Hull MG', heavyTank: 'Hull MG' },

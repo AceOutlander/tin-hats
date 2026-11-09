@@ -360,6 +360,13 @@ export interface World {
   trenchInside: Int32Array;
   /** Per unit pool index: units of its side (itself included) within config.clusterRadius, 0 if not on the field. */
   cluster: Uint8Array;
+  /** Per side: pool indices of its units on the field, sorted by x (countClusters keeps it between ticks). */
+  clusterOrder: [Int32Array, Int32Array];
+  /** Per side: entries in use in clusterOrder. */
+  clusterLen: Int32Array;
+  /** Scratch for countClusters, per unit pool index: its x this tick, and 1 once listed. */
+  clusterX: Float64Array;
+  clusterMark: Uint8Array;
   /** Per side: armed army units on the field that lead the line (not followsLine). */
   leadCount: Int32Array;
 

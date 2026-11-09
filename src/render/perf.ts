@@ -15,6 +15,8 @@
  * Samples go into fixed ring buffers; nothing allocates per frame. Frames played in fast-forward (effects off) are not recorded.
  */
 
+import { APP } from '../data/app';
+
 const RING = 8192;
 
 export interface PhaseStats {
@@ -36,6 +38,11 @@ export interface PerfReport {
   draw: PhaseStats;
   /** Real ms between frames. */
   interval: PhaseStats;
+  /** Main-thread ms the frame cost: js + draw. */
+  work: PhaseStats;
+  /** Frames slower than APP.fps.hitchMs (a missed 30 fps frame): by the time between frames, and by the work alone. */
+  hitches: number;
+  slowWork: number;
   /** Sim steps per frame, on average. */
   stepsPerFrame: number;
 }
@@ -150,6 +157,14 @@ export class FramePerf {
 
   report(): PerfReport {
     const n = Math.min(this.n, RING);
+    const work = new Float32Array(n);
+    let hitches = 0;
+    let slowWork = 0;
+    for (let i = 0; i < n; i++) {
+      work[i] = this.js[i] + this.draw[i];
+      if (this.interval[i] > APP.fps.hitchMs) hitches++;
+      if (work[i] > APP.fps.hitchMs) slowWork++;
+    }
     return {
       frames: this.n,
       seconds: Math.max(0, this.endedAt - this.startedAt) / 1000,
@@ -160,6 +175,9 @@ export class FramePerf {
       js: summarise(this.js, n),
       draw: summarise(this.draw, n),
       interval: summarise(this.interval, n),
+      work: summarise(work, n),
+      hitches,
+      slowWork,
       stepsPerFrame: this.n > 0 ? this.stepsTotal / this.n : 0,
     };
   }

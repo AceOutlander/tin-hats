@@ -1,7 +1,0 @@
-﻿10000 hidden images                  1.231 ms/frame over 131 frames
-2000 visible + 8000 hidden           16.048 ms/frame over 61 frames
-5000 visible + 5000 hidden           33.024 ms/frame over 41 frames
-=> per hidden image 0.123 us/frame, per visible image 5.66 us/frame (cpu x4)
-sendToBack x38 + bringToTop x38 on a 1000-image layer: 0.02 ms
-sendToBack x38 + bringToTop x38 on a 3000-image layer: 0.03 ms
-creating 440 Images (10 figure views) : 2.30 ms
