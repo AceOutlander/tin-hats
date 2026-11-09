@@ -8,7 +8,7 @@ import type { MissionDef } from '../../schema';
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1001): the ring barracks (B1), the garrison
  * club (B2, a former church) and the Kholm Gate (B3) are buildings of two floors (FOUNDATIONS.md 4.3), the HQ is a
  * casemate of the ring barracks (`hqLook`), a 60 s prep phase of wire and sandbag walls comes first (FOUNDATIONS.md
- * 4.8; the test bot wires the bridge foot and puts a sandbag wall behind the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
+ * 4.8; the test bot wires the bridge foot and puts a sandbag wall behind the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 300 s each, under the one 900 s
  * clock to nightfall). The opening barrage, the Nebelwerfer salvo, the Karl siege mortar and the 21 cm mortars are
  * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The ground
  * is the brief's sectors (FOUNDATIONS.md 4.1): cobbles, the Kholm Gate's rubble, the Mukhavets (water, 4.4) under
@@ -36,8 +36,8 @@ export const M1001: MissionDef = {
   intel: {
     enemy: [
       '45th Infantry Division, in waves over the bridges',
-      'About 90 riflemen and MP40 troopers, 6 MG34 teams',
-      'Pioneers: 4 flamethrowers, 2 Granatwerfer teams',
+      'About 130 riflemen and MP40 troopers, 9 MG34 teams',
+      'Pioneers: 5 flamethrowers, 2 Granatwerfer teams',
       '2 StuG III Ausf. B assault guns late in the day',
       'Heavy guns across the Bug; no aircraft today',
     ],
@@ -123,13 +123,13 @@ export const M1001: MissionDef = {
       { kind: 'sandbags', x: 2700 },
     ],
   },
-  timer: { seconds: 720, onExpire: 'win', label: 'Until nightfall' },
-  // The mission director (FOUNDATIONS.md 3): three 240 s phases under the one clock to nightfall.
+  timer: { seconds: 900, onExpire: 'win', label: 'Until nightfall' },
+  // The mission director (FOUNDATIONS.md 3): three 300 s phases under the one clock to nightfall.
   phases: [
     {
       id: 'morning',
       title: 'The first morning',
-      objectives: [{ id: 'morning', type: 'survive', seconds: 240, text: 'Hold the citadel' }],
+      objectives: [{ id: 'morning', type: 'survive', seconds: 300, text: 'Hold the citadel' }],
       sideObjectives: [
         { id: 'gate', text: 'The Kholm Gate holds', failIf: { type: 'pointLost', point: { building: 3 } }, bonus: 0.15 },
         { id: 'stugs', text: 'Knock out both assault guns', objective: { id: 'stugsDead', type: 'kill', side: 1, kinds: ['tank'], count: 2 }, bonus: 0.1 },
@@ -139,13 +139,13 @@ export const M1001: MissionDef = {
     {
       id: 'parties',
       title: 'Assault parties',
-      objectives: [{ id: 'parties', type: 'survive', seconds: 240, text: 'Hold the citadel' }],
+      objectives: [{ id: 'parties', type: 'survive', seconds: 300, text: 'Hold the citadel' }],
       next: 'guns',
     },
     {
       id: 'guns',
       title: 'The guns',
-      objectives: [{ id: 'guns', type: 'survive', seconds: 240, text: 'Hold until nightfall' }],
+      objectives: [{ id: 'guns', type: 'survive', seconds: 300, text: 'Hold until nightfall' }],
       next: null,
     },
   ],
@@ -153,15 +153,15 @@ export const M1001: MissionDef = {
     // The scripted fire of a side with no HQ (FOUNDATIONS.md 3.3): the opening barrage, the Nebelwerfer, the siege
     // mortar and the 21 cm mortars, free and on the phase clocks.
     { id: 'openingBarrage', type: 'banner', when: { phase: 'morning' }, text: 'Artillery!', sound: 'alarm' },
-    { type: 'barrage', when: { phase: 'morning' }, side: 1, x: 2500, spread: 900, rounds: 14, duration: 8, weapon: 'artilleryShell' },
+    { type: 'barrage', when: { phase: 'morning' }, side: 1, x: 2500, spread: 900, rounds: 12, duration: 22, weapon: 'artilleryShell' },
     // Dawn to day, then the smoke haze (FOUNDATIONS.md 4.7).
     { id: 'daybreak', type: 'time', when: { phase: 'parties' }, to: 'day', over: 60 },
     { id: 'smokeHaze', type: 'weather', when: { phase: 'parties' }, to: 'smoke', over: 30 },
-    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'parties', delay: 20 }, side: 1, x: 3100, spread: 220, rounds: 12, duration: 3, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
-    { id: 'karl1', type: 'barrage', when: { phase: 'guns', delay: 90 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
-    { id: 'karl2', type: 'barrage', when: { phase: 'guns', delay: 180 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
-    { id: 'mortar21', type: 'barrage', when: { phase: 'guns', delay: 120 }, side: 1, x: 250, spread: 200, rounds: 6, duration: 5, weapon: 'mortar21', warning: 'Heavy mortars!' },
-    // Phase 1, "The first morning" (0 to 240 s).
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'parties', delay: 20 }, side: 1, x: 3100, spread: 220, rounds: 12, duration: 11, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
+    { id: 'karl1', type: 'barrage', when: { phase: 'guns', delay: 110 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
+    { id: 'karl2', type: 'barrage', when: { phase: 'guns', delay: 220 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
+    { id: 'mortar21', type: 'barrage', when: { phase: 'guns', delay: 160 }, side: 1, x: 250, spread: 200, rounds: 6, duration: 15, weapon: 'mortar21', warning: 'Heavy mortars!' },
+    // Phase 1, "The first morning" (0 to 300 s).
     { type: 'announce', when: { at: 1 }, text: 'The first morning: the guns across the Bug have opened fire.' },
     {
       type: 'hint',
@@ -175,7 +175,7 @@ export const M1001: MissionDef = {
       forces: [{ kind: 'rifle', count: 6, x: 5200 }],
       announce: 'German infantry are coming over the bridge.',
     },
-    { type: 'wave', when: { every: 25, from: 31, until: 235 }, side: 1, forces: [{ kind: 'rifle', count: 4, x: 5400 }] },
+    { type: 'wave', when: { every: 25, from: 31, until: 295 }, side: 1, forces: [{ kind: 'rifle', count: 4, x: 5400 }] },
     {
       type: 'hint',
       when: { at: 12 },
@@ -219,27 +219,39 @@ export const M1001: MissionDef = {
       ],
     },
     {
+      // The morning's last push before the pioneers come up (the 15 min clock, DECISIONS 428).
+      type: 'wave',
+      when: { at: 235 },
+      side: 1,
+      forces: [
+        { kind: 'assault', count: 4, x: 4800 },
+        { kind: 'lmg', count: 1, x: 5300 },
+        { kind: 'rifle', count: 4, x: 5200 },
+      ],
+      announce: 'More boats are crossing under the bridge.',
+    },
+    {
       type: 'hint',
       when: { at: 180 },
       text: 'If the Kholm Gate falls, the line steps back to the garrison club and the barracks. Train riflemen to win it back.',
     },
-    // Phase 2, "Assault parties" (240 to 480 s): the loaned mortars arrive.
-    { type: 'announce', when: { at: 240 }, text: 'Assault parties: their pioneers are bringing up flamethrowers.' },
+    // Phase 2, "Assault parties" (300 to 600 s): the loaned mortars arrive.
+    { type: 'announce', when: { at: 300 }, text: 'Assault parties: their pioneers are bringing up flamethrowers.' },
     {
       type: 'wave',
-      when: { at: 242 },
+      when: { at: 302 },
       side: 0,
       forces: [{ kind: 'mortar', count: 2, x: 2000 }],
       announce: 'Two mortar crews from the 84th Regiment\'s stores.',
     },
     {
       type: 'hint',
-      when: { at: 248 },
+      when: { at: 308 },
       text: 'Mortars answer mortars: your crews outrange their Granatwerfer teams. Flamethrowers burn men out of cover, so shoot them at range.',
     },
     {
       type: 'wave',
-      when: { at: 280 },
+      when: { at: 340 },
       side: 1,
       forces: [
         { kind: 'flame', count: 2, x: 5000 },
@@ -250,7 +262,7 @@ export const M1001: MissionDef = {
     },
     {
       type: 'wave',
-      when: { at: 330 },
+      when: { at: 400 },
       side: 1,
       forces: [
         { kind: 'mortar', count: 2, x: 3480, behaviour: 'guard' },
@@ -260,7 +272,7 @@ export const M1001: MissionDef = {
     },
     {
       type: 'wave',
-      when: { at: 380 },
+      when: { at: 460 },
       side: 1,
       forces: [
         { kind: 'flame', count: 2, x: 5000 },
@@ -269,25 +281,35 @@ export const M1001: MissionDef = {
       ],
       announce: 'Another assault party is crossing.',
     },
-    // Phase 3, "The guns" (480 to 720 s): the Tank Hunters and the two assault guns.
-    { type: 'announce', when: { at: 480 }, text: 'The guns: the heavy batteries have found the range.' },
     {
       type: 'wave',
-      when: { at: 482 },
+      when: { at: 530 },
+      side: 1,
+      forces: [
+        { kind: 'assault', count: 4, x: 4900 },
+        { kind: 'rifle', count: 6, x: 5200 },
+      ],
+      announce: 'They are rushing the gate before the guns open up.',
+    },
+    // Phase 3, "The guns" (600 to 900 s): the Tank Hunters and the two assault guns.
+    { type: 'announce', when: { at: 600 }, text: 'The guns: the heavy batteries have found the range.' },
+    {
+      type: 'wave',
+      when: { at: 602 },
       side: 0,
       forces: [{ kind: 'at', count: 3, buildingId: 3 }],
       announce: 'Tank Hunters with grenade bundles have come up from the stores.',
     },
     {
       type: 'wave',
-      when: { at: 565 },
+      when: { at: 685 },
       side: 0,
       forces: [{ kind: 'at', count: 2, buildingId: 3 }],
       announce: 'Two more Tank Hunters have made it across the courtyard.',
     },
     {
       type: 'wave',
-      when: { at: 490 },
+      when: { at: 610 },
       side: 1,
       forces: [
         { kind: 'tank', count: 1, x: 5600, look: 'stug3b' },
@@ -298,7 +320,7 @@ export const M1001: MissionDef = {
     {
       // The battery's second gun follows the first across the bridge.
       type: 'wave',
-      when: { at: 560 },
+      when: { at: 690 },
       side: 1,
       forces: [
         { kind: 'tank', count: 1, x: 5600, look: 'stug3b' },
@@ -308,17 +330,28 @@ export const M1001: MissionDef = {
     },
     {
       type: 'hint',
-      when: { at: 495 },
+      when: { at: 615 },
       about: 'at',
       text: 'New: Tank Hunters. They must get close. Keep them in the gate and let the assault guns come to them; strike from the side if you can.',
     },
     {
       type: 'wave',
-      when: { every: 20, from: 630, until: 700 },
+      when: { at: 750 },
+      side: 1,
+      forces: [
+        { kind: 'lmg', count: 2, x: 5300 },
+        { kind: 'flame', count: 1, x: 5000 },
+        { kind: 'rifle', count: 6, x: 5200 },
+      ],
+      announce: 'Fresh companies of the 45th are coming over the bridge.',
+    },
+    {
+      type: 'wave',
+      when: { every: 20, from: 790, until: 880 },
       side: 1,
       forces: [{ kind: 'rifle', count: 3, x: 5300 }],
     },
-    { type: 'announce', when: { at: 660 }, text: 'One more minute. The sun is going down behind the West Island.' },
+    { type: 'announce', when: { at: 840 }, text: 'One more minute. The sun is going down behind the West Island.' },
     {
       type: 'hint',
       when: { hqHpBelow: 0.5, side: 0 },
@@ -336,13 +369,13 @@ export const M1001: MissionDef = {
       { kind: 'lmg', count: 3, after: 150 },
       { kind: 'rifle', count: 22, after: 240 },
       { kind: 'lmg', count: 4, after: 360 },
-      { kind: 'at', count: 3, after: 400 },
-      { kind: 'at', count: 6, after: 480 },
-      { kind: 'rifle', count: 26, after: 480 },
+      { kind: 'at', count: 3, after: 520 },
+      { kind: 'at', count: 6, after: 600 },
+      { kind: 'rifle', count: 26, after: 600 },
     ],
     firstAttackAfter: 9999,
   },
-  // The 12 min clock plus up to a minute of prep (the bot calls Ready once its builds stand).
-  expectedMinutes: [12, 13.2],
+  // The 15 min clock plus up to a minute of prep (the bot calls Ready once its builds stand).
+  expectedMinutes: [15, 16.2],
   music: STALINGRAD_MUSIC.missions[1001],
 };

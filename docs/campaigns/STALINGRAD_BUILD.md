@@ -52,7 +52,7 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 
 | Mission | Mode | Phases | Director features used |
 | --- | --- | --- | --- |
-| 1001 Brest | survival | 3 x 240 s under the 720 s clock | opening barrage, Nebelwerfer, siege mortar x2, 21 cm mortars; side objectives gate, StuGs |
+| 1001 Brest | survival | 3 x 300 s under the 900 s clock | opening barrage, Nebelwerfer, siege mortar x2, 21 cm mortars; side objectives gate, StuGs |
 | 1002 Dubno | delay | strike, hold the crossroads | capture, survive 600 + kill 12, enemyReached (x 5,000, then x 10,000), income x0.4, Stuka raid, artillery, overtime waves; Dubno by 6 min, twenty tanks |
 | 1003 Volokolamsk | hold | 2 x 360 s holds, Katukov's tanks | pointLost (the halt), barrage, Stuka, Katyusha from phase 2, AI hold and counter-attack postures, capture + hold 150 s; no tank at the halt (until phase 3), ten tanks; timed from phase 3 |
 | 1004 Klin | assault | village, forest, highway (+ hold 120 s), Klin | forward spawns (`at`), frozen panzers (leash 0), counter-attack posture, Il-2 from phase 3, hold for 240 s then free, artillery, the last counter-attack; the station, the highway in 20 min |

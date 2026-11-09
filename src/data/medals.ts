@@ -236,7 +236,7 @@ export const MEDALS: MedalTunables = {
   // anything: each unlocks its own types.
   missions: {
     // The brief's scoring (STALINGRAD.md, each mission's Medals): fixed with HQ health 0.3.
-    1001: { targetSeconds: 780, roughSeconds: 1560, targetLost: 15, roughLost: 75, loans: [], expects: STAL_1001, hqHealthWeight: 0.3 },
+    1001: { targetSeconds: 960, roughSeconds: 1920, targetLost: 15, roughLost: 75, loans: [], expects: STAL_1001, hqHealthWeight: 0.3 },
     // A delay: fixed, with a kill bonus for the tanks beyond the twelve of the objective.
     1002: {
       targetSeconds: 630,

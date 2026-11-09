@@ -76,8 +76,8 @@ Team".
 ## Mission 1: Brest Fortress (tutorial)
 
 - **Id** 1001, key `brest`. **Date** 22 June 1941 (`1941-06-22`), the first day of the invasion. **Place** the
-  citadel of Brest-Litovsk, 52.083 N, 23.656 E. **Mode** survival, with a prep phase. **Length** about 13 minutes
-  (60 s prep plus 12 min). **Map** 7,000 wu. **Climate** temperate, theatre `russiaSummer`.
+  citadel of Brest-Litovsk, 52.083 N, 23.656 E. **Mode** survival, with a prep phase. **Length** about 16 minutes
+  (60 s prep plus 15 min). **Map** 7,000 wu. **Climate** temperate, theatre `russiaSummer`.
 - **History**: the 45th Infantry Division (Generalmajor Fritz Schlieper, about 17,000 men) assaulted the fortress from
   about 04:15 Moscow time. It had no tanks of its own, but had a StuG battery lent by the 34th Division, Karl siege
   mortars, Nebelwerfers and flamethrowers. About 9,000 Soviet soldiers and NKVD border guards of the 6th and 42nd Rifle
@@ -129,25 +129,28 @@ Team".
 
 0. **Prep (60 s)**: barbed wire and sandbag walls, zone 900 to 3,500 (FOUNDATIONS 7.3).
    - Hint: "Sappers build during the prep phase. Wire in front of the gate slows their infantry."
-1. **"The first morning"** (survive 240 s).
-   - 0 s: barrage (side 1, x 2,500, spread 900, 14 rounds over 8 s), banner "Artillery!".
+1. **"The first morning"** (survive 300 s).
+   - 0 s: barrage (side 1, x 2,500, spread 900, 12 rounds over 22 s, one by one), banner "Artillery!".
    - 6 s: wave of 6 riflemen.
    - Then every 25 s: 4 riflemen.
    - 60 s and 150 s: 2 MG34 teams plus 4 riflemen.
    - 120 s: "assault boats", 6 MP40 troopers.
+   - 235 s: more boats, 4 MP40 troopers, 1 MG34 team and 4 riflemen.
    - Hints: buildings (soldiers inside take a fraction of rifle fire), Money and sappers, Hold, more sappers.
-2. **"Assault parties"** (survive 240 s).
+2. **"Assault parties"** (survive 300 s).
    - Time dawn to day over 60 s; weather `smoke` over 30 s.
    - 20 s: Nebelwerfer salvo on B3 (`barrage`, side 1, 15 cm rockets; the 45th Division had no air support).
-   - 40 s and 140 s: 2 pioneers with flamethrowers plus 4 MP40 troopers plus 1 MG.
-   - 90 s: 2 Granatwerfer teams plus 6 riflemen.
+   - 40 s and 160 s: 2 pioneers with flamethrowers plus 4 MP40 troopers plus 1 MG.
+   - 100 s: 2 Granatwerfer teams plus 6 riflemen.
+   - 230 s: a rush on the gate, 4 MP40 troopers and 6 riflemen.
    - Hints: flamethrowers burn men out of buildings, so shoot them at range; mortars (loaned) answer mortars.
-3. **"The guns"** (survive 240 s).
-   - 10 s: banner "Assault guns on the bridge!"; 2 StuG III with 6 riflemen.
-   - 90 s and 180 s: siege mortar, `barrage` weapon `siegeShell` with 1 round, warning 4 s, banner "Heavy siege
+3. **"The guns"** (survive 300 s).
+   - 10 s: banner "Assault guns on the bridge!"; the first StuG III with 6 riflemen.
+   - 110 s and 220 s: siege mortar, `barrage` weapon `siegeShell` with 1 round, warning 4 s, banner "Heavy siege
      mortar: get clear!".
-   - 120 s: 21 cm mortar barrage on the HQ (`barrage`, side 1), banner "Heavy mortars!".
-   - Final waves every 20 s from 150 s.
+   - 160 s: 21 cm mortar barrage (6 rounds over 15 s) on the HQ (`barrage`, side 1), banner "Heavy mortars!".
+   - 90 s: second StuG with 4 riflemen. 150 s: 2 MG34 teams, a flamethrower and 6 riflemen.
+   - Final waves every 20 s from 190 s.
    - Hints: Tank Hunters must get close, so strike the assault guns from the flanks or rear (job 7 front/rear armour);
      Fall Back shelters everyone while the siege shells land.
 
