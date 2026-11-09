@@ -65,5 +65,36 @@ notes), `step` (scale steps). Orchestration is the part you put it in. The Sovie
   is kept for the current track only.
 - Mix: the army of 80 over each layer at default sliders, full range and phone speaker: build 12 to 22 LU, combat
   8 to 18, tense 10 to 20 (`MUSIC_BATTLE.mix`, enforced by `tests/e2e/battle-music.spec.ts`).
-- The map track ("Between the Lines", `src/data/musicMap.ts`) renders when the campaign screen first opens and is freed
-  when a battle starts.
+- The map track (`src/data/musicMap.ts`, below) renders when the campaign screen first opens and is freed when a battle
+  starts.
+
+## The campaign map theme: "Roll of Honour" (`src/data/musicMap.ts`)
+
+Slow, noble and hymn-like, remembering the men who served: warm and bittersweet, not grim like the menu requiem and not
+driving like the battle music. Mood reference from the owner: the main theme of a WW2 television series; only the mood
+was taken (slow hymn, solo brass over strings, wordless choir, one climax). Melody, harmony and rhythm are original.
+
+- E flat major, 62 BPM, 4/4, 42 bars: 162.6 s before it repeats. Colour: the borrowed minor iv (A flat minor, its C flat
+  the only note outside the key), iii and vi chords, a B flat sus4 before the dominant.
+- Sections: **First light** (4 bars, the string pad and one soft line), **The horn** (8, the solo horn sings the main
+  melody, two four-bar phrases ending open on the third), **Remembrance** (8, a higher second strain through A flat
+  minor; the choir enters on "oo"), **The strings take it up** (8, the full strings in octaves carry the melody home,
+  horn counter-line below, choir underneath), **The long climb** (4, a rising line, the choir opening from "oo" to "ah",
+  a soft timpani roll on B flat), **Roll of honour** (6, the climax: the melody an octave up on strings and horn, full
+  choir on "ah", timpani), **Quiet fields** (4, the horn far off with the opening phrase, the choir fading, home on E flat
+  and straight back into the opening).
+- Instruments (`TrackDef.instruments`): the string pad (sawtooths, per-chord swell, `kRate` sweeps), a solo horn with a
+  swell on long notes (`HornSettings.swell`), a string section on the melody (`strings`: detuned sawtooths, slow bowed
+  attack, late vibrato, swell; `MusicSection.strings`), a wordless choir (`choir`: buzzy detuned sawtooths through
+  three band-pass formants that glide from "oo" to "ah", one formant set per chord; `MusicSection.choir` chords with a
+  `vowel` pair) and a tuned timpani with rolls (`DrumHit.roll`, `DrumSettings.roll`).
+- Render: mono 22.05 kHz, 15.0 MB, about 7.5 s in headless Chromium (the menu theme 4.5 s): the graph is built 4 s of
+  music at a time while the offline render is suspended (`TrackDef.chunk`), since a graph holding every note of a long
+  track renders about three times slower; the first chunk is 17 ms of main thread. Pad chords share one filter pair
+  (`playPadChord`), and the strings' and choir's sweeps and vibrato run at k-rate. -18.1 LUFS full range, -20.7 on a
+  phone; the climax is the loudest section, the opening and the end about 9 and 7 dB under it.
+  `tools/music-loop-report.ts map [--stems] [--wav <dir> --clip name:from:to]` prints length, memory, render time,
+  loudness, the seam and every section's (and every instrument's) level, and writes WAVs to listen to.
+- Checks: `tests/unit/music.test.ts` (key, ranges, the brief's shape, a deterministic graph within a node budget, the
+  Music bus), `tests/unit/music-score.test.ts` (no well-known tune) and `tests/e2e/battle-music.spec.ts` (rendered in the
+  browser: length, peak, seam, section levels, memory, graph-build time).
