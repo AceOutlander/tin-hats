@@ -509,6 +509,8 @@ export interface CapturePointState {
   owner: number;
   captureTime: number;
   spawn: boolean;
+  /** CapturePointDef.spawnFor, or -1 for whichever side owns it. */
+  spawnFor: number;
   contestRadius: number;
   /** Index into state.trenches of its structure's trench (a building's stand-in until buildings exist), -1 for none. */
   trench: number;

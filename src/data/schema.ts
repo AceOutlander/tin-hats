@@ -769,6 +769,8 @@ export interface CapturePointDef {
   captureTime: number;
   /** Owned and uncontested: trained units may deploy here, and Fall Back rallies here. */
   spawn: boolean;
+  /** Only this side deploys and rallies here (a forward spawn the attacker gains by taking it); absent = its owner. */
+  spawnFor?: Side;
   /** An armed enemy within this distance of x contests it: nobody deploys there, and Fall Back picks another. */
   contestRadius: number;
   /** The point is this trench or building: it changes hands with it (the trench way), not by its own timer. */

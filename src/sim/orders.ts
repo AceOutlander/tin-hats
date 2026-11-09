@@ -230,7 +230,7 @@ export function senseUnits(w: World): void {
 
 /**
  * Walk a unit toward u.goalX at u.moveSpeed, times the ground's speed where it stands (MissionDef.sectors; none =
- * even ground). Forward movement stops at the front clamp (never past the nearest enemy blocker minus contactGap);
+ * even ground; never for sappers). Forward movement stops at the front clamp (never past the nearest enemy blocker minus contactGap);
  * the unit is never pushed back. Returns true when it stands on the goal.
  */
 function walk(w: World, u: UnitState, dir: number): boolean {
@@ -239,7 +239,8 @@ function walk(w: World, u: UnitState, dir: number): boolean {
   const dx = goalX - u.x;
   let step = u.moveSpeed * w.dt;
   const g = w.ground;
-  if (g !== null) {
+  // Sappers walk their supply road between the HQ and the dump: the ground does not slow them (DECISIONS E2).
+  if (g !== null && u.kindIndex !== KIND_SAPPER) {
     let c = (u.x * GROUND_INV_CELL) | 0;
     if (c < 0) c = 0;
     else if (c >= g.count) c = g.count - 1;

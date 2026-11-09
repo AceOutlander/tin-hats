@@ -6,12 +6,13 @@ import type { MissionDef } from '../../schema';
  * highway and the railway that are the Third Panzer Group's only road west, and takes Klin. The Germans are thin and
  * frozen: the 1st Panzer Division holds the town with a few Panzer IIIs and IVs, two of them frozen in place.
  *
- * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1004): four phases, the villages and
- * Klin's houses standing in as trenches for the capture points: take the first village, then the forest trench (with
- * a scripted counter-attack from it), cut the highway and hold it for 120 s (the Il-2 is offered from then on), then
- * Klin, where the Germans wait in the houses for 240 s before their own judgement takes over. Reinforcements come up at
- * the positions taken (ForceDef.at, the forward spawns); the two frozen panzers in Klin cannot move (leash 0). The
- * blizzard, deep snow, the ski troops' tag, the flare and the night-to-day changes wait for their features.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1004): four phases on the brief's capture
+ * points (FOUNDATIONS.md 4.5): take the first village (P1, held through its izbas, trench 1), then the forest edge (P2)
+ * past the forest trench (with a scripted counter-attack from it), cut the highway (P3) and hold it for 120 s (the Il-2
+ * is offered from then on), then Klin, where the Germans wait in the houses for 240 s before their own judgement takes
+ * over. Trained units deploy at the positions taken (the points are forward spawns), the PTRD loan comes up at the
+ * village; the two frozen panzers in Klin cannot move (leash 0). Deep snow slows everyone but the ski troops (the
+ * `skis` tag); the blizzard, the flare and the night-to-day changes wait for their features.
  */
 export const M1004: MissionDef = {
   id: 1004,
@@ -73,8 +74,8 @@ export const M1004: MissionDef = {
       sappers: 4,
       forces: [
         { kind: 'rifle', count: 10 },
-        // Ski troopers (the assault kind until the skis tag exists) in white snow smocks (the `skiTroops` look).
-        { kind: 'assault', count: 6, look: 'skiTroops' },
+        // Ski troopers in white snow smocks (the `skiTroops` look): deep snow does not slow them (the `skis` tag).
+        { kind: 'assault', count: 6, look: 'skiTroops', tags: ['skis'] },
         { kind: 'lmg', count: 2 },
         { kind: 'tank', count: 1, x: 1200 },
         // T-60 (the lightTank kind).
@@ -130,31 +131,47 @@ export const M1004: MissionDef = {
   ],
   pillboxes: [],
   wire: [{ id: 1, x: 15000, width: 120, owner: 1 }],
+  // The brief's sectors (FOUNDATIONS.md 4.1): deep snow to the first village, the fir forest, the highway and Klin.
+  sectors: [
+    { from: 0, to: 3000, ground: 'deepSnow', label: 'Assembly in the forest' },
+    { from: 3000, to: 8000, ground: 'deepSnow', label: 'Snowfields' },
+    { from: 8000, to: 14000, ground: 'forest', label: 'Fir forest' },
+    { from: 14000, to: 19000, ground: 'road', label: 'Highway and railway' },
+    { from: 19000, to: 22500, ground: 'rubble', label: 'Klin' },
+    { from: 22500, to: 26000, ground: 'cobble', label: 'Klin' },
+  ],
+  // The capture points and forward spawns (4.5): the village is held through its izbas (trench 1 stands in for the
+  // building B2 until buildings exist), the forest edge and the highway are open ground taken by holding it.
+  capturePoints: [
+    { id: 'P1', x: 7000, width: 300, label: 'The village', owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 1 } },
+    { id: 'P2', x: 13200, width: 400, label: 'Forest edge', owner: -1, captureTime: 10, spawn: true, contestRadius: 600 },
+    { id: 'P3', x: 17000, width: 400, label: 'The highway', owner: -1, captureTime: 10, spawn: true, contestRadius: 600 },
+  ],
   timer: null,
   // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 4).
   phases: [
     {
       id: 'night',
       title: 'Night approach',
-      objectives: [{ id: 'village', type: 'capture', point: { trench: 1 }, text: 'Take the first village' }],
+      objectives: [{ id: 'village', type: 'capture', point: { point: 'P1' }, text: 'Take the first village' }],
       sideObjectives: [
         { id: 'station', text: 'The station', objective: { id: 'stationTaken', type: 'capture', point: { trench: 5 } }, bonus: 0.1 },
-        { id: 'fast', text: 'The highway inside 20 minutes', objective: { id: 'highwayFast', type: 'capture', point: { trench: 3 } }, within: 1200, bonus: 0.15 },
+        { id: 'fast', text: 'The highway inside 20 minutes', objective: { id: 'highwayFast', type: 'capture', point: { point: 'P3' } }, within: 1200, bonus: 0.15 },
       ],
       next: 'forest',
     },
     {
       id: 'forest',
       title: 'Through the forest',
-      objectives: [{ id: 'forestEdge', type: 'capture', point: { trench: 2 }, text: 'Take the forest trench' }],
+      objectives: [{ id: 'forestEdge', type: 'capture', point: { point: 'P2' }, text: 'Take the forest edge' }],
       next: 'highway',
     },
     {
       id: 'highway',
       title: 'Cut the highway',
       objectives: [
-        { id: 'highway', type: 'capture', point: { trench: 3 }, text: 'Take the highway' },
-        { id: 'highwayHeld', type: 'hold', point: { trench: 3 }, seconds: 120, text: 'Hold the highway' },
+        { id: 'highway', type: 'capture', point: { point: 'P3' }, text: 'Take the highway' },
+        { id: 'highwayHeld', type: 'hold', point: { point: 'P3' }, seconds: 120, text: 'Hold the highway' },
       ],
       next: 'klin',
     },
@@ -167,7 +184,7 @@ export const M1004: MissionDef = {
   ],
   events: [
     // The director's events: the counter-attack from the forest, the Il-2s, the Germans waiting in Klin, the guns.
-    { id: 'forestCounter', type: 'posture', when: { phase: 'forest', delay: 120 }, side: 1, posture: 'counterattack', point: { trench: 1 }, seconds: 60 },
+    { id: 'forestCounter', type: 'posture', when: { phase: 'forest', delay: 120 }, side: 1, posture: 'counterattack', point: { point: 'P1' }, seconds: 60 },
     { id: 'il2', type: 'support', when: { phase: 'highway' }, side: 0, kind: 'airStrike', enabled: true },
     { id: 'klinWaits', type: 'posture', when: { phase: 'klin' }, side: 1, posture: 'hold' },
     { id: 'klinFree', type: 'posture', when: { phase: 'klin', delay: 240 }, side: 1, posture: 'free' },
@@ -192,26 +209,26 @@ export const M1004: MissionDef = {
       about: 'medic',
       text: 'New: Sanitarka. She patches up the wounded near her but carries no weapon. Keep her just behind the attack.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 1 }, text: 'The first village is ours. The men crowd into the izbas to get warm.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P1' } }, text: 'The first village is ours. The men crowd into the izbas to get warm.' },
     // Phase 2, "Through the forest".
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 1, delay: 8 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 8 },
       side: 0,
       forces: [
-        { kind: 'at', count: 3, at: { trench: 1 } },
-        { kind: 'rifle', count: 6, at: { trench: 1 } },
+        // The brief's loan of phase 2. The rifle companies that came up with them stood in for forward deploy.
+        { kind: 'at', count: 3, at: { point: 'P1' } },
       ],
-      announce: 'PTRD teams and a fresh company have come up to the village.',
+      announce: 'PTRD teams have come up to the village.',
     },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 1, delay: 12 },
-      text: 'Each position you take brings your next troops up to it. Smoke before the forest trench saves lives.',
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 12 },
+      text: 'Deploy at the village: your new troops start there. Smoke before the forest trench saves lives.',
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 1, delay: 120 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 120 },
       side: 1,
       forces: [
         { kind: 'rifle', count: 6, x: 10600, behaviour: 'assault' },
@@ -221,7 +238,7 @@ export const M1004: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 1, delay: 25 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 25 },
       side: 1,
       forces: [
         { kind: 'rifle', count: 5, x: 12400 },
@@ -230,26 +247,15 @@ export const M1004: MissionDef = {
       announce: 'German reserves are hurrying into the forest trench.',
     },
     // Phase 3, "Cut the highway".
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 2 }, text: 'Through the forest. The highway lies ahead.' },
-    {
-      type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 2, delay: 8 },
-      side: 0,
-      forces: [
-        { kind: 'rifle', count: 6, at: { trench: 2 } },
-        { kind: 'lmg', count: 1, at: { trench: 2 } },
-        { kind: 'mortar', count: 1, at: { trench: 2 } },
-      ],
-      announce: 'The next battalion has come up through the forest.',
-    },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' } }, text: 'Through the forest. The highway lies ahead.' },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 2, delay: 15 },
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 15 },
       text: 'The weather is clearing. The Il-2s can fly: use them on the column on the highway and on their tanks.',
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 2, delay: 60 },
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 60 },
       side: 1,
       forces: [
         { kind: 'apc', count: 2, x: 18600, behaviour: 'assault' },
@@ -259,26 +265,15 @@ export const M1004: MissionDef = {
       announce: 'A German column is on the highway!',
     },
     // Phase 4, "Klin".
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The highway is cut. Their only road home is closed.' },
-    {
-      type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 8 },
-      side: 0,
-      forces: [
-        { kind: 'assault', count: 4, at: { trench: 3 } },
-        { kind: 'rifle', count: 6, at: { trench: 3 } },
-        { kind: 'at', count: 2, at: { trench: 3 } },
-      ],
-      announce: 'Reinforcements are up at the highway.',
-    },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P3' } }, text: 'The highway is cut. Their only road home is closed.' },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 15 },
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 15 },
       text: 'Klin, house by house: mortars and Katyusha on each strongpoint, then the assault troops. Their tanks in the town are frozen; the Il-2s will find them.',
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 25 },
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 25 },
       side: 1,
       forces: [
         { kind: 'rifle', count: 6, x: 22200 },
@@ -296,16 +291,6 @@ export const M1004: MissionDef = {
         { kind: 'at', count: 1, behaviour: 'assault' },
       ],
       announce: 'Rear-guard troops are counter-attacking from the station.',
-    },
-    {
-      type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 8 },
-      side: 0,
-      forces: [
-        { kind: 'rifle', count: 6, at: { trench: 4 } },
-        { kind: 'at', count: 2, at: { trench: 4 } },
-      ],
-      announce: 'More men are coming into the town.',
     },
     {
       type: 'wave',

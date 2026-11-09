@@ -28,6 +28,7 @@ export function createPoints(mission: MissionDef, trenches: readonly TrenchState
       owner: trench >= 0 ? trenches[trench].owner : p.owner,
       captureTime: p.captureTime,
       spawn: p.spawn,
+      spawnFor: p.spawnFor ?? -1,
       contestRadius: p.contestRadius,
       trench,
       capturing: -1,
@@ -122,7 +123,7 @@ export function updatePoints(w: World, dt: number): void {
  */
 export function pointAvailable(w: World, si: number, k: number): boolean {
   const p = w.state.points[k];
-  if (!p.spawn || p.owner !== si || p.contested) return false;
+  if (!p.spawn || p.owner !== si || p.contested || (p.spawnFor >= 0 && p.spawnFor !== si)) return false;
   const dir = si === 0 ? 1 : -1;
   return (w.front[1 - si] - p.x) * dir > p.width / 2 + CONFIG.spacing * 2;
 }

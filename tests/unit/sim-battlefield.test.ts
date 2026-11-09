@@ -13,6 +13,8 @@ import { WEAPONS } from '../../src/data/weapons';
 import { DEPLOY_AUTO, DEPLOY_HQ, TARGET_NONE, type Battle } from '../../src/sim';
 import { killUnit } from '../../src/sim/units';
 import { setGround, type World } from '../../src/sim/world';
+import { getMission, MISSIONS } from '../../src/data/missions';
+import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { FIELD } from './fixtures';
 import { checkInvariants, collect, makeBattle, run, snapshot, testMission, unitsOf, type MissionOverrides } from './sim-helpers';
 
@@ -372,5 +374,65 @@ describe('the hold line and rally Fall Back', () => {
       expect(snapshot(two)).toBe(snapshot(one));
       expect(JSON.stringify(two.state.points)).toBe(JSON.stringify(one.state.points));
     }
+  });
+});
+
+describe('the campaign missions on the battlefield', () => {
+  const ALL_MISSIONS = MISSIONS.map((m) => [m.id, m] as const);
+
+  it.each(ALL_MISSIONS)('mission %i lays its sectors left to right over the whole field and its points on it', (_id, m) => {
+    const sectors = m.sectors ?? [];
+    if (sectors.length > 0) {
+      expect(sectors[0].from).toBe(0);
+      expect(sectors[sectors.length - 1].to).toBe(m.length);
+      for (let i = 0; i < sectors.length; i++) {
+        expect(sectors[i].to, `sector ${i}`).toBeGreaterThan(sectors[i].from);
+        if (i > 0) expect(sectors[i].from, `sector ${i}`).toBe(sectors[i - 1].to);
+        expect((sectors[i].label ?? '').length).toBeLessThanOrEqual(24);
+        expect(GROUND[sectors[i].ground]).toBeDefined();
+      }
+      expect(new Set(sectors.map((s) => s.backdrop).filter((b) => b !== undefined)).size).toBeLessThanOrEqual(2);
+    }
+    const points = m.capturePoints ?? [];
+    expect(new Set(points.map((p) => p.id)).size).toBe(points.length);
+    for (const p of points) {
+      expect(p.label.length, p.id).toBeLessThanOrEqual(24);
+      expect(p.x - p.width / 2, p.id).toBeGreaterThan(0);
+      expect(p.x + p.width / 2, p.id).toBeLessThan(m.length);
+      expect(p.captureTime, p.id).toBeGreaterThanOrEqual(0);
+      if (p.structure) {
+        const id = 'trench' in p.structure ? p.structure.trench : p.structure.building;
+        const t = m.trenches.find((x) => x.id === id);
+        expect(t, `${p.id} structure`).toBeDefined();
+        // A point that is a structure stands on it.
+        expect(Math.abs(t!.x - p.x), p.id).toBeLessThanOrEqual(p.width / 2);
+      }
+    }
+  });
+
+  it('give the Stalingrad missions the brief\'s capture points, the summit\'s reach and the ski troops', () => {
+    const ids = (id: number): string[] => (getMission(id)?.capturePoints ?? []).map((p) => p.id);
+    expect(ids(1002)).toEqual(['P1']);
+    expect(getMission(1002)!.capturePoints![0].captureTime).toBe(15);
+    expect(ids(1003)).toEqual(['P1', 'P2']);
+    expect(ids(1004)).toEqual(['P1', 'P2', 'P3']);
+    expect(ids(1005)).toEqual(['P1', 'P2']);
+    expect(ids(1006)).toEqual(['P1', 'P2']);
+    expect(ids(1007)).toEqual(['P1']);
+    expect(ids(1008)).toEqual(['P2']);
+    expect(ids(1009)).toEqual(['P1', 'P2', 'P3', 'P4']);
+    expect(ids(1010)).toEqual(['P1', 'P2', 'P3']);
+    for (const m of STALINGRAD_MISSIONS) expect((m.sectors ?? []).length, String(m.id)).toBeGreaterThan(0);
+    expect(getMission(1006)!.sectors!.find((s) => s.label === 'The summit')!.heightBonus).toBe(1.1);
+    expect(getMission(1004)!.start[0].forces.some((f) => f.tags?.includes('skis'))).toBe(true);
+    expect(getMission(1004)!.sectors!.some((s) => s.ground === 'deepSnow')).toBe(true);
+  });
+
+  it('build the ground tables of the longest map once, 600 cells for 30,000 wu', () => {
+    const m = getMission(1009)!;
+    expect(m.length).toBe(30000);
+    const b = makeBattle({ mission: m, commanders: ['bot', 'ai'] });
+    expect(world(b).ground!.count).toBe(600);
+    expect(b.state.points.length).toBe(4);
   });
 });

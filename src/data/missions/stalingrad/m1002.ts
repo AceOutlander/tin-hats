@@ -7,11 +7,12 @@ import type { MissionDef } from '../../schema';
  * two T-26s (the light tanks are the majority, as in the 34th Tank Division).
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1002): a delay. Phase 1 takes the
- * crossroads (trench 3 stands in for the capture point P1); phase 2 holds it for 600 s and destroys twelve tanks,
- * counted over the whole mission, with the supply road cut (income x0.4), a Stuka raid and artillery on Dubno; if the
- * clock runs out before the twelfth tank the phase goes on with a panzer wave every 60 s. Eight enemies past x 10,000
- * lose it (past x 5,000 in phase 1, the group's start line, so an idle commander loses too). Dubno's houses are
- * trenches and the two Flak 88s are anti-tank teams on guard (no German gun kind engages tanks yet).
+ * crossroads (the capture point P1, taken by holding it 15 s; trench 3 is a house in it); phase 2 holds it for 600 s
+ * and destroys twelve tanks, counted over the whole mission, with the supply road cut (income x0.4), a Stuka raid and
+ * artillery on Dubno; if the clock runs out before the twelfth tank the phase goes on with a panzer wave every 60 s.
+ * Eight enemies past x 10,000 lose it (past x 5,000 in phase 1, the group's start line, so an idle commander loses
+ * too). Dubno's houses are trenches and the two Flak 88s are anti-tank teams on guard (no German gun kind engages tanks
+ * yet).
  */
 export const M1002: MissionDef = {
   id: 1002,
@@ -114,17 +115,26 @@ export const M1002: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
+  // The brief's sectors (FOUNDATIONS.md 4.1) and the crossroads, a capture point taken by holding it 15 s (4.5).
+  sectors: [
+    { from: 0, to: 3000, ground: 'field', label: 'Assembly area' },
+    { from: 3000, to: 9000, ground: 'field', label: 'Rye fields' },
+    { from: 9000, to: 12500, ground: 'forest', label: 'Oak wood' },
+    { from: 12500, to: 16000, ground: 'cobble', label: 'Dubno' },
+    { from: 16000, to: 22000, ground: 'road', label: 'The Ikva road' },
+  ],
+  capturePoints: [{ id: 'P1', x: 14500, width: 400, label: 'Dubno crossroads', owner: 1, captureTime: 15, spawn: true, contestRadius: 600 }],
   timer: null,
   // The mission director (FOUNDATIONS.md 3): take the crossroads, then the delay at them (STALINGRAD.md, mission 2).
   phases: [
     {
       id: 'strike',
       title: 'Strike for Dubno',
-      objectives: [{ id: 'crossroads', type: 'capture', point: { trench: 3 }, text: 'Take the crossroads' }],
+      objectives: [{ id: 'crossroads', type: 'capture', point: { point: 'P1' }, text: 'Take the crossroads' }],
       // The group's start line: an army that never moves off loses the road to their panzers.
       lose: [{ type: 'enemyReached', x: 5000, count: 8 }],
       sideObjectives: [
-        { id: 'quick', text: 'Dubno by six minutes', objective: { id: 'dubnoFast', type: 'capture', point: { trench: 3 } }, within: 360, bonus: 0.15 },
+        { id: 'quick', text: 'Dubno by six minutes', objective: { id: 'dubnoFast', type: 'capture', point: { point: 'P1' } }, within: 360, bonus: 0.15 },
         {
           id: 'twenty',
           text: 'Twenty tanks',
@@ -206,10 +216,10 @@ export const M1002: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 1, delay: 3 },
       text: 'Riflemen in the houses of Dubno are as good as a trench. Take the western edge, then the crossroads.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The crossroads are ours. The road behind us is cut; fuel and shells will be short.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P1' } }, text: 'The crossroads are ours. The road behind us is cut; fuel and shells will be short.' },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 5 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 5 },
       text: 'Hold the crossroads. Park the KVs facing the road and keep the Tank Hunters in the houses for the panzers.',
     },
     // Phase 2, "Hold the crossroads": panzer counter-attacks from the Ikva road.

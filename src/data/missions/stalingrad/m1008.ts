@@ -2,20 +2,21 @@ import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
- * Stalingrad mission 8 (1008): the Tractor Factory, 14 October 1942 (docs/campaigns/STALINGRAD.md, mission 8).
- * A delay: the 37th Guards Rifle Division holds the Dzerzhinsky Tractor Factory against the 14th Panzer Division and
- * two infantry divisions from first light until dark. The yard (trench 1), the machine shops (trench 2), the foundry
- * (trench 3) and the assembly hall (trench 4) are held in turn, the T-34s straight off the line dug in among the
- * halls, while panzers and infantry come through the workers' settlement wave after wave.
+ * Stalingrad mission 8 (1008): the Tractor Factory, 14 October 1942 (docs/campaigns/STALINGRAD.md, mission 8). A delay:
+ * the 37th Guards Rifle Division holds the Dzerzhinsky Tractor Factory against the 14th Panzer Division and two
+ * infantry divisions from first light until dark. The yard (trench 1), the machine shops (trench 2), the foundry
+ * (trench 3) and the assembly hall (trench 4) are held in turn, the T-34s straight off the line dug in among the halls,
+ * while panzers and infantry come through the workers' settlement wave after wave.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the brief's delay, in three 420 s
  * phases under the one clock to dark (the bombers, hall by hall, until dark), lost if six Germans get past the cliffs
- * (x 2,000) at once. The halls are trenches (no buildings, floors or rubble yet), a 60 s prep phase comes first (the
- * bot wires the gate); the barrage, the Stukas (scripted raids: the attackers have no HQ), the heavy bomb on the
- * machine shops and the Nebelwerfer are scripted; the loans are scripted waves. The mode stays `survival` (no enemy HQ,
- * a winning clock) and the medals score it as a delay, with a kill bonus. StuG III Ausf. F, Panzer III J and L and
- * Panzer IV Ausf. G are the `tank` kind (the era's Panzer III Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40
- * crew the `at` kind.
+ * (x 2,000) at once. The halls are trenches (no buildings or floors yet); the machine shops are the capture point P2
+ * (trench 2 stands in for B3), a forward spawn and the rally point Fall Back sends the men in the yard to; the ground
+ * is rubble throughout; a 60 s prep phase comes first (the bot wires the gate); the barrage, the Stukas (scripted
+ * raids: the attackers have no HQ), the heavy bomb on the machine shops and the Nebelwerfer are scripted; the loans are
+ * scripted waves. The mode stays `survival` (no enemy HQ, a winning clock) and the medals score it as a delay, with a
+ * kill bonus. StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank` kind (the era's Panzer III
+ * Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40 crew the `at` kind.
  */
 export const M1008: MissionDef = {
   id: 1008,
@@ -99,6 +100,17 @@ export const M1008: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
+  // The brief's sectors (FOUNDATIONS.md 4.1): rubble from the cliffs to the workers' settlement.
+  sectors: [
+    { from: 0, to: 2000, ground: 'rubble', label: 'The Volga cliffs' },
+    { from: 2000, to: 4500, ground: 'rubble', label: 'Assembly hall' },
+    { from: 4500, to: 7000, ground: 'rubble', label: 'Machine shops' },
+    { from: 7000, to: 9500, ground: 'rubble', label: 'Factory yard' },
+    { from: 9500, to: 14000, ground: 'rubble', label: "Workers' settlement" },
+  ],
+  // The machine shops (FOUNDATIONS.md 4.5): trench 2 stands in for the building B3 until buildings exist. A forward
+  // spawn point, and the rally point Fall Back sends the men in the yard to.
+  capturePoints: [{ id: 'P2', x: 6300, width: 260, label: 'Machine shops', owner: 0, captureTime: 0, spawn: true, contestRadius: 500, structure: { trench: 2 } }],
   // A minute to wire the yard gate and the gap in front of the machine shops; the line is past half the field, so the
   // zone is given.
   prep: {
@@ -118,7 +130,7 @@ export const M1008: MissionDef = {
       objectives: [{ id: 'bombers', type: 'survive', seconds: 420, text: 'Hold the factory' }],
       lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
       sideObjectives: [
-        { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { trench: 2 } }, atEnd: true, bonus: 0.2 },
+        { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { point: 'P2' } }, atEnd: true, bonus: 0.2 },
         { id: 'tanks25', text: 'Twenty-five tanks', objective: { id: 'tanks25Dead', type: 'kill', side: 1, kinds: ['tank'], count: 25 }, bonus: 0.1 },
       ],
       next: 'halls',

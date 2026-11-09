@@ -8,8 +8,10 @@ import type { MissionDef } from '../../schema';
  * club (B2) and the Kholm Gate (B3) are trenches standing in for buildings, a 60 s prep phase comes first (the test bot
  * wires the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
  * clock to nightfall). The opening barrage, the Nebelwerfer salvo, the Karl siege mortar and the 21 cm mortars are
- * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The two StuG III Ausf. B are the `tank` kind with the
- * `stug3b` look (src/data/eras.ts).
+ * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The ground
+ * is the brief's sectors (FOUNDATIONS.md 4.1): cobbles, the Kholm Gate's rubble, the Mukhavets bridge as road (until
+ * rivers and bridges exist) and the South Island's wood. The two StuG III Ausf. B are the `tank` kind with the `stug3b`
+ * look (src/data/eras.ts).
  */
 export const M1001: MissionDef = {
   id: 1001,
@@ -89,6 +91,14 @@ export const M1001: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
+  // The brief's sectors (FOUNDATIONS.md 4.1). The Mukhavets bridge is road until rivers and bridges exist (4.4).
+  sectors: [
+    { from: 0, to: 2600, ground: 'cobble', label: 'Ring barracks' },
+    { from: 2600, to: 3250, ground: 'rubble', label: 'Kholm Gate' },
+    { from: 3250, to: 4400, ground: 'road', label: 'Mukhavets bridge' },
+    { from: 4400, to: 5400, ground: 'forest', label: 'South Island' },
+    { from: 5400, to: 7000, ground: 'grass', label: 'South Island' },
+  ],
   // Sixty seconds to dig in before the first wave: the bot wires the Kholm Gate and digs a foxhole behind it.
   prep: { seconds: 60, bot: [{ kind: 'wire', x: 3420 }, { kind: 'foxhole', x: 2700 }] },
   timer: { seconds: 720, onExpire: 'win', label: 'Until nightfall' },
