@@ -266,14 +266,14 @@ export const WEATHER_LOOKS: Record<WeatherKind, WeatherLook> = {
     skyAlpha: 0.4,
     sceneTint: '#dfe5ea',
     sceneAlpha: 0.06,
-    fields: [FLAKES(110, [-14, 6], [26, 46], [1.6, 2.6], [0.35, 0.6], 0.15, 9), FLAKES(55, [-20, 10], [55, 85], [3, 4.6], [0.55, 0.85], 0.4, 14)],
+    fields: [FLAKES(110, [-14, 6], [26, 46], [4, 6.5], [0.45, 0.7], 0.15, 9), FLAKES(55, [-20, 10], [55, 85], [7.5, 11], [0.65, 0.95], 0.4, 14)],
   },
   blizzard: {
     skyTint: '#d4dade',
     skyAlpha: 0.66,
     sceneTint: '#e3e8ec',
     sceneAlpha: 0.26,
-    fields: [FLAKES(260, [-320, -200], [80, 140], [1.4, 2.4], [0.4, 0.7], 0.2, 5), FLAKES(140, [-460, -300], [120, 200], [2.8, 4.4], [0.6, 0.9], 0.5, 8)],
+    fields: [FLAKES(260, [-320, -200], [80, 140], [3.5, 6], [0.5, 0.8], 0.2, 5), FLAKES(140, [-460, -300], [120, 200], [7, 10], [0.7, 0.95], 0.5, 8)],
   },
   fog: {
     skyTint: '#c9ced1',
@@ -291,7 +291,7 @@ export const WEATHER_LOOKS: Record<WeatherKind, WeatherLook> = {
     sceneAlpha: 0.16,
     fields: [
       { sprite: 'dust', perScreen: 7, y0: 330, y1: 460, vx: [20, 45], vy: [0, 0], wobble: 6, wobbleHz: 0.08, size: [220, 380], alpha: [0.16, 0.28], tint: '#cdb58c', parallax: 0.7 },
-      { sprite: 'flake', perScreen: 60, y0: 300, y1: 520, vx: [30, 70], vy: [-4, 6], wobble: 10, wobbleHz: 0.25, size: [1, 1.8], alpha: [0.2, 0.4], tint: '#d8c49d', parallax: 0.5 },
+      { sprite: 'flake', perScreen: 60, y0: 300, y1: 520, vx: [30, 70], vy: [-4, 6], wobble: 10, wobbleHz: 0.25, size: [2.5, 4], alpha: [0.25, 0.45], tint: '#d8c49d', parallax: 0.5 },
     ],
   },
   smoke: {
@@ -301,7 +301,7 @@ export const WEATHER_LOOKS: Record<WeatherKind, WeatherLook> = {
     sceneAlpha: 0.12,
     fields: [
       { sprite: 'smoke', perScreen: 6, y0: 120, y1: 300, vx: [8, 20], vy: [-3, 0], wobble: 6, wobbleHz: 0.04, size: [260, 460], alpha: [0.18, 0.32], tint: '#6f675f', parallax: 0.25 },
-      { sprite: 'flake', perScreen: 30, y0: 80, y1: 520, vx: [6, 20], vy: [8, 18], wobble: 12, wobbleHz: 0.3, size: [0.9, 1.6], alpha: [0.25, 0.45], tint: '#3f3a36', parallax: 0.4 },
+      { sprite: 'flake', perScreen: 30, y0: 80, y1: 520, vx: [6, 20], vy: [8, 18], wobble: 12, wobbleHz: 0.3, size: [2.2, 3.8], alpha: [0.3, 0.5], tint: '#3f3a36', parallax: 0.4 },
     ],
   },
 };

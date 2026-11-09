@@ -58,16 +58,24 @@ function gutted(ctx: Ctx, sc: Scene, rng: Rng, x: number, base: number, w: numbe
     ctx.fillStyle = shade;
     ctx.fillRect(x, base - fh * f - 0.6, w, Math.max(0.5, fh * 0.06));
   }
-  // A shell hole or two.
-  for (let i = 0; i < 2; i++) {
-    if (!chance(rng, 0.6)) continue;
+  // Now and then a shell hole: a ragged breach through a floor or two, its rim of broken brick.
+  if (chance(rng, 0.45)) {
     const hx = x + range(rng, 0.2, 0.8) * w;
     const hy = base - range(rng, 0.3, 0.75) * h;
-    const r = range(rng, 0.08, 0.16) * w;
-    ctx.fillStyle = hole;
-    ctx.beginPath();
-    ctx.ellipse(hx, hy, r, r * range(rng, 0.7, 1.1), range(rng, 0, 3), 0, Math.PI * 2);
-    ctx.fill();
+    const r = Math.min(range(rng, 0.05, 0.1) * w, fh * 0.8);
+    const pts: number[] = [];
+    const n = 9;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2;
+      const rr = r * range(rng, 0.55, 1.15);
+      pts.push(hx + Math.cos(a) * rr, hy + Math.sin(a) * rr * 0.85);
+    }
+    fillPoly(ctx, pts, sc.tone(P.wallShade, haze));
+    for (let k = 0; k < pts.length; k += 2) {
+      pts[k] = hx + (pts[k] - hx) * 0.75;
+      pts[k + 1] = hy + (pts[k + 1] - hy) * 0.75;
+    }
+    fillPoly(ctx, pts, hole);
   }
   if (sc.winter) {
     ctx.fillStyle = sc.tone(P.pale, haze);

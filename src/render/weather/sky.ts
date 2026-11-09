@@ -73,6 +73,7 @@ export class SkyView {
   private readonly sky: Veil = { color: { r: 1, g: 1, b: 1 }, alpha: 0 };
   private readonly scene: Veil = { color: { r: 1, g: 1, b: 1 }, alpha: 0 };
   private readonly tint: Rgb01 = { r: 1, g: 1, b: 1 };
+  private readonly light: Rgb01 = { r: 1, g: 1, b: 1 };
   private rng: Rng01 = createRng(1);
   private kinds: WeatherKind[] = [];
   private fieldW = 0;
@@ -181,6 +182,12 @@ export class SkyView {
       this.fieldW = 0;
     }
     weatherVeils(wFrom, wTo, wk, this.sky, this.scene);
+    // The veils take the light of the hour: a blizzard by night is a dark blue-grey, not a white-out.
+    const tFrom = sky.timeOver > 0 ? sky.timeFrom : sky.time;
+    const tTo = sky.timeOver > 0 ? sky.timeTo : sky.time;
+    const light = landTint('day', tFrom, tTo, timeBlend(s), this.light);
+    lit(this.sky, light);
+    lit(this.scene, light);
     const m = MARGIN;
     this.veil(this.skyVeil, this.sky, camLeft - m, viewW + 2 * m);
     this.veil(this.sceneVeil, this.scene, camLeft - m, viewW + 2 * m);
@@ -297,10 +304,18 @@ export class SkyView {
   }
 }
 
+/** A veil's colour under a light. */
+function lit(v: Veil, light: Rgb01): void {
+  v.color.r *= light.r;
+  v.color.g *= light.g;
+  v.color.b *= light.b;
+}
+
 function spriteKey(sprite: DriftFieldLook['sprite'], i: number): string {
   switch (sprite) {
     case 'flake':
-      return FX_SPRITES.glow[0];
+      // The pale smoke-screen puff, tiny: a soft white dot (the glow sprite is warm).
+      return FX_SPRITES.smokeLight[i % FX_SPRITES.smokeLight.length];
     case 'dust':
       return FX_SPRITES.dust[i % FX_SPRITES.dust.length];
     case 'smoke':

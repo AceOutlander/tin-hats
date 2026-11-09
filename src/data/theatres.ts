@@ -1177,8 +1177,8 @@ export const SCENES = {
   },
   stalingrad: {
     /** The Volga and its low east bank, far off on the far strip. */
-    riverY: 296,
-    farBankY: 288,
+    riverY: 270,
+    farBankY: 263,
     /** The skyline of gutted blocks and factory chimneys. */
     skylineY: 300,
     farBlocks: 30,
