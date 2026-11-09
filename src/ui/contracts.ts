@@ -218,6 +218,10 @@ export interface UpgradeView {
   name: string;
   description: string;
   unit: UnitKind | null;
+  /** The call-in this upgrade belongs to, or null. */
+  support: SupportKind | null;
+  /** Heading of its Quartermaster group, in the player's nation: the unit or call-in name, or the HQ group. */
+  group: string;
   level: number;
   maxLevel: number;
   cost: number;

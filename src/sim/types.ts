@@ -366,6 +366,8 @@ export interface SideState {
   supportAvailable: Record<SupportKind, boolean>;
   /** Seconds until each support is ready again; 0 = ready. */
   supportCooldown: Record<SupportKind, number>;
+  /** The full cooldown each support starts when called: its data cooldown over the side's upgrade (fixed per battle). */
+  supportCooldownFull: Record<SupportKind, number>;
   /** The HQ, or null if the side has none. Stays non-null (with alive false) after it is destroyed. */
   hq: HqState | null;
   /** World x of the line the army holds under Hold. */
