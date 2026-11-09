@@ -340,6 +340,17 @@ can add entries from data. Unlocking must be per session (not saved), and no adm
 
 ## Difficulty overhaul (job 9)
 
+**Stalingrad difficulty gaps to fix in this overhaul** (owner, 2026-11-09: "Skip the difficulty pass... I'd rather tune
+difficulties once"). Found in the Stalingrad tuning pass (DECISIONS 428-437, branch `stalingrad`), test bot, 16 seeds:
+- 1004 Klin: Insane won 16/16 at 17.1 min vs Normal 15.7 min; no harder than Normal (thinner garrison, later first attack).
+- 1006 Mamayev Kurgan: Insane 16/16, harder only by time (28.2 vs 16.4 min), not by win rate.
+- 1010 the Ring: Insane 16/16 (23.2 vs 17.6 min); Hard (18.7 min) barely harder than Normal; the first ~13 minutes play
+  the same on every difficulty (fixed-length holds), only the Univermag separates them.
+- 1008 Tractor Factory: Hard 7/16 sits close to Insane 5/16 (Normal 16/16).
+- Also: 1005 Insane is harder mainly because the bot leaves its HQ unguarded across the Volga; 1009 Insane leaves 5/16
+  undecided at the 40-minute cap; 1007 Insane is clearly harder by exactly one seed (13/16 against a limit of 13).
+
+
 Note (job 1, hidden enemy HP): the AI must not use hidden enemy HP unless it uses a recon plane (DECISIONS 252).
 
 "## New difficulty levels
