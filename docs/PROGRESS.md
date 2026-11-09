@@ -44,7 +44,7 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
-## PAUSED for the usage limit at 2026-11-09 07:30Z (resume just after the 08:10Z reset)
+## RESUMED after the usage limit (main session c19d9338, 08:12Z); was paused at 07:30Z
 
 Paused cleanly at 85% of the 5-hour window. Nothing pushed; live is still Beta v0.12.0. No processes running.
 State of each branch:
