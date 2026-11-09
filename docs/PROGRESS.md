@@ -44,6 +44,21 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
+## Overnight Stalingrad run (main session, 2026-11-09 05:20Z; read this first)
+
+The main session owns Stalingrad tonight; the resume-queue session stopped after v0.12.0 and its stalingrad-systems work.
+Three Stalingrad branches, merged together by the main session only (never into main, never live):
+- `stalingrad` (C:dev	in-hats-stalingrad): Soviet art done (to f0b26f6); music workflow w9dzzvxxd composing the
+  8 missing battle tracks (brest, dubno, klin, volga done in ea39e4b; kurgan, pavlov, uranus, ring next), then battle
+  music rendered at mission load, then a music critic.
+- `stalingrad-systems` (C:dev	in-hats-stal-systems): finished (Money, prep phase, waves fix, Basic Training prep lesson).
+- `stalingrad-core` (C:dev	in-hats-stal-core, from stalingrad-systems b5d2b34): workflow wjsiti813: audit of mission
+  gaps, era table + later Panzer III, campaign select + Stalingrad map + map music + briefings + per-mission unlocks,
+  removal of the British placeholder missions with a save migration, engine gaps from the audit, review.
+Next: merge all three into `stalingrad` (DECISIONS numbers will collide again: renumber), then finish the missions,
+fix Basic Training's 2 browser specs, headless playtests tuned to 15-30 min, then docs/MORNING_REPORT.md.
+A guarded resume (tin-hats-resume-queue, 08:15Z) only acts if this file says the run paused for the usage limit.
+
 ## Latest state (2026-11-09 evening run; read this first)
 
 **Live as Beta v0.12.0** (commit 880853c, deployed and checked on hunteracedev.com): units unlocked by missions again
