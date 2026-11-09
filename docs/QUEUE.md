@@ -56,6 +56,18 @@ before the Stalingrad mission playtest and tuning pass, so missions are tuned on
 (Katyusha, Il-2, Po-2...) follow the same charge rules. Report the medal and point prices, and how many missions Poland
 takes. Poland stays out of the public repo (payment rule): price it in data only.
 
+## Also before Stalingrad tuning: three fixes (owner, 2026-11-09)
+
+"Fixes to include before Stalingrad tuning:
+1. The 8–16 second wait after pressing Begin is too long. Start the battle within about 2 seconds: build the calm music layer first and render the other layers in the background during the first minutes of the battle, or pre-build them while I'm on the briefing. Show a short loading bar if anything still takes time.
+2. Unit labels are cut off again ("DP GUNNEF", "CONSCRIPT"). Fix it for good: every unit button label must fit at every phone size, using short names on buttons where needed, with an automated test that checks every unit name in every nation fits.
+3. The "Deploy at" button covers the battlefield. Move it into the HUD bar or make it compact, so nothing important is hidden."
+
+Notes: fix 1 relaxes the earlier "never render mid-battle" rule (DECISIONS: music at load): background rendering of the
+other layers is now allowed, but it must not cause hitches (render in small slices in idle time or off the main thread,
+measured with the FPS counter and the perf test). Build on the `stalingrad` branch with the medal economy, artillery and
+tank cannon changes, before the mission tuning pass.
+
 ## DONE (v0.12.0): units unlocked by missions again (owner, 2026-11-09; DECISIONS 280)
 
 "Change of design: soldiers are unlocked by mission progress again, not bought with medals. The medal prices for units are too high and unbalanced.
