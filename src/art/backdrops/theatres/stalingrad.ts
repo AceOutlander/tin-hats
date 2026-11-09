@@ -72,7 +72,7 @@ function gutted(ctx: Ctx, sc: Scene, rng: Rng, x: number, base: number, w: numbe
   if (sc.winter) {
     ctx.fillStyle = sc.tone(P.pale, haze);
     for (let f = 1; f < floors; f++) ctx.fillRect(x, base - fh * f - 1.2, w, Math.max(0.6, fh * 0.07));
-    for (let i = 2; i + 1 < pts.length - 2; i += 2) fillPoly(ctx, [pts[i], pts[i + 1], pts[i + 2], pts[i + 3], pts[i + 2], pts[i + 3] + 1.4, pts[i], pts[i + 1] + 1.4], sc.tone(P.pale, haze));
+    for (let i = 2; i + 3 < pts.length - 2; i += 2) fillPoly(ctx, [pts[i], pts[i + 1], pts[i + 2], pts[i + 3], pts[i + 2], pts[i + 3] + 1.4, pts[i], pts[i + 1] + 1.4], sc.tone(P.pale, haze));
   }
 }
 

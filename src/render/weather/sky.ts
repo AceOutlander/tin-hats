@@ -146,6 +146,7 @@ export class SkyView {
           img.visible = false;
           images.push(img);
           scale.push(field.size[i] / frame.w / frame.scale);
+          img.setScale(scale[i]);
         }
         this.fields.push({ kind, look, field, images, scale, shown: false });
       }
@@ -174,9 +175,9 @@ export class SkyView {
     const wFrom = sky.weatherOver > 0 ? sky.weatherFrom : sky.weather;
     const wTo = sky.weatherOver > 0 ? sky.weatherTo : sky.weather;
     // A weather the mission did not list (the admin panel's) gets its fields too.
-    for (const k of [wFrom, wTo]) {
-      if (this.kinds.includes(k)) continue;
-      this.kinds.push(k);
+    if (!this.kinds.includes(wFrom) || !this.kinds.includes(wTo)) {
+      if (!this.kinds.includes(wFrom)) this.kinds.push(wFrom);
+      if (!this.kinds.includes(wTo)) this.kinds.push(wTo);
       this.fieldW = 0;
     }
     weatherVeils(wFrom, wTo, wk, this.sky, this.scene);
@@ -209,7 +210,9 @@ export class SkyView {
   private drawFields(dt: number, camLeft: number, viewW: number, enabled: boolean, night: number, from: WeatherKind, to: WeatherKind, k: number): void {
     this.ensureFields(viewW);
     const share = this.fx.quality.weatherShare;
+    // Clouds of dust, smoke and fog darken at night; snowflakes catch a little light still.
     const dim = 1 - 0.55 * night;
+    const flakeDim = 1 - 0.35 * night;
     const base = camLeft - MARGIN;
     for (const f of this.fields) {
       const weight = weatherWeight(f.kind, from, to, k);
@@ -232,8 +235,7 @@ export class SkyView {
         if (x < 0) x += wrap;
         img.x = base + x;
         img.y = field.y[i];
-        img.setScale(f.scale[i]);
-        img.alpha = field.alpha[i] * weight * (f.look.sprite === 'flake' ? 1 : dim);
+        img.alpha = field.alpha[i] * weight * (f.look.sprite === 'flake' ? flakeDim : dim);
         img.visible = true;
       }
       f.shown = true;
