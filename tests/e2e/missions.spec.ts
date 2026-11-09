@@ -7,7 +7,9 @@
  * Pictures: docs/screenshots/e2e-mission-NN.png (battle) and e2e-mission-NN-result.png.
  */
 import type { Page } from '@playwright/test';
+import { APP } from '../../src/data/app';
 import { FACTIONS } from '../../src/data/factions';
+import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
@@ -40,6 +42,9 @@ import {
 import type { DebugApi } from '../../src/app/debug';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
+
+/** The airdrop notice as the HUD words it (APP.notices.airdrop), any amount. */
+const AIRDROP_NOTICE = new RegExp('^' + APP.notices.airdrop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('\\{n\\}', '\\d+') + '$');
 
 /** Battle seconds of the first firing of an event, or null for one that waits for something to happen. */
 function firstFire(event: MissionEventDef): number | null {
@@ -192,7 +197,7 @@ for (const m of MISSIONS) {
     const seen = await seenHud(page);
     for (const text of wanted.hints) expect(seen.hints, `hint "${text}"`).toContain(text);
     for (const text of wanted.announcements) expect(seen.banners, `announcement "${text}"`).toContain(text);
-    if (wanted.airdrop) expect(seen.banners.some((b) => /^Airdrop: \+\d+ supplies$/.test(b)), `an airdrop notice among ${JSON.stringify(seen.banners)}`).toBe(true);
+    if (wanted.airdrop) expect(seen.banners.some((b) => AIRDROP_NOTICE.test(b)), `an airdrop notice among ${JSON.stringify(seen.banners)}`).toBe(true);
     if (wanted.plainWave) expect(seen.banners.some((b) => b === 'Enemy wave incoming' || wanted.announcements.includes(b)), 'a wave notice').toBe(true);
 
     const mid = await state(page);
@@ -281,7 +286,10 @@ for (const m of MISSIONS) {
     const saved = await savedGame(page);
     if (won) {
       expect(saved?.cleared[String(m.id)], 'a win is saved').toEqual(['normal']);
-      await expect(page.getByTestId('result-points'), 'the first clear is worth two points').toContainText('+2');
+      // A first win pays medals for how well it went (src/meta/medals.ts), at least a rough clear's.
+      const award = (await lastResult(page))?.pointsAwarded ?? 0;
+      expect(award, 'a first win pays at least a rough clear').toBeGreaterThanOrEqual(MEDALS.rough);
+      await expect(page.getByTestId('result-points'), 'the result shows what the win paid').toContainText(`+${award}`);
       if (m.id < MISSIONS[MISSIONS.length - 1].id) await expect(page.getByTestId('result-next')).toBeVisible();
     } else {
       expect(saved?.cleared[String(m.id)], 'a loss is not saved').toBeUndefined();

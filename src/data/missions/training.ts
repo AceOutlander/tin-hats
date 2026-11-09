@@ -71,8 +71,10 @@ export const BASIC_TRAINING: MissionDef = {
     { id: 2, x: 2100, width: 130, slots: 8, owner: -1 },
     { id: 3, x: 4600, width: 130, slots: 6, owner: 1 },
   ],
-  // The old pillbox: the practice target for the call-in, at a third of its usual health.
-  pillboxes: [{ id: 1, x: 3900, side: 1, hpMul: 0.35 }],
+  // The old pillbox: the practice target for the call-in, nearly a ruin (56 of 700 hp), so the one barrage the lesson
+  // asks for destroys it however its shells scatter. At a third of its health it survived about nine barrages in ten,
+  // and riflemen barely scratch a pillbox: the army then stood under its gun for minutes (DECISIONS 321).
+  pillboxes: [{ id: 1, x: 3900, side: 1, hpMul: 0.08 }],
   wire: [],
   // The course opens with a short prep phase: the first lesson is building (the student wires the ground ahead).
   prep: { seconds: 45, buildables: ['wire', 'foxhole'], bot: [{ kind: 'wire', x: 1250 }] },
