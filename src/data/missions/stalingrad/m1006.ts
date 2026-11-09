@@ -13,7 +13,7 @@ import type { MissionDef } from '../../schema';
  * slope (trenches 3 and 4), then take the water tanks (buildings B1 and B2, FOUNDATIONS.md 4.3, a German section in
  * each) and the summit between them (P2, open ground taken by holding it 10 s), then a 45 s prep phase (wire, foxholes
  * and sandbag walls, FOUNDATIONS.md 4.8) and hold the
- * summit for 360 s against four counter-attacks. The ground is rubble at the foot, the slope up, the summit's rock
+ * summit for 500 s against four counter-attacks, the far bank's guns firing on each (DECISIONS 433). The ground is rubble at the foot, the slope up, the summit's rock
  * (heightBonus 1.1: the crest outranges the slope) and the slope down. The HQ is a log dugout (`hqLook`). The Stukas
  * and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
  * and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and, by look, the StuG III Ausf. F; the
@@ -76,7 +76,7 @@ export const M1006: MissionDef = {
       supplies: 450,
       hqHpMul: 1,
       hqLook: 'logDugout',
-      incomeMul: 1.2,
+      incomeMul: 1.4,
       sappers: 3,
       forces: [
         // The 13th Guards' positions in the ravine by the river, where the 95th came ashore.
@@ -94,7 +94,7 @@ export const M1006: MissionDef = {
       hasHq: true,
       supplies: 200,
       hqHpMul: 1.6,
-      incomeMul: 0.6,
+      incomeMul: 0.45,
       sappers: 3,
       forces: [
         // The railway cutting at the foot of the hill.
@@ -192,10 +192,10 @@ export const M1006: MissionDef = {
         zone: { from: 9500, to: 11300 },
         buildables: ['wire', 'foxhole', 'sandbags'],
       },
-      objectives: [{ id: 'summitHeld', type: 'hold', point: { point: 'P2' }, seconds: 360, text: 'Hold the summit' }],
+      objectives: [{ id: 'summitHeld', type: 'hold', point: { point: 'P2' }, seconds: 500, text: 'Hold the summit' }],
       sideObjectives: [
-        // The phase brings five German vehicles: every one of them burnt (counted from here, as the mission's kills).
-        { id: 'noStug', text: 'No assault gun survives', objective: { id: 'phase4Armour', type: 'kill', side: 1, kinds: ['tank'], count: 5 }, bonus: 0.1 },
+        // The phase brings four German vehicles: every one of them burnt (counted from here, as the mission's kills).
+        { id: 'noStug', text: 'No assault gun survives', objective: { id: 'phase4Armour', type: 'kill', side: 1, kinds: ['tank'], count: 4 }, bonus: 0.1 },
       ],
       next: null,
     },
@@ -203,7 +203,20 @@ export const M1006: MissionDef = {
   events: [
     // The director's events: the Stukas, the Nebelwerfer on the slope, the banner when they come back.
     { id: 'stukaFoot', type: 'airRaid', when: { phase: 'foot', delay: 120 }, side: 1, support: 'airStrike', x: 2600 },
-    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'tanks', delay: 60 }, side: 1, x: 6300, spread: 200, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'tanks', delay: 60 }, side: 1, x: 6300, spread: 200, rounds: 10, duration: 12, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
+    // The guns on the far bank fire for the 95th (the briefing; DECISIONS 433), so the climb is not left to the
+    // player's own call-ins: the railway cutting before the attack, the crest twice while the water tanks are fought
+    // for, and on the summit each counter-attack as it climbs the western slope. One shell at a time, never a wall.
+    { id: 'cuttingShelled', type: 'barrage', when: { phase: 'foot', delay: 150 }, side: 0, x: 4200, spread: 250, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns on the far bank are shelling the railway cutting.' },
+    { id: 'crestShelled', type: 'barrage', when: { phase: 'tanks', delay: 20 }, side: 0, x: 10500, spread: 500, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns are shelling the crest.' },
+    { id: 'crestShelled2', type: 'barrage', when: { phase: 'tanks', delay: 170 }, side: 0, x: 10500, spread: 500, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns are shelling the crest again.' },
+    { id: 'slopeShelled1', type: 'barrage', when: { phase: 'summit', delay: 40 }, side: 0, x: 12200, spread: 400, rounds: 10, duration: 20, weapon: 'artilleryShell', warning: 'The far bank is firing on the western slope.' },
+    { id: 'slopeShelled2', type: 'barrage', when: { phase: 'summit', delay: 200 }, side: 0, x: 12200, spread: 400, rounds: 10, duration: 20, weapon: 'artilleryShell', warning: 'The far bank is firing on the western slope.' },
+    { id: 'slopeRockets', type: 'barrage', when: { phase: 'summit', delay: 300 }, side: 0, x: 12100, spread: 500, rounds: 12, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the western slope!' },
+    { id: 'slopeShelled3', type: 'barrage', when: { phase: 'summit', delay: 400 }, side: 0, x: 12200, spread: 400, rounds: 10, duration: 20, weapon: 'artilleryShell', warning: 'The far bank is firing on the western slope.' },
+    // If the summit is lost and the hold starts again, the far bank keeps firing on the crest for the retake (from
+    // 540 s, after the last scripted attack; a clean hold ends before it), so a lost summit is not a 30-minute siege.
+    { id: 'retakeGuns', type: 'barrage', when: { phaseEvery: 120, phase: 'summit', from: 540 }, side: 0, x: 10700, spread: 500, rounds: 10, duration: 20, weapon: 'artilleryShell', warning: 'Our guns are shelling the summit.' },
     // On the summit the 295th comes back in the four scripted attacks; the rest of its army waits behind the crest.
     { id: 'summitHold', type: 'posture', when: { phase: 'summit' }, side: 1, posture: 'hold' },
     { id: 'comingBack', type: 'banner', when: { phase: 'summit', delay: 18 }, text: 'They are coming back!', sound: 'alarm' },
@@ -229,7 +242,7 @@ export const M1006: MissionDef = {
     // The 295th Infantry Division feeds the hill from the west all day.
     {
       type: 'wave',
-      when: { every: 150, from: 240, until: 1500 },
+      when: { every: 240, from: 300, until: 1500 },
       side: 1,
       forces: [
         { kind: 'rifle', count: 3 },
@@ -237,6 +250,12 @@ export const M1006: MissionDef = {
       ],
     },
     { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P1' } }, text: 'The railway cutting is ours. Now the slope.' },
+    // The brief's phase 2 hint (it was missing from the data).
+    {
+      type: 'hint',
+      when: { phase: 'slope', delay: 20 },
+      text: 'Units climbing a slope move slower, and men on the crest see further. Smoke the slope before you climb it.',
+    },
     {
       type: 'wave',
       when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 10 },
@@ -250,10 +269,10 @@ export const M1006: MissionDef = {
     // The rest of the 95th Rifle Division, ferried over under smoke a company at a time.
     {
       type: 'wave',
-      when: { every: 180, from: 480, until: 1500 },
+      when: { every: 150, from: 300, until: 1500 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 3 },
+        { kind: 'rifle', count: 4 },
         { kind: 'at', count: 1 },
       ],
       announce: 'Another company has crossed the Volga.',
@@ -303,8 +322,9 @@ export const M1006: MissionDef = {
       when: { phase: 'summit', delay: 20 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2, behaviour: 'assault', look: 'stug3f' },
-        { kind: 'rifle', count: 10, behaviour: 'assault' },
+        // Assault guns first, one of the two StuGs (the other comes with the third attack; DECISIONS 433).
+        { kind: 'tank', count: 1, behaviour: 'assault', look: 'stug3f' },
+        { kind: 'rifle', count: 12, behaviour: 'assault' },
       ],
       announce: 'They are coming back!',
     },
@@ -324,19 +344,49 @@ export const M1006: MissionDef = {
       when: { phase: 'summit', delay: 280 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3, behaviour: 'assault' },
-        { kind: 'rifle', count: 10, behaviour: 'assault' },
+        { kind: 'tank', count: 2, behaviour: 'assault' },
+        { kind: 'tank', count: 1, behaviour: 'assault', look: 'stug3f' },
+        { kind: 'rifle', count: 12, behaviour: 'assault' },
       ],
-      announce: 'The last attack: Panzer IIIs and an assault gun with the infantry.',
+      announce: 'Panzer IIIs and an assault gun with the infantry!',
     },
+    // The fourth time they come back (the 518th Regiment's last reserve; DECISIONS 433): the summit changed hands
+    // several times that week, and the hold is 500 s so a player with every call-in still fights it for 8 minutes.
+    {
+      type: 'wave',
+      when: { phase: 'summit', delay: 380 },
+      side: 1,
+      forces: [
+        { kind: 'assault', count: 6, behaviour: 'assault' },
+        { kind: 'rifle', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'The last attack: their reserve of MP40 troopers.',
+    },
+    // The summit changed hands several times: the first time they retake it, Gorishny sends his last company up from
+    // the railway cutting and the far bank fires on the crest (DECISIONS 433), so a lost summit is fought for again
+    // rather than left as a siege of the slope.
+    {
+      id: 'summitLost',
+      type: 'wave',
+      when: { pointCapturedBy: 1, point: { point: 'P2' }, delay: 15 },
+      side: 0,
+      forces: [
+        { kind: 'rifle', count: 6, at: { point: 'P1' } },
+        { kind: 'assault', count: 4, at: { point: 'P1' } },
+        { kind: 'at', count: 2, at: { point: 'P1' } },
+      ],
+      announce: 'They have the summit again. The last company of the 90th Regiment is coming up from the cutting.',
+    },
+    { id: 'summitLostGuns', type: 'barrage', when: { pointCapturedBy: 1, point: { point: 'P2' }, delay: 30 }, side: 0, x: 10500, spread: 500, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns are shelling the summit.' },
+    { id: 'retakeSlopeGuns', type: 'barrage', when: { phaseEvery: 120, phase: 'summit', from: 600 }, side: 0, x: 8000, spread: 600, rounds: 10, duration: 20, weapon: 'artilleryShell', warning: 'Our guns are shelling the shell holes.' },
     {
       type: 'hint',
       when: { phase: 'summit', delay: 30 },
-      text: 'Assault guns: PTRD Teams in the summit trench, and a Katyusha Salvo on each attack while it forms on the western slope.',
+      text: 'Assault guns: PTRD Teams in the summit trench. The far bank fires on each attack as it climbs the western slope; a Katyusha Salvo of your own breaks it.',
     },
     {
       type: 'announce',
-      when: { phase: 'summit', delay: 300 },
+      when: { phase: 'summit', delay: 420 },
       text: 'One more minute and the summit is ours for good. Keep the PTRD teams in the trench.',
     },
     {
@@ -347,18 +397,22 @@ export const M1006: MissionDef = {
   ],
   ai: {
     sappers: 3,
-    // Counts include the garrisons placed at the start (18 riflemen, 4 machine guns, 2 mortars).
+    // Counts include the garrisons placed at the start (24 riflemen, 6 machine guns, 2 mortars). Thinner since the
+    // tuning (DECISIONS 433; was 20 then 26 riflemen, 5 machine guns, 3 mortars): the 295th was worn down after a week
+    // on the hill, and the summit is fed by the scripted companies from the west, so the climb can be won on units.
     build: [
-      { kind: 'rifle', count: 20, after: 0 },
-      { kind: 'lmg', count: 5, after: 60 },
-      { kind: 'mortar', count: 3, after: 120 },
+      { kind: 'rifle', count: 10, after: 0 },
+      { kind: 'lmg', count: 4, after: 60 },
+      { kind: 'mortar', count: 2, after: 120 },
       { kind: 'assault', count: 4, after: 200 },
       { kind: 'tank', count: 1, after: 420 },
-      { kind: 'rifle', count: 26, after: 500 },
+      { kind: 'rifle', count: 14, after: 500 },
       { kind: 'flame', count: 2, after: 600 },
       { kind: 'tank', count: 2, after: 900 },
     ],
-    firstAttackAfter: 420,
+    // Its own first attack not before 840 s (was 420, which walked down to the ravine while the bot fought for the
+    // water tanks): the counter-attacks of the brief are the scripted ones on the summit.
+    firstAttackAfter: 840,
   },
   bot: {
     sappers: 6,
@@ -376,8 +430,11 @@ export const M1006: MissionDef = {
       { kind: 'at', count: 6, after: 480 },
       { kind: 'mortar', count: 3, after: 540 },
     ],
-    firstAttackAfter: 300,
+    // "We go straight up": the bot climbs behind the far bank's barrage on the cutting (DECISIONS 433; was 300 s of
+    // waiting in the ravine).
+    firstAttackAfter: 180,
   },
-  expectedMinutes: [12, 24],
+  // Retuned (DECISIONS 433): the bot's median 16.4 min (14.9 to 18.5) with unlimited calls.
+  expectedMinutes: [15, 24],
   music: STALINGRAD_MUSIC.missions[1006],
 };

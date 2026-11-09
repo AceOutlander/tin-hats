@@ -635,7 +635,7 @@ Expected 15 to 26 minutes: about 16 with every call-in, about 19 to 23 with none
 ## Mission 6: Mamayev Kurgan
 
 - **Id** 1006, key `kurgan`. **Date** 19 September 1942 (`1942-09-19`). **Place** Height 102.0, Stalingrad,
-  48.7425 N, 44.5369 E. **Mode** hold (assault, then hold with prep). **Length** about 24 minutes. **Map** 14,000 wu.
+  48.7425 N, 44.5369 E. **Mode** hold (assault, then hold with prep). **Length** about 17 minutes (a 7 to 9 minute climb, the 45 s prep, the 500 s hold; DECISIONS 433). **Map** 14,000 wu.
   **Theatre** `stalingrad` (autumn).
 - **History**:
   - The German 295th Infantry Division took the hill on 13 to 14 September.
@@ -681,31 +681,40 @@ Expected 15 to 26 minutes: about 16 with every call-in, about 19 to 23 with none
 
 ### Forces
 
-- **Player**: 3 sappers; 12 riflemen; 4 PPSh troopers; 2 DP gunners; 1 sniper; 350 Money. Supports: artillery and
-  Katyusha (far bank), smoke.
-- **Loans**: 2 mortar teams (start); 2 flamethrowers (phase 3); 3 PTRD teams (phase 4).
+- **Player**: 3 sappers; 12 riflemen; 4 PPSh troopers; 2 DP gunners; 1 sniper; 450 Money, incomeMul 1.4. Supports:
+  artillery and Katyusha (far bank), smoke. No lent charges (DECISIONS 433): the far bank's guns fire for the climb and
+  the hold as scripted barrages.
+- **Loans**: 2 mortar teams (start); 6 riflemen and 2 PPSh troopers at the cutting (phase 1); 4 riflemen and 1 PTRD team
+  every 150 s from 300 s (the rest of the 95th crossing); 2 flamethrowers and 4 riflemen (phase 3); 3 PTRD teams, 4
+  riflemen and 2 DPs on the crest (phase 4); 6 riflemen, 4 PPSh troopers and 2 PTRD teams the first time the summit is lost.
 - **Enemy**:
-  - HQ (295th Infantry Division), `incomeMul` 0.8.
+  - HQ (295th Infantry Division), `incomeMul` 0.45 (DECISIONS 433; worn down after a week on the hill). Its own first
+    attack not before 840 s.
   - Start: T1 (6 riflemen, 1 MG42), T2 and T3 (3 riflemen and 1 MG each), B1 and B2 (4 riflemen and 1 MG34 each),
     2 snipers, 2 mortars behind the crest.
-  - Waves: StuG III Ausf. F, Panzer III J, pioneers, MP40 troopers.
+  - Waves: 3 riflemen and 1 MP40 every 240 s from 300 s; StuG III Ausf. F, Panzer III J, pioneers, MP40 troopers.
   - Supports: Stuka every 100 s, artillery, Nebelwerfer.
 
 ### Phases and events
 
 1. **"The foot of the hill"** (capture P1).
    - 120 s: Stuka.
+   - 150 s: the far bank shells the railway cutting (10 shells one by one over 25 s).
 2. **"The slope"** (capture T2 and T3). Lose nothing; the mortar duel.
    - Phase start: hint "Units climbing a slope move slower, and men on the crest see further. Smoke the slope before
      you climb it."
    - 150 s: German counter-attack down the slope (8 riflemen).
 3. **"The water tanks"** (capture B1 and B2).
-   - 60 s: Nebelwerfer on T3.
-4. **"Hold the summit"**: prep 45 s (sandbags, foxholes, wire; zone 9,500 to 11,300); hold P2 for 360 s.
-   - 20 s: banner "They are coming back!"; 2 StuG plus 12 infantry.
+   - 20 s and 170 s: the far bank shells the crest (10 shells over 25 s each).
+   - 60 s: Nebelwerfer on T3 (10 rockets over 12 s).
+4. **"Hold the summit"**: prep 45 s (sandbags, foxholes, wire; zone 9,500 to 11,300); hold P2 for 500 s.
+   - 20 s: banner "They are coming back!"; 1 StuG plus 12 infantry (40 s: the far bank fires on the western slope).
    - 120 s: Stuka on the summit.
-   - 180 s: pioneers with flamethrowers plus 6 MP40.
-   - 280 s: the last attack, 2 Panzer III J, 1 StuG and 14 infantry.
+   - 180 s: pioneers with flamethrowers plus 6 MP40 (200 s: the far bank fires on the western slope).
+   - 280 s: 2 Panzer III J, 1 StuG and 12 infantry (300 s: Katyushas on the western slope).
+   - 380 s: the last attack, their reserve of 6 MP40 and 4 riflemen (400 s: the far bank fires on the western slope).
+   - If the summit is lost: the 90th Regiment's last company comes up from the cutting and the far bank shells the
+     summit; from 540 s the guns fire on the summit and the shell holes every 120 s while the hold runs again.
 
 ### Side objectives
 
@@ -714,7 +723,7 @@ Expected 15 to 26 minutes: about 16 with every call-in, about 19 to 23 with none
 
 ### Medals
 
-Timed: target 24 minutes, target casualties 55.
+Timed: target 940 s, rough 2,100 s (DECISIONS 433), target casualties 55.
 
 ### Music, weather, time
 
@@ -730,7 +739,7 @@ Timed: target 24 minutes, target casualties 55.
 3. Flamethrowers burn out the water tanks with the riflemen behind.
 4. Wire and sandbag the crest, PTRDs in the water tanks. Katyusha on each wave as it forms on the western slope.
 
-Expected 22 to 26 minutes.
+Expected 15 to 24 minutes (DECISIONS 433).
 
 ---
 

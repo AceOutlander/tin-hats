@@ -255,8 +255,9 @@ export const MEDALS: MedalTunables = {
     // Retuned with the mission (DECISIONS 432): about 0.8 of the bot's median between unlimited calls (16.5 min) and no
     // call-in (22.7 min).
     1005: { targetSeconds: 940, roughSeconds: 2000, targetLost: 47, roughLost: 235, loans: [], expects: STAL_1005 },
-    // A hold scored on time, as the brief asks.
-    1006: { targetSeconds: 870, roughSeconds: 2160, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006, scoring: 'timed' },
+    // A hold scored on time, as the brief asks. Retuned with the mission (DECISIONS 433): about the bot's median with
+    // unlimited calls (16.4 min) for a perfect time, and its slow no-call wins (up to about 35 min) for a rough one.
+    1006: { targetSeconds: 940, roughSeconds: 2100, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006, scoring: 'timed' },
     // Fixed: HQ health 0.2 and the house itself 0.2 (held at the end).
     1007: {
       targetSeconds: 1380,
@@ -297,11 +298,8 @@ export const MEDALS: MedalTunables = {
     1004: [{ kind: 'airStrike', count: 2 }],
     // 1005 lends nothing since its tuning (DECISIONS 432): the east bank's guns and rocket batteries fire for the
     // landing as scripted barrages, the bot wins it with no call-in, and the mission introduces a unit, not a call-in.
-    1006: [
-      { kind: 'artillery', count: 8 },
-      { kind: 'smoke', count: 5 },
-      { kind: 'katyusha', count: 4 },
-    ],
+    // 1006 lends nothing since its tuning (DECISIONS 433): the far bank's guns and rocket batteries fire for the climb
+    // and the hold as scripted barrages, and the mission introduces units (the sniper, the AA gun), not a call-in.
     1007: [
       { kind: 'artillery', count: 6 },
       { kind: 'katyusha', count: 1 },
