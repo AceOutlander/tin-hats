@@ -357,6 +357,14 @@ Each mission gets a short briefing and a campaign map location. Check the histor
 
 "Rename the resource to Money: sappers still carry boxes, but every supply label, icon and text becomes money."
 
+## Smarter medics (owner, 2026-11-08; not urgent)
+
+"- Medics automatically look for wounded friendly soldiers nearby, go to the one in most need (lowest health first), and heal them, then move on to the next.
+- They don't run past the front line or into the open toward the enemy just to reach someone. They stay with their army's current order: on Hold they move along their own line, on Advance they follow behind the push, and on Fall Back they retreat with everyone.
+- Several medics don't all go for the same soldier.
+- When I take direct control of a medic, the automatic behaviour pauses.
+- Add a test that a medic picks the most wounded nearby soldier and heals them."
+
 ## Unlockable passives
 
 "- Unlockable badges that give a small, always-on bonus and have no visuals in battle. They show as badges in the Quartermaster screen.

@@ -178,20 +178,20 @@ describe('what the player fields in a mission', () => {
     const save = defaultSave();
     const r = missionRoster(save, mission(7));
     expect(r.units).toEqual(['sapper', 'rifle']);
-    expect(r.loans).toEqual([{ kind: 'at', count: 3 }]);
+    expect(r.loans).toEqual([{ kind: 'at', count: 3 }, { kind: 'medic', count: 2 }]);
     // No sappers where the mission has none.
     expect(missionRoster(save, mission(9)).units).toEqual(['rifle']);
   });
 
   it('fields every owned type the mission allows, for every nation, and stops lending what was bought', () => {
     const save = defaultSave();
-    save.armoury = ['lmg', 'at', 'tank'];
+    save.armoury = ['lmg', 'medic', 'at', 'tank'];
     const r = missionRoster(save, mission(7));
-    expect(r.units).toEqual(['sapper', 'rifle', 'lmg', 'at', 'tank']);
+    expect(r.units).toEqual(['sapper', 'rifle', 'lmg', 'medic', 'at', 'tank']);
     expect(r.loans).toEqual([]);
     // Mission 1 (the tutorial) keeps to its own list; Arnhem has no vehicles.
     expect(missionRoster(save, mission(1)).units).toEqual(['sapper', 'rifle']);
-    expect(missionRoster(save, mission(9)).units).toEqual(['rifle', 'lmg', 'at']);
+    expect(missionRoster(save, mission(9)).units).toEqual(['rifle', 'lmg', 'medic', 'at']);
   });
 
   it('leaves out bought types the sim cannot field yet, and lends only fieldable ones', () => {
