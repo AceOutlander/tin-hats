@@ -1,10 +1,10 @@
 /**
  * Headless battle runner.
  *
- *   x.cmd npx tsx tools/sim-cli.ts --mission 1 --p0 bot --p1 ai --seeds 20 --difficulty normal
+ *   x.cmd npx tsx tools/sim-cli.ts --mission 1001 --p0 bot --p1 ai --seeds 20 --difficulty normal
  *
  * Options
- *   --mission N      campaign mission 1..10 (default 1), 'all' for every campaign mission in turn,
+ *   --mission N      campaign mission id, Stalingrad 1001..1010 (default 1001), 'all' for every campaign mission in turn,
  *                    or 'sandbox' / 'mirror' (alias 'sandbox-mirror') for the test grounds
  *   --p0, --p1 K     commander of side 0 / side 1: human | ai | bot | idle (default bot / ai)
  *   --seeds N        number of battles (default 20)
@@ -44,7 +44,7 @@ function fail(message: string): never {
 
 function parseArgs(argv: string[]): Options {
   const opts: Options = {
-    mission: '1',
+    mission: String(MISSIONS[0].id),
     p0: 'bot',
     p1: 'ai',
     seeds: 20,
@@ -124,7 +124,7 @@ function main(): void {
       : opts.mission === 'mirror' || opts.mission === 'sandbox-mirror'
         ? SANDBOX_MIRROR
         : getMission(Number(opts.mission));
-  if (!found) fail(`Mission ${opts.mission} does not exist (campaign missions: 1 to ${MISSIONS.length}, or all)`);
+  if (!found) fail(`Mission ${opts.mission} does not exist (campaign missions: ${MISSIONS[0].id} to ${MISSIONS[MISSIONS.length - 1].id}, or all)`);
   report(opts.mirror ? mirrored(found) : found, opts);
 }
 

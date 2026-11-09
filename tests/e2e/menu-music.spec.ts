@@ -9,6 +9,7 @@ import type { Page } from '@playwright/test';
 import type { MusicAnalysis } from '../../src/app/debug';
 import type { MusicStats } from '../../src/audio';
 import type { MixReport } from '../../src/audio/music';
+import { CAMPAIGNS } from '../../src/data/campaigns';
 import { MUSIC } from '../../src/data/music';
 import { AUDIO, VOLUME, volumeGain } from '../../src/data/sounds';
 import { arrived, audioStats, expect, open, tap, tapIn, test, type Hooked } from './helpers';
@@ -152,8 +153,8 @@ test.describe('menu music', () => {
     await expect(arrived(page, 'title')).toBeVisible();
     await tap(page, 'play');
     await expect(arrived(page, 'campaign')).toBeVisible();
-    // The campaign map has its own track now (the owner's request, 2026-11): the menu theme gives way to it.
-    expect((await stats(page)).wanted).toBe('map');
+    // The campaign map has its own track (the owner's request, 2026-11; Stalingrad's, the only campaign): the menu theme gives way to it.
+    expect((await stats(page)).wanted).toBe(CAMPAIGNS.stalingrad.mapMusic);
     await expect.poll(async () => (await stats(page)).current, { timeout: 5000 }).not.toBe('menu');
     await tapIn(page, 'campaign', 'back');
     await expect(arrived(page, 'title')).toBeVisible();

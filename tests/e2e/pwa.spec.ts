@@ -132,7 +132,7 @@ test.describe('PWA', () => {
       await page.reload();
       await page.waitForFunction(() => (window as unknown as { __TH?: { ready?: boolean } }).__TH?.ready === true, null, { timeout: 60_000 });
       await expect(arrived(page, 'title')).toBeVisible();
-      expect(await startMission(page, 1)).toBe(true);
+      expect(await startMission(page, 1002)).toBe(true);
       await setTimeScale(page, 4);
       const s = await waitForState(page, 'the battle running for 30 seconds', (x) => x.inBattle && x.time >= 30, 120_000);
       expect(s.inBattle).toBe(true);
@@ -232,7 +232,7 @@ test.describe('PWA update', () => {
       expect(await workerTag(first)).toBe('v1');
 
       // A battle is running when the new version is published.
-      expect(await startMission(first, 1)).toBe(true);
+      expect(await startMission(first, 1002)).toBe(true);
       await first.evaluate(() => Reflect.set(window, '__stillHere', true));
       const before = await state(first);
       tagWorker(dir, 'v2');

@@ -1,5 +1,5 @@
 /**
- * The campaign in the production build, on a phone in landscape with real touches: the map, clearing mission 1 for
+ * The campaign (Stalingrad) in the production build, on a phone in landscape with real touches: the map, clearing mission 1 for
  * real, the medals each first win on a difficulty pays, buying and refunding in the Quartermaster with medals, a reload,
  * and boots from damaged, old and impossible saves. Any console error, page error or failed request fails the test (helpers.ts).
  * Pictures go to docs/screenshots/e2e-campaign-*.png.
@@ -280,7 +280,11 @@ test.describe('campaign', () => {
       await reload(page);
       const migrated = await memorySave(page);
       expect(migrated.version).toBe(META.saveVersion);
-      expect(migrated.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
+      // The British missions were removed in version 10: their clears are archived, and the types they unlocked
+      // (missions 1 to 3 reached: the Bren gunner and the assault troops) stay unlocked.
+      expect(migrated.cleared).toEqual({});
+      expect(migrated.legacy?.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
+      expect(migrated.armoury).toEqual(['lmg', 'assault']);
       expect(migrated.upgrades).toEqual({ rifleHealth: 1 });
       // The volumes, reduce flashing, show blood and show FPS did not exist in version 1: they come in at their defaults.
       expect(migrated.settings).toEqual({
@@ -295,7 +299,7 @@ test.describe('campaign', () => {
         showFps: META.defaultShowFps,
       });
       await tap(page, 'play');
-      expect(await pinStates(page)).toEqual(['cleared', 'cleared', 'open', ...Array<string>(7).fill('locked')]);
+      expect(await pinStates(page)).toEqual(['open', ...Array<string>(9).fill('locked')]);
       // Two missions cleared were four old points, one spent on the level kept: the three left become medals, plus the
       // 10 the re-pricing of save version 8 gives back for a level 1 (it cost 20, now 10).
       expect(await pointsLeft(page, 'campaign'), 'four points earned, one spent').toBe(3 * META.legacyPointMedals + META.legacyUpgradeLevelMedals - UPGRADE_LEVEL_MEDALS[0]);

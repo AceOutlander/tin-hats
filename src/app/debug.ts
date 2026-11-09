@@ -194,7 +194,7 @@ export interface DebugApi {
    * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
    */
   startSandbox(seed?: number, mirror?: boolean): boolean;
-  /** Start a Stalingrad mission (1001 to 1010) on its own, never saved: the campaign is not on the map yet. */
+  /** Start a Stalingrad mission (1001 to 1010) on its own, outside the campaign, never saved (startMission plays it as a campaign mission). */
   startStalingrad(id: number, difficulty?: Difficulty, seed?: number): boolean;
   /** Start Basic Training, as the title screen's button does. */
   startTraining(): boolean;

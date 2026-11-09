@@ -229,8 +229,8 @@ export function buildCampaignCards(
 /**
  * The Armoury: every unit type (free, unlocked, or locked with the mission that unlocks it; units are not sold since
  * the owner's change of 2026-11-09), then the plane call-ins for sale. Names and blurbs are those of the nation the
- * player commands in the current campaign; other nations' names are never shown (owner, 2026-11-08). Every campaign
- * so far is played as the British; a campaign of another nation passes its own.
+ * player commands in the current campaign; other nations' names are never shown (owner, 2026-11-08). The British
+ * names are the default (the proving ground); a campaign passes its own nation.
  */
 export function buildArmoury(
   save: SaveData,

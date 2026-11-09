@@ -7,11 +7,11 @@ import type { MissionDef } from '../../src/data/schema';
 /**
  * The test field: an open French field in daylight, riflemen and sappers only on both sides, no trenches, pillboxes or
  * wire, a weakly held enemy command post. Its rules are those of the removed British mission 1 (Arras), so the tests
- * built on it keep testing the same battle; it is a fixture, not a mission of the game (id 901, outside every
+ * built on it keep testing the same battle; it is a fixture, not a mission of the game (id 950, outside every
  * campaign). Its scripted hints are the plain "how to play" lines a first battle shows.
  */
 export const FIELD: MissionDef = {
-  id: 901,
+  id: 950,
   key: 'testField',
   title: 'Test field',
   location: 'A field in France',

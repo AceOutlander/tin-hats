@@ -15,15 +15,28 @@ const SIZES: Array<[number, number]> = [
   [1000, 412],
 ];
 
-/** A save far enough on that the Quartermaster has points to spend and upgrades to show. */
+/**
+ * A save far enough on that the Quartermaster has medals to spend and upgrades to show: Stalingrad's missions 1001 to
+ * 1005 cleared, so 1006 (Mamayev Kurgan, with call-ins and new units) is the next to play.
+ */
 async function farSave(page: Page): Promise<void> {
   await page.addInitScript(() => {
     if (window.localStorage.getItem('tinhats.save') !== null) return;
     const cleared: Record<string, string[]> = {};
-    for (let i = 1; i <= 7; i++) cleared[String(i)] = ['normal'];
+    for (let i = 1001; i <= 1005; i++) cleared[String(i)] = ['normal'];
     window.localStorage.setItem(
       'tinhats.save',
-      JSON.stringify({ version: 2, cleared, upgrades: { sapperDrill: 1, hqIncome: 2, rifleHealth: 3 }, lastMission: 3, settings: { muted: false, difficulty: 'normal', hints: true } }),
+      JSON.stringify({
+        version: 10,
+        cleared,
+        upgrades: { sapperDrill: 1, hqIncome: 2, rifleHealth: 3 },
+        medals: 160,
+        armoury: [],
+        wins: {},
+        lastMission: 1003,
+        training: { done: true, skipped: false },
+        settings: { muted: false, difficulty: 'normal', hints: true },
+      }),
     );
   });
 }
@@ -118,18 +131,18 @@ test.describe('menus and HUD at every phone size', () => {
         if (w === 844) await shot(page, `polish-qm-${w}`);
         await tapIn(page, 'quartermaster', 'back');
         await settled(page);
-        for (const id of [1, 4]) {
+        for (const id of [1001, 1004]) {
           await page.getByTestId(`mission-pin-${id}`).evaluate((el) => (el as HTMLElement).click());
           await tapIn(page, 'campaign', 'mission-start');
           await settled(page);
           await page.waitForTimeout(2800);
           await expectClean(page, `briefing ${id}`);
-          if (w === 844 && id === 4) await shot(page, 'polish-briefing-844');
+          if (w === 844 && id === 1004) await shot(page, 'polish-briefing-844');
           await tapIn(page, 'briefing', 'back');
           await settled(page);
         }
         // The battle HUD, the pause menu and the tutorial tip, on a mission with a support (so the left column is used).
-        await page.getByTestId('mission-pin-6').evaluate((el) => (el as HTMLElement).click());
+        await page.getByTestId('mission-pin-1006').evaluate((el) => (el as HTMLElement).click());
         await tapIn(page, 'campaign', 'mission-start');
         await settled(page);
         await tapIn(page, 'briefing', 'begin');
@@ -151,7 +164,7 @@ test.describe('the briefing', () => {
     await open(page);
     await tap(page, 'play');
     await settled(page);
-    await page.getByTestId('mission-pin-4').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('mission-pin-1004').evaluate((el) => (el as HTMLElement).click());
     await tapIn(page, 'campaign', 'mission-start');
     await settled(page);
     await page.waitForTimeout(2800);
@@ -189,7 +202,7 @@ test.describe('the briefing', () => {
     await open(page);
     await tap(page, 'play');
     await settled(page);
-    await page.getByTestId('mission-pin-1').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
     await tapIn(page, 'campaign', 'mission-start');
     await settled(page);
     await page.waitForTimeout(2800);
@@ -234,7 +247,7 @@ test.describe('rapid taps', () => {
     expect(await shown(page)).toEqual(['campaign']);
     await expect(page.locator('.th-screen[data-screen="campaign"]')).toHaveCount(1);
 
-    await page.getByTestId('mission-pin-2').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('mission-pin-1002').evaluate((el) => (el as HTMLElement).click());
     await doubleTap(page, 'mission-start', 'campaign');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['campaign', 'briefing']);
@@ -299,7 +312,7 @@ test.describe('rapid taps', () => {
   test('start a battle once from the result screen', async ({ page }) => {
     await farSave(page);
     await open(page);
-    await startMission(page, 1, 5);
+    await startMission(page, 1002, 5);
     await expect.poll(async () => (await state(page)).screen).toBe('battle');
     // An idle army loses: fast-forward to the result screen.
     await page.evaluate(() => ((window as unknown as { __TH: { setTimeScale(n: number): void } }).__TH).setTimeScale(240));
@@ -314,11 +327,11 @@ test.describe('rapid taps', () => {
   });
 });
 
-// Mission 1 start, for the pictures of the finished tutorial tip layout at the smallest size.
+// The first mission's start, for the pictures of the finished tutorial tip layout at the smallest size.
 test('the first tutorial tip on the smallest phone', async ({ page }) => {
   await page.setViewportSize({ width: 568, height: 320 });
   await open(page);
-  await playThroughMenus(page, 1, false);
+  await playThroughMenus(page, 1001, false);
   await expect(page.getByTestId('tip')).toBeVisible({ timeout: 20_000 });
   await shot(page, 'polish-tip-568');
 });

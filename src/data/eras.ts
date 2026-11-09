@@ -3,7 +3,7 @@
  * and climate, as data. A mission with `dateIso` resolves, for each nation, the eras whose date range holds that date
  * and whose climate list (if any) holds the mission's climate; they merge over the nation's defaults (FACTIONS in
  * ./factions and the default looks), the first matching era winning each field, so the list is ordered most specific
- * first (a winter era ahead of the year's). A mission without `dateIso` (the British campaign, the proving ground,
+ * first (a winter era ahead of the year's). A mission without `dateIso` (the proving ground,
  * Basic Training) gets every nation's defaults: today's names and looks, unchanged.
  *
  * Names and art only: stats stay mirrored by role (src/data/units.ts). ForceDef.look picks a vehicle variant or an
@@ -62,7 +62,7 @@ const INFANTRY_KINDS: readonly UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault'
 const SOVIET_CAPS = { sapper: 'pilotka', mortar: 'pilotka', medic: 'pilotka', commander: 'pilotka', conscript: 'pilotka' } as const;
 
 export const NATION_ERAS: Record<FactionId, readonly NationEraDef[]> = {
-  // The British campaign's names and looks are the defaults (FACTIONS.british); no date changes them yet.
+  // The British names and looks are the defaults (FACTIONS.british); no date changes them yet (no British campaign yet).
   british: [{ id: 'british-1939-1945', from: '1939-09', to: '1945-12' }],
   german: [
     // Winter 1942 to 1943 outside the pocket (mission 1009): helmets under white snow covers and, for the front-line
