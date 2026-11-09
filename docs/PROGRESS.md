@@ -44,6 +44,31 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
+## STOPPED for the owner's restart at 2026-11-09 16:55Z (read this first)
+
+Nothing running: all workflows stopped, no test browsers, dev servers or node processes. Nothing pushed; live is Beta v0.12.0.
+
+Owner's budget rule (2026-11-09): about 10% of the weekly limit per day (weekly was 40% at 16:50Z, resets Sunday
+2026-11-15 20:00Z); one job at a time, no parallel agents unless a job truly needs them; run only the tests related to
+the change (full browser suite only when Stalingrad is ready to go live); screenshots and long reports only when asked;
+check usage before each job; when the day's budget is used, stop at a clean point, update this file, schedule a resume
+for the next morning. Priority this week: finish Stalingrad incl. the three new changes and the fixes. Everything else waits.
+
+Where each job stands:
+- `stalingrad` (C:dev	in-hats-stalingrad) at 8b4bddf: everything merged (c584b01; unit 1772/1772, lint, typecheck, build
+  passed there). 8b4bddf is a WIP checkpoint of the owner's fixes job, part 1 (Begin under 2 s: backdrop/view work and a
+  begin-timing spec), unverified. Not started yet: label fit + test, compact Deploy at, the medal economy (Stick War:
+  Legacy benchmark in the session scratchpad stickwar-economy.json; summary below), realistic artillery, tank cannons.
+- `stalingrad-core` (C:dev	in-hats-stal-core) at 4bd4360: the review job was stopped mid-way (owner: one job at a time;
+  it was running the full browser suite). Its finished commit 7f92b0b is already in stalingrad; 4bd4360 is an
+  unverified audio.spec edit: check it and merge into stalingrad or drop it. Worktrees stal-e2..e5 are merged and can go.
+Next, one job at a time, in this order: finish the fixes (Begin, labels, Deploy at) -> economy -> artillery -> tank
+cannons -> related tests -> mission tuning one mission at a time -> Basic Training -> campaign check -> full checks and
+the browser suite -> final MORNING_REPORT -> tell the owner it is ready to check.
+Benchmark summary: first clear 20/30/40 gems (Normal/Hard/Insane), 2nd win 10, later 5; campaign bonus 500/1000/1500;
+12 stages; cheap spells 20-50 gems (about 1 level), big summons 500-1000 (about a campaign); upgrade points 2 per stage,
+1 point per level.
+
 ## Stalingrad state at 16:25Z (owner back; read this first)
 
 - `stalingrad` (C:dev	in-hats-stalingrad) at c584b01 + 54b4b52: everything merged (art, music, systems, era, campaign
