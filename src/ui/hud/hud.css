@@ -977,13 +977,18 @@
   opacity: 1;
 }
 
-/* "Deploy at" (FOUNDATIONS.md 4.5): a small tab on the training bar's top edge, so the bar keeps its size. */
+/*
+ * "Deploy at" (FOUNDATIONS.md 4.5): a small tab on the training bar's top edge, so the bar keeps its size. It sits at
+ * the bar's right end: the left end has the call-ins toggle above it.
+ */
 .th-deploy {
   position: absolute;
-  left: 6px;
+  right: 6px;
   bottom: calc(100% + 3px);
   max-width: calc(100% - 12px);
-  height: 22px;
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
   padding: 0 8px;
   border-radius: 6px;
   background: var(--plate-bg);

@@ -239,7 +239,7 @@ function walk(w: World, u: UnitState, dir: number): boolean {
   const dx = goalX - u.x;
   let step = u.moveSpeed * w.dt;
   const g = w.ground;
-  // Sappers walk their supply road between the HQ and the dump: the ground does not slow them (DECISIONS E2).
+  // Sappers walk their supply road between the HQ and the dump: the ground does not slow them (DECISIONS E2-1).
   if (g !== null && u.kindIndex !== KIND_SAPPER) {
     let c = (u.x * GROUND_INV_CELL) | 0;
     if (c < 0) c = 0;

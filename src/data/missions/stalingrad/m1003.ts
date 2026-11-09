@@ -27,7 +27,7 @@ export const M1003: MissionDef = {
     'Most of you came from Alma-Ata and Frunze, from the steppe and the mountains, and you have held them for a month already. This week the division gave us something new: a few long anti-tank rifles that can hole a Panzer\'s side at close range. There are not many, so fire them from the trenches and let the tanks come near.',
     'Dig in at the railway halt, wire the approaches and set the steel obstacles across the road. Hold until our tanks come up from the rear, then throw the Germans back to the edge of the wood.',
   ],
-  // Today's win rule: the German HQ beyond the wood (the wood's-edge capture point waits for the director).
+  // The win: the last phase takes the wood's edge (capture point P2) and holds it.
   objective: 'Hold the railway halt, then retake the wood\'s edge and destroy the German HQ.',
   intel: {
     enemy: [
