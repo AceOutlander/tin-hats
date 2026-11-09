@@ -3,7 +3,20 @@
  * minefields (src/sim/mines.ts), rivers, bridges and ferries (src/sim/water.ts), and sandbags. They live beside CONFIG,
  * as BUILDINGS does, so GameConfig in the shared schema stays as it is. First-pass numbers; the balance tests tune them.
  */
-import type { MineKind, ObstacleKind } from './schema';
+import type { BuildableId, MineKind, MissionDef, ObstacleKind } from './schema';
+
+const NEW_BUILDS: readonly BuildableId[] = ['tankTrap', 'roadBlock', 'sandbags', 'minefield'];
+
+/**
+ * True if a mission can show any of this (the battle view draws them only then): its own obstacles, minefields,
+ * bridges or ferries, or a prep phase that builds tank traps, road blocks, sandbags or mines.
+ */
+export function obstaclesNeeded(m: MissionDef): boolean {
+  if ((m.obstacles?.length ?? 0) > 0 || (m.minefields?.length ?? 0) > 0 || (m.bridges?.length ?? 0) > 0) return true;
+  if ((m.capturePoints ?? []).some((p) => p.ferry !== undefined)) return true;
+  const preps = [m.prep, ...(m.phases ?? []).map((p) => p.prep)];
+  return preps.some((p) => p?.buildables?.some((b) => NEW_BUILDS.includes(b)) === true);
+}
 
 export interface ObstacleKindDef {
   /** Health; explosive splash, the Clear job and the vehicles held at it wear it down. */

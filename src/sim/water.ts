@@ -236,11 +236,15 @@ function aboard(u: UnitState, fi: number): boolean {
 }
 
 /** Everyone aboard ferry fi walks off at x (going back from it, one spacing apart), onto the field. */
-function land(w: World, fi: number, x: number): number {
+function land(w: World, fi: number, to: number): number {
   const s = w.state;
   const f = s.ferries[fi];
   const dir = f.side === 0 ? 1 : -1;
   const units = s.units;
+  // Never past the other side's front (the two lines never pass through each other), as for any wave.
+  const gap = CONFIG.spacing * 2;
+  const front = w.front[1 - f.side];
+  const x = (to - (front - dir * gap)) * dir > 0 ? front - dir * gap : to;
   let n = 0;
   for (let i = 0; i < s.unitCount; i++) {
     const u = units[i];

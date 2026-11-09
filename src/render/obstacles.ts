@@ -9,23 +9,12 @@
 import type Phaser from 'phaser';
 import { OBSTACLE_KEYS as K } from '../art/structures/obstacles';
 import { OBSTACLE_ART as A } from '../data/obstacles';
-import type { BuildableId, MissionDef } from '../data/schema';
 import { VIEW } from '../data/view';
 import type { BattleState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
 
 type Img = Phaser.GameObjects.Image;
-
-const NEW_BUILDS: readonly BuildableId[] = ['tankTrap', 'roadBlock', 'sandbags', 'minefield'];
-
-/** True if a mission can show any of this: its own obstacles, fields, bridges or ferries, or a prep that builds them. */
-export function obstaclesNeeded(m: MissionDef): boolean {
-  if ((m.obstacles?.length ?? 0) > 0 || (m.minefields?.length ?? 0) > 0 || (m.bridges?.length ?? 0) > 0) return true;
-  if ((m.capturePoints ?? []).some((p) => p.ferry !== undefined)) return true;
-  const preps = [m.prep, ...(m.phases ?? []).map((p) => p.prep)];
-  return preps.some((p) => p?.buildables?.some((b) => NEW_BUILDS.includes(b)) === true);
-}
 
 /** Deterministic 0..1 for the j-th mine of field `id` (`salt` picks x or the row). */
 function h01(id: number, j: number, salt: number): number {
