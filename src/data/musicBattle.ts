@@ -316,6 +316,11 @@ export const MUSIC_BATTLE = {
      * the battle runs. Milliseconds between pieces, so the page and its loading progress keep drawing meanwhile.
      */
     gapMs: 24,
+    /**
+     * Pieces rendered at once, each in its own OfflineAudioContext (the browser gives each its own render thread),
+     * after the first, which renders alone and settles the sample rate.
+     */
+    lanes: 3,
     /** A load still unfinished after this many milliseconds is given up on: the battle starts without music. */
     loadTimeoutMs: 60_000,
     /**

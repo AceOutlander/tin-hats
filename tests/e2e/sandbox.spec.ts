@@ -447,15 +447,23 @@ test.describe('proving ground (Phase 2)', () => {
       if (s.trenches.some((t) => t.owner === 0 && t.id !== 1)) tookTrench = true;
       if (s.pillboxes.some((p) => !p.alive)) razedPillbox = true;
     };
+    // The clock stands still while the player taps, then runs about ten battle seconds: at 40x a round of eight taps
+    // took 80 to 160 battle seconds on a loaded machine, so the "keen" player trained once every two minutes, his army
+    // came forward in driblets and was beaten (DECISIONS 213, 325). Played every 5 to 20 battle seconds the same orders
+    // take a trench and raze a pillbox in two to three battle minutes on every seed tried.
     while (Date.now() < deadline && !s.over && !(tookTrench && razedPillbox)) {
+      await setTimeScale(page, 0);
       await grantSupplies(page, 1500);
-      for (const kind of army) {
-        await tapIfThere(page, `train-${kind}`);
-        await look();
-      }
+      for (const kind of army) await tapIfThere(page, `train-${kind}`);
+      await look();
       if (!advanced && s.units[0].rifle >= 10 && s.units[0].tank >= 2) {
         await tapIfThere(page, 'order-advance');
         advanced = true;
+      }
+      await setTimeScale(page, 40);
+      for (let i = 0; i < 3 && !s.over; i++) {
+        await page.waitForTimeout(80);
+        await look();
       }
     }
     await setTimeScale(page, 0);

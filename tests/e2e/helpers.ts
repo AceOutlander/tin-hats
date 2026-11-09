@@ -19,7 +19,7 @@ export const SHOT_DIR = resolve('docs', 'screenshots');
 export const SAVE_KEY = 'tinhats.save';
 /**
  * How long a start button (Begin, Retry, Basic Training) may take to reach the battle: it waits for the mission's
- * battle music to be rendered (src/ui/shell/missionLoad.ts), 8 to 16 s in headless Chromium.
+ * battle music to be rendered (src/ui/shell/missionLoad.ts), about 5 to 11 s from the tap in headless Chromium.
  */
 export const BATTLE_LOAD_MS = 90_000;
 

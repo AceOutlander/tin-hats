@@ -63,7 +63,9 @@ function rig(m: MissionDef = BASIC_TRAINING, seed = 3, memory = new TipMemory(cr
 /**
  * A new player who takes `react` seconds to read each tip and find the button, then does what it asks. Informational
  * tips are read to the end.
- * Between the lessons he keeps training riflemen when he can afford them, as the course tells him to.
+ * From the lesson `trainsFrom` on he keeps training riflemen when he can afford them: from the first rifle lesson for a
+ * keen player, or only once the last lesson says "train more men" for one who does nothing a tip has not asked for (the
+ * browser walkthrough's player).
  */
 class Student {
   /** The tips in the order they came up. */
@@ -74,6 +76,7 @@ class Student {
   constructor(
     private readonly r: Rig,
     private readonly react = 4,
+    private readonly trainsFrom = 'trainRifle',
   ) {}
 
   /** One battle second of play. */
@@ -87,7 +90,7 @@ class Student {
     }
     // A moment to read before doing it.
     if (id !== null && s.time - (this.handledAt.get(id) ?? s.time) >= this.react) this.act(id);
-    if (this.shown.includes('trainRifle') && s.time - this.lastTrain >= 3) {
+    if (this.shown.includes(this.trainsFrom) && s.time - this.lastTrain >= 3) {
       const me = s.sides[0];
       if (me.alive.rifle + me.queue.rifle < 14 && me.supplies >= UNITS.rifle.cost) {
         session.dispatch({ type: 'train', kind: 'rifle' });
@@ -163,8 +166,8 @@ class Student {
 }
 
 /** Play the course with a student until the battle ends (or `limit` battle seconds). */
-function playCourse(r: Rig, react = 4, limit = 900): Student {
-  const student = new Student(r, react);
+function playCourse(r: Rig, react = 4, limit = 900, trainsFrom = 'trainRifle'): Student {
+  const student = new Student(r, react, trainsFrom);
   while (!r.session.battle.state.over && r.session.battle.state.time < limit) student.second();
   return student;
 }
@@ -273,6 +276,18 @@ describe('the course', () => {
     expect(r.session.tally.supportCalled.artillery).toBeGreaterThanOrEqual(1);
     expect(s.sides[0].kindOrders.lmg).toBe('hold');
     expect(s.trenches.filter((t) => t.owner === 0).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('passes inside 10 minutes on any day for a student who does only what the tips ask (DECISIONS 321)', () => {
+    // The one barrage the call-in lesson asks for must raze the old pillbox however its shells fall: a pillbox left
+    // standing pinned the army under its gun and stretched the course past 30 minutes on unlucky days.
+    for (let seed = 1; seed <= 12; seed++) {
+      const r = rig(BASIC_TRAINING, seed);
+      playCourse(r, 3, 1200, 'finalAttack');
+      const s = r.session.battle.state;
+      expect(s.winner, `seed ${seed}`).toBe(0);
+      expect(s.time / 60, `seed ${seed}: battle minutes`).toBeLessThanOrEqual(BASIC_TRAINING.expectedMinutes[1]);
+    }
   });
 
   it('ends a lesson as soon as the player does the thing', () => {

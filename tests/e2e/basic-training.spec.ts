@@ -140,7 +140,12 @@ test.describe('Basic Training', () => {
     await waitForLesson(page, 'trainRifle');
     await expectGlow(page, '[data-testid="train-rifle"]');
     await picture(page, '3-train');
-    for (let i = 0; i < 3; i++) await tap(page, 'train-rifle');
+    // It asks for three: one is not enough, and the lesson stays.
+    await tap(page, 'train-rifle');
+    await page.waitForTimeout(500);
+    expect((await tutorial(page))?.tip?.id).toBe('trainRifle');
+    await expect(bubble(page)).toBeVisible();
+    for (let i = 0; i < 2; i++) await tap(page, 'train-rifle');
     await lessonEnds(page, 'trainRifle');
 
     // The army orders, trenches and cover.
@@ -221,7 +226,7 @@ test.describe('Basic Training', () => {
     await tap(page, 'order-fallBack');
     await lessonEnds(page, 'fallBack');
 
-    // The medals, the Armoury and the Quartermaster (the prep-phase lesson waits for job 6, so it never comes up).
+    // The medals, the Armoury and the Quartermaster.
     await waitForLesson(page, 'medals');
     await expect(bubble(page)).toContainText(`${MEDALS.trainingReward} medals`);
     await picture(page, '8-medals');
@@ -249,6 +254,7 @@ test.describe('Basic Training', () => {
     }
     expect(s.over).toBe(true);
     expect(s.winner).toBe(0);
+    console.log(`Basic Training walkthrough: passed in ${(s.time / 60).toFixed(1)} battle minutes`);
     expect(s.time / 60, 'battle minutes').toBeLessThanOrEqual(BASIC_TRAINING.expectedMinutes[1]);
 
     // The result: Basic Training passed, the one-time reward, and the Armoury next.
@@ -264,7 +270,11 @@ test.describe('Basic Training', () => {
     expect(save.cleared).toEqual({});
     await tapIn(page, 'result', 'result-armoury');
     await expect(arrived(page, 'armoury')).toBeVisible();
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toBeEnabled();
+    // The reward is there to spend; units are unlocked by the missions, not bought (v0.12.0, DECISIONS 280), so the
+    // Bren Gunner waits for mission 2 however many medals the course paid.
+    await expect(arrived(page, 'armoury').getByTestId('medals-available')).toHaveText(String(MEDALS.trainingReward));
+    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toBeDisabled();
+    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toContainText('Mission 2');
     await page.waitForTimeout(600);
     await picture(page, '10-armoury');
 

@@ -558,15 +558,18 @@ describe('battle music in the engine: rendered before its battle, one mission at
       pending.shift()?.();
       await flush();
     }
-    expect(renders).toBe(4);
-    expect(pending.length).toBe(1);
+    // The first piece renders alone, then MUSIC_BATTLE.render.lanes at a time: three in, `lanes` in flight.
+    const lanes = MUSIC_BATTLE.render.lanes;
+    expect(lanes).toBeGreaterThanOrEqual(1);
+    expect(renders).toBe(3 + lanes);
+    expect(pending.length).toBe(lanes);
     audio.prepareBattleMusic('arras');
     // Whoever waited on the load hears at once that it stopped.
     expect(await cut).toBe(false);
     const [r2, w2] = [renders, waits];
     expect(audio.battleMusicStats().state).toBe('partial');
     expect(audio.battleMusicStats().piecesReady).toBe(3);
-    // The piece that was in flight when the battle started lands nowhere, and nothing follows it.
+    // The pieces in flight when the battle started land nowhere, and nothing follows them.
     await finishAll();
     await battle();
     await finishAll();
@@ -661,8 +664,8 @@ describe('battle music in the engine: rendered before its battle, one mission at
     const s = audio.battleMusicStats();
     expect(s.state).toBe('ready');
     expect(s.piecesReady).toBe(s.piecesTotal);
-    // At most the one piece that was in flight when the battle started is rendered twice.
-    expect(rendered.length).toBeLessThanOrEqual(battlePieces(ARRAS).length + 1);
+    // At most the pieces in flight when the battle started (one per lane) are rendered twice.
+    expect(rendered.length).toBeLessThanOrEqual(battlePieces(ARRAS).length + MUSIC_BATTLE.render.lanes);
   });
 
   it('answers false and never hangs when the render fails; the battle then starts without music', async () => {

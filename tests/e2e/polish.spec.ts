@@ -4,7 +4,8 @@
  * that must never fire a navigation or a purchase twice. Pictures: docs/screenshots/e2e-polish-*.png
  */
 import type { Page } from '@playwright/test';
-import { BATTLE_LOAD_MS, arrived, expect, open, playThroughMenus, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
+import { UPGRADES } from '../../src/data/upgrades';
+import { BATTLE_LOAD_MS, arrived, expect, open, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
 
 const SIZES: Array<[number, number]> = [
   [568, 320],
@@ -129,7 +130,9 @@ test.describe('menus and HUD at every phone size', () => {
           await settled(page);
         }
         // The battle HUD, the pause menu and the tutorial tip, on a mission with a support (so the left column is used).
-        await page.getByTestId('mission-pin-6').evaluate((el) => (el as HTMLElement).click());
+        // Mission 8, the first this save has not won: its tank is new to the player, so its "New:" tip comes up. A
+        // mission already won brings nothing new and shows no tip (v0.12.0, DECISIONS 280).
+        await page.getByTestId('mission-pin-8').evaluate((el) => (el as HTMLElement).click());
         await tapIn(page, 'campaign', 'mission-start');
         await settled(page);
         await tapIn(page, 'briefing', 'begin');
@@ -282,13 +285,17 @@ test.describe('rapid taps', () => {
     const points = async (): Promise<number> => Number(await arrived(page, 'quartermaster').getByTestId('points-available').textContent());
     const startLevel = await level('hqGun');
     const startPoints = await points();
-    expect(startPoints).toBeGreaterThanOrEqual(3);
+    // The next level's price in medals (10, 20, 30 since v0.12.0).
+    const def = UPGRADES.find((u) => u.id === 'hqGun');
+    if (!def) throw new Error('no hqGun upgrade');
+    const price = def.levelCosts?.[startLevel] ?? def.costPerLevel;
+    expect(startPoints).toBeGreaterThanOrEqual(3 * price);
 
-    // One tap: one level and one point, not two (the list is rebuilt under the finger by the purchase).
+    // One tap: one level and its price, not two (the list is rebuilt under the finger by the purchase).
     await tapIn(page, 'quartermaster', 'upgrade-buy-hqGun');
     await page.waitForTimeout(600);
     expect(await level('hqGun')).toBe(startLevel + 1);
-    expect(await points()).toBe(startPoints - 1);
+    expect(await points()).toBe(startPoints - price);
 
     // Two quick taps are two deliberate purchases, and refunds are free, so a slip costs nothing.
     await doubleTap(page, 'upgrade-refund-hqGun', 'quartermaster');
@@ -314,11 +321,14 @@ test.describe('rapid taps', () => {
   });
 });
 
-// Mission 1 start, for the pictures of the finished tutorial tip layout at the smallest size.
+// The first tutorial tip, for the pictures of the finished tip layout at the smallest size. The guided steps live in
+// Basic Training now (mission 1 keeps only its own hints, and its riflemen bring no "New:" tip), so it is started from
+// its title-screen button.
 test('the first tutorial tip on the smallest phone', async ({ page }) => {
   await page.setViewportSize({ width: 568, height: 320 });
   await open(page);
-  await playThroughMenus(page, 1, false);
+  await tap(page, 'basic-training');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('tip')).toBeVisible({ timeout: 20_000 });
   await shot(page, 'polish-tip-568');
 });

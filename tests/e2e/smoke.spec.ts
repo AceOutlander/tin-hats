@@ -14,6 +14,7 @@ import {
   audioStats,
   camera,
   expect,
+  fastForward,
   firstUnit,
   grantSupplies,
   open,
@@ -454,8 +455,11 @@ test.describe('whole battles at high speed', () => {
       await page.waitForTimeout(600);
       expect((await camera(page)).centerX, 'the camera pans').toBeGreaterThan(cam0.centerX + 60);
 
-      // Fast-forward to the end.
-      const end = await playToEnd(page, true);
+      // Fast-forward to the end. A keen player of riflemen alone can stand for an hour and more before the last belt
+      // of mission 10 and its King Tiger ("Rifles will not trouble it"), so after a while he stops and the battle
+      // runs on at top speed until it ends, whoever wins (DECISIONS 322).
+      test.setTimeout(420_000);
+      const end = await fastForward(page, 100_000, 280_000);
       if (mission.id === MISSIONS[0].id) expect(end.winner).toBe(0);
       await expect(page.getByTestId('result-reason')).toBeVisible({ timeout: 30_000 });
       const won = end.winner === 0;

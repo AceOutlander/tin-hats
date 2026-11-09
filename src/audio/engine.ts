@@ -780,16 +780,20 @@ class AudioEngine implements GameAudio {
   }
 
   /**
-   * Render the pieces not yet in, one at a time with a short wait between them (the loading screen keeps drawing);
-   * anything that arrives after a release or a battle start is dropped. True once every piece is in.
+   * Render the pieces not yet in, with a short wait after each (the loading screen keeps drawing): the first on its
+   * own (it settles the sample rate), then `MUSIC_BATTLE.render.lanes` at a time, each in its own offline context, so
+   * the browser renders them side by side. Anything that arrives after a release or a battle start is dropped. True
+   * once every piece is in.
    */
   private async renderBattle(gen: number, def: BattleTrackDef, player: BattleMusicPlayer, render: (d: BattleTrackDef, p: BattlePiece, rate: number) => Promise<RenderedPiece>): Promise<boolean> {
     const R = MUSIC_BATTLE.render;
     const b = this.battleOut;
     const started = now() - b.renderMs;
     let rate: number = b.sampleRate > 0 ? b.sampleRate : R.sampleRate;
-    for (const piece of battlePieces(def)) {
-      if (player.holds(piece)) continue;
+    const queue = battlePieces(def).filter((p) => !player.holds(p));
+    let failed = false;
+    /** Render one piece and add it; false when the load is over (released, started, or the piece could not be made). */
+    const one = async (piece: BattlePiece): Promise<boolean> => {
       let done: RenderedPiece | null = null;
       for (let attempt = 0; attempt < 2 && !done; attempt++) {
         try {
@@ -800,8 +804,9 @@ class AudioEngine implements GameAudio {
           rate = R.fallbackRate;
         }
       }
-      if (gen !== this.battleGen) return false;
+      if (gen !== this.battleGen || failed) return false;
       if (!done) {
+        failed = true;
         b.state = 'failed';
         return false;
       }
@@ -816,8 +821,16 @@ class AudioEngine implements GameAudio {
       if (b.piecesReady === 1) b.firstMs = b.renderMs;
       this.battleProgress?.(b.piecesReady, b.piecesTotal);
       await this.wait(R.gapMs);
-      if (gen !== this.battleGen) return false;
-    }
+      return gen === this.battleGen && !failed;
+    };
+    const first = queue.shift();
+    if (first && !(await one(first))) return false;
+    const lane = async (): Promise<boolean> => {
+      for (let piece = queue.shift(); piece; piece = queue.shift()) if (!(await one(piece))) return false;
+      return true;
+    };
+    const lanes = await Promise.all(Array.from({ length: Math.max(1, Math.floor(R.lanes)) }, lane));
+    if (!lanes.every(Boolean) || gen !== this.battleGen || failed) return false;
     b.renderMs = now() - started;
     b.state = 'ready';
     return true;
