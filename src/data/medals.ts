@@ -305,12 +305,12 @@ export const MEDALS: MedalTunables = {
     1007: [{ kind: 'katyusha', count: 1 }],
     // 1008 lends nothing since its tuning (DECISIONS 435): the far bank's guns fire on each tank attack in the yard and
     // its rocket batteries on the last push as scripted barrages, and the mission introduces no call-in.
+    // 1009 lends only the brief's Il-2s and Po-2s since its tuning (DECISIONS 436): the Front's guns and Il-2s fire for
+    // the breakthrough and the Don hills as scripted barrages and a raid, and two sorties of each let a player meet the
+    // call-ins the mission brings in from phase 2.
     1009: [
-      { kind: 'artillery', count: 14 },
-      { kind: 'katyusha', count: 6 },
-      { kind: 'smoke', count: 5 },
-      { kind: 'airStrike', count: 3 },
-      { kind: 'recon', count: 5 },
+      { kind: 'airStrike', count: 2 },
+      { kind: 'recon', count: 2 },
     ],
     1010: [
       { kind: 'artillery', count: 9 },

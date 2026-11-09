@@ -8,7 +8,7 @@ import type { MissionDef } from '../../schema';
  * Division and the Romanian armour in the Don hills (trench 5), rushes the Kalach bridge (its guard post is pillbox 2)
  * and drives on to Sovetsky (trench 6) and the German supply depot (the enemy HQ).
  *
- * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu in four phases.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu in five phases.
  * Siren: the free opening barrage and a Katyusha salvo on the Romanian line, which is taken (P1, held through trench
  * 3); the steppe: Perelazovsky (P2, held through its house B2; B3 is the Romanian corps headquarters; FOUNDATIONS.md
  * 4.3) and the Don hills (P3, open ground taken by holding it 10 s), with the Il-2 and the Po-2 offered from here; the
@@ -16,7 +16,9 @@ import type { MissionDef } from '../../schema';
  * the side objective) while the column drives in disguised for 40 s past its guard post (pillbox 2); at 180 s the
  * Germans blow it unless P5 is ours (holding it cuts the wires), and then infantry wade the ford (the river itself, at
  * 0.35) while the tanks wait 180 s for the engineers' pontoon (bridge 2, the `bridge` event); Sovetsky (P4,
- * through trench 6, past the houses of Kalach, B4 and B5), whose capture closes the ring with the green flares. The HQ
+ * through trench 6, past the houses of Kalach, B4 and B5), with the 4th Tank Corps beside us; and the link-up, Sovetsky
+ * held 270 s against three breakout attempts, the depot cut off (no German income), until the green flares close the
+ * ring (DECISIONS 436). The Front's guns and two Il-2 raids hit the Don hills as the 22nd Panzer digs in. The HQ
  * is a log dugout (`hqLook`). Trained units deploy at the positions taken (P1 to P3 are the Soviet forward spawns,
  * spawnFor 0), and the loaned carriers, PTRDs and mortars come up at P1. The ground is the brief's sectors (snow, the
  * steppe under snow, the climb into the Don hills, the Don under the Kalach bridge). An AP minefield lies in front of the
@@ -52,7 +54,7 @@ export const M1009: MissionDef = {
     enemy: [
       'Romanian 3rd Army: about 25 infantry with ZB machine guns',
       'Few anti-tank guns; a few R-2 light tanks',
-      '22nd Panzer behind them: about 18 Panzer III and IV',
+      '22nd Panzer behind them: about 15 Panzer III and IV',
       'German riflemen, MP40 troopers and PzB 39 teams',
       'Little air: fog, then a blizzard',
     ],
@@ -60,7 +62,8 @@ export const M1009: MissionDef = {
       '26th Tank Corps: 6 T-34s and 3 T-60s, with tank riders',
       '8 riflemen, 2 DPs, 2 PTRD teams, 2 mortar crews',
       'Universal Carriers and PTRD teams after the first line',
-      'Artillery, smoke, Katyusha, the Il-2 and the Po-2',
+      'The Front artillery and Il-2s for the breakthrough and the Don hills',
+      'The 4th Tank Corps beside us for the push on Sovetsky',
     ],
   },
   theatre: 'steppe',
@@ -206,7 +209,8 @@ export const M1009: MissionDef = {
       title: 'Siren',
       objectives: [{ id: 'romanianLine', type: 'capture', point: { point: 'P1' }, text: 'Break the Romanian line' }],
       sideObjectives: [
-        { id: 'tanks15', text: 'Fifteen tanks', objective: { id: 'tanks15Dead', type: 'kill', side: 1, kinds: ['tank'], count: 15 }, bonus: 0.1 },
+        // Twelve, not fifteen (DECISIONS 436): the day brings about 18 and the bot kills 13 to 17.
+        { id: 'tanks12', text: 'Twelve tanks', objective: { id: 'tanks12Dead', type: 'kill', side: 1, kinds: ['tank'], count: 12 }, bonus: 0.1 },
       ],
       next: 'steppe',
     },
@@ -233,16 +237,25 @@ export const M1009: MissionDef = {
       id: 'sovetsky',
       title: 'Sovetsky',
       objectives: [{ id: 'sovetsky', type: 'capture', point: { point: 'P4' }, text: 'Take Sovetsky' }],
+      next: 'linkup',
+    },
+    {
+      // The link-up (DECISIONS 436): Sovetsky is held until the Stalingrad Front's tanks arrive and see the flares, so
+      // the ring is not closed by a dash past the town.
+      id: 'linkup',
+      title: 'The link-up',
+      objectives: [{ id: 'linkup', type: 'hold', point: { point: 'P4' }, seconds: 270, text: 'Hold Sovetsky for the link-up' }],
       next: null,
     },
   ],
   events: [
     // Siren: three free strikes of twelve rounds on the Romanian trenches, then a Katyusha salvo (FOUNDATIONS.md 3.3).
     { id: 'siren', type: 'banner', when: { phase: 'siren' }, text: 'Siren!', sound: 'horn' },
-    { id: 'strike1', type: 'barrage', when: { phase: 'siren' }, side: 0, x: 4200, spread: 160, rounds: 12, duration: 4, weapon: 'artilleryShell' },
-    { id: 'strike2', type: 'barrage', when: { phase: 'siren', delay: 3 }, side: 0, x: 5600, spread: 160, rounds: 12, duration: 4, weapon: 'artilleryShell' },
-    { id: 'strike3', type: 'barrage', when: { phase: 'siren', delay: 6 }, side: 0, x: 4900, spread: 600, rounds: 12, duration: 4, weapon: 'artilleryShell' },
-    { id: 'sirenKatyusha', type: 'airRaid', when: { phase: 'siren', delay: 10 }, side: 0, support: 'katyusha', x: 5000 },
+    // One shell at a time (DECISIONS 436): each strike lands over 12 s, the three walking from trench 2 to trench 3.
+    { id: 'strike1', type: 'barrage', when: { phase: 'siren' }, side: 0, x: 4200, spread: 160, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'strike2', type: 'barrage', when: { phase: 'siren', delay: 6 }, side: 0, x: 5600, spread: 160, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'strike3', type: 'barrage', when: { phase: 'siren', delay: 12 }, side: 0, x: 4900, spread: 600, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'sirenKatyusha', type: 'airRaid', when: { phase: 'siren', delay: 20 }, side: 0, support: 'katyusha', x: 5000 },
     { id: 'il2', type: 'support', when: { phase: 'steppe' }, side: 0, kind: 'airStrike', enabled: true },
     { id: 'po2', type: 'support', when: { phase: 'steppe' }, side: 0, kind: 'recon', enabled: true },
     // Fog, then clear, then the blizzard; night at the bridge; the green flares (FOUNDATIONS.md 4.7).
@@ -250,14 +263,14 @@ export const M1009: MissionDef = {
     { id: 'day', type: 'time', when: { phase: 'steppe' }, to: 'day', over: 120 },
     { id: 'blizzard', type: 'weather', when: { phase: 'steppe', delay: 500 }, to: 'blizzard', over: 60 },
     { id: 'night', type: 'time', when: { phase: 'bridge' }, to: 'night', over: 60 },
-    { id: 'greenFlares', type: 'flare', when: { objective: 'sovetsky' }, side: 0, x: 28800, color: 'green' },
+    { id: 'greenFlares', type: 'flare', when: { objective: 'linkup' }, side: 0, x: 28800, color: 'green' },
     // Headlights on: the column is not engaged on the road to the bridge for 40 s unless it opens fire.
     { id: 'headlights', type: 'disguise', when: { phase: 'bridge' }, side: 0, seconds: 40, x0: 21000, x1: 24600 },
     { type: 'announce', when: { at: 2 }, text: 'Siren! Every gun on the front has opened fire.' },
     {
       type: 'hint',
       when: { at: 4 },
-      text: 'The Romanian line is thin and short of anti-tank guns. T-34s and tank riders on the second trench, infantry on the first.',
+      text: 'Fog hides you and them alike: push close before you fire. The Romanians are short of anti-tank guns: T-34s and tank riders on the second trench, infantry on the first.',
     },
     {
       type: 'hint',
@@ -289,11 +302,12 @@ export const M1009: MissionDef = {
     },
     {
       type: 'wave',
-      when: { every: 150, from: 600, until: 1500 },
+      when: { every: 150, from: 600, until: 2100 },
       side: 0,
+      // They come up at the Don hills once those are ours, not 21 km back at the bridgehead (DECISIONS 436).
       forces: [
-        { kind: 'at', count: 1 },
-        { kind: 'rifle', count: 3 },
+        { kind: 'at', count: 1, at: { point: 'P3' } },
+        { kind: 'rifle', count: 3, at: { point: 'P3' } },
       ],
       announce: 'Rifle divisions are coming up behind the tanks.',
     },
@@ -301,10 +315,11 @@ export const M1009: MissionDef = {
       type: 'wave',
       when: { phase: 'steppe', delay: 200 },
       side: 1,
+      // Out of the Don hills onto the steppe by Perelazovsky, not from Sovetsky 17 km away (DECISIONS 436).
       forces: [
-        { kind: 'tank', count: 4, behaviour: 'assault' },
-        { kind: 'rifle', count: 8, behaviour: 'assault' },
-        { kind: 'assault', count: 2, behaviour: 'assault' },
+        { kind: 'tank', count: 4, x: 17500, behaviour: 'assault' },
+        { kind: 'rifle', count: 8, x: 17700, behaviour: 'assault' },
+        { kind: 'assault', count: 2, x: 17700, behaviour: 'assault' },
       ],
       announce: 'The 22nd Panzer Division is counter-attacking!',
     },
@@ -312,7 +327,7 @@ export const M1009: MissionDef = {
       type: 'wave',
       when: { phase: 'steppe', delay: 400 },
       side: 1,
-      forces: [{ kind: 'tank', count: 3, behaviour: 'assault', look: 'panzer3h' }],
+      forces: [{ kind: 'tank', count: 3, x: 19500, behaviour: 'assault', look: 'panzer3h' }],
       announce: 'Romanian armour on the steppe: their R-2 light tanks.',
     },
     { type: 'announce', when: { phase: 'steppe', delay: 500 }, text: 'A blizzard is blowing up over the steppe.' },
@@ -324,12 +339,18 @@ export const M1009: MissionDef = {
       when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 5 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 4, x: 21700, behaviour: 'guard', look: 'panzer4g' },
+        { kind: 'tank', count: 3, x: 21700, behaviour: 'guard', look: 'panzer4g' },
         { kind: 'at', count: 2, x: 21500, behaviour: 'guard' },
         { kind: 'assault', count: 4, x: 21400, behaviour: 'guard' },
       ],
       announce: 'The main body of the 22nd Panzer Division is digging in on the Don hills.',
     },
+    // The Front's guns and Il-2s on the 22nd Panzer's main body as it digs in (DECISIONS 436): the shells one at a time,
+    // the Il-2s in the clear window before the blizzard (a raid after it is grounded).
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 90 }, text: 'The Front artillery is shelling the Don hills.' },
+    { id: 'hillsGuns', type: 'barrage', when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 90 }, side: 0, x: 21300, spread: 450, rounds: 10, duration: 25, weapon: 'artilleryShell' },
+    { id: 'hillsIl2', type: 'airRaid', when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 150 }, side: 0, support: 'airStrike', x: 21600 },
+    { id: 'hillsIl2b', type: 'airRaid', when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 230 }, side: 0, support: 'airStrike', x: 21300 },
     {
       type: 'wave',
       when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 10 },
@@ -364,14 +385,63 @@ export const M1009: MissionDef = {
       when: { phase: 'sovetsky', delay: 60 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3, behaviour: 'assault' },
+        { kind: 'tank', count: 2, behaviour: 'assault' },
         { kind: 'rifle', count: 6, behaviour: 'assault' },
         { kind: 'assault', count: 2, behaviour: 'assault' },
       ],
       announce: 'A last-ditch German counter-attack from Kalach!',
     },
-    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P4' } }, text: 'Sovetsky! The tanks of the Stalingrad Front are close.' },
-    { type: 'announce', when: { objective: 'sovetsky' }, text: 'Green flares over Sovetsky. The ring is closed.' },
+    // "On with the corps beside us" (DECISIONS 436): the 4th Tank Corps comes up over the Don for the last push, so a
+    // brigade bled white at the bridge is not left facing the counter-attack alone.
+    {
+      type: 'wave',
+      when: { phase: 'sovetsky', delay: 40 },
+      side: 0,
+      forces: [
+        { kind: 'tank', count: 2, at: { point: 'P3' } },
+        { kind: 'assault', count: 4, at: { point: 'P3' } },
+        { kind: 'at', count: 2, at: { point: 'P3' } },
+      ],
+      announce: 'The 4th Tank Corps is over the Don beside us: on to Sovetsky together.',
+    },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P4' } }, text: 'Sovetsky! The tanks of the Stalingrad Front are close. Hold the town until they arrive.' },
+    // The depot at Sovetsky fed every German unit west of the city: with the town lost it feeds no new ones (DECISIONS
+    // 436), so the hold is fought against what is left, not a stream from the depot door.
+    { type: 'income', when: { pointCapturedBy: 0, point: { point: 'P4' } }, side: 1, mul: 0 },
+    {
+      type: 'wave',
+      when: { phase: 'linkup', delay: 40 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 5, behaviour: 'assault' },
+        { kind: 'assault', count: 3, behaviour: 'assault' },
+        { kind: 'at', count: 1, behaviour: 'assault' },
+      ],
+      announce: 'The depot guard is trying to break out of the ring!',
+    },
+    // The hold is filled (DECISIONS 436): three breakout attempts over its 270 s, the last with the 22nd Panzer's last tank.
+    {
+      type: 'wave',
+      when: { phase: 'linkup', delay: 130 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 4, behaviour: 'assault' },
+        { kind: 'lmg', count: 1, behaviour: 'assault' },
+        { kind: 'assault', count: 2, behaviour: 'assault' },
+      ],
+      announce: 'Rear services from Kalach are trying to get out to the west!',
+    },
+    {
+      type: 'wave',
+      when: { phase: 'linkup', delay: 210 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, behaviour: 'assault' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'A last panzer is leading a breakout!',
+    },
+    { type: 'announce', when: { objective: 'linkup' }, text: 'Green flares over Sovetsky. The tanks of the Stalingrad Front have seen them: the ring is closed.' },
     {
       type: 'hint',
       when: { hqHpBelow: 0.5, side: 0 },
@@ -389,7 +459,8 @@ export const M1009: MissionDef = {
       { kind: 'tank', count: 2, after: 240 },
       { kind: 'assault', count: 4, after: 300 },
       { kind: 'apc', count: 1, after: 400 },
-      { kind: 'tank', count: 3, after: 600 },
+      // Two kept, not three from 600 s (DECISIONS 436): the 22nd Panzer had fewer than thirty tanks and its waves bring
+      // them.
     ],
     firstAttackAfter: 600,
   },
@@ -408,6 +479,7 @@ export const M1009: MissionDef = {
     ],
     firstAttackAfter: 30,
   },
-  expectedMinutes: [9, 24],
+  // 15 to 26 (DECISIONS 436; was 9 to 24): the bot takes about 18 minutes with every call-in and about 19 with none.
+  expectedMinutes: [15, 26],
   music: STALINGRAD_MUSIC.missions[1009],
 };

@@ -973,7 +973,7 @@ Fixed 21 minutes.
 
 - **Id** 1009, key `uranus`. **Date** 19 to 23 November 1942 (`1942-11-19`). **Place** from the Serafimovich
   bridgehead to the Don bridge at Kalach; pin at Kalach-na-Donu, 48.69 N, 43.53 E. **Mode** assault with tanks.
-  **Length** about 28 minutes. **Map** 30,000 wu (the longest in the campaign). **Theatre** `steppe` (winter).
+  **Length** about 18 minutes (15 to 26; DECISIONS 436). **Map** 30,000 wu (the longest in the campaign). **Theatre** `steppe` (winter).
 - **History**:
   - The Southwestern Front (Vatutin) and the Don Front (Rokossovsky) attacked the Romanian 3rd Army on 19 November;
     the Stalingrad Front (Yeremenko) struck the Romanian 4th Army south of the city on 20 November.
@@ -1029,11 +1029,13 @@ Fixed 21 minutes.
 - **Player**: 4 sappers; 6 T-34/76; 2 KV-1S (`heavyTank`); 3 T-70 (`lightTank`); 12 riflemen; 6 tank riders
   (`assault`, look `telogreika`); 2 DP; 2 PTRD; 2 mortars; 800 Money. Supports: artillery, Katyusha, smoke, and
   from phase 2 the Il-2 (two-seat) and the Po-2 recon (job 7 recon).
-- **Loans**: 2 Universal Carriers (`apc`, Lend-Lease, phase 2); 4 PTRD teams (phase 2, resend 150 s);
-  2 mortar teams.
+- **Loans**: 2 Universal Carriers (`apc`, Lend-Lease, phase 2); 4 PTRD teams (phase 2); 2 mortar teams; the rifle
+  divisions (1 PTRD and 3 riflemen every 150 s from 600 s to 2,100 s, at the Don hills once ours). Lent call-in
+  charges: 2 Il-2 and 2 Po-2, the call-ins the mission brings in from phase 2 (DECISIONS 436; was artillery 14,
+  Katyusha 6, smoke 5, Il-2 3, Po-2 5): the Front's guns and Il-2s fire for the breakthrough as scripted support.
 - **Enemy**:
   - Romanian line (`rosterNation: romanian`): T1 and T2 (8 infantry, 2 ZB LMG each), 2 37 mm Pak crews, 1 R-2 tank.
-  - German HQ for the AI economy, `incomeMul` 0.6.
+  - German HQ for the AI economy, `incomeMul` 0.6; cut to nothing when Sovetsky falls (the depot is lost).
   - 22nd Panzer waves of Pz 38(t) (`lightTank` look `pz38t`), Pz III, Pz IV, with Panzergrenadiers and Pak 40.
   - Romanian 1st Armoured: R-2s.
   - Supports: artillery; air only after the fog lifts and before the blizzard (a small window).
@@ -1041,12 +1043,15 @@ Fixed 21 minutes.
 ### Phases and events
 
 1. **"Siren"** (capture P1). Weather `fog` (visibility 0.6).
-   - 0 s: free barrage on T1 and T2 (`barrage`, side 0, 3 strikes of 12 rounds), then a Katyusha salvo at 10 s.
-     Banner "Siren!".
+   - 0 s: free barrage on T1 and T2 (`barrage`, side 0, 3 strikes of 12 rounds, each over 12 s one shell at a time,
+     6 s apart), then a Katyusha salvo at 20 s. Banner "Siren!".
    - Hint: "Fog hides you and them alike. Push close before you fire."
 2. **"The steppe"** (capture P2, then P3). Fog lifts over 120 s.
-   - 200 s: 22nd Panzer counter-attack (4 Pz 38(t), 2 Pz III, 8 grenadiers).
-   - 400 s: Romanian armour (3 R-2).
+   - 200 s: 22nd Panzer counter-attack out of the Don hills onto the steppe (x 17,500; 4 tanks, 8 grenadiers, 2 MP40).
+   - 400 s: Romanian armour (3 R-2, from x 19,500).
+   - P2 taken + 5 s: the 22nd Panzer's main body digs in on the Don hills (3 Panzer IV, 2 Pak, 4 MP40).
+   - P2 taken + 90 s: the Front artillery shells the Don hills (10 rounds over 25 s); + 150 s and + 230 s: Il-2 raids on
+     the dug-in panzers (grounded once the blizzard is up).
    - 500 s: weather to `blizzard` over 60 s (visibility 0.7, no air).
    - Hint at P2: "Deploy at Perelazovsky: the next wave starts there, not 13 km back."
 3. **"The Kalach bridge"** (capture the bridge's point within 180 s of the phase start). Time to night over 60 s.
@@ -1054,13 +1059,18 @@ Fixed 21 minutes.
    - At 180 s, if the bridge is not owned: `demolish` bridge 1. The phase then continues by a slower ford downstream
      (infantry only at 0.35; vehicles must wait for a scripted pontoon at 360 s).
 4. **"Sovetsky"** (capture P4).
-   - 60 s: German last-ditch counter-attack.
-   - On capture: announce "Green flares over Sovetsky. The ring is closed." Mission won.
+   - 40 s: the 4th Tank Corps comes up beside us at the Don hills (2 T-34s, 4 tank riders, 2 PTRD teams).
+   - 60 s: German last-ditch counter-attack (2 tanks, 6 riflemen, 2 MP40).
+   - On capture: the German income stops (the depot is ours).
+5. **"The link-up"** (hold P4 for 270 s; DECISIONS 436).
+   - 40 s, 130 s and 210 s: breakout attempts from Kalach (9 men; 7 men; a Panzer and 4 MP40).
+   - On the hold: green flares, announce "Green flares over Sovetsky. The tanks of the Stalingrad Front have seen
+     them: the ring is closed." Mission won.
 
 ### Side objectives
 
 - **The bridge intact**: capture it before the demolition (+20%).
-- **Fifteen tanks** (+10%).
+- **Twelve tanks** (+10%; was fifteen, more than the bot ever kills once the waves were thinned, DECISIONS 436).
 
 ### Medals
 
@@ -1080,8 +1090,9 @@ Timed: target 28 minutes, target casualties 60.
 2. Deploy at P1, then rush the steppe in a tank column with PTRDs and mortars in the second wave.
 3. Meet the 22nd Panzer at Perelazovsky from the houses; Il-2 on their tanks before the blizzard.
 4. Go for the bridge immediately in phase 3 with the fastest tanks (T-70s, T-34s). The disguise window is short.
+5. Hold Sovetsky with what reached it and the 4th Tank Corps; the breakouts come from the depot side.
 
-Expected 26 to 30 minutes.
+Expected 15 to 26 minutes (DECISIONS 436; the bot takes about 18 with or without call-ins).
 
 ---
 
