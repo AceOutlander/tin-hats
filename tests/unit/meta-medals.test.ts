@@ -39,15 +39,15 @@ const rules = { missionIds: MISSIONS.map((m) => m.id), upgradeDefs: UPGRADES };
 describe('the score of a win', () => {
   const def = missionMedals(4);
 
-  it('pays about 10 for a rough clear and about 100 for a perfect one', () => {
+  it('pays 3 for a rough clear and 30 for a perfect one (owner, 2026-11-08)', () => {
     const perfect = scoreWin('assault', def, { seconds: def.targetSeconds, lost: def.targetLost, hqFrac: 1 }, 'normal', 0);
     const rough = scoreWin('assault', def, { seconds: def.roughSeconds * 2, lost: def.roughLost * 2, hqFrac: 0.1 }, 'normal', 0);
     expect(perfect.score).toBe(1);
     expect(perfect.medals).toBe(MEDALS.perfect);
     expect(rough.score).toBe(0);
     expect(rough.medals).toBe(MEDALS.rough);
-    expect(MEDALS.rough).toBe(10);
-    expect(MEDALS.perfect).toBe(100);
+    expect(MEDALS.rough).toBe(3);
+    expect(MEDALS.perfect).toBe(30);
   });
 
   it('scores an assault on time and casualties, each against the mission target, and never on HQ health', () => {

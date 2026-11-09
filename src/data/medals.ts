@@ -86,8 +86,8 @@ const CORE_7: UnitKind[] = [...CORE_6, 'at'];
 const CORE_8: UnitKind[] = [...CORE_7, 'tank'];
 
 export const MEDALS: MedalTunables = {
-  rough: 10,
-  perfect: 100,
+  rough: 3,
+  perfect: 30,
   weights: {
     assault: { time: 0.5, casualties: 0.5 },
     survival: { casualties: 0.6, hq: 0.4 },

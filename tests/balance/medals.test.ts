@@ -131,11 +131,11 @@ describe('medals across the campaign on Normal, without replays', () => {
     }
   });
 
-  // Troop prices were raised twice by the owner (2026-11-08: x2/x3, then troops x2 again), so a first run through the
-  // campaign cannot buy the whole army; missions lend what their design expects (MEDALS.autoLoanCount). A sensible
-  // progression is still required: the player keeps buying new types along the way.
-  it('keeps buying new types through the campaign, at least 3 by the last mission', () => {
+  // The owner raised troop prices to 3x the original and cut a win to 3..30 medals (2026-11-08), so a first run through
+  // the campaign buys little; missions lend what their design expects (MEDALS.autoLoanCount). A progression is still
+  // required: the player can buy at least one type with medals from a first run.
+  it('buys at least one new type during a first run through the campaign', () => {
     const bought = steps.flatMap((s) => s.bought);
-    expect(new Set(bought).size, bought.join(' ')).toBeGreaterThanOrEqual(3);
+    expect(new Set(bought).size, bought.join(' ')).toBeGreaterThanOrEqual(1);
   });
 });
