@@ -251,16 +251,17 @@ describe('the Shop: call-in charges', () => {
     for (const k of ['smoke', 'artillery', 'recon', 'fighter'] as const) expect(toggleLoadout(save, k)).toBe(true);
     expect(toggleLoadout(save, 'bomber')).toBe(false);
     expect(save.loadout).toHaveLength(MEDALS.loadoutSlots);
-    // 1003 lends the Katyusha: it comes on top of the four chosen, with the save's own charges and the lent ones.
+    // 1003 lends the Katyusha (and artillery and smoke): it comes on top of the four chosen, with the save's own charges and the lent ones.
     const r = missionRoster(save, mission(1003));
     expect(r.supports.sort()).toEqual(['artillery', 'fighter', 'katyusha', 'recon', 'smoke']);
-    expect(r.charges.katyusha).toBe(2 + (MEDALS.chargeLoans[1003]?.[0]?.count ?? 0));
-    expect(r.chargeLoans).toEqual({ katyusha: MEDALS.chargeLoans[1003]?.[0]?.count });
+    expect(r.charges.katyusha).toBe(2 + (MEDALS.chargeLoans[1003]?.find((l) => l.kind === 'katyusha')?.count ?? 0));
+    expect(r.chargeLoans).toEqual(Object.fromEntries((MEDALS.chargeLoans[1003] ?? []).map((l) => [l.kind, l.count])));
     expect(applyRoster(mission(1003), r).start[0].supportCharges).toEqual(r.charges);
     // A call-in with no charges is not offered; one only lent is, and always brought.
     const bare = defaultSave();
     bare.charges = {};
-    expect(loadoutOptions(bare, 1004)).toEqual([{ kind: 'airStrike', owned: 0, loan: 2, chosen: true }]);
+    const lent = MEDALS.chargeLoans[1004] ?? [];
+    expect(loadoutOptions(bare, 1004).map((o) => [o.kind, o.owned, o.loan, o.chosen]).sort()).toEqual(lent.map((l) => [l.kind, 0, l.count, true]).sort());
     expect(missionRoster(bare, mission(1001)).supports).toEqual([]);
   });
 
@@ -409,11 +410,11 @@ describe('what the player fields in a mission', () => {
 
   it('brings the loadout call-ins with charges left, not the mission list (every call-in is medal-bought)', () => {
     const save = defaultSave();
-    expect(missionRoster(save, mission(1006)).supports).toEqual(['smoke', 'artillery']);
+    expect(missionRoster(save, mission(1001)).supports).toEqual(['smoke', 'artillery']);
     addCharges(save, 'recon', 1);
     save.loadout.push('recon');
     addCharges(save, 'smoke', -99);
-    expect(missionRoster(save, mission(1006)).supports).toEqual(['artillery', 'recon']);
+    expect(missionRoster(save, mission(1001)).supports).toEqual(['artillery', 'recon']);
   });
 
   it('applies the roster to a copy of the mission and leaves the data alone', () => {

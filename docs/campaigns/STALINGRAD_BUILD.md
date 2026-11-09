@@ -364,6 +364,68 @@ Stalingrad medal targets on real play (DECISIONS 345), the campaign theme field,
 another campaign (Road to Berlin; `unlock.afterMission` is read by the cards but no campaign uses it), and a card
 for the save's "Continue" strip (mid-mission resume).
 
+## Economy: medals, upgrade points and call-in charges (owner's change 1; DECISIONS 411 to 419)
+
+Pegged to Stick War: Legacy's proportions (missions of play per purchase; `docs/campaigns/economy-benchmark-research.json`).
+Numbers live in `src/data/medals.ts` (`MEDALS`); rules in `src/meta/medals.ts`, `src/meta/campaign.ts`; the save is
+version 11 (`migrateToCharges` in `src/meta/save.ts`). Checked by `tests/balance/medals.test.ts` and
+`tests/unit/meta-medals.test.ts`.
+
+**Medals per mission** (score 0 = rough, 1 = perfect):
+
+| Win of a mission on a difficulty | Normal | Hard | Insane |
+| --- | --- | --- | --- |
+| First win | 10 to 20 | 15 to 30 | 20 to 40 |
+| Second win | 5 to 10 | 5 to 10 | 5 to 10 |
+| Third and later wins | 2 to 5 | 2 to 5 | 2 to 5 |
+| Campaign bonus (once, the win that clears all ten) | 400 | 800 | 1,200 |
+
+The bot's Normal run: 13 to 20 a mission, 572 in all with the bonus (57 a mission; the benchmark's 62).
+
+**Upgrade points** (the Quartermaster; 1 point a level, 93 levels): a mission pays 5 for its first win on Normal, 8 in
+all once won on Hard, 10 once won on Insane; replays nothing; Basic Training 3 (with its 40 medals). A Normal run is
+50 points (54% of the levels), Normal and Hard 80 (86%), all three 100 (every level).
+
+**Call-in charges** (the Shop on the campaign map; one charge = one use, cooldowns still apply, no in-battle money):
+
+| Call-in | Medals | About |
+| --- | --- | --- |
+| Smoke screen | 20 | 1 mission |
+| Artillery barrage | 40 | 2 to 3 missions |
+| Recon plane (Po-2, Storch) | 60 | 3 to 4 missions |
+| Fighter (Yak-1, Bf 109) | 150 | 9 missions |
+| Air strike (Typhoon, Stuka, Il-2) | 250 | 15 missions |
+| Katyusha salvo | 300 | 17 missions |
+| Bomber (Pe-2, He 111) | 500 | 0.9 of a Normal campaign |
+
+Every new save (and every save converted to version 11) starts with 3 smoke and 3 artillery. The briefing brings up to
+4 of the player's own call-ins (lent ones come on top); a save holds at most 99 of each.
+
+**The Battle for Poland**: 1,500 medals (or $5.99 in the store; a locked entry in the Shop, no purchase code here):
+20 missions at the bot's scores buying nothing else (the Normal and Hard campaigns with their bonuses).
+
+**Lent charges** (spent before the player's own, never kept; sized to each mission's design, DECISIONS 416):
+
+| Mission | Lent |
+| --- | --- |
+| 1001 Brest | (none) |
+| 1002 Dubno | artillery 6 |
+| 1003 Volokolamsk | artillery 6, Katyusha 2, smoke 1 |
+| 1004 Klin | artillery 8, smoke 4, Katyusha 4, Il-2 4 |
+| 1005 Volga | artillery 11, Katyusha 3 |
+| 1006 Mamayev Kurgan | artillery 8, smoke 5, Katyusha 4 |
+| 1007 Pavlov's House | artillery 6, Katyusha 1 |
+| 1008 Tractor Factory | artillery 14, Katyusha 5 |
+| 1009 Uranus | artillery 14, Katyusha 6, smoke 5, Il-2 3, Po-2 5 |
+| 1010 Ring | artillery 9, Katyusha 3, Il-2 6, Pe-2 3, Po-2 10, smoke 2 |
+
+**Enemy AI**: not limited by charges; its own rules (the mission's side-1 list and events, cooldowns, 10 s between
+calls, decisions every 1 / 0.7 / 0.5 s by difficulty) and the planes' old in-battle prices (bomber 300, fighter 180,
+recon 100), as tuned. The admin panel gives medals, upgrade points (+5, +50) and charges of every call-in (+1, +10).
+
+**Waits for**: the mission tuning pass, to cut the loans as missions are retuned around bought charges; cosmetics and
+one-off boosts to sell for medals.
+
 ## The British placeholder missions removed (owner, docs/QUEUE.md; DECISIONS 342 to 347)
 
 **In**:

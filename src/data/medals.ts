@@ -277,20 +277,57 @@ export const MEDALS: MedalTunables = {
     1009: { targetSeconds: 1260, roughSeconds: 3120, targetLost: 56, roughLost: 280, loans: [], expects: STAL_1009 },
     1010: { targetSeconds: 480, roughSeconds: 1200, targetLost: 31, roughLost: 155, loans: [], expects: STAL_1009 },
   },
-  // The director's support-enable events (1003 and 1007 the Katyusha, 1004 the Il-2, 1009 the Il-2 and the Po-2), 1007's
-  // own artillery cooldown, and 1010, which introduces the bomber.
+  // Every Stalingrad mission was designed and tuned around its own call-ins (MissionDef.supports, used without limit
+  // before charges): the director's support-enable events (1003 and 1007 the Katyusha, 1004 the Il-2, 1009 the Il-2
+  // and the Po-2), 1007's own artillery cooldown, 1010's bomber, and the artillery of every mission from 1002 on. Each
+  // lends what its design needs: the calls the reasonable-player bot made with no limit (seed 1, Normal), or about
+  // half of them where the bot won with none (1002, 1003, 1007). The player's own charges are the extra (DECISIONS
+  // 416; the mission tuning pass should cut these as missions are retuned around bought charges).
   chargeLoans: {
-    1003: [{ kind: 'katyusha', count: 2 }],
-    1004: [{ kind: 'airStrike', count: 2 }],
-    1007: [
+    1002: [{ kind: 'artillery', count: 6 }],
+    1003: [
+      { kind: 'artillery', count: 6 },
       { kind: 'katyusha', count: 2 },
-      { kind: 'artillery', count: 3 },
+      { kind: 'smoke', count: 1 },
+    ],
+    1004: [
+      { kind: 'artillery', count: 8 },
+      { kind: 'smoke', count: 4 },
+      { kind: 'katyusha', count: 4 },
+      { kind: 'airStrike', count: 4 },
+    ],
+    1005: [
+      { kind: 'artillery', count: 11 },
+      { kind: 'katyusha', count: 3 },
+    ],
+    1006: [
+      { kind: 'artillery', count: 8 },
+      { kind: 'smoke', count: 5 },
+      { kind: 'katyusha', count: 4 },
+    ],
+    1007: [
+      { kind: 'artillery', count: 6 },
+      { kind: 'katyusha', count: 1 },
+    ],
+    1008: [
+      { kind: 'artillery', count: 14 },
+      { kind: 'katyusha', count: 5 },
     ],
     1009: [
-      { kind: 'airStrike', count: 2 },
-      { kind: 'recon', count: 2 },
+      { kind: 'artillery', count: 14 },
+      { kind: 'katyusha', count: 6 },
+      { kind: 'smoke', count: 5 },
+      { kind: 'airStrike', count: 3 },
+      { kind: 'recon', count: 5 },
     ],
-    1010: [{ kind: 'bomber', count: 1 }],
+    1010: [
+      { kind: 'artillery', count: 9 },
+      { kind: 'katyusha', count: 3 },
+      { kind: 'airStrike', count: 6 },
+      { kind: 'bomber', count: 3 },
+      { kind: 'recon', count: 10 },
+      { kind: 'smoke', count: 2 },
+    ],
   },
   fallback: { targetSeconds: 300, roughSeconds: 900, targetLost: 10, roughLost: 60, loans: [], expects: ['sapper', 'rifle'] },
   maxMedals: 9_999_999,

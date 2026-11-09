@@ -410,7 +410,9 @@ describe('what the HUD shows of a mission', () => {
     const { app, storage } = makeApp();
     const before = app.save.charges.artillery ?? 0;
     expect(before).toBeGreaterThan(0);
-    app.startMission(ASSAULT, 'normal');
+    // Brest lends nothing: the save's own charges.
+    expect(MEDALS.chargeLoans[FIRST]).toBeUndefined();
+    app.startMission(FIRST, 'normal');
     const session = app.session;
     if (!session) throw new Error('no battle');
     const side = session.battle.state.sides[0];
@@ -437,13 +439,13 @@ describe('what the HUD shows of a mission', () => {
     const lent = app.session;
     if (!lent) throw new Error('no battle');
     const s3 = lent.battle.state.sides[0];
-    expect(s3.supportCharges.katyusha).toBe(1 + (MEDALS.chargeLoans[1003]?.[0]?.count ?? 0));
+    expect(s3.supportCharges.katyusha).toBe(1 + (MEDALS.chargeLoans[1003]?.find((l) => l.kind === 'katyusha')?.count ?? 0));
     lent.battle.admin({ type: 'jumpPhase', phase: 'again' });
     lent.step();
     s3.supportCooldown.katyusha = 0;
     lent.battle.command(0, { type: 'support', kind: 'katyusha', x: 3000 });
     lent.step();
-    expect(s3.supportCharges.katyusha).toBe(MEDALS.chargeLoans[1003]?.[0]?.count);
+    expect(s3.supportCharges.katyusha).toBe(MEDALS.chargeLoans[1003]?.find((l) => l.kind === 'katyusha')?.count);
     expect(app.save.charges.katyusha).toBe(1);
   });
 });
