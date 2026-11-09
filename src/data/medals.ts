@@ -4,17 +4,24 @@
  * A win pays medals from a score between 0 (a rough clear) and 1 (a perfect one), measured against the mission's own
  * targets below: assault missions on completion time and own casualties, survival missions (fixed length) on own
  * casualties and HQ health. The amount is scaled by the difficulty and halved for every earlier win of the same
- * mission on the same difficulty, then rounded down. Medals buy unit types and plane call-ins in the Armoury and
- * Quartermaster upgrades.
+ * mission on the same difficulty, then rounded down. Medals buy Quartermaster upgrades and the plane call-ins in the
+ * Armoury. Unit types are not bought: each mission unlocks its own (MissionDef.newUnit, unlocks and its unit list) for
+ * every mission after, replays and other campaigns included (owner, 2026-11-09; unitsUnlocked in src/meta/medals.ts).
  */
 import type { Difficulty, SupportKind, UnitKind } from './schema';
 
-/** A unit type or plane call-in sold in the Armoury. Unit kinds and support kinds never share a name, so the kind is the id. */
+/** A plane call-in sold in the Armoury. */
 export interface ArmouryItemDef {
-  id: UnitKind | SupportKind;
-  type: 'unit' | 'support';
+  id: SupportKind;
+  type: 'support';
   /** Price in medals. */
   price: number;
+  isNew: boolean;
+}
+
+/** A unit type the player can field, in the Armoury's order. */
+export interface PlayerUnitDef {
+  kind: UnitKind;
   /** Shown under the core roles (false) or the new units (true). */
   isNew: boolean;
 }
@@ -32,11 +39,14 @@ export interface MissionMedalDef {
   /** Own units lost: at or under targetLost scores full marks, at or over roughLost scores none. */
   targetLost: number;
   roughLost: number;
-  /** Types this mission needs: lent for this mission only when the player has not bought them. */
+  /**
+   * Types lent for this mission only when the player has not unlocked them (a safety net: a mission unlocks its own
+   * types, so a player who reached it normally never needs a loan).
+   */
   loans: LoanDef[];
   /**
-   * The sensible army progression (balance test): the types a player should own when this mission starts. Anything
-   * not owned must be covered by this mission's loans.
+   * The army progression (balance test): the types a player has unlocked when this mission starts, playing the
+   * campaign in order. The balance test checks each one is unlocked, with no loan needed.
    */
   expects: UnitKind[];
 }
@@ -57,15 +67,17 @@ export interface MedalTunables {
   difficultyMul: Record<Difficulty, number>;
   /** Each earlier win of the same mission on the same difficulty multiplies the medals by this. */
   replayFactor: number;
-  /** Unit types every player has from the start. */
+  /** Unit types every player has from the start: every campaign starts with them. */
   free: UnitKind[];
-  /**
-   * Every type a mission's design expects (MissionMedalDef.expects) that the player has not bought is lent for that
-   * mission, this many, on top of the mission's own loans: no mission becomes impossible, whatever the prices.
-   */
-  autoLoanCount: number;
-  /** In the Armoury's order: the core roles, then the new units, then the plane call-ins. */
+  /** Every unit type a player can field, free ones first, in the Armoury's order (core roles, then the new units). */
+  units: PlayerUnitDef[];
+  /** What the Armoury sells: the plane call-ins. */
   armoury: ArmouryItemDef[];
+  /**
+   * Medals paid per unit type while units were bought in the Armoury (v0.9.0 to v0.11.0). Save version 8 gives them
+   * back to every save that bought one, and the type stays unlocked.
+   */
+  unitRefunds: Partial<Record<UnitKind, number>>;
   /** Per campaign mission id. A mission missing here scores on `fallback`. */
   missions: Record<number, MissionMedalDef>;
   fallback: MissionMedalDef;
@@ -75,7 +87,7 @@ export interface MedalTunables {
   maxWins: number;
 }
 
-/** Everything that came before mission 2 in the old campaign, and so on: the types each mission's design is built around. */
+/** The types unlocked before mission 2, and so on: what each mission's design is built around. */
 const CORE_1: UnitKind[] = ['sapper', 'rifle'];
 const CORE_2: UnitKind[] = [...CORE_1, 'lmg'];
 const CORE_3: UnitKind[] = [...CORE_2, 'assault'];
@@ -97,19 +109,23 @@ export const MEDALS: MedalTunables = {
   difficultyMul: { normal: 1, hard: 1.5, insane: 2.25 },
   replayFactor: 0.5,
   free: ['sapper', 'rifle'],
-  autoLoanCount: 2,
+  units: [
+    { kind: 'sapper', isNew: false },
+    { kind: 'rifle', isNew: false },
+    { kind: 'lmg', isNew: false },
+    { kind: 'assault', isNew: false },
+    { kind: 'mortar', isNew: false },
+    { kind: 'sniper', isNew: false },
+    { kind: 'medic', isNew: false },
+    { kind: 'at', isNew: false },
+    { kind: 'tank', isNew: false },
+    { kind: 'apc', isNew: true },
+    { kind: 'flame', isNew: true },
+    { kind: 'commander', isNew: true },
+    { kind: 'aa', isNew: true },
+  ],
+  unitRefunds: { lmg: 90, assault: 135, mortar: 180, sniper: 180, medic: 165, at: 225, tank: 390, apc: 330, flame: 240, commander: 270, aa: 210 },
   armoury: [
-    { id: 'lmg', type: 'unit', price: 90, isNew: false },
-    { id: 'assault', type: 'unit', price: 135, isNew: false },
-    { id: 'mortar', type: 'unit', price: 180, isNew: false },
-    { id: 'sniper', type: 'unit', price: 180, isNew: false },
-    { id: 'medic', type: 'unit', price: 165, isNew: false },
-    { id: 'at', type: 'unit', price: 225, isNew: false },
-    { id: 'tank', type: 'unit', price: 390, isNew: false },
-    { id: 'apc', type: 'unit', price: 330, isNew: true },
-    { id: 'flame', type: 'unit', price: 240, isNew: true },
-    { id: 'commander', type: 'unit', price: 270, isNew: true },
-    { id: 'aa', type: 'unit', price: 210, isNew: true },
     { id: 'recon', type: 'support', price: 210, isNew: true },
     { id: 'fighter', type: 'support', price: 300, isNew: true },
     { id: 'bomber', type: 'support', price: 450, isNew: true },
@@ -122,10 +138,10 @@ export const MEDALS: MedalTunables = {
     4: { targetSeconds: 330, roughSeconds: 840, targetLost: 10, roughLost: 60, loans: [{ kind: 'mortar', count: 2 }], expects: CORE_4 },
     5: { targetSeconds: 330, roughSeconds: 840, targetLost: 12, roughLost: 70, loans: [{ kind: 'sniper', count: 2 }], expects: CORE_5 },
     6: { targetSeconds: 480, roughSeconds: 1100, targetLost: 18, roughLost: 100, loans: [{ kind: 'medic', count: 2 }], expects: CORE_6 },
-    // Enemy tanks from here on: anti-tank teams are lent to anyone who has not bought them.
+    // Enemy tanks from here on.
     7: { targetSeconds: 540, roughSeconds: 1300, targetLost: 14, roughLost: 90, loans: [{ kind: 'at', count: 3 }, { kind: 'medic', count: 2 }], expects: CORE_7 },
     8: { targetSeconds: 400, roughSeconds: 1100, targetLost: 12, roughLost: 80, loans: [{ kind: 'at', count: 3 }, { kind: 'tank', count: 2 }], expects: CORE_8 },
-    // Paratroopers at Arnhem: no sappers (no supply economy); bought types, vehicles included, can be used here as anywhere.
+    // Paratroopers at Arnhem: no sappers (no supply economy); unlocked types, vehicles included, can be used here as anywhere.
     9: {
       targetSeconds: 360,
       roughSeconds: 360,

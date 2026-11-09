@@ -165,6 +165,8 @@ export interface MissionCard {
   cleared: Record<Difficulty, boolean>;
   newUnit: { kind: UnitKind; name: string; blurb: string } | null;
   newSupport: { kind: SupportKind; name: string; blurb: string } | null;
+  /** Further unit types this mission unlocks for the player (a NEW UNIT card each, after newUnit). */
+  moreNewUnits?: { kind: UnitKind; name: string; blurb: string }[];
   /** Share of the medals a win pays on each difficulty: 100 for the first win there, then 50, 25, ... */
   replayPercent?: Record<Difficulty, number>;
   /** Types lent for this mission only because the player has not bought them. */
@@ -187,6 +189,8 @@ export interface ArmouryItemView {
   free: boolean;
   owned: boolean;
   canBuy: boolean;
+  /** A unit type not unlocked yet: where it is unlocked, e.g. "Mission 5". */
+  lockedNote?: string;
 }
 
 /** One part of a win's score on the victory screen. */

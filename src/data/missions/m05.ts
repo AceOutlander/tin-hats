@@ -27,6 +27,7 @@ export const M05: MissionDef = {
   length: 9200,
   newUnit: 'sniper',
   newSupport: null,
+  unlocks: ['commander'],
   units: [
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper'],
     ['sapper', 'rifle', 'lmg', 'mortar', 'sniper'],
@@ -81,6 +82,7 @@ export const M05: MissionDef = {
     {
       type: 'hint',
       when: { at: 16 },
+      about: 'sniper',
       text: 'New: Sniper. He outranges every rifle and one shot kills most men in the open. He prefers gunners, mortar crews and medics.',
     },
     {

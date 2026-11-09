@@ -59,10 +59,22 @@ export function maxLevel(def: UpgradeDef): number {
   return Math.min(META.maxUpgradeLevel, def.levels.length);
 }
 
+/** Medals for buying level `level` (1 = the first) of an upgrade. */
+export function levelCost(def: UpgradeDef, level: number): number {
+  return def.levelCosts?.[level - 1] ?? def.costPerLevel;
+}
+
+/** Medals for levels 1 to `level` together. */
+export function costUpTo(def: UpgradeDef, level: number): number {
+  let sum = 0;
+  for (let n = 1; n <= level; n += 1) sum += levelCost(def, n);
+  return sum;
+}
+
 /** Medals tied up in upgrades the definitions know about (what Refund all would give back). */
 export function pointsSpent(save: SaveData, defs: readonly UpgradeDef[]): number {
   let spent = 0;
-  for (const def of defs) spent += Math.min(upgradeLevel(save, def.id), maxLevel(def)) * def.costPerLevel;
+  for (const def of defs) spent += costUpTo(def, Math.min(upgradeLevel(save, def.id), maxLevel(def)));
   return spent;
 }
 
@@ -78,7 +90,9 @@ export function pointsEarned(save: SaveData, defs: readonly UpgradeDef[] = UPGRA
 
 export function canBuy(save: SaveData, defs: readonly UpgradeDef[], id: string): boolean {
   const def = defs.find((d) => d.id === id);
-  return def !== undefined && upgradeLevel(save, id) < maxLevel(def) && save.medals >= def.costPerLevel;
+  if (def === undefined) return false;
+  const level = upgradeLevel(save, id);
+  return level < maxLevel(def) && save.medals >= levelCost(def, level + 1);
 }
 
 export function canRefund(save: SaveData, id: string): boolean {
@@ -89,7 +103,7 @@ export function canRefund(save: SaveData, id: string): boolean {
 export function buyUpgrade(save: SaveData, defs: readonly UpgradeDef[], id: string): boolean {
   if (!canBuy(save, defs, id)) return false;
   const def = defs.find((d) => d.id === id) as UpgradeDef;
-  save.medals -= def.costPerLevel;
+  save.medals -= levelCost(def, upgradeLevel(save, id) + 1);
   save.upgrades[id] = upgradeLevel(save, id) + 1;
   return true;
 }
@@ -99,7 +113,7 @@ export function refundUpgrade(save: SaveData, id: string, defs: readonly Upgrade
   const level = upgradeLevel(save, id);
   if (level <= 0) return false;
   const def = defs.find((d) => d.id === id);
-  if (def) save.medals += def.costPerLevel;
+  if (def) save.medals += levelCost(def, Math.min(level, maxLevel(def)));
   if (level === 1) delete save.upgrades[id];
   else save.upgrades[id] = level - 1;
   return true;

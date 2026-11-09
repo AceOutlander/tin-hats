@@ -7,22 +7,29 @@ import { APP } from '../data/app';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
 import { MEDALS } from '../data/medals';
-import type { Difficulty, FactionId, MissionDef, SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
+import type { Difficulty, FactionId, MissionDef, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
 import {
   canBuy,
   canBuyItem,
   canRefund,
   isCleared,
+  isFree,
   isUnlocked,
+  levelCost,
   maxLevel,
   missionRoster,
+  newsFor,
   ownsItem,
+  playerUnitKinds,
   pointsAvailable,
   pointsSpent,
   replayPercent,
+  unitsUnlocked,
+  unlockingMission,
   upgradeLevel,
   winsOn,
   type MedalBreakdown,
+  type Reached,
   type SaveData,
 } from '../meta';
 import type { Battle, EndReason } from '../sim';
@@ -47,7 +54,29 @@ export function describeLevel(effects: readonly UpgradeEffect[]): string {
   return parts.length > 0 ? parts.join(', ') : APP.effectNone;
 }
 
-function missionCard(save: SaveData, ids: readonly number[], m: MissionDef, unlockAll: boolean): MissionCard {
+/** How the campaign screens see a save's progress (worked out once per view). */
+export interface Progress {
+  ids: readonly number[];
+  missions: readonly MissionDef[];
+  /** Every mission open on the map (the debug hook or the admin panel). */
+  unlockAll: boolean;
+  /** Reached by the player's own progress: what is new in a briefing is worked out from this. */
+  progressed: Reached;
+  /**
+   * Unit types the player fields: every mission reached by the player's own progress unlocks its types (a mission an
+   * unlock-all opened brings only its own, as when a player reaches it).
+   */
+  unlocked: UnitKind[];
+}
+
+export function progressOf(save: SaveData, missions: readonly MissionDef[], unlockAll: boolean): Progress {
+  const ids = missions.map((m) => m.id);
+  const progressed: Reached = (id) => isUnlocked(save, ids, id);
+  const unlocked = unitsUnlocked(save, missions, progressed);
+  return { ids, missions, unlockAll, progressed, unlocked };
+}
+
+function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
   const faction = FACTIONS[m.start[0].faction];
   const cleared = {} as Record<Difficulty, boolean>;
   const replay = {} as Record<Difficulty, number>;
@@ -55,7 +84,14 @@ function missionCard(save: SaveData, ids: readonly number[], m: MissionDef, unlo
     cleared[d] = isCleared(save, m.id, d);
     replay[d] = replayPercent(winsOn(save, m.id, d));
   }
-  const loans = missionRoster(save, m).loans.map((l) => ({ kind: l.kind, name: faction.unitNames[l.kind], count: l.count }));
+  // NEW cards only for what this mission really unlocks for this player (owner, 2026-11-09).
+  const news = newsFor(save, p.missions, p.progressed, m);
+  const unitCard = (kind: UnitKind): { kind: UnitKind; name: string; blurb: string } => ({
+    kind,
+    name: faction.unitNames[kind],
+    blurb: faction.unitBlurbs[kind],
+  });
+  const loans = missionRoster(save, m, p.unlocked).loans.map((l) => ({ kind: l.kind, name: faction.unitNames[l.kind], count: l.count }));
   return {
     replayPercent: replay,
     loans,
@@ -67,11 +103,12 @@ function missionCard(save: SaveData, ids: readonly number[], m: MissionDef, unlo
     mapPos: m.mapPos,
     briefing: m.briefing,
     objective: m.objective,
-    unlocked: unlockAll || isUnlocked(save, ids, m.id),
+    unlocked: p.unlockAll || isUnlocked(save, p.ids, m.id),
     cleared,
-    newUnit: m.newUnit ? { kind: m.newUnit, name: faction.unitNames[m.newUnit], blurb: faction.unitBlurbs[m.newUnit] } : null,
-    newSupport: m.newSupport
-      ? { kind: m.newSupport, name: faction.supportNames[m.newSupport], blurb: APP.supportBlurbs[m.newSupport] }
+    newUnit: news.units.length > 0 ? unitCard(news.units[0]) : null,
+    moreNewUnits: news.units.slice(1).map(unitCard),
+    newSupport: news.support
+      ? { kind: news.support, name: faction.supportNames[news.support], blurb: APP.supportBlurbs[news.support] }
       : null,
   };
 }
@@ -94,7 +131,7 @@ function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDe
     group,
     level: Math.min(upgradeLevel(save, def.id), max),
     maxLevel: max,
-    cost: def.costPerLevel,
+    cost: levelCost(def, Math.min(upgradeLevel(save, def.id), max) + 1),
     levelText: def.levels.slice(0, max).map(describeLevel),
     canBuy: canBuy(save, defs, def.id),
     canRefund: canRefund(save, def.id),
@@ -113,10 +150,10 @@ export function buildCampaignView(
   unlockAll = false,
   nation: FactionId = 'british',
 ): CampaignView {
-  const ids = missions.map((m) => m.id);
+  const p = progressOf(save, missions, unlockAll);
   return {
-    missions: missions.map((m) => missionCard(save, ids, m, unlockAll)),
-    lastMission: ids.includes(save.lastMission) ? save.lastMission : 0,
+    missions: missions.map((m) => missionCard(save, p, m)),
+    lastMission: p.ids.includes(save.lastMission) ? save.lastMission : 0,
     pointsEarned: pointsAvailable(save) + pointsSpent(save, defs),
     pointsSpent: pointsSpent(save, defs),
     pointsAvailable: pointsAvailable(save),
@@ -124,40 +161,50 @@ export function buildCampaignView(
     settings: { ...save.settings },
     difficulties: DIFFICULTY_LIST.map((id) => ({ id, name: DIFFICULTIES[id].name })),
     medals: save.medals,
-    armoury: buildArmoury(save, nation),
+    armoury: buildArmoury(save, nation, p.unlocked, missions),
   };
 }
 
 /**
- * The Armoury: the free types first, then everything for sale in the data's order. Names and blurbs are those of the
- * nation the player commands in the current campaign; other nations' names are never shown (owner, 2026-11-08).
- * Every campaign so far is played as the British; a campaign of another nation passes its own.
+ * The Armoury: every unit type (free, unlocked, or locked with the mission that unlocks it; units are not sold since
+ * the owner's change of 2026-11-09), then the plane call-ins for sale. Names and blurbs are those of the nation the
+ * player commands in the current campaign; other nations' names are never shown (owner, 2026-11-08). Every campaign
+ * so far is played as the British; a campaign of another nation passes its own.
  */
-export function buildArmoury(save: SaveData, nation: FactionId = 'british'): ArmouryItemView[] {
+export function buildArmoury(
+  save: SaveData,
+  nation: FactionId = 'british',
+  unlocked: readonly UnitKind[] = [],
+  missions: readonly MissionDef[] = [],
+): ArmouryItemView[] {
   const own = FACTIONS[nation];
   const out: ArmouryItemView[] = [];
-  for (const kind of MEDALS.free) {
+  for (const u of MEDALS.units) {
+    if (!playerUnitKinds().includes(u.kind)) continue;
+    const free = isFree(u.kind);
+    const owned = free || unlocked.includes(u.kind) || save.armoury.includes(u.kind);
+    const by = owned ? null : unlockingMission(u.kind, missions);
     out.push({
-      id: kind,
+      id: u.kind,
       type: 'unit',
-      kind,
-      name: own.unitNames[kind],
-      blurb: own.unitBlurbs[kind],
+      kind: u.kind,
+      name: own.unitNames[u.kind],
+      blurb: own.unitBlurbs[u.kind],
       price: 0,
-      isNew: false,
-      free: true,
-      owned: true,
+      isNew: u.isNew,
+      free,
+      owned,
       canBuy: false,
+      lockedNote: owned ? undefined : by ? `Mission ${missions.indexOf(by) + 1}` : 'Coming later',
     });
   }
   for (const item of MEDALS.armoury) {
-    const unit = item.type === 'unit';
     out.push({
       id: item.id,
       type: item.type,
       kind: item.id,
-      name: unit ? own.unitNames[item.id as UnitKind] : own.supportNames[item.id as SupportKind],
-      blurb: unit ? own.unitBlurbs[item.id as UnitKind] : APP.supportBlurbs[item.id as SupportKind],
+      name: own.supportNames[item.id],
+      blurb: APP.supportBlurbs[item.id],
       price: item.price,
       isNew: item.isNew,
       free: false,

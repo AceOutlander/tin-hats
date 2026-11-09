@@ -9,10 +9,10 @@ import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MEDALS } from '../data/medals';
 import { META } from '../data/meta';
 import { MISSIONS } from '../data/missions';
-import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
+import type { Difficulty, MissionDef, UnitKind, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { clampVolume } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
-import { maxLevel } from './campaign';
+import { costUpTo, maxLevel } from './campaign';
 
 /** The part of Storage the game uses. */
 export interface StorageLike {
@@ -83,7 +83,10 @@ export interface SaveData {
   upgrades: UpgradeLevels;
   /** Medals to spend (the Armoury and the Quartermaster). */
   medals: number;
-  /** Armoury items bought (unit kinds and plane call-ins), in the order bought. Free types are never listed. */
+  /**
+   * Plane call-ins bought in the Armoury, and unit types bought before version 8 (units were sold from v0.9.0 to
+   * v0.11.0; they stay unlocked). Free types are never listed.
+   */
   armoury: string[];
   /** Mission id (as text) to wins per difficulty: the replay decay of the medals. */
   wins: Record<string, Partial<Record<Difficulty, number>>>;
@@ -148,7 +151,8 @@ function legacyCleared(raw: unknown, missions: readonly MissionDef[]): Map<strin
  * Medals replace upgrade points and per-mission unit unlocks (version 5 to 6). The old rule still holds for the old
  * points: each cleared mission earned META.firstClearPoints, one point bought one level, and levels the points never
  * paid for are cut (in the Quartermaster's order). Upgrades bought stay; the points left unspent become medals at
- * META.legacyPointMedals each; every unit type the player could field in a mission they cleared counts as bought; and
+ * META.legacyPointMedals each (plane call-ins were never part of a version 5 save, so nothing is marked bought: since
+ * version 8 the missions a save has reached unlock their unit types again, see unitsUnlocked in medals.ts); and
  * each cleared mission and difficulty counts as one win, so a replay pays half.
  */
 export function migrateToMedals(
@@ -172,18 +176,47 @@ export function migrateToMedals(
   }
   doc.upgrades = upgrades;
   doc.medals = budget * META.legacyPointMedals;
-  const sold = new Set<string>(MEDALS.armoury.map((a) => a.id));
-  const owned: string[] = [];
   const wins: Record<string, Partial<Record<Difficulty, number>>> = {};
   for (const [key, ds] of cleared) {
-    const mission = missions.find((m) => String(m.id) === key);
-    if (mission) for (const kind of mission.units[0]) if (sold.has(kind) && !owned.includes(kind)) owned.push(kind);
     const w: Partial<Record<Difficulty, number>> = {};
     for (const d of ds) w[d] = 1;
     wins[key] = w;
   }
-  doc.armoury = owned;
+  doc.armoury = [];
   doc.wins = wins;
+}
+
+/**
+ * Units are unlocked by missions again, not bought (version 7 to 8, owner 2026-11-09). Every unit type the save bought
+ * stays unlocked (it stays in the armoury list) and its price comes back as medals (MEDALS.unitRefunds); plane
+ * call-ins stay bought. Upgrade levels were re-priced from META.legacyUpgradeLevelMedals each to the table's own
+ * prices (cheaper first levels), so a save is given back what its levels cost then minus what they cost now; levels
+ * are kept.
+ */
+export function migrateToUnlocks(doc: Record<string, unknown>, defs: readonly UpgradeDef[] = UPGRADES): void {
+  let medals = typeof doc.medals === 'number' && Number.isFinite(doc.medals) && doc.medals > 0 ? Math.floor(doc.medals) : 0;
+  if (Array.isArray(doc.armoury)) {
+    const seen = new Set<string>();
+    for (const id of doc.armoury) {
+      if (typeof id !== 'string' || seen.has(id)) continue;
+      seen.add(id);
+      medals += MEDALS.unitRefunds[id as UnitKind] ?? 0;
+    }
+  }
+  const levels = isRecord(doc.upgrades) ? doc.upgrades : {};
+  for (const def of defs) {
+    const level = levels[def.id];
+    if (typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
+    const kept = Math.min(level, maxLevel(def));
+    medals += Math.max(0, kept * META.legacyUpgradeLevelMedals - costUpTo(def, kept));
+  }
+  doc.medals = Math.min(MEDALS.maxMedals, medals);
+}
+
+/** Ids a save's armoury list may hold: plane call-ins sold there, and unit types bought before version 8. */
+function isArmouryId(id: string): boolean {
+  if (MEDALS.armoury.some((a) => a.id === id)) return true;
+  return MEDALS.units.some((u) => u.kind === id) && !(MEDALS.free as readonly string[]).includes(id);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -238,6 +271,8 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
     if (!isRecord(doc.settings)) return;
     doc.settings = { ...doc.settings, showFps: META.defaultShowFps };
   },
+  // 7 -> 8: units are unlocked by missions again (see migrateToUnlocks).
+  7: (doc) => migrateToUnlocks(doc),
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -296,7 +331,7 @@ function sanitizeMedals(doc: Record<string, unknown>, out: SaveData, missionIds:
   if (typeof medals === 'number' && Number.isFinite(medals) && medals > 0) out.medals = Math.min(MEDALS.maxMedals, Math.floor(medals));
   if (Array.isArray(doc.armoury)) {
     for (const id of doc.armoury) {
-      if (typeof id === 'string' && MEDALS.armoury.some((a) => a.id === id) && !out.armoury.includes(id)) out.armoury.push(id);
+      if (typeof id === 'string' && isArmouryId(id) && !out.armoury.includes(id)) out.armoury.push(id);
     }
   }
   if (!isRecord(doc.wins)) return;

@@ -20,7 +20,7 @@ Armoury (Armoury prices raised: old types x2, new types x3). Notes: the Money re
 are now built on the `stalingrad` branch and go live with Stalingrad. Queued for later (specs below): smarter medics;
 the later Panzer III and the Maus; deeper performance work (low priority, the lag was mostly the owner's computer).
 
-## FIRST after the 8 pm reset, before Stalingrad: units unlocked by missions again (owner, 2026-11-09)
+## DONE (v0.12.0): units unlocked by missions again (owner, 2026-11-09; DECISIONS 280)
 
 "Change of design: soldiers are unlocked by mission progress again, not bought with medals. The medal prices for units are too high and unbalanced.
 - Each mission unlocks its unit types as before (the mission data says which). Once a unit type is unlocked, I can use it in every mission, including replays of earlier missions and other campaigns, each mission using my nation's version for that era.

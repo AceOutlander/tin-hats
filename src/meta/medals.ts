@@ -1,7 +1,8 @@
 /**
  * Medals and the Armoury over a SaveData: the score of a win and the medals it pays, the replay decay per mission
- * and difficulty, buying unit types and plane call-ins, and which units the player may field in a mission (what the
- * Armoury owns, in every mission, plus loans). Pure functions; the ones that change a save change it in place.
+ * and difficulty, buying plane call-ins, the unit types each reached mission unlocks, which units the player may
+ * field in a mission (every unlocked type, in every mission, plus any loans) and what a mission really brings that is
+ * new. Pure functions; the ones that change a save change it in place.
  */
 import { MEDALS, type ArmouryItemDef, type LoanDef, type MissionMedalDef } from '../data/medals';
 import type { Difficulty, MissionDef, MissionMode, SupportKind, UnitKind } from '../data/schema';
@@ -126,7 +127,7 @@ export function addMedals(save: SaveData, n: number): number {
   return save.medals;
 }
 
-// --- The Armoury --------------------------------------------------------------
+// --- The Armoury (plane call-ins) ----------------------------------------------
 
 export function armouryItem(id: string): ArmouryItemDef | undefined {
   return MEDALS.armoury.find((a) => a.id === id);
@@ -136,7 +137,7 @@ export function isFree(kind: UnitKind): boolean {
   return MEDALS.free.includes(kind);
 }
 
-/** Owned: free, or bought. */
+/** Owned: a free unit type, or an Armoury item bought (unit types bought before version 8 included). */
 export function ownsItem(save: SaveData, id: string): boolean {
   return (MEDALS.free as readonly string[]).includes(id) || save.armoury.includes(id);
 }
@@ -146,13 +147,62 @@ export function canBuyItem(save: SaveData, id: string): boolean {
   return item !== undefined && !ownsItem(save, id) && save.medals >= item.price;
 }
 
-/** Buy a unit type or call-in. Returns false (and changes nothing) if it is not for sale, owned, or too dear. */
+/** Buy a plane call-in. Returns false (and changes nothing) if it is not for sale, owned, or too dear. */
 export function buyItem(save: SaveData, id: string): boolean {
   const item = armouryItem(id);
   if (item === undefined || !canBuyItem(save, id)) return false;
   save.medals -= item.price;
   save.armoury.push(item.id);
   return true;
+}
+
+// --- Unit types unlocked by missions -------------------------------------------
+
+/** True for a mission id the player has reached (may play): the campaign's own rule, or an admin unlock. */
+export type Reached = (missionId: number) => boolean;
+
+/** True if the sim can field this kind for the player at all (enemy-only and not-yet-trainable kinds are left out). */
+function fieldable(kind: UnitKind): boolean {
+  const def = UNITS[kind];
+  return def.trainable && def.enemyOnly !== true;
+}
+
+/** Every unit type a player can field, in the Armoury's order. */
+export function playerUnitKinds(): UnitKind[] {
+  return MEDALS.units.map((u) => u.kind).filter(fieldable);
+}
+
+/** The unit types reaching this mission unlocks: its newUnit, its unlocks and every player type in its own list. */
+export function missionUnlocks(mission: MissionDef): UnitKind[] {
+  const out: UnitKind[] = [];
+  const all = [...(mission.newUnit ? [mission.newUnit] : []), ...(mission.unlocks ?? []), ...mission.units[0]];
+  for (const kind of all) if (fieldable(kind) && !out.includes(kind)) out.push(kind);
+  return out;
+}
+
+/**
+ * The unit types a save has unlocked, in the Armoury's order: the free ones, those bought before version 8, and those
+ * every reached mission unlocks, in any campaign (owner, 2026-11-09: once unlocked, a type fields in every mission,
+ * replays and other campaigns included, as the player's own nation's version). `except` leaves one mission's own
+ * unlocks out (what the player had before it); `free` false leaves the free types out unless a mission lists them.
+ */
+export function unitsUnlocked(
+  save: SaveData,
+  missions: readonly MissionDef[],
+  reached: Reached,
+  except: number | null = null,
+  free = true,
+): UnitKind[] {
+  const got = new Set<string>();
+  if (free) for (const kind of MEDALS.free) got.add(kind);
+  for (const id of save.armoury) got.add(id);
+  for (const m of missions) if (m.id !== except && reached(m.id)) for (const kind of missionUnlocks(m)) got.add(kind);
+  return playerUnitKinds().filter((k) => got.has(k));
+}
+
+/** The first mission (in the order given) whose unlocks include this type, or null. */
+export function unlockingMission(kind: UnitKind, missions: readonly MissionDef[]): MissionDef | null {
+  return missions.find((m) => missionUnlocks(m).includes(kind)) ?? null;
 }
 
 // --- What the player fields in a mission ---------------------------------------
@@ -166,55 +216,39 @@ export interface Roster {
   loans: LoanDef[];
 }
 
-/** Types sold in the Armoury, by kind of item. */
-function soldUnits(): UnitKind[] {
-  return MEDALS.armoury.filter((a) => a.type === 'unit').map((a) => a.id as UnitKind);
-}
-
 function soldSupports(): SupportKind[] {
-  return MEDALS.armoury.filter((a) => a.type === 'support').map((a) => a.id as SupportKind);
+  return MEDALS.armoury.map((a) => a.id);
 }
 
 /**
- * Unit types the player may field in this mission, if owned: the mission's own list plus every type sold in the
- * Armoury. No mission rules out a bought type, replays included (owner, 2026-11-08).
+ * Unit types the player may field in this mission, if unlocked: the mission's own list plus every player type. No
+ * mission rules out an unlocked type, replays included (owner, 2026-11-08).
  */
 export function missionAllows(mission: MissionDef): UnitKind[] {
   const out: UnitKind[] = [...mission.units[0]];
-  for (const kind of soldUnits()) if (!out.includes(kind)) out.push(kind);
+  for (const kind of playerUnitKinds()) if (!out.includes(kind)) out.push(kind);
   return out;
 }
 
-/** True if the sim can field this kind for the player at all (enemy-only and not-yet-trainable kinds are left out). */
-function fieldable(kind: UnitKind): boolean {
-  const def = UNITS[kind];
-  return def.trainable && def.enemyOnly !== true;
-}
-
 /**
- * The player's roster in a mission: owned types the mission allows (free ones the mission lists), the mission's own
- * call-ins plus owned planes, and loans for the types the mission needs that the player has not bought.
+ * The player's roster in a mission: the unlocked types (see unitsUnlocked; this mission's own unlocks always count)
+ * the mission allows, free ones only where the mission lists them (no sappers in a mission without money); the
+ * mission's own call-ins plus bought planes; and loans for the types the mission lends that are not unlocked.
  */
-export function missionRoster(save: SaveData, mission: MissionDef): Roster {
+export function missionRoster(save: SaveData, mission: MissionDef, unlocked: readonly UnitKind[] = []): Roster {
   const listed = mission.units[0];
+  const own = missionUnlocks(mission);
   const units: UnitKind[] = [];
   for (const kind of missionAllows(mission)) {
     if (!fieldable(kind)) continue;
-    // Free types come only where the mission lists them (no sappers in a mission without an economy).
-    if (isFree(kind) ? listed.includes(kind) : save.armoury.includes(kind)) units.push(kind);
+    const have = isFree(kind) ? listed.includes(kind) : own.includes(kind) || unlocked.includes(kind) || save.armoury.includes(kind);
+    if (have) units.push(kind);
   }
   const supports: SupportKind[] = [...mission.supports[0]];
   for (const kind of soldSupports()) if (save.armoury.includes(kind) && !supports.includes(kind)) supports.push(kind);
   const loans: LoanDef[] = [];
-  const def = missionMedals(mission.id);
-  for (const loan of def.loans) {
+  for (const loan of missionMedals(mission.id).loans) {
     if (!units.includes(loan.kind) && fieldable(loan.kind) && loan.count > 0) loans.push({ ...loan });
-  }
-  // Whatever else the design expects and the player has not bought comes on loan too (free types the mission does
-  // not list stay out, like sappers where there is no money).
-  for (const kind of def.expects) {
-    if (isFree(kind) || units.includes(kind) || !fieldable(kind) || loans.some((l) => l.kind === kind)) continue;
-    if (MEDALS.autoLoanCount > 0) loans.push({ kind, count: MEDALS.autoLoanCount });
   }
   return { units, supports, loans };
 }
@@ -229,5 +263,55 @@ export function applyRoster(mission: MissionDef, roster: Roster): MissionDef {
     units: [[...roster.units], [...mission.units[1]]],
     supports: [[...roster.supports], [...mission.supports[1]]],
     start: [{ ...start0, forces }, mission.start[1]],
+  };
+}
+
+// --- What a mission brings that is new -----------------------------------------
+
+/** The NEW UNIT and NEW SUPPORT cards of a briefing, and the "New:" hints and tips of the battle. */
+export interface MissionNews {
+  units: UnitKind[];
+  support: SupportKind | null;
+}
+
+/**
+ * What this mission really unlocks for this player: its newUnit and unlocks the player did not have before it, and
+ * its newSupport unless the player already had it. `hadUnits` is unitsUnlocked with this mission left out and the free
+ * types only where another mission lists them (so mission 1 still introduces riflemen on a first play).
+ */
+export function missionNews(mission: MissionDef, hadUnits: readonly UnitKind[], hadSupports: readonly SupportKind[]): MissionNews {
+  const units: UnitKind[] = [];
+  for (const kind of [...(mission.newUnit ? [mission.newUnit] : []), ...(mission.unlocks ?? [])]) {
+    if (!hadUnits.includes(kind) && !units.includes(kind)) units.push(kind);
+  }
+  const support = mission.newSupport !== null && !hadSupports.includes(mission.newSupport) ? mission.newSupport : null;
+  return { units, support };
+}
+
+/** Call-ins the player had before this mission: those of every other reached mission, and bought planes. */
+export function supportsHad(save: SaveData, missions: readonly MissionDef[], reached: Reached, except: number): SupportKind[] {
+  const out: SupportKind[] = [];
+  for (const m of missions) if (m.id !== except && reached(m.id)) for (const s of m.supports[0]) if (!out.includes(s)) out.push(s);
+  for (const s of soldSupports()) if (save.armoury.includes(s) && !out.includes(s)) out.push(s);
+  return out;
+}
+
+/** What this mission brings that is new for this save (see missionNews). */
+export function newsFor(save: SaveData, missions: readonly MissionDef[], reached: Reached, mission: MissionDef): MissionNews {
+  return missionNews(mission, unitsUnlocked(save, missions, reached, mission.id, false), supportsHad(save, missions, reached, mission.id));
+}
+
+/**
+ * The mission with only the news this player really gets: newUnit and unlocks cut to news.units (newUnit first),
+ * newSupport to news.support, and every hint `about` something the player already had dropped.
+ */
+export function withNews(mission: MissionDef, news: MissionNews): MissionDef {
+  const fresh: readonly string[] = [...news.units, ...(news.support ? [news.support] : [])];
+  return {
+    ...mission,
+    newUnit: news.units[0] ?? null,
+    unlocks: news.units.slice(1),
+    newSupport: news.support,
+    events: mission.events.filter((e) => e.type !== 'hint' || e.about === undefined || fresh.includes(e.about)),
   };
 }

@@ -6,6 +6,7 @@ import type { UpgradeDef } from '../../src/data/schema';
 import { UPGRADES } from '../../src/data/upgrades';
 import {
   cleanSetting,
+  costUpTo,
   clearSave,
   createMemoryStorage,
   defaultSave,
@@ -22,6 +23,27 @@ import {
   upgradeLevel,
   type StorageLike,
 } from '../../src/meta';
+
+
+/** Medals the re-pricing of save version 8 gives back for these levels (each level cost META.legacyUpgradeLevelMedals before). */
+function reprice(levels: Record<string, number>): number {
+  let sum = 0;
+  for (const [id, level] of Object.entries(levels)) {
+    const def = UPGRADES.find((d) => d.id === id);
+    if (def) sum += level * META.legacyUpgradeLevelMedals - costUpTo(def, level);
+  }
+  return sum;
+}
+
+/** Medals in these upgrade levels at today's prices. */
+function spentOn(levels: Record<string, number>): number {
+  let sum = 0;
+  for (const [id, level] of Object.entries(levels)) {
+    const def = UPGRADES.find((d) => d.id === id);
+    if (def) sum += costUpTo(def, level);
+  }
+  return sum;
+}
 
 function failingStorage(): StorageLike {
   return {
@@ -131,14 +153,15 @@ describe('migration', () => {
     expect(migrated?.lastMission).toBe(0);
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v1) }));
     expect(loaded.status).toBe('ok');
-    // Medals (version 6): 2 cleared missions earned 4 points, 2 were spent, so 2 points become medals; the Bren gun
-    // of mission 2 counts as bought, and each cleared mission and difficulty as one win.
+    // Medals (version 6): 2 cleared missions earned 4 points, 2 were spent, so 2 points become medals, plus what the
+    // re-pricing of version 8 gives back; nothing is bought (mission 2 unlocks the Bren gun again); each cleared mission
+    // and difficulty counts as one win.
     expect(loaded.data).toEqual({
       version: META.saveVersion,
       cleared: v1.cleared,
       upgrades: v1.upgrades,
-      medals: 2 * META.legacyPointMedals,
-      armoury: ['lmg'],
+      medals: 2 * META.legacyPointMedals + reprice(v1.upgrades),
+      armoury: [],
       wins: { '1': { normal: 1, hard: 1 }, '2': { normal: 1 } },
       lastMission: 0,
       settings: { ...defaultSettings(), ...v1.settings },
@@ -182,9 +205,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     settings: { muted: true, difficulty: 'hard', hints: false },
   };
 
-  it('is behind the current version, 7 ("Show FPS" joined the settings in version 7)', () => {
-    expect(META.saveVersion).toBe(7);
-    expect(defaultSave().version).toBe(7);
+  it('is behind the current version, 8 (units unlocked by missions again in version 8)', () => {
+    expect(META.saveVersion).toBe(8);
+    expect(defaultSave().version).toBe(8);
   });
 
   it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
@@ -417,7 +440,8 @@ describe('version 7: "Show FPS"', () => {
     expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: false, showFps: false });
     expect(loaded.data.cleared).toEqual({ '1': ['normal'] });
     expect(loaded.data.lastMission).toBe(1);
-    expect(loaded.data.medals).toBe(7);
+    // The Bren gun bought at version 6 comes back as medals at version 8 and stays unlocked.
+    expect(loaded.data.medals).toBe(7 + (MEDALS.unitRefunds.lmg ?? 0));
     expect(loaded.data.armoury).toEqual(['lmg']);
     expect(loaded.data.wins).toEqual({ '1': { normal: 1 } });
   });
@@ -498,7 +522,8 @@ describe('a save checked against the game', () => {
     expect(save).not.toBeNull();
     if (!save) return;
     expect(save.upgrades).toEqual({ sapperDrill: 3, hqIncome: 1 });
-    expect(save.medals).toBe(0);
+    // Nothing left over, apart from what the re-pricing of version 8 gives back.
+    expect(save.medals).toBe(reprice(save.upgrades));
   });
 
   it('keeps no old upgrade when nothing was earned', () => {
@@ -517,13 +542,13 @@ describe('a save checked against the game', () => {
     const old = { sapperDrill: 1, rifleHealth: 3, medicHealing: 2, tankDamage: 1 };
     const data = sanitizeSave({ ...doc({ upgrades: old, medals: 40 }), version: 6 }, rules);
     expect(data?.upgrades).toEqual(old);
-    expect(data?.medals).toBe(40);
+    expect(data?.medals).toBe(40 + reprice(old));
     if (!data) return;
     for (const id of ['apcHealth', 'apcDamage', 'flameHealth', 'flameDamage', 'commanderHealth', 'commanderDamage', 'aaHealth', 'aaDamage', 'bomberTurnaround', 'fighterTurnaround', 'reconOptics']) {
       expect(UPGRADES.some((u) => u.id === id), id).toBe(true);
       expect(upgradeLevel(data, id), id).toBe(0);
     }
-    expect(pointsSpent(data, UPGRADES)).toBe(7 * UPGRADES[0].costPerLevel);
+    expect(pointsSpent(data, UPGRADES)).toBe(spentOn(old));
   });
 
   it('keeps the last mission only if the campaign has it', () => {
@@ -652,7 +677,9 @@ function expectUsable(data: SaveData, rules: { missionIds: readonly number[]; up
   expect(Number.isInteger(data.medals)).toBe(true);
   expect(data.medals).toBeGreaterThanOrEqual(0);
   expect(new Set(data.armoury).size).toBe(data.armoury.length);
-  for (const id of data.armoury) expect(MEDALS.armoury.map((a) => a.id as string)).toContain(id);
+  const allowed = [...MEDALS.armoury.map((a) => a.id as string), ...MEDALS.units.map((u) => u.kind as string)];
+  for (const id of data.armoury) expect(allowed).toContain(id);
+  for (const id of data.armoury) expect(MEDALS.free as readonly string[]).not.toContain(id);
   for (const [id, per] of Object.entries(data.wins)) {
     expect(rules.missionIds.map(String)).toContain(id);
     for (const [d, n] of Object.entries(per)) {
@@ -722,8 +749,8 @@ describe('random garbage in storage', () => {
     expect(result.status).toBe('ok');
     // One mission cleared = 2 points = 2 levels.
     expect(Object.values(result.data.upgrades).reduce((a, b) => a + b, 0)).toBe(2);
-    expect(pointsSpent(result.data, UPGRADES)).toBe(2 * UPGRADES[0].costPerLevel);
-    expect(result.data.medals).toBe(0);
+    expect(pointsSpent(result.data, UPGRADES)).toBe(spentOn(result.data.upgrades));
+    expect(result.data.medals).toBe(reprice(result.data.upgrades));
     expectUsable(result.data, rules);
   });
 });

@@ -9,7 +9,7 @@ import { CONFIG } from '../../src/data/config';
 import { META } from '../../src/data/meta';
 import { MISSIONS } from '../../src/data/missions';
 import { MEDALS } from '../../src/data/medals';
-import { UPGRADES, UPGRADE_MEDALS_PER_LEVEL } from '../../src/data/upgrades';
+import { UPGRADES, UPGRADE_LEVEL_MEDALS } from '../../src/data/upgrades';
 import {
   arrived,
   expect,
@@ -118,12 +118,12 @@ test.describe('campaign', () => {
     await shot(page, 'campaign-map-after-clear');
 
     // --- Quartermaster: buy, run out of medals, refund a level, refund everything --------------------------------
-    // Keep exactly two levels' worth of medals (the debug hook takes the rest), so running out is quick to reach.
-    const LEVEL = UPGRADE_MEDALS_PER_LEVEL;
-    await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).takeMedals(n), award + hardAward - 2 * LEVEL);
+    // Keep exactly the price of levels 1 and 2 (the debug hook takes the rest), so running out is quick to reach.
+    const [L1, L2] = UPGRADE_LEVEL_MEDALS;
+    await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).takeMedals(n), award + hardAward - L1 - L2);
     await tap(page, 'quartermaster');
     await expect(arrived(page, 'quartermaster').getByTestId('upgrade-buy-hqHealth')).toBeVisible();
-    expect(await pointsLeft(page, 'quartermaster')).toBe(2 * LEVEL);
+    expect(await pointsLeft(page, 'quartermaster')).toBe(L1 + L2);
     const cards = await arrived(page, 'quartermaster').locator('.th-up').count();
     expect(cards, 'every upgrade of the table has a card').toBe(UPGRADES.length);
     const qm = arrived(page, 'quartermaster');
@@ -140,13 +140,13 @@ test.describe('campaign', () => {
 
     await tap(page, 'upgrade-refund-hqHealth');
     await expect.poll(() => upgradeLevel(page, 'hqHealth')).toBe(1);
-    expect(await pointsLeft(page, 'quartermaster'), 'a refund gives the medals back').toBe(LEVEL);
+    expect(await pointsLeft(page, 'quartermaster'), 'a refund gives the medals of that level back').toBe(L2);
     await tap(page, 'upgrade-buy-rifleDamage');
     await expect.poll(() => upgradeLevel(page, 'rifleDamage')).toBe(1);
-    expect(await pointsLeft(page, 'quartermaster')).toBe(0);
+    expect(await pointsLeft(page, 'quartermaster')).toBe(L2 - L1);
 
     await tap(page, 'refund-all');
-    await expect.poll(() => pointsLeft(page, 'quartermaster')).toBe(2 * LEVEL);
+    await expect.poll(() => pointsLeft(page, 'quartermaster')).toBe(L1 + L2);
     expect(await upgradeLevel(page, 'hqHealth')).toBe(0);
     expect(await upgradeLevel(page, 'rifleDamage')).toBe(0);
     await expect(qm.getByTestId('refund-all')).toBeDisabled();
@@ -155,7 +155,7 @@ test.describe('campaign', () => {
     // Settle on one level each of two upgrades.
     await tap(page, 'upgrade-buy-hqHealth');
     await tap(page, 'upgrade-buy-rifleDamage');
-    await expect.poll(() => pointsLeft(page, 'quartermaster')).toBe(0);
+    await expect.poll(() => pointsLeft(page, 'quartermaster')).toBe(L2 - L1);
     expect(await upgradeLevel(page, 'hqHealth')).toBe(1);
     expect(await upgradeLevel(page, 'rifleDamage')).toBe(1);
     expect((await savedGame(page))?.upgrades).toEqual({ hqHealth: 1, rifleDamage: 1 });
@@ -174,7 +174,7 @@ test.describe('campaign', () => {
     await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
     expect(await pinState(page, FIRST)).toBe('cleared');
     expect(await pinState(page, SECOND)).toBe('open');
-    expect(await pointsLeft(page, 'campaign')).toBe(0);
+    expect(await pointsLeft(page, 'campaign')).toBe(L2 - L1);
     await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toHaveClass(/is-selected/);
     await tap(page, 'quartermaster');
     await expect(qm.getByTestId('upgrade-buy-hqHealth')).toBeVisible();
@@ -296,8 +296,9 @@ test.describe('campaign', () => {
       });
       await tap(page, 'play');
       expect(await pinStates(page)).toEqual(['cleared', 'cleared', 'open', ...Array<string>(7).fill('locked')]);
-      // Two missions cleared were four old points, one spent on the level kept: the three left become medals.
-      expect(await pointsLeft(page, 'campaign'), 'four points earned, one spent').toBe(3 * META.legacyPointMedals);
+      // Two missions cleared were four old points, one spent on the level kept: the three left become medals, plus the
+      // 10 the re-pricing of save version 8 gives back for a level 1 (it cost 20, now 10).
+      expect(await pointsLeft(page, 'campaign'), 'four points earned, one spent').toBe(3 * META.legacyPointMedals + META.legacyUpgradeLevelMedals - UPGRADE_LEVEL_MEDALS[0]);
     });
 
     test('takes back the points a save from before medals has spent but never earned', async ({ page }) => {
@@ -310,11 +311,14 @@ test.describe('campaign', () => {
       const clamped = await memorySave(page);
       const levels = Object.values(clamped.upgrades).reduce((sum, n) => sum + n, 0);
       expect(levels, 'one mission cleared is two points, so two levels at most').toBe(2);
+      // No points left over; the only medals are what the re-pricing of save version 8 gives back for the two levels
+      // kept (both on the first track: levels 1 and 2 cost 20 each then, 10 and 20 now).
+      const back = 2 * META.legacyUpgradeLevelMedals - UPGRADE_LEVEL_MEDALS[0] - UPGRADE_LEVEL_MEDALS[1];
       await tap(page, 'play');
-      expect(await pointsLeft(page, 'campaign')).toBe(0);
+      expect(await pointsLeft(page, 'campaign')).toBe(back);
       await tap(page, 'quartermaster');
       await expect(arrived(page, 'quartermaster').getByTestId('upgrade-buy-hqHealth')).toBeVisible();
-      expect(await pointsLeft(page, 'quartermaster')).toBe(0);
+      expect(await pointsLeft(page, 'quartermaster')).toBe(back);
       // And the debug hook can still set a full set for a test, which the next load clamps again.
       await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).setUpgrades({ rifleHealth: 3, hqHealth: 3 }));
       expect((await memorySave(page)).upgrades).toEqual({ rifleHealth: 3, hqHealth: 3 });

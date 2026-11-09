@@ -26,6 +26,7 @@ export const M06: MissionDef = {
   length: 10000,
   newUnit: 'medic',
   newSupport: 'smoke',
+  unlocks: ['flame'],
   units: [
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic'],
@@ -91,11 +92,13 @@ export const M06: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
+      about: 'medic',
       text: 'New: Medic. He heals every wounded infantryman near him but carries no weapon. Keep one with the attack, behind the line.',
     },
     {
       type: 'hint',
       when: { at: 28 },
+      about: 'smoke',
       text: 'New: Smoke Screen. It blocks direct fire for a few seconds. Tap it, then tap the ground between your men and the enemy line.',
     },
     {
