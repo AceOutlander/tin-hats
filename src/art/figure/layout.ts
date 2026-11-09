@@ -153,11 +153,12 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_RIM_NEAR_UA], R.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_RIM_NEAR_FA], R.forearm, j, J_NELBOW, p[P_NFA]);
 
-  // Far side.
-  putJ(out[S_FAR_UA], B.upperArmFar, j, J_FSHOULDER, p[P_FUA]);
-  putJ(out[S_FAR_FA], B.forearmFar, j, J_FELBOW, p[P_FFA]);
+  // Far side. Winter clothing (setFigureClothing) is drawn in place of the body parts it covers.
+  const cl = a.clothing;
+  putJ(out[S_FAR_UA], (cl && cl.upperArmFar) ?? B.upperArmFar, j, J_FSHOULDER, p[P_FUA]);
+  putJ(out[S_FAR_FA], (cl && cl.forearmFar) ?? B.forearmFar, j, J_FELBOW, p[P_FFA]);
   putJ(out[S_FAR_ITEM], keys.item[a.item], j, J_FHAND, p[P_FFA], a.itemFar);
-  putJ(out[S_FAR_TH], B.thighFar, j, J_HIP, p[P_FTH]);
+  putJ(out[S_FAR_TH], (cl && cl.thighFar) ?? B.thighFar, j, J_HIP, p[P_FTH]);
   putJ(out[S_FAR_SH], B.shinFar, j, J_FKNEE, p[P_FSH]);
   putJ(out[S_FAR_BOOT], B.bootFar, j, J_FANKLE, p[P_FFP]);
 
@@ -165,13 +166,13 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   // The pack bounces along the back (secondary motion).
   const ch = p[P_CHEST];
   put(out[S_PACK], G.pack, j[J_CHEST * 2] - Math.cos(ch) * a.pack, j[J_CHEST * 2 + 1] - Math.sin(ch) * a.pack, ch + HALF_PI, G.packShow);
-  putJ(out[S_TORSO_LO], B.torsoLower, j, J_HIP, p[P_SPINE]);
-  putJ(out[S_TORSO_UP], B.torsoUpper, j, J_CHEST, p[P_CHEST]);
+  putJ(out[S_TORSO_LO], (cl && cl.torsoLower) ?? B.torsoLower, j, J_HIP, p[P_SPINE]);
+  putJ(out[S_TORSO_UP], (cl && cl.torsoUpper) ?? B.torsoUpper, j, J_CHEST, p[P_CHEST]);
   putJ(out[S_POUCHES], G.pouches, j, J_HIP, p[P_SPINE] + HALF_PI, G.pouchesShow);
   putJ(out[S_BANDOLIER], G.bandolier, j, J_CHEST, ch + HALF_PI);
 
   // Near leg, satchel, head and helmet.
-  putJ(out[S_NEAR_TH], B.thigh, j, J_HIP, p[P_NTH]);
+  putJ(out[S_NEAR_TH], (cl && cl.thigh) ?? B.thigh, j, J_HIP, p[P_NTH]);
   putJ(out[S_NEAR_SH], B.shin, j, J_NKNEE, p[P_NSH]);
   putJ(out[S_NEAR_BOOT], B.boot, j, J_NANKLE, p[P_NFP]);
   const sp = p[P_SPINE];
@@ -195,7 +196,7 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_NEAR_ITEM], keys.item[a.item], j, J_NHAND, p[P_NFA], !a.itemFar);
 
   // Near arm.
-  putJ(out[S_NEAR_UA], B.upperArm, j, J_NSHOULDER, p[P_NUA]);
+  putJ(out[S_NEAR_UA], (cl && cl.upperArm) ?? B.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_ARMBAND], B.armband, j, J_NSHOULDER, p[P_NUA], a.kind === 'medic');
-  putJ(out[S_NEAR_FA], B.forearm, j, J_NELBOW, p[P_NFA]);
+  putJ(out[S_NEAR_FA], (cl && cl.forearm) ?? B.forearm, j, J_NELBOW, p[P_NFA]);
 }

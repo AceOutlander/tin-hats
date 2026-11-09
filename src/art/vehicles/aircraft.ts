@@ -1,18 +1,27 @@
 /**
  * Air strike art: a generic single-engine fighter-bomber seen from the side
  * (facing right; the renderer mirrors it for the other side), its soft ground
- * shadow, and the rockets and bombs it drops. No national markings.
+ * shadow, and the rockets and bombs it drops. No national markings. The Red Army flies the Il-2 Shturmovik instead
+ * (./sovietPlanes); airStrikeKey picks a nation's plane (AIR_STRIKE_PLANE).
  */
-import { AIR_LAYOUT as A, ART_COLORS as C } from '../../data/artLayout';
+import { AIR_LAYOUT as A, AIR_STRIKE_PLANE, ART_COLORS as C } from '../../data/artLayout';
+import type { FactionId } from '../../data/schema';
 import { type Ctx, TAU, ellipse, fillPoly, inside, makeSpec, mix, rgba, rimPoly, rimRect, rimmed, strokeLine } from '../props/kit';
 import type { SpriteSpec } from '../types';
+import { paintIl2 } from './sovietPlanes';
 
 export const AIR_KEYS = {
   plane: 'veh/air/plane',
+  il2: 'veh/air/plane/il2',
   shadow: 'veh/air/shadow',
   rocket: 'veh/air/rocket',
   bomb: 'veh/air/bomb',
 } as const;
+
+/** The aircraft a nation's air strike flies. */
+export function airStrikeKey(faction: FactionId): string {
+  return AIR_STRIKE_PLANE[faction] === 'il2' ? AIR_KEYS.il2 : AIR_KEYS.plane;
+}
 
 const SKIN = mix(C.ink, '#3b4038', 0.55);
 const BELLY = '#565b54';
@@ -175,6 +184,7 @@ function paintBomb(ctx: Ctx): void {
 export function aircraftSpecs(): SpriteSpec[] {
   return [
     makeSpec(AIR_KEYS.plane, A.planeBox, paintPlane),
+    makeSpec(AIR_KEYS.il2, A.planeBox, paintIl2),
     makeSpec(AIR_KEYS.shadow, A.shadowBox, paintShadow),
     makeSpec(AIR_KEYS.rocket, A.rocketBox, paintRocket),
     makeSpec(AIR_KEYS.bomb, A.bombBox, paintBomb),

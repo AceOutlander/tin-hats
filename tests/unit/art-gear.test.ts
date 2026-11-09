@@ -24,7 +24,7 @@ import { GEAR_NONE, TANK_GEAR_ART } from '../../src/data/looksGear';
 import type { FactionId, UnitAction } from '../../src/data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type LookStage } from '../../src/data/upgradeLooks';
 
-const FACTIONS: readonly FactionId[] = ['british', 'german'];
+const FACTIONS: readonly FactionId[] = ['british', 'german', 'soviet'];
 const ACTIONS: readonly UnitAction[] = ['idle', 'move', 'aim', 'load', 'heal'];
 
 function run(a: FigureAnim, kind: FigureKind, action: UnitAction, frames: number, parts: FigurePart[], speed = 0, carrying = false): void {

@@ -1,15 +1,16 @@
 /**
  * The Red Army's own figure art (NATIONS.md section 3, history-checked look notes): small arms, the F-1 grenade, the
- * pilotka and ushanka caps and the SSh-40 over the ushanka, and the kit (duffel bag, belt with two-cell pouches, bread
- * bag and spade, the rolled greatcoat over the shoulder). Same frames and style as ./parts: weapons in weapon space
+ * pilotka and ushanka caps, the SSh-40 over the ushanka and the snow smock's hood, the kit (duffel bag, belt with
+ * two-cell pouches, bread bag and spade, the rolled greatcoat over the shoulder), and the winter clothing (the quilted
+ * telogreika and the white snow smock) drawn over the body parts. Same frames and style as ./parts: weapons in weapon space
  * (grip at the origin, +x to the muzzle, +y down), headgear in head space (drawn for a head of radius 5.4), the pack
  * and coat roll upright from the chest joint, the pouches upright from the hip.
  */
 import { FIGURE, WEAPON_GEOM } from '../../data/figure';
-import { FIGURE_GEAR_ART, SOVIET_KIT_COLORS as K, type FigureHeadgear } from '../../data/looksGear';
+import { FIGURE_CLOTHING_ART, FIGURE_GEAR_ART, SOVIET_KIT_COLORS as K, type FigureClothing, type FigureHeadgear } from '../../data/looksGear';
 import type { SpriteSpec } from '../types';
 import { TAU } from './math';
-import { dot, fillPath, line, makeSpec, mix, paintBipod, poly, rrect, solid, ssh40Path } from './parts';
+import { capsule, dot, fillPath, line, makeSpec, mix, paintBipod, poly, rrect, solid, ssh40Path } from './parts';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -233,6 +234,17 @@ function paintPtrdRound(ctx: Ctx): void {
   line(ctx, '#c9a95a', 0.3, [-3.2, -0.3, 0.2, -0.3]);
 }
 
+/** TT-33 Tokarev: a long flat slide, the slim upright grip with its dark ribbed panel, the hammer at the back. */
+function paintTt33(ctx: Ctx): void {
+  solid(ctx, STEEL, () => rrect(ctx, -1.6, -2.0, 9.6, 1.8, 0.4));
+  line(ctx, STEEL_L, 0.3, [3.4, -1.7, 3.4, -0.4]);
+  solid(ctx, STEEL, () => rrect(ctx, -0.6, -0.4, 4.0, 1.2, 0.3));
+  solid(ctx, BLACK, () => poly(ctx, [-1.6, -0.4, 0.8, -0.4, 0.6, 3.8, -1.9, 3.6]));
+  for (const y of [0.6, 1.6, 2.6]) line(ctx, STEEL_L, 0.22, [-1.3, y, 0.4, y + 0.1]);
+  line(ctx, STEEL, 0.6, [-1.6, -2.0, -2.2, -2.5]);
+  line(ctx, STEEL_L, 0.3, [0.8, 0.2, 2.0, 1.2, 0.8, 1.4]);
+}
+
 /** Every Soviet weapon and hand-item sprite (keys fig/weapon/<model>, fig/item/...). */
 export function sovietWeaponSpecs(): SpriteSpec[] {
   const dp = WEAPON_GEOM.dp27.bipodLen;
@@ -247,6 +259,7 @@ export function sovietWeaponSpecs(): SpriteSpec[] {
     makeSpec('fig/weapon/mortar82Bipod', -2.2, -3.2, mb + 1.4, 3.0, paintMortar82Bipod),
     makeSpec('fig/weapon/mortar82Plate', -8.4, -2.8, 8.4, 2.1, paintMortar82Plate),
     makeSpec('fig/weapon/ptrd', -14.4, -6.6, 34.6, 4.0, paintPtrd),
+    makeSpec('fig/weapon/tt33', -2.6, -2.8, 8.6, 4.2, paintTt33),
     makeSpec('fig/item/f1', -2.2, -2.0, 4.0, 1.9, paintF1),
     makeSpec('fig/item/ptrdRound', -4.0, -1.2, 4.2, 1.2, paintPtrdRound),
   ];
@@ -292,6 +305,19 @@ function helmetUshankaPath(ctx: Ctx): void {
   ctx.closePath();
 }
 
+/** The snow smock's hood pulled over the helmet: a round crown over the dome, the opening round the face, the cloth
+ * falling to the nape. */
+function snowHoodPath(ctx: Ctx): void {
+  ctx.moveTo(1.6, 3.6);
+  ctx.quadraticCurveTo(3.0, -0.6, 4.4, -4.6);
+  ctx.quadraticCurveTo(5.8, -7.4, 3.0, -9.2);
+  ctx.bezierCurveTo(0.0, -10.4, -4.4, -10.0, -6.2, -6.9);
+  ctx.quadraticCurveTo(-7.4, -4.0, -7.0, 0.8);
+  ctx.quadraticCurveTo(-6.4, 4.2, -3.8, 5.0);
+  ctx.quadraticCurveTo(-0.8, 5.2, 0.4, 4.6);
+  ctx.closePath();
+}
+
 /** A small red enamel star cap badge. */
 function capStar(ctx: Ctx, x: number, y: number, r: number): void {
   ctx.beginPath();
@@ -315,11 +341,13 @@ const HEADGEAR_BOX: Record<FigureHeadgear, readonly [number, number, number, num
   pilotka: [-6.8, 6.4, -8.4, 0.4],
   ushanka: [-7.8, 7.6, -10.4, 5.2],
   helmetUshanka: [-8.6, 7.8, -10.4, 5.4],
+  snowHood: [-8.8, 7.6, -11.4, 6.2],
 };
 
 function headgearOutline(ctx: Ctx, id: FigureHeadgear): void {
   if (id === 'pilotka') pilotkaPath(ctx);
   else if (id === 'ushanka') ushankaPath(ctx);
+  else if (id === 'snowHood') snowHoodPath(ctx);
   else helmetUshankaPath(ctx);
 }
 
@@ -350,6 +378,16 @@ function paintUshanka(ctx: Ctx, tint: string, dark: string): void {
   // Flap tie and the cap star on the turned-up front.
   line(ctx, K.furDark, 0.3, [-0.4, 3.9, -1.0, 4.9]);
   capStar(ctx, 5.0, -5.4, 1.1);
+}
+
+function paintSnowHood(ctx: Ctx): void {
+  const A = FIGURE_CLOTHING_ART.snowSmock;
+  solid(ctx, A.near, () => snowHoodPath(ctx), A.seam, 0.4);
+  // The dome of the helmet under the cloth, the seam over the crown and the drawstring round the face.
+  line(ctx, A.seam, 0.45, [4.2, -7.4, 0.4, -9.4, -5.4, -7.4]);
+  line(ctx, A.seam, 0.4, [-1.2, -10.0, -2.4, -2.0, -2.0, 4.8]);
+  line(ctx, mix(A.seam, '#000000', 0.3), 0.55, [1.7, 3.4, 3.1, -0.6, 4.4, -4.6]);
+  line(ctx, A.seam, 0.4, [2.4, 1.0, 1.4, 4.0]);
 }
 
 function paintHelmetUshanka(ctx: Ctx, helmet: SpriteSpec): void {
@@ -401,6 +439,7 @@ export function headgearSpec(key: string, id: FigureHeadgear, tint: string, dark
     }
     if (id === 'pilotka') paintPilotka(ctx, tint, dark);
     else if (id === 'ushanka') paintUshanka(ctx, tint, dark);
+    else if (id === 'snowHood') paintSnowHood(ctx);
     else paintHelmetUshanka(ctx, helmet);
   });
 }
@@ -498,4 +537,76 @@ export function coatRollSpec(key: string): SpriteSpec {
     // The tied ends at the hip.
     line(ctx, K.coatDark, 0.8, [pts[6] - 0.6, pts[7] + 0.4, pts[6] + 0.9, pts[7] + 1.9]);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Winter clothing (FIGURE_CLOTHING): sprites drawn in place of the body parts, in the same limb frames as ./parts
+// (each part along +x from its start joint, +y towards the front of the torso)
+// ---------------------------------------------------------------------------
+
+/** The body parts a piece of clothing covers. */
+export type ClothingPart = 'torsoLower' | 'torsoUpper' | 'upperArm' | 'upperArmFar' | 'forearm' | 'forearmFar' | 'thigh' | 'thighFar';
+export const CLOTHING_PARTS: readonly ClothingPart[] = ['torsoLower', 'torsoUpper', 'upperArm', 'upperArmFar', 'forearm', 'forearmFar', 'thigh', 'thighFar'];
+
+/** True if the clothing covers this part (the smock reaches down over the thighs, the jacket stops at the hip). */
+export function clothingCovers(id: FigureClothing, part: ClothingPart): boolean {
+  return FIGURE_CLOTHING_ART[id].legs || (part !== 'thigh' && part !== 'thighFar');
+}
+
+export function clothingKey(id: FigureClothing, part: ClothingPart): string {
+  return `fig/soviet/clothing/${id}/${part}`;
+}
+
+function partShape(part: ClothingPart): { len: number; r: readonly number[]; torso: boolean; far: boolean } {
+  const B = FIGURE.bones;
+  const R = FIGURE.radius;
+  const far = part.endsWith('Far');
+  if (part === 'torsoLower') return { len: B.spineLower, r: R.torsoLower, torso: true, far };
+  if (part === 'torsoUpper') return { len: B.spineUpper, r: R.torsoUpper, torso: true, far };
+  if (part === 'upperArm' || part === 'upperArmFar') return { len: B.upperArm, r: R.upperArm, torso: false, far };
+  if (part === 'forearm' || part === 'forearmFar') return { len: B.forearm, r: R.forearm, torso: false, far };
+  return { len: B.thigh, r: R.thigh, torso: false, far };
+}
+
+/** One clothing sprite: the padded or loose cloth over a body part, with its stitching or folds. */
+export function clothingSpec(id: FigureClothing, part: ClothingPart): SpriteSpec {
+  const A = FIGURE_CLOTHING_ART[id];
+  const s = partShape(part);
+  const a = s.r[0] + A.grow;
+  const b = s.r[1] + A.grow;
+  const m = Math.max(a, b);
+  const L = s.len;
+  const cloth = s.far ? A.far : A.near;
+  return makeSpec(clothingKey(id, part), -a, -m, L + b, m, (ctx) => {
+    fillPath(ctx, cloth, () => capsule(ctx, L, a, b));
+    ctx.save();
+    ctx.beginPath();
+    capsule(ctx, L, a, b);
+    ctx.clip();
+    if (id === 'telogreika') {
+      if (s.torso) {
+        // The sewn channels run down the body; the buttons close the front.
+        for (const y of [-m * 0.62, -m * 0.2, m * 0.22]) line(ctx, A.seam, 0.4, [-a, y, L + b, y]);
+        for (let x = 1; x < L; x += 3.2) dot(ctx, '#6c6650', x, m * 0.62, 0.42);
+        if (part === 'torsoLower') line(ctx, A.seam, 0.5, [0.4, -m, 0.4, m]);
+      } else {
+        // The sleeves are quilted in rings round the arm.
+        for (let x = 1.4; x < L + b; x += 2.3) line(ctx, A.seam, 0.38, [x, -m, x - 0.3, m]);
+      }
+    } else {
+      // Loose cotton: a fold or two along the part, the cuff or hem at its end, a little shade on the back.
+      fillPath(ctx, mix(cloth, '#000000', 0.12), () => ctx.rect(-a, -m, L + a + b, m * 0.55));
+      line(ctx, A.seam, 0.4, [L * 0.15, m * 0.15, L * 0.55, -m * 0.2, L * 0.9, m * 0.1]);
+      if (!s.torso) line(ctx, A.seam, 0.5, [L - 0.4, -m, L - 0.6, m]);
+      else if (part === 'torsoLower') line(ctx, A.seam, 0.45, [L * 0.3, m * 0.5, L * 0.7, m * 0.35]);
+    }
+    ctx.restore();
+  });
+}
+
+/** Every clothing sprite of every piece the Red Army wears. */
+export function clothingSpecs(ids: readonly FigureClothing[]): SpriteSpec[] {
+  const out: SpriteSpec[] = [];
+  for (const id of ids) for (const part of CLOTHING_PARTS) if (clothingCovers(id, part)) out.push(clothingSpec(id, part));
+  return out;
 }

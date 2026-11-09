@@ -7,7 +7,7 @@ import { hqGunKey, hqGunSpecs } from '../../src/art/structures/hqGun';
 import type { SpriteSpec } from '../../src/art/types';
 
 const STYLES: readonly HqGunStyle[] = ['gunner', 'emplacement', 'tripod', 'nest'];
-const FACTIONS: readonly FactionId[] = ['british', 'german'];
+const FACTIONS: readonly FactionId[] = ['british', 'german', 'soviet'];
 
 /** Run spec.draw against a stand-in 2D context; report paint calls and the save/restore balance. */
 function traceDraw(spec: SpriteSpec): { paints: number; depth: number; minDepth: number } {

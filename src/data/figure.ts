@@ -61,7 +61,8 @@ export type WeaponModel =
   | 'dp27'
   | 'ppsh'
   | 'mortar82'
-  | 'ptrd';
+  | 'ptrd'
+  | 'tt33';
 
 /** Small item drawn in a hand: grenades, a mortar bomb, an anti-tank round. */
 export type HandItem = 'none' | 'mills' | 'stick' | 'f1' | 'shell' | 'rocket';
@@ -864,6 +865,8 @@ export const WEAPON_GEOM: Record<WeaponModel, WeaponGeom> = {
   mortar82: geom({ muzzleX: 22.0, muzzleY: 0, bipodX: 14, bipodY: 0, bipodLen: 15.6, bipodFold: Math.PI - 0.14, baseplate: true, restY: 2.2 }),
   /** PTRD-41: the two-metre single-shot anti-tank rifle, shouldered like a launcher; bipod folded on the barrel. */
   ptrd: geom({ muzzleX: 34.0, muzzleY: -2.6, restY: 2.4 }),
+  /** TT-33: the officer's Tokarev, held like the other pistols. */
+  tt33: geom({ muzzleX: 7.8, muzzleY: -1.0, restY: 1.0 }),
 };
 
 export interface FigureLoadout {
@@ -908,7 +911,7 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
     grenade: 'stick',
   },
   // Soviet small arms, 1942 to 1943 (NATIONS.md section 3): Mosin-Nagant 1891/30 with its bayonet fixed, the Mosin with
-  // the PU scope, DP-27, PPSh-41, the 82 mm mortar, PTRD-41, the TT-33 (the shared pistol) and the F-1 grenade. The AA
+  // the PU scope, DP-27, PPSh-41, the 82 mm mortar, PTRD-41, the TT-33 and the F-1 grenade. The AA
   // crew works the DP like the other nations' light guns.
   soviet: {
     weapon: {
@@ -922,7 +925,7 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
       medic: 'none',
       at: 'ptrd',
       flame: 'flamer',
-      commander: 'pistol',
+      commander: 'tt33',
       aa: 'dp27',
     },
     grenade: 'f1',

@@ -12,11 +12,13 @@ import {
   FIGURE_GEAR_ART as A,
   FIGURE_GEAR_NATION,
   FIGURE_GEAR_SLOT,
+  FIGURE_CLOTHING,
   FIGURE_HEADGEAR,
   FIGURE_GEAR_STEPS,
   FIGURE_GEAR_STYLES,
   GEAR_NO_PACK_STYLE,
   type FigureGearSlot,
+  type FigureClothing,
   type FigureGearStyle,
   type FigureHeadgear,
 } from '../../data/looksGear';
@@ -163,6 +165,14 @@ export function setFigureGear(anim: FigureAnim, gear: GearLevels): void {
  */
 export function setFigureHeadgear(anim: FigureAnim, id: FigureHeadgear | null): void {
   anim.headgear = id && FIGURE_HEADGEAR[anim.faction].includes(id) ? (FACTION_FIGURE_KEYS[anim.faction].headgear[id] ?? null) : null;
+}
+
+/**
+ * Wear winter clothing over the body (the quilted telogreika or the white snow smock; FIGURE_CLOTHING), or null for the
+ * plain body. Clothing the nation does not wear is ignored. Remembered until resetFigureAnim; allocation free.
+ */
+export function setFigureClothing(anim: FigureAnim, id: FigureClothing | null): void {
+  anim.clothing = id && FIGURE_CLOTHING[anim.faction].includes(id) ? (FACTION_FIGURE_KEYS[anim.faction].clothing[id] ?? null) : null;
 }
 
 /** The key a sapper draws instead of his nation's crate while carrying (null = the nation's crate). */

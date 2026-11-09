@@ -1,8 +1,8 @@
 /**
  * Stick-figure preview page (dev server only). See art-figures.html for the URL options.
  */
-import { createFigureAnim, createFigureInput, drawFigure2d, paintUnitIcon, setFigureGear, setFigureHeadgear, updateFigure, type FigureAnim, type FigureInput } from '../src/art/figure';
-import { FIGURE_HEADGEAR_LIST, type FigureHeadgear } from '../src/data/looksGear';
+import { createFigureAnim, createFigureInput, drawFigure2d, paintUnitIcon, setFigureClothing, setFigureGear, setFigureHeadgear, updateFigure, type FigureAnim, type FigureInput } from '../src/art/figure';
+import { FIGURE_CLOTHING_LIST, FIGURE_HEADGEAR_LIST, type FigureClothing, type FigureHeadgear } from '../src/data/looksGear';
 import type { LookStage } from '../src/data/upgradeLooks';
 import { ramp } from '../src/art/figure/math';
 import { FACTIONS } from '../src/data/factions';
@@ -334,6 +334,12 @@ function headgearParam(): FigureHeadgear | null {
   return (FIGURE_HEADGEAR_LIST as readonly string[]).includes(h) ? (h as FigureHeadgear) : null;
 }
 
+/** ?clothing=telogreika|snowSmock puts that winter clothing on the nations that wear it (sheet mode). */
+function clothingParam(): FigureClothing | null {
+  const c = params.get('clothing') ?? '';
+  return (FIGURE_CLOTHING_LIST as readonly string[]).includes(c) ? (c as FigureClothing) : null;
+}
+
 /** ?gear=2,3 draws upgrade gear at health 2, damage 3 (sheet mode). */
 function gearParam(): { health: LookStage; damage: LookStage } | null {
   const g = (params.get('gear') ?? '').split(',').map(Number);
@@ -347,6 +353,7 @@ function sheetMode(): void {
   const only = (params.get('kinds') ?? '').split(',');
   const kinds = FIGURE_KIND_LIST.filter((k) => only[0] === '' || only.includes(k));
   const cap = headgearParam();
+  const cloth = clothingParam();
   const gear = gearParam();
   const cellW = 70;
   const cellH = 84;
@@ -361,6 +368,7 @@ function sheetMode(): void {
       const a = createFigureAnim(k, f, 9 + ki);
       if (gear) setFigureGear(a, gear);
       setFigureHeadgear(a, cap);
+      setFigureClothing(a, cloth);
       if (params.has('alt')) a.altAim = params.get('alt') === '1';
       const inp = createFigureInput(k);
       inp.carrying = k === 'sapper' && params.get('carry') !== '0';

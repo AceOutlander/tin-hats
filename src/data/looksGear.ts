@@ -109,17 +109,44 @@ export const FIGURE_GEAR_NATION: Record<FactionId, FigureGearNation> = {
 
 /**
  * Headgear a figure can wear in place of its nation's helmet (setFigureHeadgear in src/art/figure): the Red Army's
- * pilotka side cap, the ushanka fur cap, and the SSh-40 worn over the ushanka in winter (NATIONS.md section 3, eras).
+ * pilotka side cap, the ushanka fur cap, the SSh-40 worn over the ushanka in winter, and the snow smock's white hood
+ * pulled over the helmet (NATIONS.md section 3, eras).
  * Which one a unit wears is the era and weather's call (FOUNDATIONS.md 5.1, not built yet); the art is ready.
  */
-export type FigureHeadgear = 'pilotka' | 'ushanka' | 'helmetUshanka';
-export const FIGURE_HEADGEAR_LIST: readonly FigureHeadgear[] = ['pilotka', 'ushanka', 'helmetUshanka'];
+export type FigureHeadgear = 'pilotka' | 'ushanka' | 'helmetUshanka' | 'snowHood';
+export const FIGURE_HEADGEAR_LIST: readonly FigureHeadgear[] = ['pilotka', 'ushanka', 'helmetUshanka', 'snowHood'];
 
 /** The headgear each nation can wear (anything else falls back to its helmet). */
 export const FIGURE_HEADGEAR: Record<FactionId, readonly FigureHeadgear[]> = {
   british: [],
   german: [],
   soviet: FIGURE_HEADGEAR_LIST,
+};
+
+/**
+ * Winter clothing a figure can wear over its body (setFigureClothing in src/art/figure): the Red Army's quilted
+ * telogreika jacket, and the two-piece white snow smock of ski troops, scouts and snipers (NATIONS.md section 3, eras;
+ * with the snowHood headgear). They replace the torso, arm and (smock) thigh sprites; the dark body shows at the hands,
+ * shins and boots, and the light rim still outlines the figure. Which units wear them is the era and weather's call
+ * (FOUNDATIONS.md 5.1, not built yet); the art is ready.
+ */
+export type FigureClothing = 'telogreika' | 'snowSmock';
+export const FIGURE_CLOTHING_LIST: readonly FigureClothing[] = ['telogreika', 'snowSmock'];
+
+/** The clothing each nation can wear (anything else falls back to the plain body). */
+export const FIGURE_CLOTHING: Record<FactionId, readonly FigureClothing[]> = {
+  british: [],
+  german: [],
+  soviet: FIGURE_CLOTHING_LIST,
+};
+
+/** Clothing look: cloth colours (near and far side), the stitching, and how much the padded cloth stands proud of the
+ * body (wu added to the limb radius). */
+export const FIGURE_CLOTHING_ART: Record<FigureClothing, { near: string; far: string; seam: string; grow: number; legs: boolean }> = {
+  // Quilted khaki cotton, darker than the tunic, with its sewn channels.
+  telogreika: { near: '#4d4a33', far: '#3a3828', seam: '#2a281c', grow: 0.3, legs: false },
+  // Off-white cotton over everything down to the knees (the dark valenki and shins still show).
+  snowSmock: { near: '#d6d4c8', far: '#b3b1a5', seam: '#9b998d', grow: 0.35, legs: true },
 };
 
 /** Colours of the Red Army's own kit and caps (the canvas pieces take the nation tint). */
@@ -262,7 +289,20 @@ export interface TankGearArt {
  * sides, sandbags on the deck; their "turret" is the gunner, so the stowage is ammunition boxes behind him, the cupola
  * MG a second gun on a post behind him, and the long gun a heavier barrel with a flash hider.
  */
-const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'kv1'>, TankGearArt> = {
+const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'carrierSoviet'>, TankGearArt> = {
+  // KV-1: spare links on the upper glacis, the 1941 bolted screens (ekranami) on the hull side, sandbags on the engine
+  // deck behind the turret, a box on the turret overhang, a DT on a pintle by the hatch; the long gun is a longer
+  // ZiS-5 with no muzzle brake, like the T-34's.
+  kv1: {
+    hullPad: [6, 12, 0],
+    turretPad: [0, 9, 12],
+    links: { x: 70, y: -68.4, dx: 6.4, dy: 3.3, n: 3, w: 4.8, h: 6.6 },
+    applique: [-74, -66.5, 34, 20, -34, -66.5, 34, 20, 6, -66.5, 34, 20],
+    sandbags: { x: -88, y: -72, dx: 10.5, dy: 0, n: 4, w: 10.5, h: 5.6 },
+    stowage: [-60, -20, 12, 14],
+    cupolaMg: { x: -16, y: -26.5, len: 15, post: 4, angle: 0 },
+    longGun: { extra: 16, brakeLen: 0, brakeHalf: 0 },
+  },
   // T-34: spare links on the glacis, plates on the sloped hull side, sandbags on the engine deck, a box on the turret
   // overhang; the long gun is the 76 mm ZiS-5 length, with no muzzle brake.
   t34: {
@@ -331,10 +371,10 @@ const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'kv1'>, TankGearArt> = {
   },
 };
 
-/** The Soviet KV-1 wears the gear of the rig it borrows (TANK_LAYOUT) until its own is drawn. */
+/** The Soviet carrier is the British vehicle (TANK_LAYOUT) and carries its gear in the same places. */
 export const TANK_GEAR_ART: Record<GearLook, TankGearArt> = {
   ...DRAWN_TANK_GEAR_ART,
-  kv1: DRAWN_TANK_GEAR_ART.churchill,
+  carrierSoviet: DRAWN_TANK_GEAR_ART.carrier,
 };
 
 /** Which tank piece each step adds, as a sprite: health pieces build up on the hull, stowage and the MG on the turret, the long gun is a new barrel. */
@@ -391,6 +431,6 @@ export const PLANE_GEAR_ART: Record<PlaneKind, PlaneGearArt> = {
 export const PLANE_GEAR_NATION: Record<FactionId, { stripes: readonly string[]; nose: string; tally: string; tank: string }> = {
   british: { stripes: ['#ece6d2', '#141410'], nose: '#b8352a', tally: '#ece6d2', tank: '#5d6150' },
   german: { stripes: ['#d8b33a', '#d8b33a'], nose: '#e6e0c8', tally: '#ece6d2', tank: '#4f5552' },
-  // Red Army: a plain white band and a red nose (first guess; the Soviet planes are British shapes until the art job).
+  // Red Army: a plain white band and the red nose (the red spinner and cowling of many Soviet fighters).
   soviet: { stripes: ['#e6e0c8', '#e6e0c8'], nose: '#b3261e', tally: '#ece6d2', tank: '#4f5a3c' },
 };

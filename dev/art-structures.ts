@@ -9,6 +9,7 @@ import {
   DAMAGE_STATES,
   FLAG_LAYOUT,
   HQ_LAYOUT,
+  KV2_TURRET,
   PILLBOX_LAYOUT,
   SUPPLY_LAYOUT,
   TANK_LAYOUT,
@@ -16,9 +17,11 @@ import {
   WIRE_LAYOUT,
   type DamageState,
 } from '../src/data/artLayout';
+import { FACTION_IDS } from '../src/data/factions';
 import type { FactionId } from '../src/data/schema';
 import { VIEW } from '../src/data/view';
 import { DECAL_KEYS, RUBBLE_KEYS, SUPPLY_KEYS, propSpecs } from '../src/art/props';
+import { truckKey, truckSpecs } from '../src/art/props/supplyLooks';
 import {
   FLAG_KEYS,
   TRENCH_KEYS,
@@ -33,7 +36,7 @@ import {
   tileSpan,
   wirePieceLayout,
 } from '../src/art/structures';
-import { AIR_KEYS, TANK_KEYS, TANK_LOOKS, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
+import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, TANK_KEYS, TANK_LOOKS, VEHICLE_LOOKS, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
 import type { SpriteSpec } from '../src/art/types';
 
 declare global {
@@ -44,7 +47,7 @@ declare global {
 }
 
 type Ctx = CanvasRenderingContext2D;
-type Look = (typeof TANK_LOOKS)[number];
+type Look = (typeof VEHICLE_LOOKS)[number];
 
 const SCENE_W = 1200;
 const STAGE_H = 280;
@@ -94,13 +97,14 @@ function put(ctx: Ctx, key: string, x: number, y: number, rot = 0, flip = false,
 // Options
 // ---------------------------------------------------------------------------
 
-type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags';
+type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags' | 'soviet';
 const SCENES: { id: SceneId; h: number }[] = [
   { id: 'hq', h: 560 },
   { id: 'field', h: 620 },
   { id: 'tanks', h: 560 },
   { id: 'air', h: 560 },
   { id: 'flags', h: 340 },
+  { id: 'soviet', h: 560 },
 ];
 
 const params = new URLSearchParams(location.search);
@@ -481,9 +485,10 @@ function tanksScene(ctx: Ctx, t: number): void {
     { gy: 225, facing: 1, speed: 34 },
     { gy: STAGE_H + 225, facing: -1, speed: 0 },
   ];
-  // ?soviet=1 shows the Soviet T-34 and KV-1 (stand-ins on the Panzer IV and Churchill rigs) in their places.
+  // ?soviet=1 shows the Soviet KV-1, T-34 and T-60; ?soviet=2 the Soviet carrier beside the British one and the T-60.
+  const sov = params.get('soviet');
   const xs: Partial<Record<Look, number>> =
-    params.get('soviet') === '1' ? { kv1: 215, t34: 565, kingTiger: 905 } : { churchill: 215, panzer4: 565, kingTiger: 905 };
+    sov === '1' ? { kv1: 215, t34: 565, t60: 905 } : sov === '2' ? { carrierSoviet: 215, carrier: 565, t60: 905 } : { churchill: 215, panzer4: 565, kingTiger: 905 };
   rows.forEach((row, r) => {
     stage(ctx, r * STAGE_H, (r + 1) * STAGE_H, row.gy);
     // Ground marks sliding backwards so the track speed can be judged against the ground.
@@ -492,7 +497,7 @@ function tanksScene(ctx: Ctx, t: number): void {
       const x = (((i * 61 - row.speed * t * row.facing) % SCENE_W) + SCENE_W) % SCENE_W;
       ctx.fillRect(x, row.gy + 40 + (i % 3) * 9, 8, 2);
     }
-    for (const look of TANK_LOOKS) {
+    for (const look of VEHICLE_LOOKS) {
       const at = xs[look];
       if (at === undefined) continue;
       const x = row.facing === 1 ? at : SCENE_W - at + 40;
@@ -537,6 +542,46 @@ function airScene(ctx: Ctx, t: number): void {
     label(ctx, `${look} husk`, x, gb + 36);
   });
   put(ctx, DECAL_KEYS.crater, 560, gb + 18);
+}
+
+// ---------------------------------------------------------------------------
+// Scene: the Red Army's extra vehicles (the air strike planes, the KV-2, the trucks and the Katyusha launcher)
+// ---------------------------------------------------------------------------
+
+function sovietScene(ctx: Ctx): void {
+  const ga = 225;
+  stage(ctx, 0, STAGE_H, ga);
+  put(ctx, AIR_KEYS.plane, 160, 90);
+  label(ctx, 'air strike: generic', 160, 150);
+  put(ctx, AIR_KEYS.il2, 450, 90);
+  label(ctx, 'air strike: Il-2 (soviet)', 450, 150);
+  // The KV-2: the KV-1's track, wheels and hull under the KV-2 turret and howitzer, standing.
+  const x = 860;
+  const L = TANK_LAYOUT.kv1;
+  const keys = TANK_KEYS.kv1;
+  layoutTank({ look: 'kv1', distance: 0, turretAim: 0, recoil: 0, hullRock: 0 }, pose);
+  ctx.save();
+  ctx.translate(x, ga);
+  put(ctx, keys.track[0], pose.track.x, pose.track.y);
+  for (let i = 0; i < pose.wheelCount; i++) put(ctx, keys.wheels[i], pose.wheels[i].x, pose.wheels[i].y);
+  put(ctx, keys.hull, pose.hull.x, pose.hull.y);
+  put(ctx, KV2_KEYS.barrel, L.turretRing.x + KV2_TURRET.trunnion.x, L.turretRing.y + KV2_TURRET.trunnion.y);
+  put(ctx, KV2_KEYS.turret, L.turretRing.x, L.turretRing.y);
+  ctx.restore();
+  rowFigure(ctx, x + L.length / 2 + 30, ga, 3, false, -1, 'stand');
+  label(ctx, 'KV-2 (1941, registered)', x, ga + 48);
+
+  const gb = STAGE_H + 225;
+  stage(ctx, STAGE_H, STAGE_H * 2, gb);
+  FACTION_IDS.forEach((f, i) => {
+    put(ctx, truckKey(f, 'loaded'), 110 + i * 170, gb);
+    label(ctx, ` truck`, 110 + i * 170, gb + 30);
+  });
+  put(ctx, truckKey('soviet', 'wreck'), 620, gb);
+  label(ctx, 'soviet wreck', 620, gb + 30);
+  put(ctx, KATYUSHA_LAUNCHER_KEY, 880, gb);
+  rowFigure(ctx, 970, gb, 3, false, -1, 'stand');
+  label(ctx, 'BM-13 Katyusha (ZiS-6)', 880, gb + 30);
 }
 
 // ---------------------------------------------------------------------------
@@ -605,6 +650,9 @@ function render(t: number): void {
     case 'flags':
       flagsScene(ctx, t);
       break;
+    case 'soviet':
+      sovietScene(ctx);
+      break;
   }
 }
 
@@ -624,7 +672,7 @@ function buildNav(): void {
 }
 
 function boot(): void {
-  const specs = [...structureSpecs(), ...vehicleSpecs(), ...propSpecs()];
+  const specs = [...structureSpecs(), ...vehicleSpecs(), ...propSpecs(), ...FACTION_IDS.flatMap((f) => truckSpecs(f))];
   for (const spec of specs) rasters.set(spec.key, rasterise(spec));
   window.__stats = { sprites: specs.length };
   buildNav();

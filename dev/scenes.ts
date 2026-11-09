@@ -436,6 +436,42 @@ export const SCENES: Record<string, Scene> = {
     },
   },
 
+  /**
+   * The Red Army's own vehicles and aircraft at battle zoom (?scene=redArmour): the KV-1, T-60 and Lend-Lease carrier
+   * rolling up behind the infantry, an Il-2 air strike, a Pe-2, a Yak-1 and a Po-2 passing over.
+   */
+  redArmour: {
+    cam: 2700,
+    nations: ['soviet', 'german'],
+    forces: [
+      { side: 0, kind: 'heavyTank', x: 2250, row: 2 },
+      { side: 0, kind: 'lightTank', x: 2470, row: 0 },
+      { side: 0, kind: 'apc', x: 2600, row: 3 },
+      { side: 0, kind: 'assault', x: 2700, row: 1 },
+      { side: 0, kind: 'sniper', x: 2560, row: 1 },
+      { side: 0, kind: 'at', x: 2650, row: 2 },
+      { side: 1, kind: 'rifle', x: 3060, row: 0 },
+      { side: 1, kind: 'rifle', x: 3120, row: 2 },
+      { side: 1, kind: 'lmg', x: 3200, row: 1 },
+    ],
+    tick(_t, k) {
+      k.go(0, 2500, 30, 'aim');
+      k.go(1, 2640, 34, 'aim');
+      k.go(2, 2780, 38, 'move');
+      k.shootCycle(3, 0.2, 1.4, 3060, 2);
+      k.shootCycle(4, 0.6, 2.6, 3120, 2);
+      k.shootCycle(5, 0.9, 2.2, 3200, 1);
+      for (let i = 6; i < 9; i++) {
+        k.face(i, -1);
+        k.shootCycle(i, 0.3 * i, 2 + 0.2 * i, 2600, 1 + (i % 3), i === 8 ? 'lmg' : 'rifle');
+      }
+      if (k.at(5)) k.emit('supportIncoming', { side: 0, support: 'airStrike', x: 2900, value: 2.5 });
+      if (k.at(0.3)) k.emit('planePass', { side: 0, support: 'bomber', x: 1900, x2: 3800, row: 0, value: 9 });
+      if (k.at(7)) k.emit('planePass', { side: 0, support: 'fighter', x: 2000, x2: 3600, row: 1, value: 5 });
+      if (k.at(1.2)) k.emit('planePass', { side: 0, support: 'recon', x: 2300, x2: 3300, row: 2, value: 12 });
+    },
+  },
+
   turn: {
     cam: 2000,
     forces: [

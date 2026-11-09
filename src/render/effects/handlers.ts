@@ -433,7 +433,7 @@ function onSupport(fx: EffectContext, e: SimEvent): void {
   const half = e.support === 'smoke' ? def.smokeRadius : def.spread;
   const own = e.side === fx.playerSide;
   if (half > 0) fx.targetMarkers.add(e.x, half, delay + def.duration * 0.6, own ? 0.9 : 0.45);
-  if (e.support === 'airStrike') fx.sky.airStrike(e.x, dirOf(e.side), delay);
+  if (e.support === 'airStrike') fx.sky.airStrike(e.x, dirOf(e.side), delay, factionOf(fx, e.side));
 }
 
 function onBattleEnded(fx: EffectContext, e: SimEvent): void {

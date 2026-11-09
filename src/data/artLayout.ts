@@ -389,6 +389,30 @@ export const AIR_LAYOUT = {
   bombBox: { w: 28, h: 12, ox: 14, oy: 6 } as ArtBox,
 } as const;
 
+/** The aircraft each nation's air strike flies: the generic fighter-bomber, or the Red Army's Il-2 (same box and anchors). */
+export const AIR_STRIKE_PLANE: Record<FactionId, 'generic' | 'il2'> = {
+  british: 'generic',
+  german: 'generic',
+  soviet: 'il2',
+};
+
+/**
+ * The BM-13 Katyusha launcher on its three-axle ZiS-6 truck (src/art/props/supplyLooks.ts), facing +x, origin on the
+ * ground under the middle of the truck: eight launch rails over the bed, raised to fire over the cab, with a rocket on
+ * and under each. Registered (KATYUSHA_LAUNCHER_KEY) for a salvo that shows its trucks; the salvo does not draw it yet.
+ */
+export const BM13_LAYOUT = {
+  box: { w: 126, h: 80, ox: 64, oy: 76 } as ArtBox,
+  /** The rails' rear pivot over the bed, their elevation (rad, up) and length. */
+  railPivot: { x: -52, y: -30 } as ArtPoint,
+  railAngle: 0.42,
+  railLength: 88,
+  /** Shift of the cab and front axle ahead of the supply truck's (the ZiS-6 chassis is longer). */
+  cabShift: 6,
+  /** The rear tandem axles. */
+  rearAxles: [-24, -44] as readonly number[],
+} as const;
+
 // ---------------------------------------------------------------------------
 // Ground decals
 // ---------------------------------------------------------------------------
@@ -422,22 +446,22 @@ export const TANK_LOOKS: readonly TankLook[] = ['churchill', 'panzer4', 'kingTig
 
 /**
  * Every vehicle rig: the gear-carrying tanks plus the light tanks (Panzer III Ausf. E, and a British cruiser on the
- * same small hull) and the APCs (Universal Carrier, SdKfz 251 half-track), with Soviet stand-ins on borrowed rigs
- * (t34, kv1, t60, carrierSoviet: TANK_LAYOUT) until the art job draws them. An APC's "turret" is its gunner behind the
- * machine gun and its "barrel" is that gun, so every vehicle draws with the same rig.
+ * same small hull, and the Soviet T-60) and the APCs (Universal Carrier, SdKfz 251 half-track, and the Red Army's
+ * Lend-Lease carrier with a Soviet crew and a DP gun). An APC's "turret" is its gunner behind the machine gun and its
+ * "barrel" is that gun, so every vehicle draws with the same rig.
  */
 export type VehicleLook = TankLook | 'panzer3' | 'cruiser' | 'carrier' | 'halftrack' | 't60' | 'carrierSoviet';
 export const VEHICLE_LOOKS: readonly VehicleLook[] = [...TANK_LOOKS, 'panzer3', 'cruiser', 'carrier', 'halftrack', 't60', 'carrierSoviet'];
 
 /** The looks that carry Quartermaster upgrade gear: the tanks and the player's APCs (src/data/looksGear.ts). */
-export type GearLook = TankLook | 'carrier' | 'halftrack';
-export const GEAR_LOOKS: readonly GearLook[] = [...TANK_LOOKS, 'carrier', 'halftrack'];
+export type GearLook = TankLook | 'carrier' | 'halftrack' | 'carrierSoviet';
+export const GEAR_LOOKS: readonly GearLook[] = [...TANK_LOOKS, 'carrier', 'halftrack', 'carrierSoviet'];
 
 /** Looks of the vehicle kinds a FactionLook does not name (tank and heavyTank come from FACTIONS[f].look). */
 export const VEHICLE_LOOK_EXTRA: Record<FactionId, Record<'apc' | 'lightTank', VehicleLook>> = {
   british: { apc: 'carrier', lightTank: 'cruiser' },
   german: { apc: 'halftrack', lightTank: 'panzer3' },
-  // The Red Army drove Lend-Lease Universal Carriers from 1942 (NATIONS.md); the T-60 borrows the small rig until drawn.
+  // The Red Army drove Lend-Lease Universal Carriers from 1942 (NATIONS.md, apc), and the T-60 light tank from 1941-10.
   soviet: { apc: 'carrierSoviet', lightTank: 't60' },
 };
 
@@ -543,8 +567,8 @@ function interleaved(wheels: TankWheelDef[]): TankWheelDef[] {
 
 const DEG = Math.PI / 180;
 
-/** The vehicles drawn so far; the Soviet KV-1, T-60 and carrier borrow a rig below until their own are drawn. */
-const DRAWN_TANK_LAYOUT: Record<Exclude<VehicleLook, 'kv1' | 't60' | 'carrierSoviet'>, TankLayoutDef> = {
+/** Every vehicle with a rig of its own; the Soviet carrier shares the British one below. */
+const DRAWN_TANK_LAYOUT: Record<Exclude<VehicleLook, 'carrierSoviet'>, TankLayoutDef> = {
   /**
    * T-34/76, 1942 (src/art/vehicles/t34.ts): about the Panzer IV's size, five big Christie road wheels a side and no
    * return rollers (the top run lies on the wheels), the drive sprocket at the rear, the turret well forward, and the
@@ -582,6 +606,96 @@ const DRAWN_TANK_LAYOUT: Record<Exclude<VehicleLook, 'kv1' | 't60' | 'carrierSov
     ],
     trackThickness: 4.5,
     trackPitch: 6.4,
+    trackFrames: 4,
+  },
+  /**
+   * KV-1 model 1941 (src/art/vehicles/kv.ts): a tall, slab-sided heavy tank a little longer than the T-34, six small
+   * steel road wheels on torsion bars and three return rollers a side, the drive sprocket at the rear, the welded turret
+   * with its rear overhang, and the 76.2 mm ZiS-5.
+   */
+  kv1: {
+    faction: 'soviet',
+    length: 204,
+    height: 94,
+    trackBox: { w: 218, h: 50, ox: 109, oy: 47 },
+    hullBox: { w: 216, h: 42, ox: 108, oy: 37 },
+    turretBox: { w: 100, h: 40, ox: 52, oy: 37 },
+    barrelBox: { w: 92, h: 10, ox: 10, oy: 5 },
+    huskBox: { w: 262, h: 124, ox: 128, oy: 116 },
+    rockPivot: { x: 0, y: -40 },
+    turretRing: { x: 4, y: -70 },
+    trunnion: { x: 40, y: -82 },
+    exhaust: { x: -100, y: -66 },
+    hullMg: { x: 90, y: -58.5 },
+    barrelLength: 76,
+    recoilDist: 7,
+    elevMin: -5 * DEG,
+    elevMax: 25 * DEG,
+    rockMax: 1.5 * DEG,
+    wheels: [
+      { kind: 'return', x: -42, y: -33, r: 3.6 },
+      { kind: 'return', x: 2, y: -33, r: 3.6 },
+      { kind: 'return', x: 46, y: -33, r: 3.6 },
+      ...roadWheels(6, -68, 64, -13.5, 9),
+      { kind: 'idler', x: 90, y: -22, r: 10.5 },
+      { kind: 'sprocket', x: -92, y: -22, r: 11 },
+    ],
+    belt: [
+      { x: -92, y: -22, r: 11 },
+      { x: -42, y: -33, r: 3.6 },
+      { x: 46, y: -33, r: 3.6 },
+      { x: 90, y: -22, r: 10.5 },
+      { x: 64, y: -13.5, r: 9 },
+      { x: -68, y: -13.5, r: 9 },
+    ],
+    trackThickness: 4.5,
+    trackPitch: 7,
+    trackFrames: 4,
+  },
+  /**
+   * T-60 (src/art/vehicles/t60.ts): a small, low light tank with four road wheels and three return rollers a side, the
+   * drive sprocket at the front, the driver's armoured cab on the bow and a small faceted turret carrying the long 20 mm
+   * TNSh. Drawn a little over life size, like the other light tanks, so it reads next to the figures.
+   */
+  t60: {
+    faction: 'soviet',
+    length: 152,
+    height: 62,
+    trackBox: { w: 164, h: 40, ox: 82, oy: 38 },
+    hullBox: { w: 168, h: 30, ox: 84, oy: 26 },
+    turretBox: { w: 58, h: 26, ox: 28, oy: 24 },
+    barrelBox: { w: 50, h: 8, ox: 6, oy: 4 },
+    huskBox: { w: 190, h: 92, ox: 95, oy: 86 },
+    rockPivot: { x: 0, y: -32 },
+    turretRing: { x: -6, y: -50 },
+    trunnion: { x: 15, y: -60 },
+    exhaust: { x: -76, y: -40 },
+    hullMg: { x: 24, y: -55 },
+    barrelLength: 40,
+    recoilDist: 2.5,
+    elevMin: -7 * DEG,
+    elevMax: 25 * DEG,
+    rockMax: 2.2 * DEG,
+    wheels: [
+      { kind: 'return', x: -32, y: -26, r: 3 },
+      { kind: 'return', x: 0, y: -26, r: 3 },
+      { kind: 'return', x: 32, y: -26, r: 3 },
+      ...roadWheels(4, -48, 42, -12.3, 8.5),
+      { kind: 'idler', x: -68, y: -17, r: 8.5 },
+      // The sprocket's top sits a little under the return rollers' tops, so the top run bends down over the front
+      // roller (a sprocket standing higher makes the belt wrap that roller inside out, a fan of links).
+      { kind: 'sprocket', x: 66, y: -18.5, r: 9.5 },
+    ],
+    belt: [
+      { x: -68, y: -17, r: 8.5 },
+      { x: -32, y: -26, r: 3 },
+      { x: 32, y: -26, r: 3 },
+      { x: 66, y: -18.5, r: 9.5 },
+      { x: 42, y: -12.3, r: 8.5 },
+      { x: -48, y: -12.3, r: 8.5 },
+    ],
+    trackThickness: 3.8,
+    trackPitch: 5.6,
     trackFrames: 4,
   },
   churchill: {
@@ -839,11 +953,20 @@ const DRAWN_TANK_LAYOUT: Record<Exclude<VehicleLook, 'kv1' | 't60' | 'carrierSov
 
 export const TANK_LAYOUT: Record<VehicleLook, TankLayoutDef> = {
   ...DRAWN_TANK_LAYOUT,
-  // Stand-ins in Soviet colours: the KV-1 on the Churchill (a heavy, slab-sided tank), the T-60 on the small rig, the
-  // Lend-Lease carrier on the British one (STALINGRAD_BUILD.md, Soviet art).
-  kv1: { ...DRAWN_TANK_LAYOUT.churchill, faction: 'soviet' },
-  t60: { ...DRAWN_TANK_LAYOUT.cruiser, faction: 'soviet' },
+  // The Lend-Lease carrier is the British vehicle: same rig, Soviet paint, crew and DP gun (src/art/vehicles/lightVehicles.ts).
   carrierSoviet: { ...DRAWN_TANK_LAYOUT.carrier, faction: 'soviet' },
+};
+
+/**
+ * The KV-2 of 1941 (NATIONS.md section 3, heavyTank): the KV-1 hull under a tall box turret with the short 152 mm M-10T
+ * howitzer. Drawn and registered (KV2_KEYS in src/art/vehicles) for the era-by-date looks (FOUNDATIONS.md 5.1) to select;
+ * nothing fields it yet. The turret sits on the KV-1's turret ring; the trunnion is in turret space.
+ */
+export const KV2_TURRET: { turretBox: ArtBox; trunnion: ArtPoint; barrelLength: number; barrelBox: ArtBox } = {
+  turretBox: { w: 96, h: 56, ox: 46, oy: 52 },
+  trunnion: { x: 32, y: -22 },
+  barrelLength: 44,
+  barrelBox: { w: 60, h: 18, ox: 10, oy: 9 },
 };
 
 /** Most wheels on any tank: size of the preallocated wheel array in a TankPose. */
