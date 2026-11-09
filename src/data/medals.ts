@@ -8,7 +8,7 @@
  * Armoury. Unit types are not bought: each mission unlocks its own (MissionDef.newUnit, unlocks and its unit list) for
  * every mission after, replays and other campaigns included (owner, 2026-11-09; unitsUnlocked in src/meta/medals.ts).
  */
-import type { Difficulty, SupportKind, UnitKind } from './schema';
+import type { Difficulty, StructureRef, SupportKind, UnitKind } from './schema';
 
 /** A plane call-in sold in the Armoury. */
 export interface ArmouryItemDef {
@@ -49,6 +49,22 @@ export interface MissionMedalDef {
    * campaign in order. The balance test checks each one is unlocked, with no loan needed.
    */
   expects: UnitKind[];
+  /**
+   * How the win is scored (FOUNDATIONS.md 7.1): timed = completion time and casualties; fixed = casualties and HQ health
+   * (no time: survival, delay and hold by default). Omitted = by the mission mode (assault and special timed).
+   */
+  scoring?: 'timed' | 'fixed';
+  /** Timed: the clock starts when this phase begins (1003: two fixed holds, then the counter-attack is timed). */
+  timedFrom?: string;
+  /** Fixed: the share of the score from HQ health (default weights.survival.hq). */
+  hqHealthWeight?: number;
+  /** Fixed: a defended structure's health at the end is this share of the score too (1007's house). */
+  structureWeight?: { ref: StructureRef; weight: number };
+  /**
+   * Delay missions: every enemy unit of these kinds destroyed beyond `above` adds `per` to the 0..1 score, up to
+   * `max` (1002 and 1008: tanks over the kill objective).
+   */
+  killBonus?: { kinds: UnitKind[]; above: number; per: number; max: number };
 }
 
 export interface MedalTunables {

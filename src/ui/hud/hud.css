@@ -404,6 +404,28 @@
   animation: th-pulse 0.8s ease-in-out infinite;
 }
 
+/* The mission director's phase line (FOUNDATIONS.md 3.4): a smaller plate under the objective, only in a mission of
+   several phases. One line; a long objective is cut with an ellipsis rather than pushing the plate wider. */
+.th-obj-phase {
+  display: none;
+  max-width: min(100%, 46vw);
+  padding: 2px 10px 3px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--th-brass);
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-center.has-phase .th-obj-phase {
+  display: block;
+}
+
 .th-target {
   display: none;
   align-items: stretch;
@@ -1546,6 +1568,43 @@
   font-size: clamp(22px, 7vh, 34px);
   letter-spacing: 0.22em;
   color: var(--th-brass);
+}
+
+/* The side objectives on the pause screen: ticked when earned, struck through when failed. */
+.th-pause-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-s);
+  letter-spacing: 0.05em;
+}
+
+.th-pause-objectives:empty {
+  display: none;
+}
+
+.th-pause-objectives-title {
+  color: var(--th-brass);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: var(--fs-xs);
+}
+
+.th-pause-objective::before {
+  content: '\25A1\00A0';
+}
+
+.th-pause-objective.is-done {
+  color: var(--th-good);
+}
+
+.th-pause-objective.is-done::before {
+  content: '\2713\00A0';
+}
+
+.th-pause-objective.is-failed {
+  color: var(--th-bad);
+  text-decoration: line-through;
 }
 
 .th-pbtn {

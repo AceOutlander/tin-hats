@@ -14,6 +14,7 @@ import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { canTrain } from './commands';
+import { pointOwner } from './director';
 import { buildProblem, inPrep, missionTime } from './prep';
 import { canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, KIND_SQUAD } from './tables';
@@ -250,6 +251,26 @@ function build(w: World, si: number, ai: AiState): void {
  * Fall Back -> out: as soon as the HQ is no longer threatened or the garrison is strong enough;
  *   straight to Advance when it is clearly stronger.
  */
+/**
+ * How the current phase reads to the test bot: attack while an objective still needs ground taken (capture, a hold of
+ * a point it does not own, reach, destroy, the enemy HQ, a surrender), defend when what is left is holding out (survive,
+ * hold a point it owns, kills that the enemy brings to it). A phase with no objectives (an old mission) is attack, so
+ * the bot plays it as it always did.
+ */
+function phaseStance(w: World): 'attack' | 'defend' {
+  const d = w.state.director;
+  const objectives = w.phases[d.phase].objectives;
+  if (objectives.length === 0) return 'attack';
+  for (let i = 0; i < objectives.length; i++) {
+    if (d.objectives[i].done) continue;
+    const o = objectives[i];
+    if (o.type === 'survive' || o.type === 'kill') continue;
+    if (o.type === 'hold' && pointOwner(w.state, o.point) === 0) continue;
+    return 'attack';
+  }
+  return 'defend';
+}
+
 function decideOrder(w: World, si: number, ai: AiState): void {
   const side = w.state.sides[si];
   // On the mission clock: a prep phase does not count toward the plan's first attack.
@@ -259,15 +280,22 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   const capped = side.pop >= fullArmyPop(side) * AI.popCapAttackFrac;
   // With no enemy HQ to take (survival) there is nothing to attack, and sheltering in the HQ only
   // hands the trench to the waves: hold the line until the clock runs out.
-  const survival = w.state.sides[1 - si].hq === null;
-  const mayAttack = !survival && time >= ai.plan.firstAttackAfter / ai.aggression;
+  // The test bot reads the phase (a phase it only has to hold out is played like survival), and the mission script
+  // may steer either commander (posture events): hold = no Advance, counterattack = Advance now.
+  const survival = w.state.sides[1 - si].hq === null || (ai.bot && phaseStance(w) === 'defend');
+  const posture = w.state.director.posture[si];
+  const mayAttack = !survival && posture !== 'hold' && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
   const broken = AI.minAttackStrength * AI.regroupFrac;
   // Racing a clock that loses the battle (side 0 under a deadline): no more waiting.
-  const timer = w.state.timer;
+  const timer = w.state.director.timer ?? w.state.timer;
   const rushing = si === 0 && timer !== null && timer.onExpire === 'lose' && timer.secondsLeft <= AI_RECOVERY.deadlineRush;
   let next: Order = order;
-  if (survival) {
+  if (posture === 'counterattack' && SV.field > 0) {
+    next = 'advance';
+  } else if (survival) {
+    next = 'hold';
+  } else if (posture === 'hold' && order === 'advance') {
     next = 'hold';
   } else if (order === 'hold') {
     if (SV.hqThreat && SV.group < SV.foe * AI.retreatRatio) {
@@ -453,12 +481,12 @@ export function runCommanders(w: World): void {
 }
 
 /**
- * The test bot in a prep phase: the next build of the mission's plan (MissionDef.prep.bot), one per think, as money
+ * The test bot in a prep phase: the next build of its plan (MissionDef.prep.bot, or the phase's), one per think, as money
  * allows (a build that can never be placed is skipped); Ready once the whole plan is placed and built.
  */
 function prepBuild(w: World, si: number, ai: AiState): void {
   const s = w.state;
-  const plan = w.mission.prep?.bot ?? [];
+  const plan = w.prepDef?.bot ?? [];
   while (ai.prepNext < plan.length) {
     const step = plan[ai.prepNext];
     const problem = buildProblem(s, si, step.kind, step.x);

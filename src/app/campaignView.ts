@@ -283,6 +283,8 @@ export function medalView(b: MedalBreakdown): MedalResultView {
     time: b.time ? { ...b.time } : null,
     casualties: { ...b.casualties },
     hq: b.hq ? { ...b.hq } : null,
+    ...(b.structure ? { structure: { ...b.structure } } : {}),
+    ...(b.bonus && b.bonus.total > 0 ? { bonus: b.bonus.total } : {}),
     base: b.base,
     difficultyMul: b.difficultyMul,
     replayPercent: Math.floor(b.replayFactor * 100 + 1e-9),

@@ -29,6 +29,8 @@ export type AdminCommand =
   | { type: 'instantTrain'; on: boolean }
   | { type: 'end'; win: boolean }
   | { type: 'fireEvent'; index: number }
+  /** The mission director moves to this phase now (its PhaseDef.assume put in place). */
+  | { type: 'jumpPhase'; phase: string }
   | { type: 'restart'; difficulty: Difficulty }
   | { type: 'weather'; mode: WeatherChoice }
   | { type: 'timeOfDay'; darkness: number | null }
@@ -59,6 +61,8 @@ export interface AdminBattleInfo {
   sideInvincible: [boolean, boolean];
   /** The mission's scripted events, in data order. */
   events: { index: number; label: string }[];
+  /** The mission's phases (a mission of several), for "jump to phase". */
+  phases?: { id: string; label: string; current: boolean }[];
   /** Unit names of each side's nation, for the spawn chips. */
   names: [Record<UnitKind, string>, Record<UnitKind, string>];
 }

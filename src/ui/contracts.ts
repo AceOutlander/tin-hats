@@ -122,6 +122,13 @@ export interface HudState {
   fps: FpsState | null;
   /** The prep phase of a defensive mission while it runs, or null. */
   prep: PrepHudState | null;
+  /**
+   * The mission director's line under the objective plate (FOUNDATIONS.md 3.4): the phase and its first unfinished
+   * objective with progress ("Phase 2/3 · Hold the crossroads · Tanks destroyed 7 / 12"); null for a one-phase mission.
+   */
+  phaseLine?: string | null;
+  /** The side objectives begun so far, for the pause screen (not the battle HUD: phone space). */
+  sideObjectives?: { text: string; status: 'open' | 'done' | 'failed' }[];
 }
 
 /** One build the prep phase offers. */
@@ -247,6 +254,10 @@ export interface MedalResultView {
   casualties: ScorePartView;
   /** Survival missions only: HQ health 0..1 against the target. */
   hq: ScorePartView | null;
+  /** A defended building's health 0..1 (fixed scoring with a structure weight), when the mission counts one. */
+  structure?: ScorePartView | null;
+  /** What side objectives and the kill bonus added to the 0..1 score (before it is capped at 1), when any did. */
+  bonus?: number;
   /** Medals before the difficulty and replay factors. */
   base: number;
   difficultyMul: number;

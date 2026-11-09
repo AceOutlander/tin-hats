@@ -383,6 +383,11 @@ class HudView implements Hud {
   // Objective, banners, hint.
   private readonly objText: TextCell;
   private readonly objTime: HTMLElement;
+  /** The mission director's phase line under the plate, and whether there is one. */
+  private readonly phaseText: TextCell;
+  private readonly hasPhase: FlagCell;
+  /** The pause screen's side objectives (FOUNDATIONS.md 3.4). */
+  private readonly pauseObjectives: HTMLElement;
   private lastClock = -1;
   private readonly hasTimer: FlagCell;
   private readonly urgent: FlagCell;
@@ -542,6 +547,8 @@ class HudView implements Hud {
     this.objTime = el('span', 'th-obj-time', obj);
     this.hasTimer = new FlagCell(obj, 'has-timer');
     this.urgent = new FlagCell(obj, 'is-urgent');
+    this.phaseText = new TextCell(el('div', 'th-obj-phase', center));
+    this.hasPhase = new FlagCell(center, 'has-phase');
 
     const target = el('div', 'th-target', center);
     const targetText = el('div', 'th-target-text', target);
@@ -707,6 +714,7 @@ class HudView implements Hud {
     const overlay = el('div', 'th-pause', root);
     const panel = el('div', 'th-pause-panel', overlay);
     el('div', 'th-pause-title', panel, 'Paused');
+    this.pauseObjectives = el('div', 'th-pause-objectives', panel);
     const pauseMute = button('th-hbtn th-pbtn th-pbtn-quiet', 'pause-mute', 'Sound', panel);
     icon('soundOn', pauseMute, 'th-ico-on');
     icon('soundOff', pauseMute, 'th-ico-off');
@@ -781,6 +789,9 @@ class HudView implements Hud {
       this.objText.set(s.objective);
       this.urgent.set(false);
     }
+    const phaseLine = s.phaseLine ?? null;
+    this.hasPhase.set(phaseLine !== null);
+    if (phaseLine !== null) this.phaseText.set(phaseLine);
 
     this.ownHq.set(s.hqHp, s.hqMaxHp);
     const enemyHp = s.enemyHqHp;
@@ -849,7 +860,10 @@ class HudView implements Hud {
     if (s.paused !== this.paused) {
       this.paused = s.paused;
       this.pausedFlag.set(s.paused);
-      if (s.paused) this.releaseInputs();
+      if (s.paused) {
+        this.releaseInputs();
+        this.showPauseObjectives(s.sideObjectives ?? []);
+      }
     }
     this.mutedFlag.set(s.muted);
 
@@ -1410,6 +1424,15 @@ class HudView implements Hud {
     if (down === this.sentFire) return;
     this.sentFire = down;
     this.app.dispatch({ type: 'fire', down });
+  }
+
+  /** The side objectives on the pause screen: each line, ticked when earned, struck through when failed. */
+  private showPauseObjectives(list: { text: string; status: 'open' | 'done' | 'failed' }[]): void {
+    const box = this.pauseObjectives;
+    box.replaceChildren();
+    if (list.length === 0) return;
+    el('div', 'th-pause-objectives-title', box, 'Side objectives');
+    for (const so of list) el('div', `th-pause-objective is-${so.status}`, box, so.text);
   }
 
   /** Let go of everything held: stick to centre, fire up. Used on pause, loss of control, blur and hide. */

@@ -11,7 +11,7 @@ import { PREP } from '../data/prep';
 import type { Side } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
-import { orderCost, orderPop, type Battle, type BattleState } from '../sim';
+import { orderCost, orderPop, type Battle, type BattleState, type ObjectiveState } from '../sim';
 import type { ControlState, HudState, MinimapState, PrepHudState, SupportButtonState, TrainButtonState } from '../ui/contracts';
 
 /** Whose unit health the player may see (the battle view's HpReveal). */
@@ -98,9 +98,16 @@ export class HudModel {
   /** A new battle: the player's buttons, the objective text and the minimap's fixed parts. Allocates. */
   /** The prep phase panel of this battle (reused every frame), or null for a mission without one. */
   private prepPanel: PrepHudState | null = null;
+  /** The sim's prep state the panel was made for: a phase's own prep phase (FOUNDATIONS.md 7.3) gets a new panel. */
+  private prepSource: BattleState['prep'] = null;
+  /** The call-ins offered when the buttons were made (a `support` event offers or withdraws one mid-battle). */
+  private supportsKey = -1;
+  /** What the phase line was made from (phase, objective, shown progress), so it is rebuilt only when that changes. */
+  private phaseKey = -1;
+  private sideKey = '';
 
-  begin(battle: Battle): void {
-    const prep = battle.state.prep;
+  private makePrepPanel(prep: BattleState['prep']): void {
+    this.prepSource = prep;
     this.prepPanel = prep
       ? {
           secondsLeft: prep.secondsLeft,
@@ -113,6 +120,33 @@ export class HudModel {
           sites: 0,
         }
       : null;
+  }
+
+  /** The support buttons for the call-ins the player is offered now. */
+  private makeSupports(me: BattleState['sides'][0]): void {
+    const st = this.state;
+    st.supports = [];
+    let key = 0;
+    for (let k = 0; k < SUPPORT_KINDS.length; k++) {
+      const kind = SUPPORT_KINDS[k];
+      if (!me.supportAvailable[kind]) continue;
+      key |= 1 << k;
+      const btn: SupportButtonState = { kind, name: this.era.supportNames[kind], charge: 1, secondsLeft: 0 };
+      st.supports.push(btn);
+    }
+    this.supportsKey = key;
+  }
+
+  private supportsNow(me: BattleState['sides'][0]): number {
+    let key = 0;
+    for (let k = 0; k < SUPPORT_KINDS.length; k++) if (me.supportAvailable[SUPPORT_KINDS[k]]) key |= 1 << k;
+    return key;
+  }
+
+  begin(battle: Battle): void {
+    this.makePrepPanel(battle.state.prep);
+    this.phaseKey = -1;
+    this.sideKey = '';
     const s = battle.state;
     const st = this.state;
     const me = s.sides[0];
@@ -141,14 +175,11 @@ export class HudModel {
       }
     }
 
-    st.supports = [];
-    for (const kind of SUPPORT_KINDS) {
-      if (!me.supportAvailable[kind]) continue;
-      const btn: SupportButtonState = { kind, name: era.supportNames[kind], charge: 1, secondsLeft: 0 };
-      st.supports.push(btn);
-    }
+    this.makeSupports(me);
 
     st.targeting = null;
+    st.phaseLine = null;
+    st.sideObjectives = [];
     st.control = null;
     st.timer = null;
     st.objective = battle.config.mission.objective;
@@ -190,7 +221,9 @@ export class HudModel {
     st.pop = me.pop;
     st.popCap = me.popCap;
     st.order = me.order;
+    if (s.prep !== this.prepSource) this.makePrepPanel(s.prep);
     st.prep = fillPrep(this.prepPanel, s, me.supplies);
+    if (this.supportsNow(me) !== this.supportsKey) this.makeSupports(me);
 
     const train = st.train;
     for (let i = 0; i < train.length; i++) {
@@ -214,16 +247,25 @@ export class HudModel {
       b.charge = left <= 0 || total <= 0 ? 1 : Math.max(0, 1 - left / total);
     }
 
-    const timer = s.timer;
+    // The phase's own clock first, then the mission's, then a phase's "hold out" objective as a countdown.
+    const timer = s.director.timer ?? s.timer;
+    const survive = timer ? null : surviveObjective(s);
     if (timer) {
       const t = this.timer;
       t.label = timer.label;
       t.secondsLeft = timer.secondsLeft;
       t.urgent = timer.secondsLeft <= APP.timerUrgentSeconds;
       st.timer = t;
+    } else if (survive) {
+      const t = this.timer;
+      t.label = survive.text;
+      t.secondsLeft = Math.max(0, survive.target - survive.value);
+      t.urgent = t.secondsLeft <= APP.timerUrgentSeconds;
+      st.timer = t;
     } else {
       st.timer = null;
     }
+    this.refreshPhase(s);
 
     const hq = me.hq;
     st.hqHp = hq ? Math.max(0, hq.hp) : 0;
@@ -234,6 +276,41 @@ export class HudModel {
 
     this.refreshControl(battle, hp);
     this.refreshMinimap(battle, camCenterX, camViewW);
+  }
+
+  /**
+   * The phase line (a mission of more than one phase): "Phase 2/3 · The crossroads · Tanks destroyed 7 / 12", rebuilt
+   * only when what it shows changes; and the side objectives for the pause screen.
+   */
+  private refreshPhase(s: BattleState): void {
+    const st = this.state;
+    const d = s.director;
+    if (d.count > 1) {
+      let at = -1;
+      for (let i = 0; i < d.objectives.length; i++) {
+        if (!d.objectives[i].done) {
+          at = i;
+          break;
+        }
+      }
+      const o = at >= 0 ? d.objectives[at] : null;
+      const shown = o === null ? 0 : o.unit === 'seconds' ? Math.ceil(Math.max(0, o.target - o.value)) : Math.floor(o.value);
+      const key = d.phase * 1e7 + (at + 1) * 1e5 + shown;
+      if (key !== this.phaseKey) {
+        this.phaseKey = key;
+        const head = d.title !== '' ? `Phase ${d.phase + 1}/${d.count} · ${d.title}` : `Phase ${d.phase + 1}/${d.count}`;
+        st.phaseLine = o === null ? head : `${head} · ${objectiveProgress(o.text, o.unit, shown, o.target)}`;
+      }
+    } else {
+      st.phaseLine = null;
+    }
+    const list = d.side;
+    let key = '';
+    for (let i = 0; i < list.length; i++) key += list[i].status[0];
+    if (key !== this.sideKey) {
+      this.sideKey = key;
+      st.sideObjectives = list.map((so) => ({ text: so.text, status: so.status }));
+    }
   }
 
   private refreshControl(battle: Battle, hp: HpShownQuery | null): void {
@@ -321,4 +398,17 @@ function fillPrep(panel: PrepHudState | null, s: BattleState, money: number): Pr
   for (const site of s.sites) if (site.side === 0) sites++;
   panel.sites = sites;
   return panel;
+}
+
+/** The current phase's first unfinished "hold out" objective, for the clock when the phase has no other. */
+function surviveObjective(s: BattleState): ObjectiveState | null {
+  for (const o of s.director.objectives) if (!o.done && o.type === 'survive') return o;
+  return null;
+}
+
+/** "Tanks destroyed 7 / 12", "Hold the summit 2:40", or the bare line for a flag objective. */
+export function objectiveProgress(text: string, unit: ObjectiveState['unit'], shown: number, target: number): string {
+  if (unit === 'count') return `${text} ${shown} / ${target}`;
+  if (unit === 'seconds') return `${text} ${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`;
+  return text;
 }

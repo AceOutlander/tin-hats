@@ -18,6 +18,15 @@ export function breakdown(m: MedalResultView): HTMLElement {
   if (m.time) box.append(scoreRow('Time', formatTime(m.time.value), formatTime(m.time.target), m.time.score));
   box.append(scoreRow('Casualties', formatCount(m.casualties.value), formatCount(m.casualties.target), m.casualties.score));
   if (m.hq) box.append(scoreRow('HQ health', `${Math.round(m.hq.value * 100)}%`, `${Math.round(m.hq.target * 100)}%`, m.hq.score));
+  if (m.structure) {
+    const s = m.structure;
+    box.append(scoreRow('Building held', `${Math.round(s.value * 100)}%`, `${Math.round(s.target * 100)}%`, s.score));
+  }
+  if (m.bonus !== undefined && m.bonus > 0) {
+    const row = el('div', 'th-score-row');
+    add(row, el('dt', undefined, 'Bonus'), el('dd', 'th-type', 'Side objectives and kills'), el('dd', 'th-type th-score-mark', `+${Math.round(m.bonus * 100)}%`));
+    box.append(row);
+  }
   const factors = el('div', 'th-score-row th-score-total');
   add(
     factors,
@@ -26,6 +35,18 @@ export function breakdown(m: MedalResultView): HTMLElement {
     el('dd', 'th-type th-score-mark', String(m.medals)),
   );
   box.append(factors);
+  return box;
+}
+
+/** The mission's side objectives (FOUNDATIONS.md 3.4): each one's line, its bonus, and whether it was earned. */
+export function sideObjectiveList(list: { text: string; done: boolean; bonus: number }[]): HTMLElement {
+  const box = el('dl', 'th-score th-side-objectives');
+  box.dataset.testid = 'side-objectives';
+  for (const so of list) {
+    const row = el('div', so.done ? 'th-score-row is-done' : 'th-score-row is-missed');
+    add(row, el('dt', undefined, so.text), el('dd', 'th-type', so.done ? 'Done' : 'Missed'), el('dd', 'th-type th-score-mark', `+${Math.round(so.bonus * 100)}%`));
+    box.append(row);
+  }
   return box;
 }
 
@@ -66,6 +87,7 @@ export const resultScreen: ScreenFactory = (ctx) => {
     main.append(award);
   }
   if (result && result.won && result.medals) main.append(breakdown(result.medals));
+  if (result && result.sideObjectives && result.sideObjectives.length > 0) main.append(sideObjectiveList(result.sideObjectives));
 
   const stats = el('dl', 'th-stats');
   const rows: [string, string][] = result

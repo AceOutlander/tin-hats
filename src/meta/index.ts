@@ -45,11 +45,13 @@ export {
   replayFactor,
   replayPercent,
   scoreWin,
+  defaultScoring,
   trainingOffered,
   winsOn,
   type MedalBreakdown,
   type Roster,
   type ScorePart,
+  type ScoreBonus,
   type WinStats,
 } from './medals';
 export {

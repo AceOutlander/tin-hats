@@ -55,10 +55,26 @@ function squadOf(what: string): AdminSquadDef | undefined {
 /** A short line for a scripted event in the panel's list. */
 function eventLabel(ev: MissionEventDef, index: number): string {
   const when = ev.when;
-  const at = 'at' in when ? ` at ${when.at}s` : 'every' in when ? ` every ${when.every}s` : 'trenchCapturedBy' in when ? ` on trench ${when.trenchId}` : ' on HQ damage';
+  const at =
+    'at' in when
+      ? ` at ${when.at}s`
+      : 'every' in when
+        ? ` every ${when.every}s`
+        : 'trenchCapturedBy' in when
+          ? ` on trench ${when.trenchId}`
+          : 'hqHpBelow' in when
+            ? ' on HQ damage'
+            : 'phaseEvery' in when
+              ? ` every ${when.phaseEvery}s of ${when.phase}`
+              : 'phase' in when
+                ? ` ${when.delay ?? 0}s into ${when.phase}`
+                : 'objective' in when
+                  ? ` on ${when.objective}`
+                  : ' on a trigger';
+  const names: Record<string, string> = { hint: 'Hint', announce: 'Announcement', banner: 'Banner', barrage: 'Barrage', airRaid: 'Air raid', income: 'Income', posture: 'Posture', support: 'Call-in', disguise: 'Disguise', reveal: 'Reveal', setOwner: 'Owner', endMission: 'End' };
   const what =
-    ev.type === 'wave' ? `Wave (${ev.side === 0 ? 'mine' : 'enemy'})` : ev.type === 'airdrop' ? `Airdrop (${ev.side === 0 ? 'mine' : 'enemy'})` : ev.type === 'hint' ? 'Hint' : 'Announcement';
-  return `${index + 1}. ${what}${at}`;
+    ev.type === 'wave' ? `Wave (${ev.side === 0 ? 'mine' : 'enemy'})` : ev.type === 'airdrop' ? `Airdrop (${ev.side === 0 ? 'mine' : 'enemy'})` : (names[ev.type] ?? ev.type);
+  return `${index + 1}. ${ev.id !== undefined ? `${ev.id}: ` : ''}${what}${at}`;
 }
 
 /** Add one debug mark (CSS x, MARK_* kind, owning side or -1) while there is room. */
@@ -173,6 +189,9 @@ export class AdminController implements AdminApi {
       hqInvincible: [mine.cheats.hqInvincible, enemy.cheats.hqInvincible],
       sideInvincible: [mine.cheats.invincible, enemy.cheats.invincible],
       events: session.mission.events.map((ev, index) => ({ index, label: eventLabel(ev, index) })),
+      ...(s.director.count > 1
+        ? { phases: (session.mission.phases ?? []).map((p, index) => ({ id: p.id, label: `${index + 1}. ${p.title}`, current: index === s.director.phase })) }
+        : {}),
       names: [missionEra(session.mission, mine.faction).names, missionEra(session.mission, enemy.faction).names],
     };
   }
@@ -256,6 +275,9 @@ export class AdminController implements AdminApi {
         break;
       case 'fireEvent':
         this.act({ type: 'fireEvent', index: command.index });
+        break;
+      case 'jumpPhase':
+        this.act({ type: 'jumpPhase', phase: command.phase });
         break;
       case 'restart':
         if (DIFFICULTY_LIST.includes(command.difficulty)) app.restartOn(command.difficulty);

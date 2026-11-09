@@ -181,6 +181,18 @@ export class BattleSession {
         case 'bossArrived':
           if (e.side === 1) this.bossWarning();
           break;
+        // The mission director: a new phase is announced with a horn; a scripted banner with its own sound.
+        case 'phaseStarted':
+          if (e.text !== null) this.showBanner(e.text);
+          if (sound) playWaveWarning(this.audio);
+          break;
+        case 'banner':
+          if (e.text !== null) this.showBanner(e.text);
+          if (sound) {
+            if (e.value === 2) playBossWarning(this.audio);
+            else playWaveWarning(this.audio);
+          }
+          break;
         case 'airdrop':
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
           break;

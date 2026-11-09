@@ -237,6 +237,9 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
       for (const ev of info.battle.events) {
         out.append(row(el('span', 'th-admin-name', ev.label), btn('Fire', () => run({ type: 'fireEvent', index: ev.index }), { testid: `admin-event-${ev.index}` })));
       }
+      for (const p of info.battle.phases ?? []) {
+        out.append(row(el('span', 'th-admin-name', p.label), btn('Jump', () => run({ type: 'jumpPhase', phase: p.id }), { pressed: p.current, testid: `admin-phase-${p.id}` })));
+      }
     },
     difficulty(info, out) {
       if (!needBattle(info, out) || !info.battle) return;

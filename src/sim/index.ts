@@ -33,6 +33,7 @@ export {
 } from './balanceRuns';
 export { SIM_FEATURES } from './features';
 export { buildProblem, inPrep, missionTime } from './prep';
+export { directorScore, normalPhases, pointOwner, structureHealth, type DirectorScore } from './director';
 export { orderCost, orderPop } from './tables';
 export { Rng } from './rng';
 export { TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';
@@ -43,20 +44,24 @@ export type {
   BattleConfig,
   BattleResult,
   BattleState,
+  BarrageState,
   BuildSiteState,
   Behaviour,
   Command,
   CommanderKind,
+  DirectorState,
   DumpState,
   EndReason,
   EntityKind,
   EventBuffer,
   HqState,
   MountState,
+  ObjectiveState,
   PillboxState,
   PrepState,
   ProjectileState,
   SideCheats,
+  SideObjectiveState,
   SideState,
   SideStats,
   SimEvent,

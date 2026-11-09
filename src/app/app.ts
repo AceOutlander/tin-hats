@@ -30,6 +30,7 @@ import {
   isUnlocked,
   loadSave,
   maxLevel,
+  missionMedals,
   missionRoster,
   newsFor,
   withNews,
@@ -44,7 +45,7 @@ import {
   type StorageLike,
 } from '../meta';
 import type { BattleView, WeatherMode } from '../render/contracts';
-import { createBattle } from '../sim';
+import { createBattle, directorScore, structureHealth } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
 import { buildCampaignCards, buildCampaignView, buildResult, progressOf } from './campaignView';
 import { FpsMeter } from './fpsMeter';
@@ -412,10 +413,14 @@ export class App implements AppApi {
       recordClear(this.save, mission.id, session.difficulty);
       const s = session.battle.state;
       const hq = s.sides[0].hq;
+      const guarded = missionMedals(mission.id).structureWeight;
       medals = recordWin(this.save, mission, session.difficulty, {
         seconds: s.time,
         lost: s.sides[0].stats.lost,
         hqFrac: hq && hq.maxHp > 0 ? Math.max(0, hq.hp) / hq.maxHp : 0,
+        // The mission director's figures: side objectives, kills by kind, phase times, a defended building.
+        ...directorScore(s),
+        ...(guarded ? { structureFrac: structureHealth(s, guarded.ref) } : {}),
       });
       points = medals.medals;
       this.lastMedals = medals;
