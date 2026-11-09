@@ -32,11 +32,6 @@ export interface MissionMedalDef {
   /** Own units lost: at or under targetLost scores full marks, at or over roughLost scores none. */
   targetLost: number;
   roughLost: number;
-  /**
-   * Unit types the player may field here, if owned. Omitted = the mission's own list plus every type sold in the
-   * Armoury (a bought unit can be used anywhere the mission does not rule it out).
-   */
-  allow?: UnitKind[];
   /** Types this mission needs: lent for this mission only when the player has not bought them. */
   loans: LoanDef[];
   /**
@@ -64,6 +59,11 @@ export interface MedalTunables {
   replayFactor: number;
   /** Unit types every player has from the start. */
   free: UnitKind[];
+  /**
+   * Every type a mission's design expects (MissionMedalDef.expects) that the player has not bought is lent for that
+   * mission, this many, on top of the mission's own loans: no mission becomes impossible, whatever the prices.
+   */
+  autoLoanCount: number;
   /** In the Armoury's order: the core roles, then the new units, then the plane call-ins. */
   armoury: ArmouryItemDef[];
   /** Per campaign mission id. A mission missing here scores on `fallback`. */
@@ -91,8 +91,8 @@ const CORE_7: UnitKind[] = [...CORE_6, 'at'];
 const CORE_8: UnitKind[] = [...CORE_7, 'tank'];
 
 export const MEDALS: MedalTunables = {
-  rough: 10,
-  perfect: 100,
+  rough: 3,
+  perfect: 30,
   weights: {
     assault: { time: 0.5, casualties: 0.5 },
     survival: { casualties: 0.6, hq: 0.4 },
@@ -102,40 +102,40 @@ export const MEDALS: MedalTunables = {
   difficultyMul: { normal: 1, hard: 1.5, insane: 2.25 },
   replayFactor: 0.5,
   free: ['sapper', 'rifle'],
+  autoLoanCount: 2,
   armoury: [
-    { id: 'lmg', type: 'unit', price: 30, isNew: false },
-    { id: 'assault', type: 'unit', price: 45, isNew: false },
-    { id: 'mortar', type: 'unit', price: 60, isNew: false },
-    { id: 'sniper', type: 'unit', price: 60, isNew: false },
-    { id: 'medic', type: 'unit', price: 55, isNew: false },
-    { id: 'at', type: 'unit', price: 75, isNew: false },
-    { id: 'tank', type: 'unit', price: 130, isNew: false },
-    { id: 'apc', type: 'unit', price: 110, isNew: true },
-    { id: 'flame', type: 'unit', price: 80, isNew: true },
-    { id: 'commander', type: 'unit', price: 90, isNew: true },
-    { id: 'aa', type: 'unit', price: 70, isNew: true },
-    { id: 'recon', type: 'support', price: 70, isNew: true },
-    { id: 'fighter', type: 'support', price: 100, isNew: true },
-    { id: 'bomber', type: 'support', price: 150, isNew: true },
+    { id: 'lmg', type: 'unit', price: 90, isNew: false },
+    { id: 'assault', type: 'unit', price: 135, isNew: false },
+    { id: 'mortar', type: 'unit', price: 180, isNew: false },
+    { id: 'sniper', type: 'unit', price: 180, isNew: false },
+    { id: 'medic', type: 'unit', price: 165, isNew: false },
+    { id: 'at', type: 'unit', price: 225, isNew: false },
+    { id: 'tank', type: 'unit', price: 390, isNew: false },
+    { id: 'apc', type: 'unit', price: 330, isNew: true },
+    { id: 'flame', type: 'unit', price: 240, isNew: true },
+    { id: 'commander', type: 'unit', price: 270, isNew: true },
+    { id: 'aa', type: 'unit', price: 210, isNew: true },
+    { id: 'recon', type: 'support', price: 210, isNew: true },
+    { id: 'fighter', type: 'support', price: 300, isNew: true },
+    { id: 'bomber', type: 'support', price: 450, isNew: true },
   ],
   missions: {
     // The tutorial keeps to riflemen and sappers whatever the player owns.
-    1: { targetSeconds: 150, roughSeconds: 360, targetLost: 1, roughLost: 12, allow: ['sapper', 'rifle'], loans: [], expects: CORE_1 },
+    1: { targetSeconds: 150, roughSeconds: 360, targetLost: 1, roughLost: 12, loans: [], expects: CORE_1 },
     2: { targetSeconds: 240, roughSeconds: 240, targetLost: 3, roughLost: 25, loans: [{ kind: 'lmg', count: 2 }], expects: CORE_2 },
     3: { targetSeconds: 180, roughSeconds: 420, targetLost: 3, roughLost: 24, loans: [{ kind: 'assault', count: 3 }], expects: CORE_3 },
     4: { targetSeconds: 330, roughSeconds: 840, targetLost: 10, roughLost: 60, loans: [{ kind: 'mortar', count: 2 }], expects: CORE_4 },
     5: { targetSeconds: 330, roughSeconds: 840, targetLost: 12, roughLost: 70, loans: [{ kind: 'sniper', count: 2 }], expects: CORE_5 },
     6: { targetSeconds: 480, roughSeconds: 1100, targetLost: 18, roughLost: 100, loans: [{ kind: 'medic', count: 2 }], expects: CORE_6 },
     // Enemy tanks from here on: anti-tank teams are lent to anyone who has not bought them.
-    7: { targetSeconds: 540, roughSeconds: 1300, targetLost: 14, roughLost: 90, loans: [{ kind: 'at', count: 3 }], expects: CORE_7 },
+    7: { targetSeconds: 540, roughSeconds: 1300, targetLost: 14, roughLost: 90, loans: [{ kind: 'at', count: 3 }, { kind: 'medic', count: 2 }], expects: CORE_7 },
     8: { targetSeconds: 400, roughSeconds: 1100, targetLost: 12, roughLost: 80, loans: [{ kind: 'at', count: 3 }, { kind: 'tank', count: 2 }], expects: CORE_8 },
-    // Paratroopers at Arnhem: no sappers and no vehicles, whatever the Armoury holds.
+    // Paratroopers at Arnhem: no sappers (no supply economy); bought types, vehicles included, can be used here as anywhere.
     9: {
       targetSeconds: 360,
       roughSeconds: 360,
       targetLost: 8,
       roughLost: 50,
-      allow: ['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'commander', 'aa'],
       loans: [{ kind: 'at', count: 3 }],
       expects: CORE_7,
     },

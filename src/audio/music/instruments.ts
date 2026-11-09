@@ -3,8 +3,8 @@
  * the same code renders a track offline and could play live. A note is a pitch (MIDI), a start and a length in
  * seconds and a velocity 0..1; `dest` is the instrument's bus.
  */
-import type { DrumSettings, HornSettings, PadSettings, PianoSettings, ReverbSettings } from '../../data/music';
-import type { AnvilSettings, BellSettings, BrassSettings, ChoirSettings, HandSettings, SnareSettings, StringSettings, TimpaniSettings, WindSettings } from '../../data/musicBattle';
+import type { ChoirSettings, DrumSettings, HornSettings, PadSettings, PianoSettings, ReverbSettings, StringLeadSettings } from '../../data/music';
+import type { AnvilSettings, BattleChoirSettings, BellSettings, BrassSettings, HandSettings, SnareSettings, StringSettings, TimpaniSettings, WindSettings } from '../../data/musicBattle';
 import { AUDIO } from '../../data/sounds';
 import { seededRandom } from '../dsp';
 import type { NoiseBank } from '../synth';
@@ -18,6 +18,15 @@ export function midiHz(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
+/**
+ * Automate these once per render quantum (128 frames, under 6 ms) instead of every sample: for a slow filter sweep or a
+ * vibrato the difference cannot be heard, and a swept filter or a modulated detune computed per sample is what makes
+ * a long offline render slow. A browser without the setting keeps the default.
+ */
+function kRate(...params: AudioParam[]): void {
+  for (const p of params) p.automationRate = 'k-rate';
+}
+
 function stopAt(source: AudioScheduledSourceNode, when: number): void {
   source.stop(when + AUDIO.stopPad);
 }
@@ -27,7 +36,15 @@ function stopAt(source: AudioScheduledSourceNode, when: number): void {
  * and closes again, with a slow fade in, a swell in level and a long release after `length`.
  */
 export function playPad(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, level: number, s: PadSettings): void {
-  const f = midiHz(note);
+  playPadChord(ctx, dest, at, length, [note], level, s);
+}
+
+/**
+ * A whole pad chord through one filter pair and one envelope: the same sound as `playPad` note by note (the filters and
+ * the envelope are the same for every note of a chord, and they are linear), at a fraction of the cost to render, since
+ * a swept filter is the dearest node there is. `level` is the level of each note.
+ */
+export function playPadChord(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, notes: readonly number[], level: number, s: PadSettings): void {
   const end = at + length;
   const stop = end + s.release;
   const mid = at + length * 0.5;
@@ -36,6 +53,7 @@ export function playPad(ctx: BaseAudioContext, dest: AudioNode, at: number, leng
   const filter2 = ctx.createBiquadFilter();
   for (const f2 of [filter, filter2]) {
     f2.type = 'lowpass';
+    if (s.kRate === true) kRate(f2.frequency, f2.Q);
     f2.Q.value = s.q;
     f2.frequency.setValueAtTime(s.cutoff, at);
     f2.frequency.exponentialRampToValueAtTime(s.swellCutoff, mid);
@@ -54,14 +72,17 @@ export function playPad(ctx: BaseAudioContext, dest: AudioNode, at: number, leng
   const per = 1 / Math.max(1, s.voices);
   const voice = ctx.createGain();
   voice.gain.value = per;
-  for (let v = 0; v < s.voices; v++) {
-    const osc = ctx.createOscillator();
-    osc.type = s.wave;
-    osc.frequency.value = f;
-    osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
-    osc.connect(voice);
-    osc.start(at);
-    stopAt(osc, stop);
+  for (const note of notes) {
+    const f = midiHz(note);
+    for (let v = 0; v < s.voices; v++) {
+      const osc = ctx.createOscillator();
+      osc.type = s.wave;
+      osc.frequency.value = f;
+      osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+      osc.connect(voice);
+      osc.start(at);
+      stopAt(osc, stop);
+    }
   }
   voice.connect(filter);
   filter2.connect(env);
@@ -90,8 +111,13 @@ export function playHorn(ctx: BaseAudioContext, dest: AudioNode, at: number, len
   const g = env.gain;
   g.value = 0;
   g.setValueAtTime(0, at);
-  g.linearRampToValueAtTime(peak, at + s.attack);
-  g.setValueAtTime(peak, end);
+  const swell = s.swell ?? 0;
+  if (swell > 0 && length > s.attack * 2) {
+    swellEnvelope(g, at, end, peak, s.attack, swell);
+  } else {
+    g.linearRampToValueAtTime(peak, at + s.attack);
+    g.setValueAtTime(peak, end);
+  }
   g.exponentialRampToValueAtTime(FLOOR, stop);
 
   // The vibrato: a sine on both oscillators' detune, silent until vibratoDelay, then rising to its depth.
@@ -144,6 +170,151 @@ export function playHorn(ctx: BaseAudioContext, dest: AudioNode, at: number, len
     noise.start(at, rng() * buffer.duration * 0.9);
     stopAt(noise, stop);
   }
+}
+
+/** A long note leaning in: it speaks at (1 - swell) of `peak`, grows to `peak` in its middle and eases to (1 - swell / 2). */
+function swellEnvelope(g: AudioParam, at: number, end: number, peak: number, attack: number, swell: number): void {
+  g.linearRampToValueAtTime(peak * (1 - swell), at + attack);
+  g.linearRampToValueAtTime(peak, at + Math.max(attack * 1.5, (end - at) * 0.5));
+  g.linearRampToValueAtTime(peak * (1 - swell * 0.5), end);
+}
+
+/**
+ * A string section on a melody: `voices` detuned sawtooths through two low-pass stages (brighter when played harder),
+ * a slow bowed attack, a vibrato that comes in once the note has spoken, a swell over long notes and a long release,
+ * so consecutive notes overlap into a legato.
+ */
+export function playStringLead(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, s: StringLeadSettings, rng: () => number): void {
+  const f = midiHz(note);
+  const end = at + Math.max(length, s.attack);
+  const stop = end + s.release;
+  const peak = s.level * vel;
+  const cutoff = s.cutoff + s.brightness * vel;
+  const lp1 = ctx.createBiquadFilter();
+  const lp2 = ctx.createBiquadFilter();
+  for (const lp of [lp1, lp2]) {
+    lp.type = 'lowpass';
+    kRate(lp.frequency, lp.Q);
+    lp.Q.value = s.q;
+    lp.frequency.setValueAtTime(cutoff * 0.6, at);
+    lp.frequency.exponentialRampToValueAtTime(cutoff, at + s.attack * 1.5);
+  }
+  lp1.connect(lp2);
+  const env = ctx.createGain();
+  const g = env.gain;
+  g.value = 0;
+  g.setValueAtTime(0, at);
+  if (end - at > s.attack * 2) {
+    swellEnvelope(g, at, end, peak, s.attack, s.swell);
+  } else {
+    g.linearRampToValueAtTime(peak * (1 - s.swell), at + s.attack);
+    g.setValueAtTime(peak * (1 - s.swell), end);
+  }
+  g.linearRampToValueAtTime(0, stop);
+
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = s.vibratoRate * (0.94 + 0.12 * rng());
+  const depth = ctx.createGain();
+  depth.gain.value = 0;
+  depth.gain.setValueAtTime(0, at + s.vibratoDelay);
+  depth.gain.linearRampToValueAtTime(s.vibratoCents, at + s.vibratoDelay + 0.8);
+  lfo.connect(depth);
+  lfo.start(at);
+  stopAt(lfo, stop);
+
+  const voice = ctx.createGain();
+  voice.gain.value = 1 / Math.max(1, s.voices);
+  for (let v = 0; v < s.voices; v++) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = f;
+    kRate(osc.frequency, osc.detune);
+    osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+    depth.connect(osc.detune);
+    osc.connect(voice);
+    osc.start(at);
+    stopAt(osc, stop);
+  }
+  voice.connect(lp1);
+  lp2.connect(env);
+  env.connect(dest);
+}
+
+/** One formant band of a vowel between "oo" (0) and "ah" (1): centre (geometric), quality and level (linear). */
+function formantAt(s: ChoirSettings, band: number, vowel: number): [number, number, number] {
+  const [ooHz, ooQ, ooLevel] = s.oo[band];
+  const [ahHz, ahQ, ahLevel] = s.ah[band];
+  const v = Math.max(0, Math.min(1, vowel));
+  return [ooHz * Math.pow(ahHz / ooHz, v), ooQ + (ahQ - ooQ) * v, ooLevel + (ahLevel - ooLevel) * v];
+}
+
+/**
+ * A wordless choir singing one chord: each note is `voices` detuned sawtooths sharing one slow vibrato, all summed and
+ * softened, then shaped into a vowel by parallel band-passes at its formants, which glide from `vowel[0]` to `vowel[1]`
+ * ("oo" 0 to "ah" 1) over the chord's length. One set of formants for the whole chord: a choir's vowel is the same
+ * whatever the pitch, and it keeps the node count down.
+ */
+export function playChoir(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, notes: readonly number[], vel: number, vowel: readonly [number, number], s: ChoirSettings, rng: () => number): void {
+  if (notes.length === 0) return;
+  const end = at + length;
+  const stop = end + s.release;
+  const peak = s.level * vel;
+  const buzz = ctx.createGain();
+  buzz.gain.value = 1 / (Math.max(1, s.voices) * Math.sqrt(notes.length));
+  const soft = ctx.createBiquadFilter();
+  soft.type = 'lowpass';
+  soft.frequency.value = s.sourceCutoff;
+  soft.Q.value = 0.5;
+  buzz.connect(soft);
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = s.vibratoRate * (0.9 + 0.2 * rng());
+  const depth = ctx.createGain();
+  depth.gain.value = s.vibratoCents;
+  lfo.connect(depth);
+  lfo.start(at);
+  stopAt(lfo, stop);
+  for (const note of notes) {
+    const f = midiHz(note);
+    for (let v = 0; v < s.voices; v++) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = f;
+      const spread = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+      kRate(osc.frequency, osc.detune);
+      osc.detune.value = spread + (rng() * 2 - 1) * 2;
+      depth.connect(osc.detune);
+      osc.connect(buzz);
+      osc.start(at);
+      stopAt(osc, stop);
+    }
+  }
+  const env = ctx.createGain();
+  const g = env.gain;
+  g.value = 0;
+  g.setValueAtTime(0, at);
+  g.linearRampToValueAtTime(peak, at + Math.min(s.attack, length * 0.5));
+  g.setValueAtTime(peak, end);
+  g.linearRampToValueAtTime(0, stop);
+  for (let band = 0; band < s.oo.length; band++) {
+    const [hz0, q0, level0] = formantAt(s, band, vowel[0]);
+    const [hz1, q1, level1] = formantAt(s, band, vowel[1]);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    kRate(bp.frequency, bp.Q);
+    bp.frequency.setValueAtTime(hz0, at);
+    bp.frequency.exponentialRampToValueAtTime(hz1, end);
+    bp.Q.setValueAtTime(q0, at);
+    bp.Q.linearRampToValueAtTime(q1, end);
+    const level = ctx.createGain();
+    level.gain.setValueAtTime(level0, at);
+    level.gain.linearRampToValueAtTime(level1, end);
+    soft.connect(bp);
+    bp.connect(level);
+    level.connect(env);
+  }
+  env.connect(dest);
 }
 
 /**
@@ -587,7 +758,7 @@ export function playAnvil(ctx: BaseAudioContext, dest: AudioNode, at: number, no
  * A wordless choir: detuned sawtooths sharing one slow vibrato, through formant band-passes (the vowel) and a little
  * breath, swelling in slowly to full in the note's middle and dying away over the release.
  */
-export function playChoir(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, s: ChoirSettings, bank: NoiseBank, rng: () => number): void {
+export function playBattleChoir(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, s: BattleChoirSettings, bank: NoiseBank, rng: () => number): void {
   const f = midiHz(note);
   const end = at + Math.max(length, 0.05);
   const stop = end + s.release;

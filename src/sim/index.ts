@@ -36,6 +36,8 @@ export { orderCost, orderPop } from './tables';
 export { Rng } from './rng';
 export { TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';
 export type {
+  AdminAction,
+  AiReport,
   Battle,
   BattleConfig,
   BattleResult,
@@ -51,6 +53,7 @@ export type {
   MountState,
   PillboxState,
   ProjectileState,
+  SideCheats,
   SideState,
   SideStats,
   SimEvent,

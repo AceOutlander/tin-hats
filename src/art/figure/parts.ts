@@ -158,6 +158,78 @@ function headSpec(key: string, color: string, grow: number): SpriteSpec {
   );
 }
 
+// Light rubber and a pale canister so the mask reads against the black silhouette at phone size.
+const MASK_RUBBER = '#8f8a72';
+const MASK_RUBBER_EDGE = '#5d5947';
+const MASK_SNOUT = '#77725d';
+const MASK_STRAP = '#4a4637';
+const MASK_CAN = '#a59c7b';
+const MASK_CAN_DARK = '#5a5442';
+const MASK_RING = '#cfc6a6';
+
+/**
+ * The flamethrower's head: the plain head wearing a gas mask (rubber face piece, one round lens glowing with the fire
+ * in front of him, the snout and its filter canister hanging below the chin, straps round the back of the head).
+ */
+function headMaskSpec(key: string): SpriteSpec {
+  const hr = FIGURE.headRadius;
+  const L = B.neck;
+  const k = hr / 5;
+  return makeSpec(key, Math.min(-NECK_R, L - 11 * k), -hr - 0.6, L + hr + 0.4, 10.8 * k, (ctx) => {
+    fillPath(ctx, C.body, () => {
+      capsule(ctx, L * 0.6, NECK_R, NECK_R);
+      ctx.moveTo(L + hr, 0);
+      ctx.arc(L, 0, hr, 0, TAU);
+    });
+    // Mask paths are drawn upright (x toward the face, y down, origin at the head centre) for a head of radius 5.
+    ctx.translate(L, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.scale(k, k);
+    line(ctx, MASK_STRAP, 0.9, [0.6, -2.7, -4.3, -3.3]);
+    line(ctx, MASK_STRAP, 0.9, [-0.2, 2.8, -4.5, 1.6]);
+    // Face piece, with a darker rim so it separates from the head.
+    const face = (): void => {
+      ctx.moveTo(0.3, -3.6);
+      ctx.quadraticCurveTo(3.9, -3.9, 5.1, -2.3);
+      ctx.quadraticCurveTo(6.0, -0.2, 5.6, 1.7);
+      ctx.quadraticCurveTo(4.8, 4.5, 2.6, 4.9);
+      ctx.quadraticCurveTo(0.2, 4.9, -0.9, 3.5);
+      ctx.quadraticCurveTo(-1.8, 0.2, 0.3, -3.6);
+      ctx.closePath();
+    };
+    solid(ctx, MASK_RUBBER_EDGE, face);
+    ctx.save();
+    ctx.translate(2.4, 0.6);
+    ctx.scale(0.86, 0.86);
+    ctx.translate(-2.4, -0.6);
+    solid(ctx, MASK_RUBBER, face);
+    ctx.restore();
+    // Snout and the round filter canister hanging from it.
+    solid(ctx, MASK_SNOUT, () => poly(ctx, [3.6, 0.8, 6.2, 1.5, 7.3, 3.5, 5.5, 4.8, 3.4, 3.3]));
+    line(ctx, MASK_RUBBER_EDGE, 0.5, [4.4, 1.5, 6.2, 4.2]);
+    ctx.save();
+    ctx.translate(6.6, 6.6);
+    ctx.rotate(-0.3);
+    solid(ctx, MASK_CAN_DARK, () => rrect(ctx, -2.5, -2.9, 5.0, 5.9, 1.4));
+    solid(ctx, MASK_CAN, () => rrect(ctx, -2.1, -2.5, 4.2, 5.1, 1.1));
+    line(ctx, MASK_CAN_DARK, 0.55, [-2.1, -0.7, 2.1, -0.7]);
+    line(ctx, MASK_CAN_DARK, 0.55, [-2.1, 1.0, 2.1, 1.0]);
+    solid(ctx, MASK_CAN_DARK, () => rrect(ctx, -1.8, 2.3, 3.6, 0.9, 0.35));
+    ctx.restore();
+    // The lens: a steel ring round glass that glows orange with the flames.
+    dot(ctx, MASK_RING, 3.4, -1.0, 1.75);
+    const g = ctx.createRadialGradient(3.6, -1.2, 0.1, 3.4, -1.0, 1.35);
+    g.addColorStop(0, '#fff3b8');
+    g.addColorStop(0.45, '#f7a438');
+    g.addColorStop(1, '#9c3e16');
+    ctx.beginPath();
+    ctx.arc(3.4, -1.0, 1.3, 0, TAU);
+    ctx.fillStyle = g;
+    ctx.fill();
+    dot(ctx, 'rgba(255, 255, 255, 0.75)', 3.9, -1.5, 0.3);
+  });
+}
+
 function bootPath(ctx: Ctx): void {
   const h = FIGURE.ankle;
   const L = FIGURE.footLength;
@@ -622,19 +694,21 @@ function paintPistol(ctx: Ctx): void {
   line(ctx, STEEL_L, 0.3, [0.8, 0.2, 2.0, 1.2, 0.8, 1.4]);
 }
 
-/** Flamethrower fuel and gas tanks on his back, anchored at the chest joint like the pack. */
+/** Flamethrower fuel and gas tanks on his back, harness and hose stub, in pack space (anchored at the chest joint like the pack). */
+export function paintFlamePack(ctx: Ctx, tint: string, dark: string): void {
+  // Far tank, the gas bottle between, the near tank (side on they overlap).
+  solid(ctx, dark, () => rrect(ctx, -9.8, -9.6, 4.2, 14.2, 2.0));
+  solid(ctx, STEEL, () => rrect(ctx, -6.4, -8.0, 2.4, 9.6, 1.2));
+  solid(ctx, tint, () => rrect(ctx, -8.4, -9.0, 4.4, 14.0, 2.1), 'rgba(20, 21, 15, 0.6)', 0.4);
+  line(ctx, dark, 0.5, [-8.0, -5.6, -4.4, -5.6]);
+  line(ctx, dark, 0.5, [-8.0, 1.6, -4.4, 1.6]);
+  // Harness strap over the shoulder and the hose stub at the bottom.
+  line(ctx, dark, 0.7, [-4.2, -7.4, -1.2, -7.0, 0.2, -5.0]);
+  line(ctx, BLACK, 0.9, [-6.2, 5.0, -4.2, 5.0]);
+}
+
 function flamePackSpec(key: string, tint: string, dark: string): SpriteSpec {
-  return makeSpec(key, -10.6, -10.6, 0.8, 5.4, (ctx) => {
-    // Far tank, the gas bottle between, the near tank (side on they overlap).
-    solid(ctx, dark, () => rrect(ctx, -9.8, -9.6, 4.2, 14.2, 2.0));
-    solid(ctx, STEEL, () => rrect(ctx, -6.4, -8.0, 2.4, 9.6, 1.2));
-    solid(ctx, tint, () => rrect(ctx, -8.4, -9.0, 4.4, 14.0, 2.1), 'rgba(20, 21, 15, 0.6)', 0.4);
-    line(ctx, dark, 0.5, [-8.0, -5.6, -4.4, -5.6]);
-    line(ctx, dark, 0.5, [-8.0, 1.6, -4.4, 1.6]);
-    // Harness strap over the shoulder and the hose stub at the bottom.
-    line(ctx, dark, 0.7, [-4.2, -7.4, -1.2, -7.0, 0.2, -5.0]);
-    line(ctx, BLACK, 0.9, [-6.2, 5.0, -4.2, 5.0]);
-  });
+  return makeSpec(key, -10.6, -10.6, 0.8, 5.4, (ctx) => paintFlamePack(ctx, tint, dark));
 }
 
 function paintPiatBomb(ctx: Ctx): void {
@@ -673,6 +747,8 @@ export const BODY_KEYS = {
   torsoLower: 'fig/body/torsoLower',
   torsoUpper: 'fig/body/torsoUpper',
   head: 'fig/body/head',
+  /** The flamethrower's head, wearing a gas mask. */
+  headMask: 'fig/body/headMask',
   armband: 'fig/kit/armband',
 } as const;
 
@@ -817,6 +893,7 @@ function bodySpecs(): SpriteSpec[] {
     limbSpec(K.torsoLower, B.spineLower, RAD.torsoLower, C.body, 0),
     limbSpec(K.torsoUpper, B.spineUpper, RAD.torsoUpper, C.body, 0),
     headSpec(K.head, C.body, 0),
+    headMaskSpec(K.headMask),
     armbandSpec(),
     limbSpec(R.upperArm, B.upperArm, RAD.upperArm, C.rim, RIM),
     limbSpec(R.forearm, B.forearm, RAD.forearm, C.rim, RIM),

@@ -10,6 +10,7 @@ import { BattleMusicPlayer } from '../audio/music/battlePlayer';
 import { seededRandom } from '../audio/dsp';
 import { findOfflineContext, startRendering } from '../audio/render';
 import { APP } from '../data/app';
+import { CONFIG } from '../data/config';
 import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { RENDER } from '../data/render';
@@ -22,6 +23,7 @@ import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts'
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
+import type { AdminController } from './admin';
 import type { App } from './app';
 import { MENU_MUSIC, type MenuStormStats } from './menuStorm';
 import type { LayerChange } from './musicIntensity';
@@ -194,7 +196,7 @@ export interface DebugApi {
   setTimeScale(n: number): void;
   getTimeScale(): number;
   grantSupplies(n: number): void;
-  /** Raise the player's population cap by n (a full army leaves no room to train one of every kind). */
+  /** Raise the player's population cap by n, never above CONFIG.popCap (100 everywhere, even in test battles). */
   grantPopulation(n: number): void;
   forceWeather(w: WeatherMode): void;
   forceThunder(): void;
@@ -217,6 +219,15 @@ export interface DebugApi {
   music: MusicHooks;
   /** The battle music. */
   battleMusic: BattleMusicHooks;
+  /** The hidden admin panel (null when the page has none). */
+  admin: AdminHooks | null;
+}
+
+/** Test hooks of the admin panel. The real code is never needed: a test compares against a hash of its own code. */
+export interface AdminHooks {
+  /** From now on the prompt accepts the code whose salted hash (adminLock.codeHash) this is. */
+  useHash(hex: string): void;
+  unlocked(): boolean;
 }
 
 /** The rendered menu theme, measured. */
@@ -329,7 +340,7 @@ export function debugEnabled(search: string): boolean {
 }
 
 /** Create the hooks and put them on window.__TH. */
-export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: GameAudio): DebugApi {
+export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: GameAudio, admin: AdminController | null = null): DebugApi {
   const api: DebugApi = {
     ready: false,
 
@@ -563,7 +574,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     grantPopulation(n) {
       const session = app.session;
-      if (session) session.battle.state.sides[0].popCap += n;
+      if (session) {
+        const side = session.battle.state.sides[0];
+        side.popCap = Math.min(CONFIG.popCap, side.popCap + n);
+      }
     },
 
     forceWeather(w) {
@@ -670,6 +684,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         return measureMix(Offline, track);
       },
     },
+
+    admin: admin
+      ? {
+          useHash: (hex) => admin.lockState.useHash(String(hex)),
+          unlocked: () => admin.isUnlocked(),
+        }
+      : null,
 
     battleMusic: {
       stats: () => JSON.parse(JSON.stringify(audio.battleMusicStats())) as BattleMusicStats,

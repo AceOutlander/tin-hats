@@ -10,7 +10,7 @@ import { MUSIC_BATTLE } from '../../data/musicBattle';
 import { seededRandom } from '../dsp';
 import { startRendering, type OfflineContextCtor } from '../render';
 import { createNoiseBank, type NoiseBank } from '../synth';
-import { makeImpulse, playAnvil, playBell, playBrass, playChoir, playHand, playHorn, playPad, playSnare, playStrings, playTimpani, playWind } from './instruments';
+import { makeImpulse, playAnvil, playBell, playBrass, playBattleChoir, playHand, playHorn, playPad, playSnare, playStrings, playTimpani, playWind } from './instruments';
 
 export type StingName = 'victory' | 'defeat';
 
@@ -220,7 +220,7 @@ export function battleGraph(ctx: BaseAudioContext, out: AudioNode, def: BattleTr
         break;
       case 'choir':
         // Held voices keep their written time, like the pad.
-        playChoir(ctx, dest, e.at * spb, len, e.note, vel, I.choir, bank, rng);
+        playBattleChoir(ctx, dest, e.at * spb, len, e.note, vel, I.choir, bank, rng);
         break;
       case 'wind':
         playWind(ctx, dest, e.at * spb, len, e.note, vel, I.wind, bank, rng);

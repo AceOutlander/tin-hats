@@ -429,6 +429,10 @@ export const TANK_LOOKS: readonly TankLook[] = ['churchill', 'panzer4', 'kingTig
 export type VehicleLook = TankLook | 'panzer3' | 'cruiser' | 'carrier' | 'halftrack' | 't60' | 'carrierSoviet';
 export const VEHICLE_LOOKS: readonly VehicleLook[] = [...TANK_LOOKS, 'panzer3', 'cruiser', 'carrier', 'halftrack', 't60', 'carrierSoviet'];
 
+/** The looks that carry Quartermaster upgrade gear: the tanks and the player's APCs (src/data/looksGear.ts). */
+export type GearLook = TankLook | 'carrier' | 'halftrack';
+export const GEAR_LOOKS: readonly GearLook[] = [...TANK_LOOKS, 'carrier', 'halftrack'];
+
 /** Looks of the vehicle kinds a FactionLook does not name (tank and heavyTank come from FACTIONS[f].look). */
 export const VEHICLE_LOOK_EXTRA: Record<FactionId, Record<'apc' | 'lightTank', VehicleLook>> = {
   british: { apc: 'carrier', lightTank: 'cruiser' },

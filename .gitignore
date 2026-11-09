@@ -11,3 +11,6 @@ coverage/
 
 # Screenshots are test and review output: kept locally, never published.
 docs/screenshots/
+
+# Scratch measurements of the lag job: kept locally, never committed.
+.perf/

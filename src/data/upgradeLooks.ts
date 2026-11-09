@@ -1,4 +1,4 @@
-import type { FactionId, UnitKind } from './schema';
+import type { FactionId, SupportKind, UnitKind, UpgradeDef } from './schema';
 
 /**
  * How Quartermaster upgrades look in battle. Each look track follows one upgrade's level (0 to 3) and names the
@@ -124,4 +124,44 @@ export interface SideLooks {
   faction: FactionId;
   stage: Record<LookTrack, LookStage>;
   gear: Partial<Record<UnitKind, GearLevels>>;
+  /** Plane gear level per call-in (0 to 3). */
+  support: Partial<Record<SupportKind, LookStage>>;
+}
+
+/**
+ * Plane call-in gear, one piece per level of the call-in's upgrade (they add up): invasion stripes (British) or a
+ * theatre band (German) round the rear fuselage, then a drop tank under the belly, then a painted nose and a row of
+ * mission tallies under the cockpit. Positions per plane type are in src/data/looksGear.ts.
+ */
+export type PlaneGearPiece = 'stripes' | 'dropTank' | 'nose';
+
+export const PLANE_GEAR_STEPS: readonly { piece: PlaneGearPiece; level: 1 | 2 | 3 }[] = [
+  { piece: 'stripes', level: 1 },
+  { piece: 'dropTank', level: 2 },
+  { piece: 'nose', level: 3 },
+];
+
+/**
+ * How an upgrade shows in battle: a look track (HQ, gun, dump, sappers), a unit's gear on its health or damage
+ * source, or a call-in plane's gear. Every Quartermaster upgrade must have one, and each of its levels must look
+ * different from the one before (tests/unit/upgrade-visuals.test.ts).
+ */
+export type UpgradeVisual =
+  | { type: 'track'; track: LookTrack }
+  | { type: 'gear'; unit: UnitKind; source: GearSource }
+  | { type: 'plane'; support: SupportKind };
+
+/** The call-ins that fly a plane the gear is drawn on. */
+export const PLANE_SUPPORTS: readonly SupportKind[] = ['bomber', 'fighter', 'recon'];
+
+/** The visual of one upgrade, from its data; null if it has none (a new kind of upgrade must add one here). */
+export function upgradeVisual(def: UpgradeDef): UpgradeVisual | null {
+  for (const t of LOOK_TRACKS) if (LOOK_UPGRADE[t] === def.id) return { type: 'track', track: t };
+  if (def.support !== undefined) return PLANE_SUPPORTS.includes(def.support) ? { type: 'plane', support: def.support } : null;
+  if (def.unit === null || def.unit === 'sapper') return null;
+  const stats = def.levels[0] ?? [];
+  // The medic's healing upgrade counts as his damage track.
+  if (stats.some((e) => e.stat === 'unitHealth')) return { type: 'gear', unit: def.unit, source: 'health' };
+  if (stats.some((e) => e.stat === 'unitDamage' || e.stat === 'unitHeal')) return { type: 'gear', unit: def.unit, source: 'damage' };
+  return null;
 }

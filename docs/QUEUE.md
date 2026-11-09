@@ -5,7 +5,61 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
-## Build order (owner, 2026-11-08; replaces every earlier order)
+## Current order (owner, 2026-11-08, latest; overrides the build order below where they differ)
+
+"1. Finish the lag fixes and the playtest fixes, and push them live.
+2. Then the admin panel.
+3. Then Stalingrad fully, including what its missions depend on: the switch to Money and the prep phase for its
+   defensive missions. Build those as part of Stalingrad. It still stays off the live site until it's 100% done and I
+   say push.
+The campaign map theme is nearly done, so let it finish alongside. Passives, the difficulty overhaul and everything
+else come after Stalingrad."
+
+Done and live since the build order below was written: barbed wire end-on, job 7 new units, job 10 medals and the
+Armoury (Armoury prices raised: old types x2, new types x3). Notes: the Money rename (job 3) and the prep phase (job 6)
+are now built on the `stalingrad` branch and go live with Stalingrad. Queued for later (specs below): smarter medics;
+the later Panzer III and the Maus; deeper performance work (low priority, the lag was mostly the owner's computer).
+
+## FIRST after the 8 pm reset, before Stalingrad: units unlocked by missions again (owner, 2026-11-09)
+
+"Change of design: soldiers are unlocked by mission progress again, not bought with medals. The medal prices for units are too high and unbalanced.
+- Each mission unlocks its unit types as before (the mission data says which). Once a unit type is unlocked, I can use it in every mission, including replays of earlier missions and other campaigns, each mission using my nation's version for that era.
+- Remove unit buying from the Armoury. Medals now buy only upgrades and the Poland unlock. Re-check that upgrade prices are reasonable for what a player earns per mission, and tell me what you set.
+- Saves keep every unit already bought or unlocked, and refund medals spent on units.
+- Keep the "NEW UNIT" briefing cards and the in-battle "New:" hints, since they're correct again, but only for units actually unlocked by that mission. Ignore my earlier request to remove them.
+- If mission 1 of a campaign would leave players with too few unit types, let each campaign start with sappers, riflemen and one or two basics.
+- Do this now if it fits before my usage limit; otherwise do it first after the reset, before Stalingrad, since Stalingrad's unlock order depends on it. Update the balance tests."
+
+Notes: this supersedes the "Next bug fix" below (the Intel panel and removing the NEW cards / "New:" hints are dropped;
+keep the cards and hints for units that mission actually unlocks). Open questions to settle and report: what plane
+call-ins are (mission unlocks like units, or still bought with medals; they are not soldiers, so keeping them in the
+Armoury is the conservative reading, say so); medals spent on units are refunded at the price paid (save migration
+with a version bump); the automatic loans (MEDALS.autoLoanCount) and loans in general become unnecessary for unlocked
+types: keep loans only where a mission needs a type the player cannot have unlocked yet. Upgrade prices: the earn rate
+is 3 to 30 medals a win (x1.5 Hard, x2.25 Insane, halved per replay); today an upgrade level costs
+UPGRADE_MEDALS_PER_LEVEL = 20; check with the balance bot what a first campaign run earns and price levels so a
+sensible set of upgrades is affordable. The admin panel (branch admin-panel) has an "unlock all" action: keep it working.
+
+## Next bug fix: briefing Intel panel and first-use tips (owner, 2026-11-08; next free job slot, before Stalingrad; push with the next update)
+
+"Bug: mission briefings still show "NEW UNIT" and "NEW SUPPORT" cards (for example Medic and Smoke Screen at Monte Cassino), left over from the old per-mission unlocks. Units now come only from the Armoury.
+- Remove those cards. Replace them with a useful "Intel" panel: what the enemy is expected to field (for example pillboxes, machine-gun nests, tanks), plus recommended unit types to bring. Mark recommended types I haven't bought yet, and any I'll get on loan for this mission.
+- Make sure no briefing text talks about units being newly unlocked or arriving because of the mission. That applies to the Stalingrad and Basic Training briefings being written now, and all future campaigns.
+- Push the fix with the next update."
+
+"Also: in-battle hints still announce things as "New:" (for example "New: Smoke Screen..." at Monte Cassino). Remove the per-mission "New:" hints. How-to tips now belong in Basic Training. Outside the tutorial, show a short tip only the first time I use a unit or call-in I've bought, in whatever mission that happens, then never again. Add a "Reset tips" option in Settings."
+
+Notes: MissionDef.newUnit/newSupport (schema, m01-m10, campaignView, briefing.ts, tutorial.ts, TUTORIAL.newUnit/newSupport,
+debug, matchup) go; mission hint events whose text starts "New:" (m04, m05, m06, others) go, and briefing prose like m10's
+"The Typhoon Air Strike is now available" is rewritten. Intel comes from mission data (pillboxes, trenches, wire, the
+enemy roster and waves) and MEDALS.missions[id].expects, marked against the save (not bought, on loan via missionRoster).
+First-use tips are keyed by type in TipMemory (tinhats.tips) and fire when a bought type is first trained or called in;
+Settings already clears tips somewhere (app.ts tips.clear): make it a clearly labelled "Reset tips" button. Add a rule to
+docs/AGENT_GUIDE.md and the campaign docs: briefings never say a unit is newly unlocked or arrives because of the
+mission. Tests: no mission text or hint contains "New:" or "now available"; the Intel panel marks not-bought and
+on-loan types; a first-use tip shows once per type across missions; Reset tips brings them back.
+
+## Build order (owner, 2026-11-08; superseded in part by the current order above)
 
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
@@ -48,7 +102,7 @@ the owner it is ready and **wait for the owner to say when to push it live**. (T
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
 12. **Trench art pass** (spec below).
 
-Later: a French campaign, and a German campaign as DLC. After all the campaigns: the iPhone rendering bug (spec below). Then publishing on Google Play (spec below). Very last: the Poland 1939 campaign as a paid add-on (spec at
+Later: a French campaign, and a German campaign as DLC. After all the campaigns: the iPhone rendering bug (spec below). Then publishing on Google Play (spec below). Very last: the paid add-ons, the Battle for Poland ($5.99) and the Cavalier unit ($2.99), Google Play app only (specs at
 the end; the store plan comes first, and no payment code or paid content goes into the public repo until the owner
 picks a store).
 
@@ -357,6 +411,14 @@ Each mission gets a short briefing and a campaign map location. Check the histor
 
 "Rename the resource to Money: sappers still carry boxes, but every supply label, icon and text becomes money."
 
+## Smarter medics (owner, 2026-11-08; not urgent)
+
+"- Medics automatically look for wounded friendly soldiers nearby, go to the one in most need (lowest health first), and heal them, then move on to the next.
+- They don't run past the front line or into the open toward the enemy just to reach someone. They stay with their army's current order: on Hold they move along their own line, on Advance they follow behind the push, and on Fall Back they retreat with everyone.
+- Several medics don't all go for the same soldier.
+- When I take direct control of a medic, the automatic behaviour pauses.
+- Add a test that a medic picks the most wounded nearby soldier and heals them."
+
 ## Unlockable passives
 
 "- Unlockable badges that give a small, always-on bonus and have no visuals in battle. They show as badges in the Quartermaster screen.
@@ -395,6 +457,20 @@ adding a second one, and keep it out of anything set before mid-1944. Front vers
 rule in the sim (damage depends on which side of the tank the shot comes from); build it as data so other tanks can
 use it later.
 
+
+## More German tanks: later Panzer III and the Maus (owner, 2026-11-08; later, part of the new units)
+
+"## Panzer III, later versions
+- Besides the early Ausf. E (1939–41), add the later Panzer III with the longer, stronger gun for 1942–43. It's the most common German tank in the Stalingrad campaign. Weaker than the Panzer IV and T-34, and vulnerable to anti-tank weapons. Era-correct per mission.
+
+## Maus (super-heavy tank)
+- The Maus is a real fighting unit for the Germans, not just a one-off scripted boss. It appears in late-war missions (1945) when the mission data or the AI calls for it, as a rare, very expensive heavy hitter. No briefing disclaimer needed.
+- It's enormous: a huge gun, near-immune front armour, very slow, and a big population cost. It gets a warning banner when it enters the battle.
+- It's beatable through tactics: hits from behind, bombers, heavy tanks like the IS-2 and concentrated artillery. It's never invincible.
+- The AI fields at most one at a time. The admin panel can spawn it.
+- Add both tanks to the balance tests."
+
+Notes: the later Panzer III matters for Stalingrad's era-correct rosters (the stalingrad branch may use the early one as a stand-in until this lands); the Maus belongs with the 1945 missions (Road to Berlin) and needs the admin panel (job 2) for spawning.
 
 ## Medals and the Armoury
 
@@ -489,11 +565,36 @@ job. The upload signing key must be created and kept outside every repo, and its
 
 ## Paid add-on: Poland 1939 campaign (very last; after the French and German campaigns)
 
+Price update (owner, 2026-11-08, later): **$5.99** (was $4.99); still unlockable with 2,999 medals instead.
+
 Update (owner, 2026-11-08): it is called "the Battle for Poland" and can be unlocked in the Google Play app either for
-2,999 medals or for $4.99 through Google Play Billing; see "What medals buy, and the Poland unlock" under the medals spec.
+2,999 medals or for $4.99 (now $5.99, see above) through Google Play Billing; see "What medals buy, and the Poland unlock" under the medals spec.
 
 "## Paid add-on: Poland 1939 campaign (do not build the payment part yet)
 - A 10-mission campaign as Poland, September to October 1939. Tragic but heroic: holding out and delaying is the victory, and the war is lost by the end. The Soviets invade from the east in the later missions.
 - Missions to research and choose from: the Polish Post Office in Danzig, Westerplatte, Mokra, Wizna, the Bzura counter-offensive, the defense of Warsaw, Modlin, Grodno, Tomaszów Lubelski and Kock.
 - Polish signature units: cavalry used as fast-moving infantry, the 7TP tank, the wz. 35 anti-tank rifle. Period-accurate Polish uniforms and the white-and-red flag. The Germans only field 1939 equipment (Panzer I, II, III Ausf. E and Czech-built tanks).
 - This will be paid content, and the main game's code is public. Before building it, write a short plan in docs/ for keeping paid content out of the public repo and unlocking it only after a real purchase check, with options for itch.io, Steam, and the Google Play and App Store versions. Don't add any payment code or put paid content in the public repo until I've picked a store."
+
+## Paid add-ons, current list (owner, 2026-11-08; very last, Google Play app only)
+
+Both are sold only in the Google Play app, never in the free website version and never in the public repo (paid content
+lives in the private repo per the Google Play plan). No payment code or paid content goes in before the owner picks the
+store setup.
+
+"## Battle for Poland: $5.99
+- Price changes from $4.99 to $5.99. It can still be unlocked with 2,999 medals instead.
+
+## The Cavalier: $2.99 (paid only, not buyable with medals)
+- A joke unit: a British soldier in full medieval knight's armour on an armoured horse, with a lance or sword.
+- Melee only: he charges in and attacks up close. Fast, thanks to the horse.
+- Bullets barely hurt him, like a tank, but anti-tank weapons, explosives, artillery and bombs damage him like a tank.
+- One per battle, with a fairly high money cost, so it's fun but doesn't break the balance.
+- Text speech bubbles when he charges (for example, "For King and Country!") with a short horn or hoofbeat sound cue.
+- Once bought, it's usable in every campaign as the same British knight, as a fun cameo.
+- In the store and in the game it's sold as a unit; the description can mention that buying it supports the developer.
+- Add it to the balance tests so it's strong but beatable."
+
+Notes: the Cavalier is a paid unit, so like Poland its art, data and unlock code live only in the private Android build;
+the public build may only carry generic hooks that do nothing without the private content. It needs melee combat (no
+unit fights in melee today) and a one-per-battle rule like the commander's (uniquePerSide).

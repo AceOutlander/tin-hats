@@ -66,7 +66,7 @@ export function callSupport(w: World, si: number, kind: SupportKind, x: number):
   const k = SUPPORT_KINDS.indexOf(kind);
   const slot = si * SUPPORT_COUNT + k;
   const tx = x < 0 ? 0 : x > s.length ? s.length : x;
-  side.supportCooldown[kind] = def.cooldown;
+  side.supportCooldown[kind] = side.supportCooldownFull[kind];
   w.strikeTime[slot] = 0;
   w.strikeX[slot] = tx;
   w.strikeFired[slot] = 0;
@@ -116,8 +116,9 @@ function planeX(w: World, si: number, k: number, t: number): void {
   const dir = si === 0 ? 1 : -1;
   const x = w.strikeX[si * SUPPORT_COUNT + k];
   const sweep = def.rounds > 1 && def.duration > 0 && def.pattern === 'sweep';
-  const speed = sweep ? (2 * def.spread) / def.duration : plane ? plane.speed : 0;
-  const ref = sweep ? x - dir * def.spread : x;
+  const spread = def.spread * w.mods[si].supportReach[k];
+  const speed = sweep ? (2 * spread) / def.duration : plane ? plane.speed : 0;
+  const ref = sweep ? x - dir * spread : x;
   PLANE_X[0] = ref + dir * speed * (t - def.delay);
 }
 
@@ -156,8 +157,8 @@ function reveal(w: World, si: number, k: number): void {
   e.side = si;
   e.support = SUPPORT_KINDS[k];
   e.x = w.strikeX[si * SUPPORT_COUNT + k];
-  e.value = def.spread;
-  e.x2 = def.duration;
+  e.value = def.spread * w.mods[si].supportReach[k];
+  e.x2 = def.duration * w.mods[si].supportTime[k];
 }
 
 /** Advance aircraft k of side si to `t` seconds after its call: enter, drop its rounds or look, leave. */
@@ -190,12 +191,13 @@ function fireRound(w: World, si: number, k: number, n: number): void {
   const s = w.state;
   const dir = si === 0 ? 1 : -1;
   const x = w.strikeX[si * SUPPORT_COUNT + k];
+  const spread = def.spread * w.mods[si].supportReach[k];
   let land: number;
   if (def.pattern === 'sweep') {
     // The aircraft sweeps the strip in its own direction of flight, one rocket after another.
-    land = def.rounds > 1 ? x - dir * def.spread + (dir * 2 * def.spread * n) / (def.rounds - 1) : x;
+    land = def.rounds > 1 ? x - dir * spread + (dir * 2 * spread * n) / (def.rounds - 1) : x;
   } else {
-    land = x + (w.rng.next() * 2 - 1) * def.spread;
+    land = x + (w.rng.next() * 2 - 1) * spread;
   }
   if (land < 0) land = 0;
   else if (land > s.length) land = s.length;
@@ -241,7 +243,7 @@ export function updateSupports(w: World): void {
 
       if (def.rounds <= 0) {
         // Smoke: one cloud at the target.
-        if (def.smokeRadius > 0 && def.smokeTime > 0) spawnSmoke(w, w.strikeX[slot], def.smokeRadius, def.smokeTime, si);
+        if (def.smokeRadius > 0 && def.smokeTime > 0) spawnSmoke(w, w.strikeX[slot], def.smokeRadius * w.mods[si].supportReach[k], def.smokeTime * w.mods[si].supportTime[k], si);
         w.strikeTime[slot] = -1;
         continue;
       }

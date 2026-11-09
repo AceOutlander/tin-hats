@@ -4,9 +4,10 @@
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { MissionDef, Order, Side, SupportKind, UnitKind } from '../data/schema';
-import { SUPPORT_KINDS } from '../data/supports';
+import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
+import { applyAdmin, cheatSupplies, cheatTraining, inspectAi } from './admin';
 import { applyDamage } from './combat';
 import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
@@ -22,6 +23,8 @@ import { SUPPORT_COUNT, fireAntiAir, updateSupports } from './supports';
 import { KIND_COUNT, KIND_LIST } from './tables';
 import { layoutTrenches, slotCount, updateTrenches } from './trenches';
 import type {
+  AdminAction,
+  AiReport,
   Battle,
   BattleConfig,
   BattleState,
@@ -118,6 +121,13 @@ function cooldownRecord(): Record<SupportKind, number> {
   return out;
 }
 
+/** Each support's full cooldown for a side: the data cooldown divided by its upgrade (supportRate). */
+function fullCooldownRecord(mods: SideMods): Record<SupportKind, number> {
+  const out = new CooldownRecord();
+  for (let k = 0; k < SUPPORT_KINDS.length; k++) out[SUPPORT_KINDS[k]] = SUPPORTS[SUPPORT_KINDS[k]].cooldown / mods.supportRate[k];
+  return out;
+}
+
 function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
   const dir = side === 0 ? 1 : -1;
   const x = side === 0 ? CONFIG.hqInset : mission.length - CONFIG.hqInset;
@@ -165,10 +175,12 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     alive: kindRecord(0),
     supportAvailable,
     supportCooldown: cooldownRecord(),
+    supportCooldownFull: fullCooldownRecord(mods),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
     holdLineX: 0,
     controlled: -1,
     stats: { trained: 0, lost: 0, kills: 0, suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
+    cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false },
   };
 }
 
@@ -301,6 +313,10 @@ class BattleImpl implements Battle, World {
   readonly slotUnit: Int32Array;
   readonly trenchInside: Int32Array;
   readonly cluster = new Uint8Array(CONFIG.maxUnits);
+  readonly clusterOrder: [Int32Array, Int32Array] = [new Int32Array(CONFIG.maxUnits), new Int32Array(CONFIG.maxUnits)];
+  readonly clusterLen = new Int32Array(2);
+  readonly clusterX = new Float64Array(CONFIG.maxUnits);
+  readonly clusterMark = new Uint8Array(CONFIG.maxUnits);
   readonly leadCount = new Int32Array(2);
   readonly ctrlMove = new Float64Array(2);
   readonly ctrlFire = new Uint8Array(2);
@@ -381,6 +397,7 @@ class BattleImpl implements Battle, World {
     applyCommands(this);
     runCommanders(this); // their commands apply at the start of the next tick, like the player's
     updateMission(this);
+    cheatTraining(this); // admin panel: instant training
     updateEconomy(this);
     updateSupports(this); // cooldowns; strikes launch their rounds and lay their smoke
 
@@ -399,6 +416,16 @@ class BattleImpl implements Battle, World {
 
     applyDamage(this);
     checkEnd(this);
+    cheatSupplies(this); // admin panel: frozen or infinite supplies
+  }
+
+  admin(action: AdminAction): number {
+    this.events.clear();
+    return applyAdmin(this, action);
+  }
+
+  inspectAi(side: Side): AiReport | null {
+    return inspectAi(this, side);
   }
 
   command(side: Side, cmd: Command): void {

@@ -61,6 +61,8 @@ export const RENDER = {
     /** Seconds a tank husk stays before fading, and its fade. */
     huskLinger: 20,
     huskFade: 2,
+    /** Most bodies and husks lying still at once; past it the one closest to its fade starts fading early. */
+    maxBodies: 40,
     /** Health pips: count, size of one pip (wu), gap, height above the head (wu). */
     pips: 4,
     pipW: 5,
@@ -450,7 +452,7 @@ export const RENDER = {
     flickerRate: 22,
     alpha: 0.95,
     /** Scale of the jet's thickness and of the fire and smoke at its end. */
-    thickness: 1.8,
+    thickness: 1.15,
     fireSize: 0.55,
     smokeSize: 0.8,
     /** Ignite: the fuel tank bursts into a fireball and the body burns for this long (s), at this size. */

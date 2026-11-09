@@ -34,6 +34,8 @@ export interface SaveSettings {
   reduceFlash: boolean;
   /** A small dark pool under each soldier killed by gunfire (on by default). */
   showBlood: boolean;
+  /** A small frame-rate readout (fps and frame times) in a corner of the battle (off by default). */
+  showFps: boolean;
 }
 
 /** The volume settings, by key. */
@@ -51,6 +53,7 @@ export function defaultSettings(): SaveSettings {
     sfxVolume: META.defaultSfxVolume,
     reduceFlash: META.defaultReduceFlash,
     showBlood: META.defaultShowBlood,
+    showFps: META.defaultShowFps,
   };
 }
 
@@ -72,7 +75,7 @@ export function cleanSetting<K extends keyof SaveSettings>(key: K, value: unknow
   }
 }
 
-/** Basic Training, the standalone tutorial (version 7). */
+/** Basic Training, the standalone tutorial (version 8). */
 export interface TrainingRecord {
   /** Finished at least once: its one-time medal reward has been paid. */
   done: boolean;
@@ -241,9 +244,14 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   },
   // 5 -> 6: medals and the Armoury (see migrateToMedals).
   5: (doc) => migrateToMedals(doc),
-  // 6 -> 7: Basic Training joins the game. Nobody has finished it or turned it down yet, so every player can still
-  // earn its one-time reward and is offered it once on the title screen.
+  // 6 -> 7: "Show FPS" joins the settings, off (its default) for every older save.
   6: (doc) => {
+    if (!isRecord(doc.settings)) return;
+    doc.settings = { ...doc.settings, showFps: META.defaultShowFps };
+  },
+  // 7 -> 8: Basic Training joins the game. Nobody has finished it or turned it down yet, so every player can still
+  // earn its one-time reward and is offered it once on the title screen.
+  7: (doc) => {
     doc.training = { done: false, skipped: false };
   },
 };
@@ -358,6 +366,7 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
     for (const key of VOLUME_KEYS) settings[key] = cleanSetting(key, s[key]);
     settings.reduceFlash = cleanSetting('reduceFlash', s.reduceFlash);
     settings.showBlood = cleanSetting('showBlood', s.showBlood);
+    settings.showFps = cleanSetting('showFps', s.showFps);
   }
   return out;
 }

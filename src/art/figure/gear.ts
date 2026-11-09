@@ -35,6 +35,7 @@ import {
   makeSpec,
   mix,
   nationPouchesSpec,
+  paintFlamePack,
   paintMills,
   paintStick,
   rrect,
@@ -102,6 +103,8 @@ function resolve(f: FactionId, kind: FigureKind, health: number, damage: number)
   const helmet = pick.helmet?.piece;
   let pack = pick.pack?.piece;
   if (pack === 'fullPack' && !K.pack) pack = GEAR_NO_PACK_STYLE;
+  // Only the flamethrower has tanks to shield.
+  if (pack === 'flameShield' && kind !== 'flame') pack = undefined;
   const pouches = pick.pouches?.piece;
   const satchel = pick.satchel?.piece;
   const strap = pick.bandolier?.piece;
@@ -112,8 +115,8 @@ function resolve(f: FactionId, kind: FigureKind, health: number, damage: number)
     damage,
     helmet: helmet ? gearSpriteKey(f, helmet) : base.helmet,
     helmetRim: helmet === 'helmetScrim' ? scrimRimKey(shape) : base.helmetRim,
-    // The flamethrower always wears his fuel tanks in the pack slot.
-    pack: kind === 'flame' ? flamePackKey(f) : pack ? gearSpriteKey(f, pack) : base.pack,
+    // The flamethrower always wears his fuel tanks in the pack slot (his heat shield is drawn over them).
+    pack: kind === 'flame' ? (pack === 'flameShield' ? gearSpriteKey(f, pack) : flamePackKey(f)) : pack ? gearSpriteKey(f, pack) : base.pack,
     packShow: kind === 'flame' || pack !== undefined || K.pack,
     pouches: pouches ? gearSpriteKey(f, pouches) : base.pouches,
     pouchesShow: pouches !== undefined || K.pouches,
@@ -282,7 +285,7 @@ function fullPackSpec(key: string, tint: string, dark: string): SpriteSpec {
     // Shoulder strap to the chest.
     line(ctx, dark, 0.7, [P.x + P.w, P.y + 1.4, -0.8, -6.0, 0.0, -4.4]);
     // Blanket roll strapped on top.
-    solid(ctx, C.cotton, () => rrect(ctx, P.rollX, P.rollY - P.rollR, P.rollW, P.rollR * 2, P.rollR), 'rgba(30, 28, 20, 0.7)', 0.4);
+    solid(ctx, C.blanket, () => rrect(ctx, P.rollX, P.rollY - P.rollR, P.rollW, P.rollR * 2, P.rollR), 'rgba(30, 28, 20, 0.85)', 0.55);
     line(ctx, C.cottonDark, 0.55, [P.rollX + P.rollW * 0.3, P.rollY - P.rollR, P.rollX + P.rollW * 0.3, P.rollY + P.rollR]);
     line(ctx, C.cottonDark, 0.55, [P.rollX + P.rollW * 0.72, P.rollY - P.rollR, P.rollX + P.rollW * 0.72, P.rollY + P.rollR]);
   });
@@ -297,29 +300,33 @@ function haversackSpec(key: string, tint: string, dark: string): SpriteSpec {
   });
 }
 
-/** Full pouches: the base belt kit, a bigger double pouch in front and a water bottle behind. */
-function paintFullPouches(ctx: Ctx, base: SpriteSpec, tint: string, dark: string): void {
+/**
+ * Full pouches: the base belt kit, a big double pouch in front and a water bottle sticking out behind the hip, both in
+ * the nation's light kit colour with a dark edge so they read against the black body at phone size.
+ */
+function paintFullPouches(ctx: Ctx, base: SpriteSpec, f: FactionId, dark: string): void {
   const P = A.fullPouches;
-  // Water bottle in its carrier and a second pouch on the back of the belt: they widen the silhouette behind the hip.
-  solid(ctx, tint, () => rrect(ctx, P.bottleX, P.bottleY, P.bottleW, P.bottleH, 1.6));
-  line(ctx, dark, 0.6, [P.bottleX + 0.4, P.bottleY + P.bottleH * 0.35, P.bottleX + P.bottleW - 0.4, P.bottleY + P.bottleH * 0.35]);
+  const N = FIGURE_GEAR_NATION[f];
+  solid(ctx, N.bottle, () => rrect(ctx, P.bottleX, P.bottleY, P.bottleW, P.bottleH, 2.2), P.edge, P.edgeW);
+  solid(ctx, N.cap, () => rrect(ctx, P.bottleX + P.bottleW * 0.25, P.bottleY - 1.4, P.bottleW * 0.5, 1.8, 0.5));
+  line(ctx, P.edge, 0.6, [P.bottleX + 0.4, P.bottleY + P.bottleH * 0.38, P.bottleX + P.bottleW - 0.4, P.bottleY + P.bottleH * 0.38]);
   drawAt(ctx, base);
-  solid(ctx, tint, () => rrect(ctx, P.x, P.y, P.w, P.h, 1.0));
-  line(ctx, dark, 0.5, [P.x + 0.3, P.y + 1.5, P.x + P.w - 0.3, P.y + 1.5]);
-  line(ctx, dark, 0.45, [P.x + P.w * 0.5, P.y + 1.6, P.x + P.w * 0.5, P.y + P.h - 0.4]);
+  solid(ctx, N.pouch, () => rrect(ctx, P.x, P.y, P.w, P.h, 1.1), P.edge, P.edgeW);
+  line(ctx, dark, 0.6, [P.x + 0.3, P.y + 1.8, P.x + P.w - 0.3, P.y + 1.8]);
+  line(ctx, dark, 0.55, [P.x + P.w * 0.5, P.y + 1.9, P.x + P.w * 0.5, P.y + P.h - 0.4]);
 }
 
 function pouchBounds(): [number, number, number, number] {
   const P = A.fullPouches;
-  return [Math.min(-6.2, P.bottleX - 0.6), Math.min(-7.0, P.y - 0.6, P.bottleY - 0.6), Math.max(5.6, P.x + P.w + 0.6), Math.max(0.2, P.bottleY + P.bottleH + 0.6)];
+  return [Math.min(-6.2, P.bottleX - 0.8), Math.min(-7.0, P.y - 0.8, P.bottleY - 2.2), Math.max(5.6, P.x + P.w + 0.8), Math.max(0.2, P.bottleY + P.bottleH + 0.8)];
 }
 
-function fullPouchesSpec(key: string, tint: string, dark: string, base: SpriteSpec): SpriteSpec {
+function fullPouchesSpec(key: string, f: FactionId, dark: string, base: SpriteSpec): SpriteSpec {
   const [x0, y0, x1, y1] = pouchBounds();
-  return makeSpec(key, x0, y0, x1, y1, (ctx) => paintFullPouches(ctx, base, tint, dark));
+  return makeSpec(key, x0, y0, x1, y1, (ctx) => paintFullPouches(ctx, base, f, dark));
 }
 
-function grenadesSpec(key: string, f: FactionId, tint: string, dark: string, base: SpriteSpec): SpriteSpec {
+function grenadesSpec(key: string, f: FactionId, dark: string, base: SpriteSpec): SpriteSpec {
   const [px0, py0, px1, py1] = pouchBounds();
   const nade = FIGURE_GEAR_NATION[f].grenades;
   if (nade === 'mills' || nade === 'f1') {
@@ -336,7 +343,7 @@ function grenadesSpec(key: string, f: FactionId, tint: string, dark: string, bas
       y1 = Math.max(y1, M.at[i + 1] + r);
     }
     return makeSpec(key, x0, y0, x1, y1, (ctx) => {
-      paintFullPouches(ctx, base, tint, dark);
+      paintFullPouches(ctx, base, f, dark);
       for (let i = 0; i < M.at.length; i += 2) {
         // Hung by the lever from the belt, body below.
         ctx.save();
@@ -350,22 +357,29 @@ function grenadesSpec(key: string, f: FactionId, tint: string, dark: string, bas
     });
   }
   const S = A.stick;
-  const ang = Math.atan2(S.y1 - S.y0, S.x1 - S.x0);
-  const len = Math.hypot(S.x1 - S.x0, S.y1 - S.y0);
   const m = S.headW + 1;
-  const x0 = Math.min(px0, S.x0 - m, S.x1 - m);
-  const x1 = Math.max(px1, S.x0 + m, S.x1 + m);
-  const y0 = Math.min(py0, S.y0 - m, S.y1 - m);
-  const y1 = Math.max(py1, S.y0 + m, S.y1 + m);
+  let x0 = px0;
+  let x1 = px1;
+  let y0 = py0;
+  let y1 = py1;
+  for (let i = 0; i < S.at.length; i += 2) {
+    x0 = Math.min(x0, S.at[i] - m);
+    x1 = Math.max(x1, S.at[i] + m);
+    y0 = Math.min(y0, S.at[i + 1] - m);
+    y1 = Math.max(y1, S.at[i + 1] + m);
+  }
   return makeSpec(key, x0, y0, x1, y1, (ctx) => {
-    paintFullPouches(ctx, base, tint, dark);
-    // A stick grenade pushed down behind the belt, head up by the chest.
-    ctx.save();
-    ctx.translate(S.x0, S.y0);
-    ctx.rotate(ang);
-    ctx.scale(len / 8.6, S.handle / 1.1);
-    paintStick(ctx);
-    ctx.restore();
+    paintFullPouches(ctx, base, f, dark);
+    // Stick grenades pushed down behind the belt, heads sticking out behind the back.
+    for (let i = 0; i < S.at.length; i += 4) {
+      const [ax, ay, bx, by] = [S.at[i], S.at[i + 1], S.at[i + 2], S.at[i + 3]];
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(Math.atan2(by - ay, bx - ax));
+      ctx.scale(Math.hypot(bx - ax, by - ay) / 8.6, S.handle / 1.1);
+      paintStick(ctx);
+      ctx.restore();
+    }
   });
 }
 
@@ -393,13 +407,16 @@ function bandolierSpec(key: string): SpriteSpec {
   const B = A.bandolier;
   const [x0, y0, x1, y1] = bandolierBounds();
   return makeSpec(key, x0, y0, x1, y1, (ctx) => {
-    solid(ctx, C.cotton, () => bandolierPath(ctx, B.width), 'rgba(24, 22, 16, 0.85)', 0.4);
-    // Pocket seams across the band.
+    solid(ctx, C.cotton, () => bandolierPath(ctx, B.width), B.edge, B.edgeW);
+    // Pocket seams straight across the band.
+    const L = Math.hypot(B.x1 - B.x0, B.y1 - B.y0);
+    const nx = (-(B.y1 - B.y0) / L) * B.width * 0.5;
+    const ny = ((B.x1 - B.x0) / L) * B.width * 0.5;
     for (let i = 1; i <= B.pockets; i++) {
       const t = i / (B.pockets + 1);
       const x = B.x0 + (B.x1 - B.x0) * t;
       const y = B.y0 + (B.y1 - B.y0) * t;
-      line(ctx, C.cottonDark, 0.55, [x - B.width * 0.55, y + 0.2, x + B.width * 0.55, y - 0.4]);
+      line(ctx, C.cottonDark, 0.7, [x - nx, y - ny, x + nx, y + ny]);
     }
   });
 }
@@ -447,10 +464,24 @@ function medicSatchelSpec(key: string, tint: string): SpriteSpec {
 
 function aidPouchesSpec(key: string, tint: string): SpriteSpec {
   const P = A.aidPouches;
-  return makeSpec(key, P.x - 0.8, P.y - 0.8, P.x + P.w * 2 + P.gap + 0.8, 0.2, (ctx) => {
+  return makeSpec(key, P.x - 0.8, P.y - 0.8, Math.max(0.6, P.x + P.w * 2 + P.gap + 0.8), 0.2, (ctx) => {
     solid(ctx, tint, () => rrect(ctx, P.x - 0.4, -4.1, P.w * 2 + P.gap + 0.8, 1.5, 0.6));
     crossPouch(ctx, P.x, P.y, P.w, P.h);
     crossPouch(ctx, P.x + P.w + P.gap, P.y, P.w, P.h);
+  });
+}
+
+/** The flamethrower's tanks with a pale steel heat shield strapped over their back. */
+function flameShieldSpec(key: string, tint: string, dark: string): SpriteSpec {
+  const S = A.flameShield;
+  return makeSpec(key, S.x - 0.8, S.y - 0.8, 0.8, Math.max(5.4, S.y + S.h + 0.8), (ctx) => {
+    paintFlamePack(ctx, tint, dark);
+    solid(ctx, C.shield, () => rrect(ctx, S.x, S.y, S.w, S.h, S.r), C.shieldDark, 0.6);
+    // Rivets down the plate and the straps holding it to the tanks.
+    ctx.fillStyle = C.shieldDark;
+    for (let i = 0; i < 4; i++) ctx.fillRect(S.x + S.w * 0.5 - 0.4, S.y + 1.4 + (i * (S.h - 2.8)) / 3 - 0.4, 0.8, 0.8);
+    line(ctx, C.shieldDark, 0.7, [S.x + S.w, S.y + S.h * 0.25, S.x + S.w + 3.2, S.y + S.h * 0.25]);
+    line(ctx, C.shieldDark, 0.7, [S.x + S.w, S.y + S.h * 0.72, S.x + S.w + 3.2, S.y + S.h * 0.72]);
   });
 }
 
@@ -476,10 +507,10 @@ function factionGearSpecs(f: FactionId): SpriteSpec[] {
         out.push(haversackSpec(k(style), tint, dark));
         break;
       case 'fullPouches':
-        out.push(fullPouchesSpec(k(style), tint, dark, pouchBase));
+        out.push(fullPouchesSpec(k(style), f, dark, pouchBase));
         break;
       case 'grenades':
-        out.push(grenadesSpec(k(style), f, tint, dark, pouchBase));
+        out.push(grenadesSpec(k(style), f, dark, pouchBase));
         break;
       case 'bandolier':
         out.push(bandolierSpec(k(style)));
@@ -492,6 +523,9 @@ function factionGearSpecs(f: FactionId): SpriteSpec[] {
         break;
       case 'aidStrap':
         out.push(aidStrapSpec(k(style)));
+        break;
+      case 'flameShield':
+        out.push(flameShieldSpec(k(style), tint, dark));
         break;
     }
   }

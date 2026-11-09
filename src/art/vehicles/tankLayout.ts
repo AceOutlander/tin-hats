@@ -8,7 +8,7 @@
  *
  * Draw order, back to front: track, wheels (in array order), hull, barrel, turret.
  */
-import { TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, VEHICLE_LOOK_EXTRA, VEHICLE_LOOKS, type ArtPoint, type TankLook, type VehicleLook } from '../../data/artLayout';
+import { GEAR_LOOKS, TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, VEHICLE_LOOK_EXTRA, VEHICLE_LOOKS, type ArtPoint, type GearLook, type VehicleLook } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import type { FactionId, UnitKind } from '../../data/schema';
 import { makeBelt } from './belt';
@@ -221,7 +221,7 @@ export function vehicleLookOf(kind: UnitKind, faction: FactionId): VehicleLook {
   return FACTIONS[faction].look.tank;
 }
 
-/** True for the looks that carry Quartermaster upgrade gear (tankGearKeys / tankGearSpecs take only these). */
-export function isGearLook(look: VehicleLook): look is TankLook {
-  return (TANK_LOOKS as readonly string[]).includes(look);
+/** True for the looks that carry Quartermaster upgrade gear, the tanks and APCs (tankGearKeys / tankGearSpecs take only these). */
+export function isGearLook(look: VehicleLook): look is GearLook {
+  return (GEAR_LOOKS as readonly string[]).includes(look);
 }

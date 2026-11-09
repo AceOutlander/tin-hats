@@ -189,7 +189,7 @@ export interface AnvilSettings {
  * A wordless choir: detuned sawtooths with a slow vibrato through formant band-passes (the vowel), a slow swell in
  * and a long release. Held notes only.
  */
-export interface ChoirSettings {
+export interface BattleChoirSettings {
   voices: number;
   detuneCents: number;
   /** The vowel: [centre Hz, level, Q] for each formant band (the first may be a wide low band for body). */
@@ -236,7 +236,7 @@ export interface BattleInstruments {
   hand: HandSettings;
   bell: BellSettings;
   anvil: AnvilSettings;
-  choir: ChoirSettings;
+  choir: BattleChoirSettings;
   wind: WindSettings;
 }
 

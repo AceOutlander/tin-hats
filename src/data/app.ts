@@ -28,6 +28,11 @@ export interface AppTunables {
   explosionLargeRadius: number;
   /** Smoothing of the frame-time averages reported by the debug hooks (0..1). */
   perfSmoothing: number;
+  /**
+   * The "Show FPS" readout: it covers the frames of the last windowMs, is refreshed every updateMs, and keeps at most
+   * ring frame times (enough for windowMs at 240 Hz). A frame slower than hitchMs (a missed 30 fps frame) is a hitch.
+   */
+  fps: { windowMs: number; updateMs: number; ring: number; hitchMs: number };
   /** Visual seeds are the battle seed plus this. */
   visualSeedOffset: number;
   /**
@@ -44,7 +49,7 @@ export interface AppTunables {
    * Result screen reason text. `{label}` in a line stands for the mission timer's label ("Nightfall"), so a deadline
    * mission can say what ran out.
    */
-  reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw', { win: string; lose: string }>;
+  reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw' | 'admin', { win: string; lose: string }>;
   /** Short banners for scripted events that carry no text of their own. `{n}` = the supplies delivered. */
   /** HUD banners: an airdrop, a survival wave, the King Tiger's arrival (bossArrived). */
   notices: { airdrop: string; wave: string; boss: string };
@@ -61,9 +66,14 @@ export interface AppTunables {
     unitHealth: string;
     unitDamage: string;
     unitHeal: string;
+    supportRate: string;
+    supportReach: string;
+    supportTime: string;
   };
   /** Level text of an upgrade level whose effects change nothing. */
   effectNone: string;
+  /** Quartermaster: the heading of the HQ and sapper upgrades. */
+  upgradeHqGroup: string;
 }
 
 export const APP: AppTunables = {
@@ -79,6 +89,7 @@ export const APP: AppTunables = {
   explosionMediumRadius: 45,
   explosionLargeRadius: 100,
   perfSmoothing: 0.1,
+  fps: { windowMs: 1000, updateMs: 250, ring: 256, hitchMs: 1000 / 30 },
   visualSeedOffset: 7919,
   follow: { deadZone: 0.14, settle: 0.5, lead: 0.1 },
   abilityNames: { assault: 'Grenade', tank: 'Hull MG', heavyTank: 'Hull MG' },
@@ -88,6 +99,8 @@ export const APP: AppTunables = {
     timerSurvived: { win: 'You held the line until relief arrived', lose: 'Your HQ was overrun' },
     timerExpired: { win: 'Time ran out for the enemy', lose: '{label} came before the enemy HQ was destroyed' },
     draw: { win: 'Both headquarters fell together', lose: 'Both headquarters fell together' },
+    // Only the hidden admin panel ends a battle this way.
+    admin: { win: 'Victory declared from the admin panel', lose: 'Defeat declared from the admin panel' },
   },
   notices: { airdrop: 'Airdrop: +{n} supplies', wave: 'Enemy wave incoming', boss: 'Warning: King Tiger sighted' },
   supportBlurbs: {
@@ -111,7 +124,12 @@ export const APP: AppTunables = {
     unitHealth: 'health',
     unitDamage: 'damage',
     unitHeal: 'healing',
+    // The rate shows as the cooldown it shortens (describeEffect).
+    supportRate: 'cooldown',
+    supportReach: 'area',
+    supportTime: 'time',
   },
   effectNone: 'No change',
+  upgradeHqGroup: 'HQ and sappers',
 };
 

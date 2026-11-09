@@ -131,8 +131,11 @@ describe('medals across the campaign on Normal, without replays', () => {
     }
   });
 
-  it('owns the whole core army by the last mission, with no loan needed there', () => {
-    const last = steps[steps.length - 1];
-    expect(last.loaned).toEqual([]);
+  // The owner raised troop prices to 3x the original and cut a win to 3..30 medals (2026-11-08), so a first run through
+  // the campaign buys little; missions lend what their design expects (MEDALS.autoLoanCount). A progression is still
+  // required: the player can buy at least one type with medals from a first run.
+  it('buys at least one new type during a first run through the campaign', () => {
+    const bought = steps.flatMap((s) => s.bought);
+    expect(new Set(bought).size, bought.join(' ')).toBeGreaterThanOrEqual(1);
   });
 });

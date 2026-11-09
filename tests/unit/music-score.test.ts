@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { MISSIONS } from '../../src/data/missions';
+import { CAMPAIGN_MAP } from '../../src/data/musicMap';
 import type { MusicEvent } from '../../src/data/musicBattle';
 import { MUSIC_LAYERS } from '../../src/data/musicBattle';
 import { motif, SCALES, THEMES, type Colour, type Motif, type ThemeName } from '../../src/data/musicThemes';
@@ -200,4 +201,29 @@ describe('the battle scores', () => {
       expect(runs).toEqual([]);
     });
   }
+});
+
+describe('the campaign map theme', () => {
+  it('runs along no well-known tune in its horn, strings or choir', () => {
+    const refs = Object.entries(WELL_KNOWN).map(([tune, notes]) => [tune, `,${intervals(notes).join(',')},`] as const);
+    const runs: string[] = [];
+    const parts: { where: string; events: MusicEvent[] }[] = [];
+    for (const s of CAMPAIGN_MAP.sections) {
+      const ev = (list: readonly { at: number; beats: number; note: number; vel: number }[]): MusicEvent[] => list.map((n) => ({ at: n.at, len: n.beats, note: n.note, vel: n.vel }));
+      parts.push({ where: `${s.name} horn`, events: ev(s.horn) });
+      parts.push({ where: `${s.name} strings`, events: ev(s.strings ?? []) });
+      parts.push({ where: `${s.name} choir`, events: (s.choir ?? []).flatMap((c) => c.notes.map((note) => ({ at: c.at, len: c.beats, note, vel: c.vel }))) });
+    }
+    for (const p of parts) {
+      for (const line of lines(p.events)) {
+        const iv = intervals(line);
+        for (let i = 0; i + RECOGNISABLE <= iv.length; i++) {
+          const w = iv.slice(i, i + RECOGNISABLE).join(',');
+          for (const [tune, ref] of refs) if (ref.includes(`,${w},`)) runs.push(`${p.where} runs along ${tune}`);
+        }
+      }
+    }
+    expect(parts.some((p) => p.events.length > 15)).toBe(true);
+    expect(runs).toEqual([]);
+  });
 });

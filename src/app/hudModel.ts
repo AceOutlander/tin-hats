@@ -7,7 +7,7 @@ import { APP } from '../data/app';
 import { CONFIG } from '../data/config';
 import { FACTIONS } from '../data/factions';
 import type { Side, UnitKind } from '../data/schema';
-import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
+import { SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
 import { orderCost, orderPop, type Battle } from '../sim';
 import type { ControlState, HudState, MinimapState, SupportButtonState, TrainButtonState } from '../ui/contracts';
@@ -87,6 +87,7 @@ export class HudModel {
       hint: null,
       tip: null,
       minimap: emptyMinimap(CONFIG.maxUnits),
+      fps: null,
     };
   }
 
@@ -105,6 +106,7 @@ export class HudModel {
         const btn: TrainButtonState = {
           kind,
           name: faction.unitNames[kind],
+          label: faction.buttonNames[kind] ?? faction.unitNames[kind],
           // Per training order: a squad kind (Soviet conscripts) costs and takes room for the whole squad.
           cost: orderCost(kind),
           pop: orderPop(kind),
@@ -185,7 +187,7 @@ export class HudModel {
     for (let i = 0; i < supports.length; i++) {
       const b = supports[i];
       const left = me.supportCooldown[b.kind];
-      const total = SUPPORTS[b.kind].cooldown;
+      const total = me.supportCooldownFull[b.kind];
       b.secondsLeft = left;
       b.charge = left <= 0 || total <= 0 ? 1 : Math.max(0, 1 - left / total);
     }

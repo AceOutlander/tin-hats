@@ -1269,6 +1269,15 @@ svg.th-group-icon {
   height: auto;
 }
 
+/* A call-in's group heading: its plane drawn in the heading's gold, cut-outs in the screen's dark green. */
+.th-group .th-support-icon {
+  color: #e3c06c;
+}
+
+.th-group .th-support-icon .th-cut {
+  fill: #2c3320;
+}
+
 .th-qm-grid {
   display: grid;
   /* Wide enough that the longest level line ("+25% damage, +15% fire rate") fits beside the two buttons without wrapping. */
@@ -1701,6 +1710,27 @@ svg.th-group-icon {
 
 .th-set-grid > .th-btn-danger {
   justify-self: start;
+}
+
+/* About: version, build and what's new, small and quiet at the end of Settings. */
+.th-set-about {
+  grid-column: 1 / -1;
+  padding: 8px 2px 4px;
+  border-top: 1px solid rgba(233, 223, 195, 0.18);
+  font-size: 11px;
+  color: rgba(233, 223, 195, 0.72);
+}
+
+.th-set-build {
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: rgba(233, 223, 195, 0.62);
+}
+
+.th-whats-new {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  line-height: 1.45;
 }
 
 .th-set-grid > .th-toggle {

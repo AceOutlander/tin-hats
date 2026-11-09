@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -12,10 +13,22 @@ function themeColour(name: string): string {
 
 const INK = themeColour('ink');
 
+/** The short git commit this build is made from (shown in Settings so a bug report matches an exact build). */
+function buildId(): string {
+  const sha = process.env.GITHUB_SHA;
+  if (sha) return sha.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || 'dev';
+  } catch {
+    return 'dev';
+  }
+}
+
 // base './' keeps every asset URL relative so the build can be dropped into a
 // Capacitor webview (file-style origin) as well as served from any sub-path.
 export default defineConfig({
   base: './',
+  define: { __BUILD_ID__: JSON.stringify(buildId()) },
   build: {
     target: 'es2022',
     // Phaser alone is a 1.4 MB script (about 360 kB gzipped) and now has a chunk of its own; the game's code is the other

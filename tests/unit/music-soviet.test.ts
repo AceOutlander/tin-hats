@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { battleGraph, battlePieces, distinctSeconds, pieceParts, trackBytes } from '../../src/audio/music/battle';
-import { playChoir, playWind } from '../../src/audio/music/instruments';
+import { playBattleChoir, playWind } from '../../src/audio/music/instruments';
 import type { NoiseBank } from '../../src/audio/synth';
 import { CAMPAIGNS } from '../../src/data/campaigns';
 import { MINOR_SCALE, MUSIC_TRACKS } from '../../src/data/music';
@@ -176,7 +176,7 @@ describe('the choir and the wind', () => {
     const ctx = new Context();
     const dest = new Node('dest');
     const s = SOVIET_KIT.choir;
-    playChoir(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 1, 4, 52, 0.8, s, bank, seeded(3));
+    playBattleChoir(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 1, 4, 52, 0.8, s, bank, seeded(3));
     const oscs = ctx.nodes.filter((n) => n.kind === 'oscillator');
     // The voices plus the vibrato.
     expect(oscs.length).toBe(s.voices + 1);
@@ -262,11 +262,15 @@ describe('the Stalingrad map track, "Versts of Snow"', () => {
         ['horn', s.horn],
         ['piano', s.piano],
       ] as const) {
+        // A map track need not have a piano (the instruments type makes it optional); this one has it.
+        const range = I[inst]?.range;
+        expect(range, `${s.name} ${inst} settings`).toBeDefined();
+        if (!range) continue;
         for (const m of notes) {
           expect(inKey(m.note) || m.accidental === true, `${s.name} ${inst} ${m.note}`).toBe(true);
           expect(m.accidental !== true || !inKey(m.note), `${s.name} ${inst} ${m.note} marked but in key`).toBe(true);
-          expect(m.note).toBeGreaterThanOrEqual(I[inst].range[0]);
-          expect(m.note).toBeLessThanOrEqual(I[inst].range[1]);
+          expect(m.note).toBeGreaterThanOrEqual(range[0]);
+          expect(m.note).toBeLessThanOrEqual(range[1]);
           expect(m.at + m.beats).toBeLessThanOrEqual(beats + 1e-9);
         }
       }

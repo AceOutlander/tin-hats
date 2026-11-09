@@ -468,7 +468,7 @@ describe('Basic Training in the app', () => {
   });
 });
 
-describe('the save, version 7', () => {
+describe('the save, version 8', () => {
   /** A save as version 6 wrote it: medals and the Armoury, no Basic Training. */
   const v6 = {
     version: 6,

@@ -16,7 +16,8 @@ import {
   type FigurePart,
 } from '../src/art/figure';
 import type { SpriteSpec } from '../src/art/types';
-import { TANK_KEYS, TANK_LOOKS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs, tankSpecs } from '../src/art/vehicles';
+import { PLANE_KINDS, TANK_KEYS, createTankPose, layoutTank, planeGearSpecs, planeKey, planeSpecs, tankGearKeys, tankGearSpecs, tankSpecs } from '../src/art/vehicles';
+import { GEAR_LOOKS } from '../src/data/artLayout';
 import { FIGURE_CRATE, FIGURE_KIND_LIST, type FigureKind } from '../src/data/figure';
 import type { FactionId, UnitAction } from '../src/data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type LookStage } from '../src/data/upgradeLooks';
@@ -295,8 +296,8 @@ function tanks(): void {
   const base = new Map<string, SpriteSpec>();
   for (const s of tankSpecs()) base.set(s.key, s);
   const cw = W / LEVELS.length;
-  const rh = (H - 10) / TANK_LOOKS.length;
-  TANK_LOOKS.forEach((look, ti) => {
+  const rh = (H - 10) / GEAR_LOOKS.length;
+  GEAR_LOOKS.forEach((look, ti) => {
     const gy = 10 + (ti + 1) * rh - 10;
     ground(0, W, gy);
     LEVELS.forEach(([h, d], li) => {
@@ -319,6 +320,7 @@ function tanks(): void {
       put(g.hull, pose.hull.x, pose.hull.y, pose.hull.rot);
       put(g.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot);
       put(g.turret, pose.turret.x, pose.turret.y, pose.turret.rot);
+      if (keys.passengers) put(keys.passengers, pose.passengers.x, pose.passengers.y, pose.passengers.rot);
       ctx.fillStyle = '#ff2a20';
       ctx.beginPath();
       ctx.arc(pose.muzzle.x, pose.muzzle.y, 2.4, 0, Math.PI * 2);
@@ -329,9 +331,40 @@ function tanks(): void {
   });
 }
 
+/** Call-in planes at each level of their upgrade (rows: type and nation), painted alone first like an atlas cell. */
+function planes(): void {
+  const z = num('z', 0.95);
+  const base = new Map<string, SpriteSpec>();
+  for (const s of planeSpecs()) base.set(s.key, s);
+  const rows = PLANE_KINDS.length * FACTION_IDS.length;
+  const rh = (H - 20) / rows;
+  const cw = W / 4;
+  for (let lv = 0; lv < 4; lv++) label(`level ${lv}`, (lv + 0.5) * cw, 12, 11);
+  PLANE_KINDS.forEach((kind, ki) => {
+    FACTION_IDS.forEach((f, fi) => {
+      const cy = 20 + (ki * FACTION_IDS.length + fi + 0.5) * rh;
+      for (let lv = 0; lv < 4; lv++) {
+        const s = lv === 0 ? base.get(planeKey(kind, f)) : planeGearSpecs(kind, f, lv)[0];
+        if (!s) continue;
+        const k = Math.min(z, (cw - 10) / s.w);
+        const off = document.createElement('canvas');
+        off.width = Math.ceil(s.w * k * dpr);
+        off.height = Math.ceil(s.h * k * dpr);
+        const o = off.getContext('2d');
+        if (!o) continue;
+        o.scale(k * dpr, k * dpr);
+        s.draw(o);
+        ctx.drawImage(off, (lv + 0.5) * cw - s.ax * s.w * k, cy - s.ay * s.h * k, s.w * k, s.h * k);
+      }
+      label(`${kind} ${f.slice(0, 2)}`, 34, cy - rh * 0.3, 10);
+    });
+  });
+}
+
 background();
 const mode = params.get('mode') ?? 'infantry';
 if (mode === 'medic') medic();
+else if (mode === 'planes') planes();
 else if (mode === 'sapper') sapper();
 else if (mode === 'tanks') tanks();
 else infantry();

@@ -320,17 +320,18 @@ describe('what the HUD shows of a mission', () => {
     expect(app.session?.hud.state.timer).toBeNull();
   });
 
-  it('offers exactly the units the mission allows (no sapper button at Arnhem)', () => {
+  it('offers every bought type in every mission (no sapper button at Arnhem, which has no money)', () => {
     const { app } = makeApp();
-    // Everything bought: what the mission allows is all that is left to cut the buttons down.
+    // Everything bought: no mission rules a bought type out (owner, 2026-11-08), mission 1 and Arnhem included.
     app.save.armoury = MEDALS.armoury.map((a) => a.id);
     app.startMission(1, 'normal');
-    expect(app.session?.hud.state.train.map((b) => b.kind)).toEqual(['sapper', 'rifle']);
+    const first = app.session?.hud.state.train.map((b) => b.kind) ?? [];
+    expect(first).toEqual(expect.arrayContaining(['sapper', 'rifle', 'lmg', 'tank', 'flame', 'apc']));
     app.startMission(9, 'normal');
     const kinds = app.session?.hud.state.train.map((b) => b.kind) ?? [];
     expect(kinds.length).toBeGreaterThan(0);
     expect(kinds).not.toContain('sapper');
-    expect(kinds).not.toContain('tank');
+    expect(kinds).toContain('tank');
     for (const k of mission(9).units[0]) expect(kinds).toContain(k);
   });
 
@@ -354,9 +355,9 @@ describe('what the HUD shows of a mission', () => {
     app.buyArmoury('tank');
     expect(trained(2)).toContain('lmg');
     expect(app.session?.battle.state.sides[0].alive.lmg).toBe(ownLmg);
-    // Bought types field in any mission that does not rule them out; the tutorial keeps to riflemen.
+    // Bought types field in every mission, the tutorial mission included.
     expect(trained(3)).toEqual(['sapper', 'rifle', 'lmg', 'tank']);
-    expect(trained(1)).toEqual(['sapper', 'rifle']);
+    expect(trained(1)).toEqual(['sapper', 'rifle', 'lmg', 'tank']);
   });
 
   it('lists the supports the mission gives the player', () => {

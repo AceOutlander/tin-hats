@@ -4,6 +4,7 @@
  */
 import './ui/theme.css';
 import { createAudio } from './audio';
+import { AdminController } from './app/admin';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
@@ -12,6 +13,7 @@ import { withStorageFallback } from './meta';
 import { registerServiceWorker } from './pwa';
 import { createBattleView } from './render';
 import { createUi } from './ui';
+import { installAdminUi } from './ui/admin';
 
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
@@ -33,18 +35,24 @@ async function boot(): Promise<void> {
     (storage) => new App({ view, audio, storage }),
     (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
   );
+  // The hidden admin panel: nothing of it shows until the secret entry and the code (src/ui/admin).
+  const admin = new AdminController({ app, view, ui: () => app.currentUi });
   const ui = createUi(uiEl, app, {
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
     createHud,
-    onScreen: (screen) => app.onScreen(screen),
+    onScreen: (screen) => {
+      app.onScreen(screen);
+      admin.screenChanged();
+    },
     onPortrait: (portrait) => {
       if (portrait) app.autoPause();
     },
   });
   app.attachUi(ui);
+  installAdminUi(uiEl, admin);
   installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio) : null;
+  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin) : null;
 
   ui.show('title');
   document.getElementById('boot')?.remove();

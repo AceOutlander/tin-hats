@@ -158,12 +158,22 @@ test.describe('campaign map music', () => {
         `peak ${a.peak.toFixed(3)}, rms ${db(a.rms).toFixed(1)} dB; sections ` +
         a.sections.map((s) => `${s.name} ${s.rmsDb.toFixed(1)} dB`).join(', '),
     );
-    expect(a.seconds).toBeGreaterThanOrEqual(110);
-    expect(a.peak).toBeLessThanOrEqual(0.96);
+    // "Roll of Honour": two minutes or more, never clipping, not silent anywhere, a seamless loop, within the phone budgets.
+    expect(a.seconds).toBeGreaterThanOrEqual(120);
+    expect(a.peak, 'never clips').toBeLessThanOrEqual(0.96);
+    expect(a.peak).toBeGreaterThan(0.5);
     expect(db(a.rms)).toBeGreaterThan(-30);
     for (const s of a.sections) expect(s.rmsDb, s.name).toBeGreaterThan(-40);
     expect(a.seam.step).toBeLessThanOrEqual(a.seam.localStep * 1.5 + 1e-4);
+    expect(Math.abs(db(a.seam.rmsBefore) - db(a.seam.rmsAfter))).toBeLessThan(3);
     expect(a.bytes).toBeLessThan(16e6);
+    expect(a.buildMs).toBeLessThan(250);
+    // One climax: the loudest section is the climax, well above the quiet opening and the quiet end.
+    const levels = a.sections.map((s) => s.rmsDb);
+    const top = levels.indexOf(Math.max(...levels));
+    expect(a.sections[top].name).toBe('Roll of honour');
+    expect(levels[top] - levels[0]).toBeGreaterThan(4);
+    expect(levels[top] - levels[levels.length - 1]).toBeGreaterThan(4);
     // A battle starts: the map track goes, the battle's own music comes.
     await page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(1));
     await expect.poll(async () => (await state(page)).screen).toBe('battle');

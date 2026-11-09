@@ -89,6 +89,50 @@ export type Command =
    */
   | { type: 'controlInput'; moveX: number; fire: boolean; ability: boolean };
 
+/**
+ * An admin panel action (src/sim/admin.ts). Not a command: battle.admin() applies it at once, between ticks, so it
+ * works while the battle is paused or frozen. `side: -1` means both sides; `unit` (a unique id) narrows an action to
+ * one unit. Admin spawns ignore the population cap (only the unit pool limits them).
+ */
+export type AdminAction =
+  /** `count` units of `kind` at world x for `side`, one spacing apart going back; veterans with `veteran`. */
+  | { type: 'spawn'; side: Side; kind: UnitKind; x: number; count: number; veteran?: boolean }
+  /** Kill one unit, every unit of a side, or every unit (invincibility does not stop it). */
+  | { type: 'kill'; side: Side | -1; unit?: number }
+  /** Back to full health: one unit, a side, or everyone. */
+  | { type: 'heal'; side: Side | -1; unit?: number }
+  /** One unit's own flag, or a whole side's (which covers its future units too). */
+  | { type: 'invincible'; side: Side | -1; unit?: number; on: boolean }
+  | { type: 'hqInvincible'; side: Side; on: boolean }
+  /** Units of the other side on the field (one by id, or all) change sides and join `side`, keeping their health. */
+  | { type: 'takeOver'; side: Side; unit?: number }
+  /** End the battle now with this winner (endReason 'admin'). */
+  | { type: 'end'; winner: Side }
+  | { type: 'setSupplies'; side: Side; amount: number }
+  /** Hold the side's supplies at `amount` after every tick (frozen or infinite supplies); null lets them run again. */
+  | { type: 'holdSupplies'; side: Side; amount: number | null }
+  /** Units in training finish on the next tick. */
+  | { type: 'instantTrain'; side: Side; on: boolean }
+  /** Units of `kind` walk out until the side's population reaches its cap. */
+  | { type: 'fillArmy'; side: Side; kind: UnitKind }
+  /** Fire the mission's scripted event with this index now (a one-shot event will not fire again). */
+  | { type: 'fireEvent'; index: number };
+
+/** What an AI commander is up to, for the admin panel's debug view. Null from battle.inspectAi for a human side. */
+export interface AiReport {
+  commander: CommanderKind;
+  order: Order;
+  /** Difficulty aggression (1 for the bot). */
+  aggression: number;
+  /** Units its build plan and reactions want right now, per kind (kinds it wants none of are left out). */
+  wants: Partial<Record<UnitKind, number>>;
+  /** Seconds since its last order change, and since its current Advance first met the enemy (-1 while not in contact). */
+  sinceOrder: number;
+  sinceContact: number;
+  /** Seconds before its first Advance is allowed (the plan's firstAttackAfter). */
+  firstAttackAfter: number;
+}
+
 /** Which parts of the design the sim currently simulates. The app guards its UI on these. */
 export interface SimFeatures {
   trenches: boolean;
@@ -122,7 +166,9 @@ export type EndReason =
   /** A deadline timer ran out; side 1 wins. */
   | 'timerExpired'
   /** Both HQs fell in the same tick; `winner` is -1. */
-  | 'draw';
+  | 'draw'
+  /** The admin panel ended it (AdminAction 'end'); `winner` is the side it chose. */
+  | 'admin';
 
 /** Kinds of thing an event or a weapon mount can point at. */
 export type EntityKind = 'none' | 'unit' | 'hq' | 'pillbox' | 'trench' | 'wire' | 'ground';
@@ -294,6 +340,20 @@ export interface UnitState {
   flushedUntil: number;
   /** internal: anti-aircraft gun: seconds until it may fire at a plane again. */
   aaCooldown: number;
+  /** Admin panel: this unit takes no damage (its side's cheats.invincible covers every unit of the side). */
+  invincible: boolean;
+}
+
+/** Admin panel cheats in force on one side (AdminAction). All off in a normal battle. */
+export interface SideCheats {
+  /** No unit of the side takes damage. */
+  invincible: boolean;
+  /** The side's HQ takes no damage. */
+  hqInvincible: boolean;
+  /** Supplies are put back to this after every tick; -1 = not held. */
+  holdSupplies: number;
+  /** Units in training finish on the next tick. */
+  instantTrain: boolean;
 }
 
 /** A side's headquarters bunker. */
@@ -366,6 +426,8 @@ export interface SideState {
   supportAvailable: Record<SupportKind, boolean>;
   /** Seconds until each support is ready again; 0 = ready. */
   supportCooldown: Record<SupportKind, number>;
+  /** The full cooldown each support starts when called: its data cooldown over the side's upgrade (fixed per battle). */
+  supportCooldownFull: Record<SupportKind, number>;
   /** The HQ, or null if the side has none. Stays non-null (with alive false) after it is destroyed. */
   hq: HqState | null;
   /** World x of the line the army holds under Hold. */
@@ -373,6 +435,8 @@ export interface SideState {
   /** Pool index of the unit under direct control, or -1. */
   controlled: number;
   stats: SideStats;
+  /** Admin panel cheats (all off unless the panel turned them on). */
+  cheats: SideCheats;
 }
 
 /**
@@ -671,6 +735,14 @@ export interface Battle {
   step(): void;
   /** Queue a command for a side; it is validated and applied at the start of the next tick. The object is copied. */
   command(side: Side, cmd: Command): void;
+  /**
+   * Apply an admin panel action now, between ticks. The event buffer is cleared first and then holds the action's
+   * events (spawns, deaths, battleEnded), so the caller reads them as after a step (view.afterStep()). Returns the
+   * number of units (or things) it touched; 0 when it did nothing (battle over, unknown unit, pool full).
+   */
+  admin(action: AdminAction): number;
+  /** What the AI commander of a side is doing (the admin panel's debug view); null for a human or idle side. */
+  inspectAi(side: Side): AiReport | null;
 }
 
 /** Summary returned by runBattle(). */

@@ -311,7 +311,8 @@ function capStar(ctx: Ctx, x: number, y: number, r: number): void {
 
 /** Head-space bounds per headgear: x0, x1, y0, y1. */
 const HEADGEAR_BOX: Record<FigureHeadgear, readonly [number, number, number, number]> = {
-  pilotka: [-6.8, 6.4, -8.4, -2.8],
+  // The cap sits high on the head; the box reaches down to the head joint so the anchor lies inside the sprite.
+  pilotka: [-6.8, 6.4, -8.4, 0.4],
   ushanka: [-7.8, 7.6, -10.4, 5.2],
   helmetUshanka: [-8.6, 7.8, -10.4, 5.4],
 };
@@ -458,8 +459,13 @@ export function sovietPouchesSpec(key: string, tint: string, dark: string): Spri
 export function coatRollSpec(key: string): SpriteSpec {
   const B = FIGURE_GEAR_ART.bandolier;
   const w = 3.4;
-  return makeSpec(key, B.x0 - 4.6, B.y0 - 4.4, B.x1 + 3.6, B.y1 + 3.6, (ctx) => {
-    const pts = [B.x0 - 1.8, B.y0 + 2.6, B.x0 + 0.2, B.y0 - 1.2, B.x0 + 2.6, B.y0 + 0.4, B.x1, B.y1];
+  // The strap may run either way across the chest (x1 left or right of x0): the hook over the shoulder follows it.
+  const s = B.x1 >= B.x0 ? 1 : -1;
+  const pts = [B.x0 - 1.8 * s, B.y0 + 2.6, B.x0 + 0.2 * s, B.y0 - 1.2, B.x0 + 2.6 * s, B.y0 + 0.4, B.x1, B.y1];
+  const xs = [pts[0], pts[2], pts[4], pts[6]];
+  const ys = [pts[1], pts[3], pts[5], pts[7]];
+  const pad = 3.6;
+  return makeSpec(key, Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad, (ctx) => {
     const curve = (): void => {
       ctx.beginPath();
       ctx.moveTo(pts[0], pts[1]);

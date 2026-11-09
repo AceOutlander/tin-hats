@@ -29,6 +29,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
       lightTank: 'Cruiser Tank',
       conscript: 'Conscript Squad',
     },
+    buttonNames: { apc: 'Carrier', flame: 'Flamer', commander: 'Lt.' },
     unitBlurbs: {
       sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
@@ -89,6 +90,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
       lightTank: 'Panzer III',
       conscript: 'Conscript Squad',
     },
+    buttonNames: { mortar: 'Werfer', at: 'Schreck', sniper: 'Sniper', flame: 'Flammer', commander: 'Leutnant' },
     unitBlurbs: {
       sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
@@ -151,6 +153,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
       lightTank: 'T-60',
       conscript: 'Conscript Squad',
     },
+    buttonNames: { apc: 'Carrier', flame: 'Flamer', commander: 'Lt.', aa: 'AA Crew' },
     unitBlurbs: {
       sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',

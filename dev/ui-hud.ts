@@ -16,6 +16,7 @@
  *   guides=1                  mark the band where units walk
  *   font=wide                 swap the display font for a wide one to stress the layout
  *   painter=0                 use the HUD's built-in fallback icons
+ *   fps=1                     show the "Show FPS" readout
  */
 import '../src/ui/theme.css';
 import { FACTIONS } from '../src/data/factions';
@@ -81,6 +82,7 @@ const supportDefs = SUPPORTS.slice(0, count('supports', SUPPORTS.length, SUPPORT
 const train: TrainButtonState[] = roster.map((r) => ({
   kind: r.kind,
   name: british.unitNames[r.kind],
+  label: british.buttonNames[r.kind] ?? british.unitNames[r.kind],
   cost: r.cost,
   pop: r.pop,
   queued: 0,
@@ -167,6 +169,7 @@ const state: HudState = {
   bannerSeq: 0,
   hint: null,
   tip: tipFromQuery(),
+  fps: flag('fps') ? { seq: 1, fps: 58.6, avgMs: 17.1, worstMs: 41.8 } : null,
   minimap: {
     length: MAP_LENGTH,
     camX: 2400,
@@ -239,7 +242,7 @@ const emptyCampaign: CampaignView = {
   pointsSpent: 0,
   pointsAvailable: 0,
   upgrades: [],
-  settings: { muted: false, difficulty: 'normal', hints: true, musicVolume: 100, ambienceVolume: 100, sfxVolume: 100, reduceFlash: false, showBlood: true },
+  settings: { muted: false, difficulty: 'normal', hints: true, musicVolume: 100, ambienceVolume: 100, sfxVolume: 100, reduceFlash: false, showBlood: true, showFps: false },
   difficulties: [],
 };
 

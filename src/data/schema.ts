@@ -223,6 +223,8 @@ export interface FactionDef {
   name: string;
   adjective: string;
   unitNames: Record<UnitKind, string>;
+  /** Short labels for the training buttons where the name is too long to fit (others show the name's first word). */
+  buttonNames: Partial<Record<UnitKind, string>>;
   /** One-line role text for briefings and the Quartermaster. */
   unitBlurbs: Record<UnitKind, string>;
   supportNames: Record<SupportKind, string>;
@@ -298,14 +300,22 @@ export interface SupportDef {
 
 export type UpgradeEffect =
   | { stat: 'sapperSpeed' | 'sapperCarry' | 'hqIncome' | 'hqHealth' | 'hqGunDamage' | 'hqGunRate'; mul: number }
-  | { stat: 'unitHealth' | 'unitDamage' | 'unitHeal'; unit: UnitKind; mul: number };
+  | { stat: 'unitHealth' | 'unitDamage' | 'unitHeal'; unit: UnitKind; mul: number }
+  /**
+   * Call-ins of one kind: supportRate divides the cooldown (1.25 = ready again in 80% of the time), supportReach
+   * multiplies the area (a strike's spread, the recon plane's reveal radius), supportTime the time the effect lasts
+   * (the recon plane's reveal, a smoke cloud).
+   */
+  | { stat: 'supportRate' | 'supportReach' | 'supportTime'; support: SupportKind; mul: number };
 
 export interface UpgradeDef {
   id: string;
   name: string;
   description: string;
-  /** Unit this upgrade belongs to, for grouping in the Quartermaster; null for HQ and sapper upgrades. */
+  /** Unit this upgrade belongs to, for grouping in the Quartermaster; null for HQ, sapper and call-in upgrades. */
   unit: UnitKind | null;
+  /** Call-in this upgrade belongs to (grouped under it in the Quartermaster); absent for every other upgrade. */
+  support?: SupportKind;
   /** One entry per level (3 levels); each level lists its cumulative effects. */
   levels: UpgradeEffect[][];
   /** Upgrade points per level. */

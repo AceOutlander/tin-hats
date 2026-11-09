@@ -44,8 +44,43 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
-## In progress
-- Nothing is mid-flight. Paused at the usage limit (2026-11-07 evening) after publishing job 2; resume with queue job 3, the admin panel (spec in `docs/QUEUE.md`).
+## Latest state (2026-11-09 ~00:55 UTC; read this first)
+
+Live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
+missions lend 2 of every expected type not bought, every bought type usable in every mission), the playtest follow-ups
+(fire-like flame, gas mask, cap 100 everywhere with maxUnits 216, short button labels, collapsible call-ins), cheap lag
+wins (Show FPS, body cap, countClusters sweep, budget tests), the campaign map theme "Roll of Honour", the version
+number and What's new in Settings, a Beta tag on hunteracedev.com. The lag job was scaled down: the owner's PC was the
+main cause.
+
+Running when paused for the usage limit (resume scheduled 8:15 pm local, task tin-hats-resume-queue):
+- Admin panel: worktree C:\dev\tin-hats-admin, branch admin-panel (agent was told to wrap up the core). Ship as v0.10.0.
+- Upgrades for the new units + upgrade visuals audit: worktree C:\dev\tin-hats-upgrades, branch upgrades (2 commits:
+  generated tracks, looks and a readability pass; screenshots and final checks pending). Ship with v0.10.0.
+Next: FIRST the design change "units unlocked by missions again" (QUEUE), then Stalingrad fully on its branch
+(with Money and the prep phase), never live until the owner says push. Owner rule: at most two jobs at once.
+Leftover: branch followups has an uncommitted missions.spec update (finish with the next job); the deeper performance
+work is queued at low priority.
+
+## In progress (paused 2026-11-08 ~23:50 UTC for a computer restart; every copy committed, nothing running)
+
+Owner's order of work (2026-11-08, latest): 1. lag fix first, timeboxed to about 30 minutes for the biggest one or two
+wins, pushed live, deeper performance work later in the queue; 2. publish new units, medals and the Armoury together
+with the lag fix, after checking they add no lag; 3. in parallel, Stalingrad and Basic Training on the `stalingrad`
+branch (never live until 100% done and the owner says push). The other follow-ups below wait until after the lag fix.
+
+Each job lives in its own git worktree next to this repo (node_modules and .tools are junctions to this repo's):
+
+| Job | Worktree, branch, last commit | State |
+| --- | --- | --- |
+| New units, medals, Armoury (jobs 7, 10) | `C:\dev\tin-hats`, `main`, db8c4bb | Integrated and committed, NOT pushed. Integration checks passed (typecheck, lint, unit, build, smoke 12/12, campaign spec fixed for medals); the "wins ground" sandbox test failed twice (known issue below). Also on main: 03496a5 the Armoury shows only the player's own nation's names. Next: push together with the lag fix. |
+| Lag fix (top priority) | `C:\dev\tin-hats-perf`, `perf`, 3be7628 | Measuring only, no game code changed. Findings so far in `docs/PERF_FINDINGS.md` there (sim not the cause; render about 90 images per soldier, draw p95 25-43 ms at CPU x4, 73 long tasks; 5 MB/s garbage; battle music rendered piece by piece during the battle with build tasks up to 65 ms). Owner plays on a PC in Chrome and sees stutters/hitches, so fix spikes first. Next: pick the one or two biggest hitch fixes, measure, add the FPS counter setting and a perf test, merge into main, push with the units. |
+| Follow-ups from the owner's playtest | `C:\dev\tin-hats-flame`, `followups`, 29034cc | WIP, not checked as a whole. Done: fire-like flame jet (bold layered flat fire with licking tongues, looked at; the pale core still looks a little beady), flamethrower gas mask (head sprite `fig/body/headMask`; not yet seen in a close-up, only the lens glow shows at battle zoom: make it bigger and lighter), cap 100 everywhere (aiPopCapMul 1 on every difficulty, debug grantPopulation clamped, tests), short button labels (`FactionDef.buttonNames`: Flamer, Lt., Carrier; test `hud-labels`), collapsible call-ins column (`src/ui/hud/callins.ts`, stopped mid-way while updating the browser specs missions, sandbox, unit-orders). Next: finish, run all checks, merge after the lag fix. |
+| Campaign map theme (Band of Brothers mood, original) | `C:\dev\tin-hats-music`, `campaign-theme`, 6632e01 | WIP: score and instruments written, tests being added when paused. Next: finish tests, render a preview for the owner, merge and push. |
+| Stalingrad and Basic Training | `C:\dev\tin-hats-stalingrad`, `stalingrad`, dd926df | Just started: STALINGRAD.md being history-checked, Soviet nation data begun in schema.ts and factions.ts (may not type-check). Plan (workflow script `tin-hats-stalingrad-start`): Soviet nation and history check, then missions 1001-1005 and 1006-1010 as data, Soviet art, cold Soviet music, Basic Training, then integrate on the branch. Missing engine features go to `docs/campaigns/STALINGRAD_BUILD.md`. |
+
+Owner notes from 2026-11-08 already handled: the training-button names and the "/280" (fixed on `followups`); the
+proving ground is a debug-only test battle (explained to the owner).
 
 ## Next
 - **Queue (owner, 2026-11-08): follow the Build order in `docs/QUEUE.md` (specs verbatim there).** 1. hide enemy unit HP (done), 2. admin panel, 3. rename the resource to Money, 4. Quartermaster upgrade looks (done), 5. unlockable passives, 6. prep phase, 7. new units (APC, flamethrower, commander, planes, anti-aircraft), 8. music for every mission and the campaign map, 9. difficulty overhaul (cap 100 everywhere), 10. medals and the Armoury, 11. campaigns (Soviet Part 1 foundations, Stalingrad, British D-Day replacing today's British campaign, Road to Berlin, African), 12. trench art pass. Later: French campaign, German campaign as DLC. Standing rule: push to live after each job whose checks pass, then go straight on.
@@ -56,7 +91,7 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 - Sandbox "wins ground" browser test (DECISIONS 213 flake) failed in both runs on 2026-11-08 after job 7 (the player's tapped army was wiped out by t = 316 to 377 s at 40x); not yet known whether load or the job 7 sim balance (hit-facing armour) is the cause. Investigate before relying on it.
 - New units (job 7): the AA crew keep the machine-gun pose with the Bren or MG34 (no towed gun yet) and their tracers are thin at phone size; the commander's pointing arm is subtle while he runs; on the proving ground the flamethrowers were seen burning infantry in the open, not yet photographed on a trench; the admin panel (job 2) that should spawn the Panzer III and King Tiger is not built. Medal prices in `src/data/medals.ts` are first guesses.
 - Battle music (stage 3 checks): nobody has listened to it (only measured). Only the current mission's music is held in a battle (the menu theme and map track are released and re-rendered on return). Render 13 to 19 s per track headless, 18 to 26 s on a 4x slowed CPU with graph-build tasks up to 172 ms there (60 ms budget is met only at full speed); never run on a real phone. In autopilot battles (proving ground, Arnhem) no side ever had 20 armed men in the fight (most seen 17 / 9), so the combat layer may rarely play in real campaign battles; the 20 a side rule is the owner's. Prep hook still has no caller.
-- Upgrade looks: the level 1 fuller pouches and level 2 bandolier are subtle at phone size (arms and weapon cover the chest); the prone HQ gunner (level 0) is small and low; the old HQ sprites (`hqSpecs`) are still built into the boot atlas though battles no longer use them (remove with the art tests that name them). Not seen on a real phone.
+- Upgrade looks: every level of every track now draws a visible change (DECISIONS 262; looked at in dev/looks-audit.html at battle zoom, not on a phone); the level 1 sapper load and level 1 to 2 HQ gun (emplacement to tripod) are the smallest steps; plane gear is seen only on the dev page and the Quartermaster, not yet in a battle pass; the prone HQ gunner (level 0) is small and low; the old HQ sprites (`hqSpecs`) are still built into the boot atlas though battles no longer use them (remove with the art tests that name them). Not seen on a real phone.
 - Trenches (DECISIONS 237): no climb pose (men sink with the old ease), tanks keep the old lip bump at the sim width, big positions are not split into several pits, so 7 and 8 men are packed tightly into one pit; the pit interior is mostly hidden behind a full garrison; the depth rows inside the pit are only slightly staggered; the near wall leaves a faint pale halo where its ground colour meets the backdrop. Browser specs not rerun after the change.
 - Menu mix: measured through a loudness weighting and a phone speaker model, never heard on a phone. The thunder margins are only 0.3 to 0.6 dB over their targets.
 - Battle loudness: measured through the engine offline, not heard. With every slider at full a heavy battle is 3.9 dB hotter than the old maximum going in: an army of 80 firing peaks at -0.28 dBFS against the soft clipper's ceiling, the compressor takes up to 5.2 dB (3.9 dB on average) and 6.9% of samples are in the soft clipper's bend. No hard clipping is possible, but it is driven hard.

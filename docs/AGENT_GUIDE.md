@@ -36,7 +36,16 @@ alternative and note it under Known issues in `docs/PROGRESS.md`.
 | Balance tests | `x.cmd npm run test:balance` |
 | Production build | `x.cmd npm run build` |
 | Browser smoke tests (needs a build) | `x.cmd npm run test:e2e` |
+| Sim time budget (heavy 100-a-side headless battle; part of test:unit) | `x.cmd npx vitest run tests/unit/sim-budget.test.ts` |
+| Frame-time budget (needs a build; proving ground at CPU x4, a few minutes) | `x.cmd npm run test:perf` |
 | Screenshot a dev page or the game | `x.cmd npx tsx tools/shot.ts <urlPath> <out.png> [flags]` (see the header of `tools/shot.ts`) |
+
+The two budget tests guard against lag coming back. `tests/unit/sim-budget.test.ts` replays one deterministic battle
+five times and judges the fastest time of each tick, so a loaded machine does not fail it. `npm run test:perf`
+(`tests/perf`, its own `playwright.perf.config.ts`) plays the built game's proving ground with the CPU throttled 4x and
+fails on too many frames over 33 ms of work, a work p95 over budget, or too much main-thread CPU time per frame; it keeps
+the best of two windows. Run it after changes to rendering, effects, the HUD or the sim, and only when no other heavy
+job is running on the machine. `tools/perf.ts` gives the detailed breakdown when it fails.
 
 Never run anything that waits for input or never exits: no watch mode, no foreground dev server. `tools/shot.ts` and
 Playwright start and stop their own servers. If you must start a server yourself, start it in the background on your own

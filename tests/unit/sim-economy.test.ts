@@ -301,6 +301,28 @@ describe('training', () => {
     expect(b.state.sides[0].pop).toBe(CONFIG.popCap);
   });
 
+  it('has room in the unit pool for both sides at the full cap, so training never stalls silently', () => {
+    // The pool is shared by both sides: at 160 it could not hold two armies of 100 (playtest, 2026-11-08).
+    expect(CONFIG.maxUnits).toBeGreaterThanOrEqual(2 * CONFIG.popCap);
+    const start = CONFIG.popCap - 10;
+    const mission = testMission({
+      length: 9000,
+      a: { supplies: 100_000, hqHpMul: 50, sappers: 4, forces: [{ kind: 'rifle', count: start - 4, x: 600 }] },
+      b: { supplies: 100_000, hqHpMul: 50, sappers: 4, forces: [{ kind: 'rifle', count: start - 4, x: 8400 }] },
+    });
+    const b = makeBattle({ mission });
+    b.command(0, { type: 'order', order: 'hold' });
+    b.command(1, { type: 'order', order: 'hold' });
+    run(b, 12 * UNITS.rifle.trainTime, () => {
+      b.command(0, { type: 'train', kind: 'rifle' });
+      b.command(1, { type: 'train', kind: 'rifle' });
+    });
+    for (const side of b.state.sides) {
+      expect(side.pop).toBe(CONFIG.popCap);
+      expect(side.alive.rifle + side.alive.sapper).toBe(CONFIG.popCap);
+    }
+  });
+
   it('counts units placed by the mission towards population, and frees it when they die', () => {
     const b = makeBattle({ mission: testMission({ a: { sappers: 2, forces: [{ kind: 'rifle', count: 3 }] } }) });
     expect(b.state.sides[0].pop).toBe(2 * UNITS.sapper.pop + 3 * UNITS.rifle.pop);

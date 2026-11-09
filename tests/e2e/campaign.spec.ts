@@ -251,6 +251,7 @@ test.describe('campaign', () => {
           sfxVolume: META.defaultSfxVolume,
           reduceFlash: META.defaultReduceFlash,
           showBlood: META.defaultShowBlood,
+          showFps: META.defaultShowFps,
         });
         await tap(page, 'play');
         await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
@@ -281,7 +282,7 @@ test.describe('campaign', () => {
       expect(migrated.version).toBe(META.saveVersion);
       expect(migrated.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
       expect(migrated.upgrades).toEqual({ rifleHealth: 1 });
-      // The volumes, reduce flashing and show blood did not exist in version 1: they come in at their defaults.
+      // The volumes, reduce flashing, show blood and show FPS did not exist in version 1: they come in at their defaults.
       expect(migrated.settings).toEqual({
         muted: true,
         difficulty: 'hard',
@@ -291,6 +292,7 @@ test.describe('campaign', () => {
         sfxVolume: META.defaultSfxVolume,
         reduceFlash: META.defaultReduceFlash,
         showBlood: META.defaultShowBlood,
+        showFps: META.defaultShowFps,
       });
       await tap(page, 'play');
       expect(await pinStates(page)).toEqual(['cleared', 'cleared', 'open', ...Array<string>(7).fill('locked')]);
@@ -301,8 +303,8 @@ test.describe('campaign', () => {
     test('takes back the points a save from before medals has spent but never earned', async ({ page }) => {
       await open(page);
       const everything = Object.fromEntries(UPGRADES.map((u) => [u.id, 3]));
-      // Version 5 is the last save with upgrade points; version 6 levels were paid for in medals and are kept.
-      expect(META.saveVersion).toBe(6);
+      // Version 5 is the last save with upgrade points; levels in version 6 and later were paid for in medals and are kept.
+      expect(META.saveVersion).toBeGreaterThanOrEqual(6);
       await storeRaw(page, JSON.stringify({ version: 5, cleared: { '1': ['normal'] }, upgrades: everything }));
       await reload(page);
       const clamped = await memorySave(page);

@@ -31,7 +31,9 @@ import type { ArmouryItemView, CampaignView, MedalResultView, MissionCard, Resul
 
 /** "+10% health" for one effect; an empty string for an effect that changes nothing. */
 export function describeEffect(effect: UpgradeEffect): string {
-  const percent = Math.round((effect.mul - 1) * 100);
+  // A call-in rate divides the cooldown: shown as the cooldown it takes off ("-17% cooldown").
+  const change = effect.stat === 'supportRate' ? 1 / effect.mul : effect.mul;
+  const percent = Math.round((change - 1) * 100);
   if (percent === 0) return '';
   return `${percent > 0 ? '+' : '-'}${Math.abs(percent)}% ${APP.statLabels[effect.stat]}`;
 }
@@ -75,13 +77,22 @@ function missionCard(save: SaveData, ids: readonly number[], m: MissionDef, unlo
   };
 }
 
-function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDef): UpgradeView {
+/**
+ * One Quartermaster card. Its group is named in the player's own nation (the unit or call-in it belongs to); HQ and
+ * sapper upgrades share one group.
+ */
+function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDef, nation: FactionId): UpgradeView {
   const max = maxLevel(def);
+  const own = FACTIONS[nation];
+  const support = def.support ?? null;
+  const group = support !== null ? own.supportNames[support] : def.unit !== null && def.unit !== 'sapper' ? own.unitNames[def.unit] : APP.upgradeHqGroup;
   return {
     id: def.id,
     name: def.name,
     description: def.description,
     unit: def.unit,
+    support,
+    group,
     level: Math.min(upgradeLevel(save, def.id), max),
     maxLevel: max,
     cost: def.costPerLevel,
@@ -95,7 +106,14 @@ function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDe
  * Everything the campaign map, briefing, Quartermaster and settings screens show. `unlockAll` (the debug hook) opens
  * every mission without recording any clear.
  */
-export function buildCampaignView(save: SaveData, missions: readonly MissionDef[], defs: readonly UpgradeDef[], unlockAll = false): CampaignView {
+// Every campaign so far is played as the British; a campaign of another nation passes its own (as buildArmoury).
+export function buildCampaignView(
+  save: SaveData,
+  missions: readonly MissionDef[],
+  defs: readonly UpgradeDef[],
+  unlockAll = false,
+  nation: FactionId = 'british',
+): CampaignView {
   const ids = missions.map((m) => m.id);
   return {
     missions: missions.map((m) => missionCard(save, ids, m, unlockAll)),
@@ -103,11 +121,11 @@ export function buildCampaignView(save: SaveData, missions: readonly MissionDef[
     pointsEarned: pointsAvailable(save) + pointsSpent(save, defs),
     pointsSpent: pointsSpent(save, defs),
     pointsAvailable: pointsAvailable(save),
-    upgrades: defs.map((d) => upgradeView(save, defs, d)),
+    upgrades: defs.map((d) => upgradeView(save, defs, d, nation)),
     settings: { ...save.settings },
     difficulties: DIFFICULTY_LIST.map((id) => ({ id, name: DIFFICULTIES[id].name })),
     medals: save.medals,
-    armoury: buildArmoury(save),
+    armoury: buildArmoury(save, nation),
     training: { done: save.training.done, offer: trainingOffered(save), reward: MEDALS.trainingReward },
   };
 }
