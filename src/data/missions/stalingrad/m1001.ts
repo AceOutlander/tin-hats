@@ -26,15 +26,31 @@ export const M1001: MissionDef = {
     'Their infantry will come first, then assault parties with flamethrowers, then the heavy guns. Hold the citadel through the day and make them pay for every courtyard.',
   ],
   objective: 'Hold the citadel until nightfall.',
+  intel: {
+    enemy: [
+      '45th Infantry Division, in waves over the bridges',
+      'About 90 riflemen and MP40 troopers, 6 MG34 teams',
+      'Pioneers: 4 flamethrowers, 2 Granatwerfer teams',
+      '2 StuG III Ausf. B assault guns late in the day',
+      'Heavy guns across the Bug; no aircraft today',
+    ],
+    friendly: [
+      '10 riflemen and a DP gunner in the barracks and the gate',
+      '2 sappers and 200 Money: the walls shelter like trenches',
+      'Later, from the stores: 2 mortar crews, 5 Tank Hunters',
+    ],
+  },
   // Stand-ins until the russiaSummer theatre exists (STALINGRAD_BUILD.md).
   theatre: 'france',
   timeOfDay: 'dawn',
   mode: 'survival',
   length: 7000,
-  newUnit: null,
+  // The campaign's unlock order (DECISIONS 295): Brest brings the rifle company's two basics, the DP gunner and the
+  // Tank Hunters (grenade bundles and bottles, the 1941 answer to the StuGs); the mortars arrive as a loan.
+  newUnit: 'lmg',
+  unlocks: ['at'],
   newSupport: null,
   units: [
-    // Sapper and rifleman are free; the rest of the 1941 company (DP gunner, mortars, Tank Hunters) arrive as loans.
     ['sapper', 'rifle', 'lmg', 'at'],
     ['rifle', 'lmg', 'assault', 'mortar', 'flame', 'tank'],
   ],
@@ -92,6 +108,12 @@ export const M1001: MissionDef = {
       announce: 'German infantry are coming over the bridge.',
     },
     { type: 'wave', when: { every: 25, from: 31, until: 235 }, side: 1, forces: [{ kind: 'rifle', count: 4, x: 5400 }] },
+    {
+      type: 'hint',
+      when: { at: 12 },
+      about: 'lmg',
+      text: 'New: DP Gunner. His pan-fed gun shreds infantry in the open. Put him in the Kholm Gate where he sweeps the bridge.',
+    },
     {
       type: 'hint',
       when: { at: 20 },
@@ -219,7 +241,8 @@ export const M1001: MissionDef = {
     {
       type: 'hint',
       when: { at: 495 },
-      text: 'Tank Hunters must get close. Keep them in the gate and let the assault guns come to them; strike from the side if you can.',
+      about: 'at',
+      text: 'New: Tank Hunters. They must get close. Keep them in the gate and let the assault guns come to them; strike from the side if you can.',
     },
     {
       type: 'wave',

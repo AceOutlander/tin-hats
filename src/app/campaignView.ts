@@ -4,11 +4,12 @@
  * no DOM, so they run in unit tests.
  */
 import { APP } from '../data/app';
+import { CAMPAIGNS } from '../data/campaigns';
 import { missionEra } from '../data/eras';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
 import { MEDALS } from '../data/medals';
-import type { Difficulty, FactionId, MissionDef, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
+import type { CampaignId, Difficulty, FactionId, MissionDef, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
 import {
   canBuy,
   canBuyItem,
@@ -35,7 +36,7 @@ import {
   type SaveData,
 } from '../meta';
 import type { Battle, EndReason } from '../sim';
-import type { ArmouryItemView, CampaignView, MedalResultView, MissionCard, ResultView, UpgradeView } from '../ui/contracts';
+import type { ArmouryItemView, CampaignCardView, CampaignView, MedalResultView, MissionCard, ResultView, UpgradeView } from '../ui/contracts';
 
 /** "+10% health" for one effect; an empty string for an effect that changes nothing. */
 export function describeEffect(effect: UpgradeEffect): string {
@@ -58,24 +59,40 @@ export function describeLevel(effects: readonly UpgradeEffect[]): string {
 
 /** How the campaign screens see a save's progress (worked out once per view). */
 export interface Progress {
+  /** The campaign on the map: its mission ids and missions, in order. */
   ids: readonly number[];
   missions: readonly MissionDef[];
+  /** Every mission of every campaign the player can play: unit types unlocked anywhere count everywhere. */
+  all: readonly MissionDef[];
   /** Every mission open on the map (the debug hook or the admin panel). */
   unlockAll: boolean;
-  /** Reached by the player's own progress: what is new in a briefing is worked out from this. */
+  /** Reached by the player's own progress, in its own campaign: what is new in a briefing is worked out from this. */
   progressed: Reached;
   /**
-   * Unit types the player fields: every mission reached by the player's own progress unlocks its types (a mission an
-   * unlock-all opened brings only its own, as when a player reaches it).
+   * Unit types the player fields: every mission reached by the player's own progress, in any campaign, unlocks its
+   * types (a mission an unlock-all opened brings only its own, as when a player reaches it; owner, 2026-11-09).
    */
   unlocked: UnitKind[];
 }
 
-export function progressOf(save: SaveData, missions: readonly MissionDef[], unlockAll: boolean): Progress {
+/**
+ * The progress of a save on the campaign `missions`, with `campaigns` every campaign the player can play (each in its
+ * own order; default the one campaign). A mission is reached when it is the first of its campaign or the one before
+ * it there has been cleared.
+ */
+export function progressOf(
+  save: SaveData,
+  missions: readonly MissionDef[],
+  unlockAll: boolean,
+  campaigns: readonly (readonly MissionDef[])[] = [missions],
+): Progress {
   const ids = missions.map((m) => m.id);
-  const progressed: Reached = (id) => isUnlocked(save, ids, id);
-  const unlocked = unitsUnlocked(save, missions, progressed);
-  return { ids, missions, unlockAll, progressed, unlocked };
+  const lists = campaigns.some((c) => c === missions) ? campaigns : [missions, ...campaigns];
+  const idLists = lists.map((c) => c.map((m) => m.id));
+  const progressed: Reached = (id) => idLists.some((list) => isUnlocked(save, list, id));
+  const all = lists.flat();
+  const unlocked = unitsUnlocked(save, all, progressed);
+  return { ids, missions, all, unlockAll, progressed, unlocked };
 }
 
 function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
@@ -88,8 +105,8 @@ function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
     cleared[d] = isCleared(save, m.id, d);
     replay[d] = replayPercent(winsOn(save, m.id, d));
   }
-  // NEW cards only for what this mission really unlocks for this player (owner, 2026-11-09).
-  const news = newsFor(save, p.missions, p.progressed, m);
+  // NEW cards only for what this mission really unlocks for this player (owner, 2026-11-09), in any campaign.
+  const news = newsFor(save, p.all, p.progressed, m);
   const unitCard = (kind: UnitKind): { kind: UnitKind; name: string; blurb: string } => ({
     kind,
     name: faction.unitNames[kind],
@@ -103,10 +120,12 @@ function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
     title: m.title,
     location: m.location,
     date: m.date,
+    dateIso: m.dateIso,
     theatre: m.theatre,
     mapPos: m.mapPos,
     briefing: m.briefing,
     objective: m.objective,
+    intel: m.intel ? { enemy: [...m.intel.enemy], friendly: [...m.intel.friendly] } : undefined,
     unlocked: p.unlockAll || isUnlocked(save, p.ids, m.id),
     cleared,
     newUnit: news.units.length > 0 ? unitCard(news.units[0]) : null,
@@ -146,15 +165,17 @@ function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDe
  * Everything the campaign map, briefing, Quartermaster and settings screens show. `unlockAll` (the debug hook) opens
  * every mission without recording any clear.
  */
-// Every campaign so far is played as the British; a campaign of another nation passes its own (as buildArmoury).
+// `nation` is the player's nation in this campaign (its names in the Quartermaster and the Armoury); `campaigns` every
+// campaign the player can play, for what is unlocked (default this one).
 export function buildCampaignView(
   save: SaveData,
   missions: readonly MissionDef[],
   defs: readonly UpgradeDef[],
   unlockAll = false,
   nation: FactionId = 'british',
+  campaigns: readonly (readonly MissionDef[])[] = [missions],
 ): CampaignView {
-  const p = progressOf(save, missions, unlockAll);
+  const p = progressOf(save, missions, unlockAll, campaigns);
   return {
     missions: missions.map((m) => missionCard(save, p, m)),
     lastMission: p.ids.includes(save.lastMission) ? save.lastMission : 0,
@@ -168,6 +189,41 @@ export function buildCampaignView(
     armoury: buildArmoury(save, nation, p.unlocked, missions),
     training: { done: save.training.done, offer: trainingOffered(save), reward: MEDALS.trainingReward },
   };
+}
+
+/**
+ * The campaign select screen's cards, in the order given: each campaign's name, dates, pitch, nation and flag, and how
+ * far the save has got (missions cleared of all, the next mission to play), and whether it is the one on the map. A
+ * campaign that opens after a mission is locked until that mission is cleared.
+ */
+export function buildCampaignCards(
+  save: SaveData,
+  campaigns: readonly { id: CampaignId; missions: readonly MissionDef[] }[],
+  current: CampaignId,
+): CampaignCardView[] {
+  return campaigns.map((c) => {
+    const def = CAMPAIGNS[c.id];
+    const ids = c.missions.map((m) => m.id);
+    const cleared = c.missions.filter((m) => isCleared(save, m.id)).length;
+    const next = c.missions.find((m) => isUnlocked(save, ids, m.id) && !isCleared(save, m.id)) ?? null;
+    const after = 'afterMission' in def.unlock ? def.unlock.afterMission : null;
+    const locked = after !== null && !isCleared(save, after);
+    return {
+      id: c.id,
+      title: def.title,
+      subtitle: def.subtitle,
+      pitch: def.card,
+      nation: def.nation,
+      nationName: FACTIONS[def.nation].name,
+      flag: FACTIONS[def.nation].look.flag,
+      cleared,
+      total: c.missions.length,
+      next: next ? { id: next.id, number: c.missions.indexOf(next) + 1, title: next.title } : null,
+      locked,
+      lockNote: locked ? `Opens after mission ${after}` : undefined,
+      current: c.id === current,
+    };
+  });
 }
 
 /**

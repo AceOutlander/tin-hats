@@ -120,6 +120,11 @@ export interface LoadResult {
 export interface SaveRules {
   /** Missions that exist, in campaign order. Progress on any other mission, or beyond the first mission not cleared, is dropped. */
   missionIds?: readonly number[];
+  /**
+   * With several campaigns: each campaign's mission ids in its own order (together the same ids as `missionIds`). The
+   * "no progress past the first mission not cleared" rule then holds per campaign, not across the joined list.
+   */
+  campaigns?: readonly (readonly number[])[];
   /** The Quartermaster table. Unknown upgrades are dropped and levels are capped. */
   upgradeDefs?: readonly UpgradeDef[];
 }
@@ -307,7 +312,7 @@ export function migrateSave(raw: unknown): Record<string, unknown> | null {
   return doc;
 }
 
-function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly number[] | undefined): void {
+function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly number[] | undefined, campaigns?: readonly (readonly number[])[]): void {
   if (!isRecord(raw)) return;
   const kept: Record<string, Difficulty[]> = {};
   for (const key of Object.keys(raw)) {
@@ -322,11 +327,13 @@ function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly numbe
     out.cleared = kept;
     return;
   }
-  // A mission can only have been cleared if the one before it was: progress stops at the first gap.
-  for (const id of missionIds) {
-    const list = kept[String(id)];
-    if (!list) break;
-    out.cleared[String(id)] = list;
+  // A mission can only have been cleared if the one before it (in its own campaign) was: progress stops at the first gap.
+  for (const ids of campaigns ?? [missionIds]) {
+    for (const id of ids) {
+      const list = kept[String(id)];
+      if (!list || !missionIds.includes(id)) break;
+      out.cleared[String(id)] = list;
+    }
   }
 }
 
@@ -378,7 +385,7 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
   if (!doc) return null;
 
   const out = defaultSave();
-  sanitizeCleared(doc.cleared, out, rules.missionIds);
+  sanitizeCleared(doc.cleared, out, rules.missionIds, rules.campaigns);
   sanitizeUpgrades(doc.upgrades, out, rules.upgradeDefs);
   sanitizeMedals(doc, out, rules.missionIds);
 

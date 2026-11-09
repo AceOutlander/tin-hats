@@ -1,5 +1,5 @@
 /** Types shared by the UI shell and the menu screens. */
-import type { Difficulty } from '../../data/schema';
+import type { Difficulty, FactionLook } from '../../data/schema';
 import type { AppApi, CampaignView, HudState, PanelDropsState, ResultView, ScreenId } from '../contracts';
 import type { PaintUnitIcon, PaintUpgradePreview } from './icons';
 
@@ -22,6 +22,8 @@ export interface UiOptions {
   paintUnitIcon?: PaintUnitIcon;
   /** Paints the battle look of an upgrade level for the Quartermaster; without it the cards show no picture. */
   paintUpgradePreview?: PaintUpgradePreview;
+  /** Paints a nation's flag to fill a canvas (the campaign select cards); without it the cards show a plain swatch. */
+  paintFlag?: (canvas: HTMLCanvasElement, flag: FactionLook['flag']) => void;
   /**
    * The HUD factory. When omitted the UI loads src/ui/hud/index.ts itself (lazily, and
    * carries on without a HUD if that module is missing). Pass `null` to run with no HUD.

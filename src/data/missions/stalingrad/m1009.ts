@@ -25,17 +25,34 @@ export const M1009: MissionDef = {
   date: '19 to 23 November 1942',
   dateIso: '1942-11-19',
   climate: 'winter',
-  mapPos: { lon: 43.53, lat: 48.69 },
+  // The breakthrough: the Serafimovich bridgehead on the Don, where the 26th Tank Corps went in (DECISIONS 296).
+  mapPos: { lon: 42.74, lat: 49.58 },
   briefing: [
     'For two months the city has held them. Now it is their turn to be surrounded. At twenty past seven every gun on the front opens fire, and when the guns lift we go, fog or no fog. Steer by compass if you must, and keep the tank riders on the hulls until we reach their trenches.',
     'In front of us are Romanian divisions, brave men badly armed, with few anti-tank guns. Behind them are open steppe, a German panzer division short of fuel, and the Don. We do not stop to finish every trench: break the line, and the rifle divisions coming behind us will mop up.',
     'Our objective is the bridge at Kalach, a hundred kilometres away, before they blow it. Then on with the corps beside us to Sovetsky, where the tanks of the Stalingrad Front are coming the other way. When you meet them, fire green flares, and make sure they see them.',
   ],
   objective: 'Break through, take the Kalach bridge and link up at Sovetsky.',
+  intel: {
+    enemy: [
+      'Romanian 3rd Army: about 25 infantry with ZB machine guns',
+      'Few anti-tank guns; a few R-2 light tanks',
+      '22nd Panzer behind them: about 18 Panzer III and IV',
+      'German riflemen, MP40 troopers and PzB 39 teams',
+      'Little air: fog, then a blizzard',
+    ],
+    friendly: [
+      '26th Tank Corps: 6 T-34s and 3 T-60s, with tank riders',
+      '8 riflemen, 2 DPs, 2 PTRD teams, 2 mortar crews',
+      'Universal Carriers and PTRD teams after the first line',
+      'Artillery, smoke, Katyusha, the Il-2 and the Po-2',
+    ],
+  },
   theatre: 'france',
   timeOfDay: 'dawn',
   mode: 'assault',
   length: 30000,
+  // The unlock order (DECISIONS 295): the Lend-Lease Universal Carrier.
   newUnit: 'apc',
   newSupport: 'recon',
   units: [
@@ -131,6 +148,12 @@ export const M1009: MissionDef = {
       type: 'hint',
       when: { at: 4 },
       text: 'The Romanian line is thin and short of anti-tank guns. T-34s and tank riders on the second trench, infantry on the first.',
+    },
+    {
+      type: 'hint',
+      when: { at: 20 },
+      about: 'apc',
+      text: 'New: Universal Carrier. Fast and bullet-proof, with a machine gun: it carries a squad up behind the tanks.',
     },
     {
       type: 'hint',

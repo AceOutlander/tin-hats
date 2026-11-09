@@ -28,6 +28,20 @@ export const M1008: MissionDef = {
     'The sappers have wired the gaps and the yard. When a hall can no longer be held, fall back to the next one; the anti-tank rifles go where the tanks come. Hold until dark: every hour they spend here is an hour the rest of the bank holds.',
   ],
   objective: 'Hold the factory until dark. Do not let the Germans reach the river.',
+  intel: {
+    enemy: [
+      '14th Panzer and two infantry divisions, from the settlement',
+      'About 17 tanks: Panzer III, Panzer IV Ausf. G, StuG III',
+      'About 110 riflemen and MP40 troopers, 9 flamethrowers',
+      'Pioneers, a Pak 40, mortars; bombers overhead',
+    ],
+    friendly: [
+      '37th Guards: 8 riflemen, 8 PPSh troopers, 3 DPs, 2 snipers',
+      '2 T-34s dug in among the halls, 2 PTRD teams, 2 mortars',
+      'Flamethrowers and more PTRD teams come up later',
+      'Artillery, smoke and Katyusha from the far bank',
+    ],
+  },
   theatre: 'italy',
   timeOfDay: 'day',
   mode: 'survival',

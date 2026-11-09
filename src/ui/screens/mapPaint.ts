@@ -1,9 +1,9 @@
 /**
- * Draws the campaign map into a canvas: an aged situation map with coastal
- * waterlines, a graticule, lettering, a compass rose and the campaign route.
- * The mission pins themselves are DOM buttons laid over this canvas.
+ * Draws a campaign's situation map into a canvas: an aged map with coastal waterlines, a graticule, rivers and
+ * marshes, the front line of the selected mission's date (with the earlier ones faint behind it), lettering, a compass
+ * rose and the campaign route. The mission pins themselves are DOM buttons laid over this canvas.
  */
-import { CAMPAIGN_MAP_VIEW, MAP_BOUNDS, MAP_LABELS, MAP_LAND, MAP_WATER, mapX, mapY, type MapShape } from '../../data/campaignMap';
+import { BRITISH_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapFront, type MapProjection, type MapShape } from '../../data/campaignMap';
 import { clearLabels, type LabelBox, type Obstacle } from './mapLayout';
 
 /**
@@ -31,6 +31,10 @@ const SEA_DEEP = '#93aaa6';
 const LAND = '#e5d9b6';
 const LAND_SHADE = '#d6c89f';
 const ROUTE = '#9c2b1f';
+/** The enemy's front line and the ground behind it (map blue, as the period's Soviet and British maps drew it). */
+const FRONT = 'rgba(36, 54, 86, 0.9)';
+const FRONT_OLD = 'rgba(36, 54, 86, 0.32)';
+const RIVER = 'rgba(58, 96, 110, 0.85)';
 
 /** Small deterministic generator so the paper grain is identical on every repaint. */
 function grain(seed: number): () => number {
@@ -44,19 +48,65 @@ function grain(seed: number): () => number {
   };
 }
 
-function ringPath(shapes: readonly MapShape[], w: number, h: number): Path2D {
+function ringPath(shapes: readonly MapShape[], w: number, h: number, proj: MapProjection): Path2D {
   const path = new Path2D();
   for (const shape of shapes) {
     const pts = shape.pts;
     for (let i = 0; i < pts.length; i += 2) {
-      const x = mapX(pts[i]) * w;
-      const y = mapY(pts[i + 1]) * h;
+      const x = proj.x(pts[i]) * w;
+      const y = proj.y(pts[i + 1]) * h;
       if (i === 0) path.moveTo(x, y);
       else path.lineTo(x, y);
     }
     path.closePath();
   }
   return path;
+}
+
+function linePath(pts: readonly number[], w: number, h: number, proj: MapProjection): Path2D {
+  const path = new Path2D();
+  for (let i = 0; i < pts.length; i += 2) {
+    const x = proj.x(pts[i]) * w;
+    const y = proj.y(pts[i + 1]) * h;
+    if (i === 0) path.moveTo(x, y);
+    else path.lineTo(x, y);
+  }
+  return path;
+}
+
+/** A front line closed round the map's west edge: the enemy's side of it. */
+function heldPath(pts: readonly number[], w: number, h: number, proj: MapProjection): Path2D {
+  const path = linePath(pts, w, h, proj);
+  const west = proj.x(proj.bounds.lonMin) * w - 50;
+  path.lineTo(west, proj.y(pts[pts.length - 1]) * h);
+  path.lineTo(west, proj.y(pts[1]) * h);
+  path.closePath();
+  return path;
+}
+
+/** A small tile of diagonal hatching, for the ground the enemy holds. */
+function hatch(ctx: CanvasRenderingContext2D, u: number, color: string, horizontal = false): CanvasPattern | null {
+  const size = Math.max(4, Math.round(7 * u));
+  const tile = document.createElement('canvas');
+  tile.width = size;
+  tile.height = size;
+  const t = tile.getContext('2d');
+  if (!t) return null;
+  t.strokeStyle = color;
+  t.lineWidth = Math.max(0.6, 0.8 * u);
+  t.beginPath();
+  if (horizontal) {
+    // Marsh: short broken strokes.
+    t.moveTo(size * 0.1, size * 0.3);
+    t.lineTo(size * 0.55, size * 0.3);
+    t.moveTo(size * 0.5, size * 0.8);
+    t.lineTo(size * 0.95, size * 0.8);
+  } else {
+    t.moveTo(0, size);
+    t.lineTo(size, 0);
+  }
+  t.stroke();
+  return ctx.createPattern(tile, 'repeat');
 }
 
 /** Width of `text` set with `spacing` between its letters, in the context's current font. */
@@ -116,32 +166,125 @@ function compassRose(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: n
   ctx.fillText('N', cx, cy - r * 1.12);
 }
 
-function cartouche(ctx: CanvasRenderingContext2D, cx: number, cy: number, u: number, display: string, type: string): void {
+function cartouche(ctx: CanvasRenderingContext2D, cx: number, cy: number, u: number, display: string, type: string, map: CampaignMapDef, front: MapFront | null): void {
   const w = 150 * u;
-  const h = 46 * u;
+  const h = (front ? 57 : 46) * u;
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.fillStyle = 'rgba(233, 223, 195, 0.55)';
+  // A little more opaque over a hatched front, so the legend reads.
+  ctx.fillStyle = front ? 'rgba(233, 223, 195, 0.8)' : 'rgba(233, 223, 195, 0.55)';
   ctx.fillRect(-w / 2, -h / 2, w, h);
   ctx.strokeStyle = 'rgba(74, 63, 40, 0.7)';
   ctx.lineWidth = 1.4 * u;
   ctx.strokeRect(-w / 2, -h / 2, w, h);
   ctx.lineWidth = 0.6 * u;
   ctx.strokeRect(-w / 2 + 3 * u, -h / 2 + 3 * u, w - 6 * u, h - 6 * u);
+  const top = -h / 2;
   ctx.fillStyle = 'rgba(58, 48, 28, 0.85)';
   ctx.font = `700 ${12 * u}px ${display}`;
-  spacedText(ctx, 'SITUATION MAP', 0, -9 * u, 2.2 * u, 0);
+  spacedText(ctx, map.cartouche.title, 0, top + 14 * u, 2.2 * u, 0);
   ctx.font = `${7.2 * u}px ${type}`;
-  spacedText(ctx, 'W. EUROPE & N. AFRICA', 0, 4.5 * u, 0.4 * u, 0);
-  spacedText(ctx, '1940 – 1945', 0, 14 * u, 0.6 * u, 0);
+  spacedText(ctx, map.cartouche.region, 0, top + 27.5 * u, 0.4 * u, 0);
+  spacedText(ctx, map.cartouche.dates, 0, top + 37 * u, 0.6 * u, 0);
+  if (front) {
+    // The legend: the enemy's line and the date it is drawn for.
+    const y = top + 48 * u;
+    ctx.strokeStyle = FRONT;
+    ctx.lineWidth = 1.8 * u;
+    ctx.beginPath();
+    ctx.moveTo(-60 * u, y);
+    ctx.lineTo(-44 * u, y);
+    ctx.stroke();
+    ctx.fillStyle = FRONT;
+    for (let x = -58; x < -44; x += 5) {
+      ctx.beginPath();
+      ctx.moveTo((x - 1.6) * u, y);
+      ctx.lineTo(x * u, y - 3 * u);
+      ctx.lineTo((x + 1.6) * u, y);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(58, 48, 28, 0.85)';
+    ctx.font = `${6.6 * u}px ${type}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Front, ${front.label}`, -40 * u, y);
+  }
   ctx.restore();
 }
 
+/** The enemy's front: the ground behind it hatched, the line itself with small teeth facing our side. */
+function paintFront(ctx: CanvasRenderingContext2D, front: MapFront, w: number, h: number, u: number, proj: MapProjection): void {
+  const hatching = hatch(ctx, u, 'rgba(36, 54, 86, 0.2)');
+  for (const line of front.lines) {
+    const held = heldPath(line, w, h, proj);
+    ctx.fillStyle = 'rgba(52, 72, 104, 0.1)';
+    ctx.fill(held);
+    if (hatching) {
+      ctx.fillStyle = hatching;
+      ctx.fill(held);
+    }
+  }
+  for (const pocket of front.pockets ?? []) {
+    const ring = ringPath([{ name: 'pocket', pts: pocket }], w, h, proj);
+    ctx.fillStyle = 'rgba(52, 72, 104, 0.16)';
+    ctx.fill(ring);
+    if (hatching) {
+      ctx.fillStyle = hatching;
+      ctx.fill(ring);
+    }
+    // Our ring round it.
+    ctx.strokeStyle = 'rgba(156, 43, 31, 0.85)';
+    ctx.lineWidth = 2.6 * u;
+    ctx.stroke(ring);
+    ctx.strokeStyle = FRONT;
+    ctx.lineWidth = 1.1 * u;
+    ctx.stroke(ring);
+  }
+  ctx.strokeStyle = FRONT;
+  ctx.fillStyle = FRONT;
+  ctx.lineWidth = 1.9 * u;
+  for (const line of front.lines) {
+    ctx.stroke(linePath(line, w, h, proj));
+    // Teeth every few px along the line, on its left as it runs south: toward our side.
+    const spacing = 9 * u;
+    let carry = spacing / 2;
+    for (let i = 2; i < line.length; i += 2) {
+      const ax = proj.x(line[i - 2]) * w;
+      const ay = proj.y(line[i - 1]) * h;
+      const bx = proj.x(line[i]) * w;
+      const by = proj.y(line[i + 1]) * h;
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 0.01) continue;
+      const dx = (bx - ax) / len;
+      const dy = (by - ay) / len;
+      let t = carry;
+      for (; t < len; t += spacing) {
+        const px = ax + dx * t;
+        const py = ay + dy * t;
+        ctx.beginPath();
+        ctx.moveTo(px - dx * 1.8 * u, py - dy * 1.8 * u);
+        ctx.lineTo(px + dy * 3.2 * u, py - dx * 3.2 * u);
+        ctx.lineTo(px + dx * 1.8 * u, py + dy * 1.8 * u);
+        ctx.closePath();
+        ctx.fill();
+      }
+      carry = t - len;
+    }
+  }
+}
+
 /**
- * Paint the whole map. `cssW` and `cssH` are the map's size in CSS px; the
- * backing store is scaled by the device pixel ratio (capped).
+ * Paint the whole map. `cssW` and `cssH` are the map's size in CSS px; the backing store is scaled by the device pixel
+ * ratio (capped). `dateIso` picks the front line drawn (the selected mission's date); a map without fronts ignores it.
  */
-export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: number, pins: readonly MapPin[]): void {
+export function paintCampaignMap(
+  canvas: HTMLCanvasElement,
+  cssW: number,
+  cssH: number,
+  pins: readonly MapPin[],
+  map: CampaignMapDef = BRITISH_MAP,
+  dateIso?: string,
+): void {
   const dpr = Math.min(CAMPAIGN_MAP_VIEW.maxPixelRatio, Math.max(1, window.devicePixelRatio || 1));
   const pw = Math.round(cssW * dpr);
   const ph = Math.round(cssH * dpr);
@@ -154,6 +297,8 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
+  const proj = projection(map.bounds);
+  const B = map.bounds;
   const styles = getComputedStyle(document.documentElement);
   const display = styles.getPropertyValue('--th-font-display').trim() || 'sans-serif';
   const type = styles.getPropertyValue('--th-font-type').trim() || 'monospace';
@@ -161,13 +306,14 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
   const h = cssH;
   /** Everything decorative scales with the map so it reads the same at any size. */
   const u = w / CAMPAIGN_MAP_VIEW.minWidthPx;
-  const rnd = grain(1940);
+  const rnd = grain(map.grainSeed);
+  const front = frontOn(map, dateIso);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
 
-  // Sea, slightly deeper toward the open Atlantic.
+  // Sea, slightly deeper toward the open water at the top left.
   const sea = ctx.createLinearGradient(0, 0, w, h);
   sea.addColorStop(0, SEA_DEEP);
   sea.addColorStop(0.45, SEA);
@@ -177,24 +323,27 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
 
   // Graticule.
   const step = CAMPAIGN_MAP_VIEW.graticuleStepDeg;
+  const graticule = (): void => {
+    ctx.beginPath();
+    for (let lon = Math.ceil(B.lonMin / step) * step; lon <= B.lonMax; lon += step) {
+      const x = Math.round(proj.x(lon) * w) + 0.5;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+    }
+    for (let lat = Math.ceil(B.latMin / step) * step; lat <= B.latMax; lat += step) {
+      const y = Math.round(proj.y(lat) * h) + 0.5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+  };
   ctx.strokeStyle = 'rgba(58, 48, 28, 0.16)';
   ctx.lineWidth = 0.7 * u;
-  ctx.beginPath();
-  for (let lon = Math.ceil(MAP_BOUNDS.lonMin / step) * step; lon <= MAP_BOUNDS.lonMax; lon += step) {
-    const x = Math.round(mapX(lon) * w) + 0.5;
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
-  }
-  for (let lat = Math.ceil(MAP_BOUNDS.latMin / step) * step; lat <= MAP_BOUNDS.latMax; lat += step) {
-    const y = Math.round(mapY(lat) * h) + 0.5;
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-  }
-  ctx.stroke();
+  graticule();
 
   // Coastal waterlines: wide soft strokes that the land fill then covers on its own side.
-  const land = ringPath(MAP_LAND, w, h);
-  const water = ringPath(MAP_WATER, w, h);
+  const land = ringPath(map.land, w, h, proj);
+  const water = ringPath(map.water, w, h, proj);
   for (const width of [17, 11, 5.5]) {
     ctx.strokeStyle = 'rgba(233, 240, 232, 0.2)';
     ctx.lineWidth = width * u;
@@ -220,11 +369,61 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
 
   ctx.fillStyle = SEA;
   ctx.fill(water);
+  if (map.rivers) {
+    // A map whose land is the whole sheet: the seas get their waterlines inside, and the graticule runs over them.
+    ctx.save();
+    ctx.clip(water);
+    for (const width of [17, 11, 5.5]) {
+      ctx.strokeStyle = 'rgba(233, 240, 232, 0.2)';
+      ctx.lineWidth = width * u;
+      ctx.stroke(water);
+    }
+    ctx.strokeStyle = 'rgba(58, 48, 28, 0.16)';
+    ctx.lineWidth = 0.7 * u;
+    graticule();
+    ctx.restore();
+  }
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1.05 * u;
   ctx.stroke(land);
   ctx.lineWidth = 0.7 * u;
   ctx.stroke(water);
+
+  // Marshes: a green tint with broken strokes.
+  if (map.marsh) {
+    const marsh = ringPath(map.marsh, w, h, proj);
+    ctx.fillStyle = 'rgba(110, 140, 105, 0.14)';
+    ctx.fill(marsh);
+    const reeds = hatch(ctx, u, 'rgba(60, 96, 84, 0.42)', true);
+    if (reeds) {
+      ctx.fillStyle = reeds;
+      ctx.fill(marsh);
+    }
+  }
+
+  // Rivers: a pale bank and the water line.
+  for (const river of map.rivers ?? []) {
+    const path = linePath(river.pts, w, h, proj);
+    ctx.strokeStyle = 'rgba(240, 244, 236, 0.55)';
+    ctx.lineWidth = (river.major ? 3.4 : 2.2) * u;
+    ctx.stroke(path);
+    ctx.strokeStyle = RIVER;
+    ctx.lineWidth = (river.major ? 1.5 : 0.9) * u;
+    ctx.stroke(path);
+  }
+
+  // The front lines: the earlier ones faint, the one of the selected mission's date bold.
+  if (front && map.fronts) {
+    ctx.strokeStyle = FRONT_OLD;
+    ctx.lineWidth = 1 * u;
+    ctx.setLineDash([4 * u, 3 * u]);
+    for (const f of map.fronts) {
+      if (f.date >= front.date) break;
+      for (const line of f.lines) ctx.stroke(linePath(line, w, h, proj));
+    }
+    ctx.setLineDash([]);
+    paintFront(ctx, front, w, h, u, proj);
+  }
 
   // Paper grain and a few foxing spots over everything.
   const specks = Math.round((w * h) / 520);
@@ -276,22 +475,39 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
     ctx.stroke();
   }
 
+  // Town dots stay where the town is; only their names move.
+  ctx.fillStyle = INK;
+  for (const label of map.labels) {
+    if (label.kind !== 'city') continue;
+    ctx.beginPath();
+    ctx.arc(proj.x(label.lon) * w, proj.y(label.lat) * h, 1.9 * u, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Lettering. A label that a mission pin would sit on is moved to the nearest clear spot, so no name is hidden.
-  const looks = MAP_LABELS.map((label) => {
-    if (label.kind === 'country') {
-      return { fill: 'rgba(74, 58, 30, 0.6)', size: 11.5 * u, font: `700 ${11.5 * u}px ${display}`, spacing: 3.4 * u };
+  const looks = map.labels.map((label) => {
+    switch (label.kind) {
+      case 'country':
+        return { fill: 'rgba(74, 58, 30, 0.6)', size: 11.5 * u, font: `700 ${11.5 * u}px ${display}`, spacing: 3.4 * u };
+      case 'region':
+        return { fill: 'rgba(74, 58, 30, 0.5)', size: 7.6 * u, font: `700 ${7.6 * u}px ${display}`, spacing: 1.6 * u };
+      case 'city':
+        return { fill: 'rgba(52, 42, 24, 0.85)', size: 7.4 * u, font: `${7.4 * u}px ${type}`, spacing: 0.2 * u };
+      case 'river':
+        return { fill: 'rgba(40, 80, 95, 0.75)', size: 7.6 * u, font: `italic ${7.6 * u}px Georgia, 'Times New Roman', serif`, spacing: 1.8 * u };
+      default:
+        return { fill: 'rgba(40, 70, 78, 0.62)', size: 9.4 * u, font: `italic ${9.4 * u}px Georgia, 'Times New Roman', serif`, spacing: 2.6 * u };
     }
-    if (label.kind === 'region') {
-      return { fill: 'rgba(74, 58, 30, 0.5)', size: 7.6 * u, font: `700 ${7.6 * u}px ${display}`, spacing: 1.6 * u };
-    }
-    return { fill: 'rgba(40, 70, 78, 0.62)', size: 9.4 * u, font: `italic ${9.4 * u}px Georgia, 'Times New Roman', serif`, spacing: 2.6 * u };
   });
-  const boxes = MAP_LABELS.map((label, i): LabelBox => {
+  const boxes = map.labels.map((label, i): LabelBox => {
     ctx.font = looks[i].font;
+    const hw = spacedWidth(ctx, label.text, looks[i].spacing) / 2;
+    // A town's name sits just right of its dot.
+    const dx = label.kind === 'city' ? hw + 4 * u : 0;
     return {
-      x: mapX(label.lon) * w,
-      y: mapY(label.lat) * h,
-      hw: spacedWidth(ctx, label.text, looks[i].spacing) / 2,
+      x: proj.x(label.lon) * w + dx,
+      y: proj.y(label.lat) * h,
+      hw,
       hh: looks[i].size * 0.6,
       angle: ((label.angle ?? 0) * Math.PI) / 180,
     };
@@ -303,7 +519,7 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
     y1: p.y + PIN_FOOTPRINT.down,
   }));
   const shifts = clearLabels(boxes, footprints, PIN_FOOTPRINT.maxShift, PIN_FOOTPRINT.step, PIN_FOOTPRINT.pad);
-  MAP_LABELS.forEach((label, i) => {
+  map.labels.forEach((label, i) => {
     ctx.fillStyle = looks[i].fill;
     ctx.font = looks[i].font;
     spacedText(ctx, label.text, boxes[i].x + shifts[i].dx, boxes[i].y + shifts[i].dy, looks[i].spacing, label.angle ?? 0);
@@ -314,16 +530,16 @@ export function paintCampaignMap(canvas: HTMLCanvasElement, cssW: number, cssH: 
   ctx.font = `${6.4 * u}px ${type}`;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
-  for (let lon = Math.ceil(MAP_BOUNDS.lonMin / step) * step; lon <= MAP_BOUNDS.lonMax; lon += step) {
+  for (let lon = Math.ceil(B.lonMin / step) * step; lon <= B.lonMax; lon += step) {
     const text = lon === 0 ? '0°' : `${Math.abs(lon)}°${lon < 0 ? 'W' : 'E'}`;
-    ctx.fillText(text, mapX(lon) * w + 2 * u, 5 * u);
+    ctx.fillText(text, proj.x(lon) * w + 2 * u, 5 * u);
   }
-  for (let lat = Math.ceil(MAP_BOUNDS.latMin / step) * step; lat <= MAP_BOUNDS.latMax; lat += step) {
-    ctx.fillText(`${lat}°N`, 5 * u, mapY(lat) * h + 2 * u);
+  for (let lat = Math.ceil(B.latMin / step) * step; lat <= B.latMax; lat += step) {
+    ctx.fillText(`${lat}°N`, 5 * u, proj.y(lat) * h + 2 * u);
   }
 
-  compassRose(ctx, mapX(-8.4) * w, mapY(49.6) * h, 17 * u, display);
-  cartouche(ctx, mapX(0.4) * w, mapY(30.7) * h, u, display, type);
+  compassRose(ctx, proj.x(map.compass.lon) * w, proj.y(map.compass.lat) * h, 17 * u, display);
+  cartouche(ctx, proj.x(map.cartouche.lon) * w, proj.y(map.cartouche.lat) * h, u, display, type, map, front);
 
   // The route, in mission order: red where the next mission is open, faint where it is still locked.
   ctx.lineWidth = 2 * u;

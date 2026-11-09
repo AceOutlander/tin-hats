@@ -28,14 +28,30 @@ export const M1002: MissionDef = {
   ],
   // Today's win rule: the HQ is the supply column park on the Ikva road (the kill count and the hold wait, see above).
   objective: 'Take Dubno, then cut the road: destroy the German supply park on the Ikva road.',
+  intel: {
+    enemy: [
+      '11th Panzer Division, with an HQ that sends up more',
+      'About 15 Panzer III Ausf. E, 2 with the 5 cm gun',
+      '4 Panzer IV Ausf. E with the short 7.5 cm',
+      'About 45 riflemen, MG34 teams, PzB 39 anti-tank rifles',
+      'Stukas every couple of minutes; artillery',
+    ],
+    friendly: [
+      'A KV-1, a KV-2, 3 T-34s, 3 BT-7s and 2 T-26s',
+      '8 riflemen, a DP gunner, 3 Tank Hunters, 2 mortar crews',
+      'One artillery battery; no air cover',
+    ],
+  },
   theatre: 'france',
   timeOfDay: 'day',
   mode: 'assault',
   length: 22000,
-  newUnit: null,
+  // The unlock order (DECISIONS 295): Dubno, the great tank battle of 1941, brings the T-34 and the mortar crews.
+  newUnit: 'tank',
+  unlocks: ['mortar'],
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'at', 'tank'],
+    ['sapper', 'rifle', 'lmg', 'mortar', 'at', 'tank'],
     ['sapper', 'rifle', 'lmg', 'mortar', 'at', 'tank'],
   ],
   supports: [['artillery'], ['airStrike', 'artillery']],
@@ -57,7 +73,7 @@ export const M1002: MissionDef = {
         { kind: 'lightTank', count: 2, x: 1684, look: 't26' },
         { kind: 'rifle', count: 8 },
         { kind: 'lmg', count: 1 },
-        // Loans: three Tank Hunters and two mortar crews.
+        // Three Tank Hunters and two mortar crews (Brest and this mission unlock both).
         { kind: 'at', count: 3 },
         { kind: 'mortar', count: 2 },
       ],
@@ -105,6 +121,18 @@ export const M1002: MissionDef = {
       type: 'hint',
       when: { at: 4 },
       text: 'Your KVs shrug off the small panzer guns. Lead with them and keep the light tanks and riflemen just behind.',
+    },
+    {
+      type: 'hint',
+      when: { at: 14 },
+      about: 'tank',
+      text: 'New: T-34. Sloped armour and a 76 mm gun: the best tank on this field. Costly, so keep it alive.',
+    },
+    {
+      type: 'hint',
+      when: { at: 22 },
+      about: 'mortar',
+      text: 'New: Mortar Crew. It lobs shells over the line into trenches and gun pits. Keep it behind the tanks.',
     },
     {
       type: 'hint',

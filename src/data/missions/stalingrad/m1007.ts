@@ -29,14 +29,28 @@ export const M1007: MissionDef = {
     'The Germans will try to take it back by day with tanks and by night with raiding parties. We do not need you to go forward. We need the house to be there in the morning, and the morning after that, until the whole front moves. Money is short: spend it on men for the windows, not on a big army.',
   ],
   objective: 'Take the house, then hold it until the counter-offensive.',
+  intel: {
+    enemy: [
+      'Attacks from the square, day after day, from the blocks opposite',
+      'Over 150 riflemen and MP40 troopers, MG teams',
+      'About 18 pioneers with flamethrowers, mostly by night',
+      '3 Panzer III and 2 StuG III on the second day; 2 snipers',
+    ],
+    friendly: [
+      'Sgt. Pavlov and 3 men, plus 2 sappers and 150 Money',
+      'Lt. Afanasyev\'s section soon after: 6 riflemen, 3 DPs, a mortar',
+      'Later a sniper and 2 PTRS teams; guns from the far bank',
+    ],
+  },
   theatre: 'holland',
   timeOfDay: 'dusk',
   mode: 'survival',
   length: 7000,
-  newUnit: null,
+  // The unlock order (DECISIONS 295): the Lieutenant, after Afanasyev, who came up with his section and took command.
+  newUnit: 'commander',
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'commander', 'conscript'],
     ['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'flame', 'tank'],
   ],
   supports: [['artillery', 'katyusha'], []],
@@ -102,6 +116,12 @@ export const M1007: MissionDef = {
       type: 'hint',
       when: { at: 48 },
       text: 'Wire across the doors and on the square. DP Gunners in the windows; the mortar answers their machine guns.',
+    },
+    {
+      type: 'hint',
+      when: { at: 70 },
+      about: 'commander',
+      text: 'New: Lieutenant. Only a pistol, but the men near him fight harder. One at a time: keep him in the house, out of the windows.',
     },
     // Day one: rifle attacks across the square.
     { type: 'announce', when: { at: 110 }, text: 'Day one. They are forming up across the square.' },

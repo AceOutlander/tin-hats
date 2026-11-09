@@ -26,9 +26,52 @@ export interface MapLabel {
   text: string;
   lon: number;
   lat: number;
-  kind: 'country' | 'region' | 'sea';
+  /** 'city' is a town name printed beside a dot; 'river' is lettering along a river. */
+  kind: 'country' | 'region' | 'sea' | 'city' | 'river';
   /** Rotation in degrees, clockwise. */
   angle?: number;
+}
+
+/** A river: an open line of lon/lat pairs, from its source down to its mouth. */
+export interface MapRiver {
+  name: string;
+  pts: readonly number[];
+  /** Drawn bolder (the rivers a campaign is fought along). */
+  major?: boolean;
+}
+
+/**
+ * The front line on a date. Each line runs from north (above the map) to south (below it) with the enemy's ground on
+ * its west side; each pocket is a ring of enemy ground encircled by the player's side.
+ */
+export interface MapFront {
+  /** 'YYYY-MM-DD': the front a mission on or after this date shows (until the next one). */
+  date: string;
+  /** For the map's legend, e.g. '16 November 1941'. */
+  label: string;
+  lines: readonly (readonly number[])[];
+  pockets?: readonly (readonly number[])[];
+}
+
+/** Everything one campaign's situation map draws (src/ui/screens/mapPaint.ts). */
+export interface CampaignMapDef {
+  bounds: MapBounds;
+  /** Land rings, drawn in order over the sea. */
+  land: readonly MapShape[];
+  /** Water cut back out of the land. */
+  water: readonly MapShape[];
+  labels: readonly MapLabel[];
+  rivers?: readonly MapRiver[];
+  /** Marshland, shaded (the Pripyat marshes). */
+  marsh?: readonly MapShape[];
+  /** The front lines by date, oldest first. */
+  fronts?: readonly MapFront[];
+  /** The cartouche: title, region and dates lines, and where it sits. */
+  cartouche: { title: string; region: string; dates: string; lon: number; lat: number };
+  /** Where the compass rose sits. */
+  compass: { lon: number; lat: number };
+  /** Seed of the paper grain, so each map's sheet is its own but the same on every repaint. */
+  grainSeed: number;
 }
 
 /** The window of the world the campaign map shows. */
@@ -68,22 +111,54 @@ function mercator(latDeg: number): number {
   return Math.log(Math.tan(Math.PI / 4 + (latDeg * DEG) / 2));
 }
 
-const MERC_TOP = mercator(MAP_BOUNDS.latMax);
-const MERC_BOTTOM = mercator(MAP_BOUNDS.latMin);
-const LON_SPAN_RAD = (MAP_BOUNDS.lonMax - MAP_BOUNDS.lonMin) * DEG;
+/** A map's projection: lon/lat to 0..1 fractions of its width and height (Mercator, so shapes look familiar). */
+export interface MapProjection {
+  bounds: MapBounds;
+  /** Width divided by height of the projected map. */
+  aspect: number;
+  /** Longitude to a 0..1 fraction of the map width (may fall outside for off-map points). */
+  x(lon: number): number;
+  /** Latitude to a 0..1 fraction of the map height, 0 at the top. */
+  y(lat: number): number;
+}
+
+export function projection(bounds: MapBounds): MapProjection {
+  const top = mercator(bounds.latMax);
+  const bottom = mercator(bounds.latMin);
+  const lonSpan = bounds.lonMax - bounds.lonMin;
+  return {
+    bounds,
+    aspect: (lonSpan * DEG) / (top - bottom),
+    x: (lon) => (lon - bounds.lonMin) / lonSpan,
+    y: (lat) => {
+      const clamped = lat > 80 ? 80 : lat < -80 ? -80 : lat;
+      return (top - mercator(clamped)) / (top - bottom);
+    },
+  };
+}
+
+/** The British campaign's projection (the exports below keep their old names). */
+export const BRITISH_PROJECTION: MapProjection = projection(MAP_BOUNDS);
 
 /** Width divided by height of the projected map. */
-export const MAP_ASPECT = LON_SPAN_RAD / (MERC_TOP - MERC_BOTTOM);
+export const MAP_ASPECT = BRITISH_PROJECTION.aspect;
 
 /** Longitude to a 0..1 fraction of the map width (may fall outside for off-map points). */
 export function mapX(lon: number): number {
-  return (lon - MAP_BOUNDS.lonMin) / (MAP_BOUNDS.lonMax - MAP_BOUNDS.lonMin);
+  return BRITISH_PROJECTION.x(lon);
 }
 
 /** Latitude to a 0..1 fraction of the map height, 0 at the top (Mercator, so shapes look familiar). */
 export function mapY(lat: number): number {
-  const clamped = lat > 80 ? 80 : lat < -80 ? -80 : lat;
-  return (MERC_TOP - mercator(clamped)) / (MERC_TOP - MERC_BOTTOM);
+  return BRITISH_PROJECTION.y(lat);
+}
+
+/** The front a mission of this date shows: the last one on or before it, or null (before the first, or none). */
+export function frontOn(map: CampaignMapDef, dateIso: string | undefined): MapFront | null {
+  if (!map.fronts || dateIso === undefined) return null;
+  let found: MapFront | null = null;
+  for (const f of map.fronts) if (f.date <= dateIso) found = f;
+  return found;
 }
 
 /** Land, drawn in order. */
@@ -319,3 +394,14 @@ export const MAP_LABELS: readonly MapLabel[] = [
   { text: 'BALTIC', lon: 18.8, lat: 55.7, kind: 'sea' },
   { text: 'BLACK SEA', lon: 31.6, lat: 43.3, kind: 'sea' },
 ];
+
+/** The British campaign's situation map: western Europe and North Africa, 1940 to 1945. */
+export const BRITISH_MAP: CampaignMapDef = {
+  bounds: MAP_BOUNDS,
+  land: MAP_LAND,
+  water: MAP_WATER,
+  labels: MAP_LABELS,
+  cartouche: { title: 'SITUATION MAP', region: 'W. EUROPE & N. AFRICA', dates: '1940 – 1945', lon: 0.4, lat: 30.7 },
+  compass: { lon: -8.4, lat: 49.6 },
+  grainSeed: 1940,
+};

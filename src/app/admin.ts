@@ -140,7 +140,8 @@ export class AdminController implements AdminApi {
     const app = this.app;
     return {
       medals: app.save.medals,
-      missions: app.missions.map((m) => ({ id: m.id, title: m.title })),
+      // Every mission of every campaign on offer (the unlock adds the unreleased ones), so a jump can reach any.
+      missions: app.offered.flatMap((c) => c.missions.map((m) => ({ id: m.id, title: m.title }))),
       upgrades: app.upgradeDefs.map((d) => ({ id: d.id, name: d.name, level: app.save.upgrades[d.id] ?? 0, max: maxLevel(d) })),
       unlockedAll: app.missionsUnlocked,
       battle: this.battleInfo(),
@@ -406,7 +407,7 @@ export class AdminController implements AdminApi {
     } catch {
       return false;
     }
-    const data = sanitizeSave(parsed, { missionIds: this.app.missions.map((m) => m.id), upgradeDefs: this.app.upgradeDefs });
+    const data = sanitizeSave(parsed, this.app.saveRules);
     if (!data) return false;
     this.app.replaceSave(data);
     return true;

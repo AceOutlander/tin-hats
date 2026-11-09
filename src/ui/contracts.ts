@@ -5,12 +5,14 @@
  * below and reports what the player did through AppApi. The app glue builds
  * these models from the simulation and the save data.
  */
-import type { BuildableId, Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { CampaignMapDef } from '../data/campaignMap';
+import type { BuildableId, CampaignId, Difficulty, FactionId, FactionLook, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
 import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
 
-export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
+/** 'campaigns' is the campaign select screen; 'campaign' the chosen campaign's map. */
+export type ScreenId = 'title' | 'campaigns' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
 
 export interface TrainButtonState {
   kind: UnitKind;
@@ -188,10 +190,14 @@ export interface MissionCard {
   title: string;
   location: string;
   date: string;
+  /** 'YYYY-MM-DD', when the mission has a date: the campaign map shows the front line of that day. */
+  dateIso?: string;
   theatre: TheatreId;
   mapPos: { lon: number; lat: number };
   briefing: string[];
   objective: string;
+  /** The briefing's intelligence: the enemy's forces and ours, a few short lines each. */
+  intel?: MissionIntel;
   unlocked: boolean;
   cleared: Record<Difficulty, boolean>;
   newUnit: { kind: UnitKind; name: string; blurb: string } | null;
@@ -302,7 +308,37 @@ export interface PanelDropsState {
   version: number;
 }
 
+/** One campaign on the campaign select screen. */
+export interface CampaignCardView {
+  id: CampaignId;
+  title: string;
+  /** Its dates, e.g. 'June 1941 to February 1943'. */
+  subtitle: string;
+  /** The one-line pitch. */
+  pitch: string;
+  nation: FactionId;
+  /** The nation's name, e.g. 'Red Army' (the flag's label for a screen reader). */
+  nationName: string;
+  flag: FactionLook['flag'];
+  /** Missions cleared (on any difficulty), of `total`. */
+  cleared: number;
+  total: number;
+  /** The next mission to play (the first open one not cleared), or null when all are cleared. */
+  next: { id: number; number: number; title: string } | null;
+  locked: boolean;
+  /** Why a locked campaign is locked, e.g. 'Opens after mission 1010'. */
+  lockNote?: string;
+  /** The campaign on the map now (chosen last, or that of the mission last played). */
+  current: boolean;
+}
+
 export interface CampaignView {
+  /** The campaign on the map, its name and its situation map (absent: the British map, as before campaigns). */
+  campaignId?: CampaignId;
+  campaignTitle?: string;
+  map?: CampaignMapDef;
+  /** Every campaign offered, for the select screen, in its order. */
+  campaigns?: CampaignCardView[];
   missions: MissionCard[];
   /** The mission last started (0 or absent when none): the map opens on it when it is unlocked. */
   lastMission?: number;
@@ -354,6 +390,8 @@ export interface ResultView {
 /** Implemented by src/app, called by the UI. */
 export interface AppApi {
   campaign(): CampaignView;
+  /** Put a campaign on the map (the campaign select screen; optional so older stand-ins of the app still fit). */
+  selectCampaign?(id: CampaignId): void;
   startMission(id: number, difficulty: Difficulty): void;
   buyUpgrade(id: string): void;
   /** Buy a unit type or plane call-in in the Armoury (optional so older stand-ins of the app still fit). */

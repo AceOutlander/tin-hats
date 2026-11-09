@@ -28,14 +28,31 @@ export const M1006: MissionDef = {
     'Once the crest is ours, dig in at once. They will come back at us with everything, assault guns first, and the guns on the far bank will help only if we are still on top to tell them where. Hold the summit, then follow them down the western slope to their headquarters.',
   ],
   objective: 'Take the summit of Mamayev Kurgan, hold it, and destroy the German HQ.',
+  intel: {
+    enemy: [
+      '295th Infantry Division on the slopes and the summit',
+      'About 75 riflemen and MP40 troopers, MG teams, 2 snipers',
+      'Two water tanks as blockhouses; mortars behind the crest',
+      '3 Panzer III and 2 StuG III; Stukas every few minutes',
+    ],
+    friendly: [
+      '95th Rifle Division: 12 riflemen, 4 PPSh troopers, 2 DPs',
+      'A sniper and 2 mortar crews; flamethrowers come up later',
+      'PTRD teams for the counter-attack on the summit',
+      'Artillery and Katyusha from the far bank, and smoke',
+    ],
+  },
   theatre: 'italy',
   timeOfDay: 'overcast',
   mode: 'assault',
   length: 14000,
-  newUnit: null,
+  // The unlock order (DECISIONS 295): the sniper, for the duels on the hill (the city's sniper movement of autumn
+  // 1942), and the AA gun crews under the Stukas that came over every few minutes.
+  newUnit: 'sniper',
+  unlocks: ['aa'],
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'aa', 'conscript'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'flame', 'tank'],
   ],
   supports: [
@@ -104,6 +121,18 @@ export const M1006: MissionDef = {
       type: 'hint',
       when: { at: 3 },
       text: 'The foot of the hill first: riflemen and PPSh Troopers take the railway cutting behind an Artillery Barrage.',
+    },
+    {
+      type: 'hint',
+      when: { at: 14 },
+      about: 'sniper',
+      text: 'New: Sniper. Very long range and one shot kills, but he is fragile. Keep him back and let him pick off gunners and mortar crews.',
+    },
+    {
+      type: 'hint',
+      when: { at: 40 },
+      about: 'aa',
+      text: 'New: AA Gun Crew. A quick-firing gun that shoots down or drives off the Stukas. Set it up behind your line before they come over.',
     },
     { type: 'announce', when: { at: 120 }, text: 'Stukas over the hill. They will be back every few minutes.' },
     // The 295th Infantry Division feeds the hill from the west all day.

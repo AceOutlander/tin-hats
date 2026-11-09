@@ -26,15 +26,33 @@ export const M1004: MissionDef = {
     'Take the villages one by one and use them as stepping stones; your reinforcements can come up to any you hold. Cut the highway and the railway, then take Klin.',
   ],
   objective: 'Advance through the forest, cut the highway and take Klin.',
+  intel: {
+    enemy: [
+      '1st Panzer Division, frozen and short of fuel',
+      'About 70 riflemen in the villages, trenches and Klin',
+      'MG34 teams, Granatwerfer teams and PzB 39 teams',
+      '5 tanks, some frozen in place; 2 SdKfz 251',
+      'Artillery; no aircraft in the blizzard',
+    ],
+    friendly: [
+      '371st Rifle Division: 10 riflemen, 6 ski troopers, 2 DPs',
+      'A T-34, a T-60, 2 mortar crews and 4 militia squads',
+      'PTRD teams and fresh riflemen at every village you take',
+      'Artillery, smoke, Katyusha, and the Il-2 when it clears',
+    ],
+  },
   // Stand-ins until the russiaSummer winter variant and the stalingrad winter ruins exist (STALINGRAD_BUILD.md).
   theatre: 'germany',
   timeOfDay: 'dawn',
   mode: 'assault',
   length: 26000,
-  newUnit: null,
+  // The unlock order (DECISIONS 295): the sanitarka for the long winter attack, and the militia battalions (the
+  // Militia Squad of 1941, the Conscript Squad of 1942; listed in every Soviet mission from here on).
+  newUnit: 'medic',
+  unlocks: ['conscript'],
   newSupport: 'airStrike',
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'medic', 'at', 'tank', 'conscript'],
     ['sapper', 'rifle', 'lmg', 'mortar', 'at', 'tank'],
   ],
   supports: [
@@ -57,7 +75,7 @@ export const M1004: MissionDef = {
         { kind: 'tank', count: 1, x: 1200 },
         // T-60 (the lightTank kind).
         { kind: 'lightTank', count: 1, x: 1350 },
-        // Loans: two mortar crews and the militia battalion's four conscript squads.
+        // Two mortar crews and the militia battalion's four squads.
         { kind: 'mortar', count: 2 },
         { kind: 'conscript', count: 20 },
       ],
@@ -120,7 +138,14 @@ export const M1004: MissionDef = {
     {
       type: 'hint',
       when: { at: 60 },
-      text: 'Conscript squads are cheap and many. They will not win a firefight alone, but they soak up the machine guns.',
+      about: 'conscript',
+      text: 'New: Militia Squad. One order brings a whole squad, cheap and many. They will not win a firefight alone, but they soak up the machine guns.',
+    },
+    {
+      type: 'hint',
+      when: { at: 30 },
+      about: 'medic',
+      text: 'New: Sanitarka. She patches up the wounded near her but carries no weapon. Keep her just behind the attack.',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 1 }, text: 'The first village is ours. The men crowd into the izbas to get warm.' },
     // Phase 2, "Through the forest".

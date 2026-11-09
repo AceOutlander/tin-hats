@@ -12,6 +12,7 @@ import type { AppApi, CampaignView, HudState, PanelDropsState, ScreenId, UiApi }
 import { armouryScreen } from './screens/armoury';
 import { briefingScreen } from './screens/briefing';
 import { campaignScreen } from './screens/campaign';
+import { campaignsScreen } from './screens/campaigns';
 import { quartermasterScreen } from './screens/quartermaster';
 import { resultScreen } from './screens/result';
 import { settingsScreen } from './screens/settings';
@@ -50,6 +51,7 @@ export interface UiHandle extends UiApi {
 
 const SCREENS: Record<Exclude<ScreenId, 'battle'>, ScreenFactory> = {
   title: titleScreen,
+  campaigns: campaignsScreen,
   campaign: campaignScreen,
   briefing: briefingScreen,
   quartermaster: quartermasterScreen,

@@ -721,6 +721,14 @@ export type BattleTrackName =
   | 'volokolamsk'
   | 'factories';
 
+/** A briefing's intelligence (MissionDef.intel): short lines that read on a phone, the era's names for every type. */
+export interface MissionIntel {
+  /** What the enemy fields and roughly how many, and what supports him. */
+  enemy: string[];
+  /** What the player starts with, and what comes up later. */
+  friendly: string[];
+}
+
 export interface MissionDef {
   id: number;
   key: string;
@@ -738,6 +746,8 @@ export interface MissionDef {
   mapPos: { lon: number; lat: number };
   briefing: string[];
   objective: string;
+  /** The briefing's intelligence: a few short lines on each side (shown under the orders). Absent = none shown. */
+  intel?: MissionIntel;
   theatre: TheatreId;
   timeOfDay: TimeOfDay;
   mode: MissionMode;

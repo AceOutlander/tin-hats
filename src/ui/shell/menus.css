@@ -641,6 +641,206 @@
   color: rgba(233, 223, 195, 0.62);
 }
 
+/* ------------------------------------------------------- campaign select */
+
+/* Over the title storm, like the title: a plate holding one dossier card per campaign. */
+.th-campaigns {
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 45%, rgba(10, 10, 6, 0.25) 0%, rgba(10, 10, 6, 0.6) 100%);
+}
+
+.th-campaigns-plate {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 2.2vh, 14px);
+  width: min(100%, 860px);
+  max-height: 100%;
+  padding: clamp(10px, 3vh, 20px) clamp(14px, 3vw, 24px) clamp(12px, 3.4vh, 22px);
+}
+
+.th-campaigns-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+}
+
+.th-campaigns-title {
+  font-size: clamp(20px, 7vh, 30px);
+  color: #ece1c2;
+}
+
+.th-campaigns-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: clamp(8px, 2vw, 16px);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/* A campaign: a paper dossier that is one big button. */
+.th-camp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4px, 1.6vh, 8px);
+  min-width: 0;
+  min-height: var(--th-touch);
+  padding: clamp(8px, 2.4vh, 14px) clamp(10px, 2vw, 14px);
+  font: inherit;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  transition: transform 90ms ease-out;
+}
+
+.th-camp:active {
+  transform: translateY(1px) scale(0.995);
+}
+
+.th-camp:focus-visible {
+  outline: 3px solid var(--th-brass);
+  outline-offset: 3px;
+}
+
+/* The campaign on the map: a brass edge. */
+.th-camp.is-current {
+  box-shadow:
+    inset 0 0 0 1px rgba(95, 83, 49, 0.35),
+    0 0 0 2px var(--th-brass),
+    0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+.th-camp[data-state='locked'] {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+}
+
+.th-camp-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: clamp(4px, 1.4vh, 8px);
+  border-bottom: 1.5px solid rgba(20, 21, 15, 0.5);
+}
+
+.th-camp-flag {
+  flex: none;
+  width: clamp(48px, 15vh, 66px);
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: 1px;
+  box-shadow:
+    0 0 0 1px rgba(20, 21, 15, 0.55),
+    1px 2px 3px rgba(0, 0, 0, 0.35);
+  background: var(--th-fieldgrey);
+}
+
+.th-camp-flag[data-flag='sovietRed'] {
+  background: #b3261e;
+}
+
+.th-camp-flag[data-flag='unionJack'] {
+  background: #1f3f7a;
+}
+
+.th-camp-flag-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.th-camp-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.th-camp-name {
+  font-size: clamp(17px, 6vh, 24px);
+  color: var(--th-ink);
+}
+
+.th-camp-dates {
+  margin: 2px 0 0;
+  font-size: clamp(10.5px, 3.2vh, 12.5px);
+  color: var(--th-ink-soft);
+}
+
+.th-camp-stamp {
+  align-self: flex-start;
+}
+
+.th-camp-pitch {
+  margin: 0;
+  font-size: clamp(11.5px, 3.5vh, 13.5px);
+  line-height: 1.32;
+  color: var(--th-ink);
+}
+
+.th-camp-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+/* One tick per mission, filled when it is cleared. */
+.th-camp-bar {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 3px;
+  min-width: 0;
+}
+
+.th-camp-tick {
+  flex: 1 1 0;
+  height: 7px;
+  background: rgba(20, 21, 15, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(20, 21, 15, 0.45);
+}
+
+.th-camp-tick.is-on {
+  background: var(--th-olive);
+}
+
+.th-camp-count {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--th-ink);
+}
+
+.th-camp-next {
+  margin: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--th-ink-soft);
+}
+
+/* A narrow screen stacks the cards, and the list scrolls if they do not fit. */
+@media (max-width: 600px) {
+  .th-campaigns-list {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+}
+
+/* The shortest landscape phones: the pitch gives way to the progress. */
+@media (max-height: 340px) and (min-width: 601px) {
+  .th-camp-pitch {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
 /* -------------------------------------------------------------- campaign */
 
 .th-campaign {
@@ -1055,6 +1255,59 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 1.3;
+}
+
+/* The intelligence between the objective and the orders: the enemy's forces and ours, two short lists side by side. */
+.th-intel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 14px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px dashed rgba(20, 21, 15, 0.45);
+}
+
+.th-intel-label {
+  margin-bottom: 3px;
+  font-family: var(--th-font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--th-ink-soft);
+}
+
+.th-intel-col[data-side='enemy'] .th-intel-label {
+  color: var(--th-red);
+}
+
+.th-intel-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.32;
+}
+
+.th-intel-list li {
+  position: relative;
+  padding-left: 11px;
+}
+
+.th-intel-list li + li {
+  margin-top: 2px;
+}
+
+.th-intel-list li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+}
+
+@media (max-width: 640px) {
+  .th-intel {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .th-brief-side {

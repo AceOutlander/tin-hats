@@ -24,13 +24,28 @@ export const M1010: MissionDef = {
   date: 'January 1943',
   dateIso: '1943-01-10',
   climate: 'winter',
-  mapPos: { lon: 44.515, lat: 48.708 },
+  // The ring: Pitomnik airfield inside the pocket, where the battle starts (DECISIONS 296).
+  mapPos: { lon: 44.04, lat: 48.73 },
   briefing: [
     'The German Sixth Army is inside a ring, and tomorrow the ring begins to close. They were offered honourable terms yesterday and their commander let them lapse. Very well: at dawn seven thousand guns will give our answer, and then the whole front goes forward together.',
     'They are hungry, frozen and short of everything, but they are not finished, and a starving man in a cellar with a machine gun is still dangerous. First the steppe and the airfield at Pitomnik, where their transports land, then Gumrak, then the ruins. Use every gun we have; we have more than they do now.',
     'Their army headquarters is out at Gumrak. Take the airfields and it will have nowhere to go but the ruins, and we will dig it out of whatever cellar it chooses. When it falls, the Sixth Army falls with it. Take the city back, street by street, to the river.',
   ],
   objective: 'Clear the pocket and take the German headquarters in the Univermag.',
+  intel: {
+    enemy: [
+      'The 6th Army, starving and short of shells and fuel',
+      'About 100 riflemen and MP40 troopers in trenches and ruins',
+      'About 14 tanks and StuGs, most dug in without fuel',
+      'Pak teams, flamethrowers; artillery, no aircraft',
+    ],
+    friendly: [
+      'Don Front: 2 T-34s, a T-60, 8 riflemen, 6 PPSh troopers',
+      '5 conscript squads, 2 DPs, mortars, a sniper, a flamethrower',
+      'More tanks, carriers and squads at every line you take',
+      'Artillery, Katyusha, smoke, the Il-2, the Pe-2 and the Po-2',
+    ],
+  },
   theatre: 'germany',
   timeOfDay: 'overcast',
   mode: 'assault',

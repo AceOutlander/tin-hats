@@ -27,15 +27,30 @@ export const M1005: MissionDef = {
   ],
   // Today's win rule: the German HQ beyond the station (the station hold's timer waits for the director).
   objective: 'Land, clear the river bank, take the central station and destroy the German HQ.',
+  intel: {
+    enemy: [
+      '71st Infantry Division holds the bank and the station',
+      'About 65 riflemen with MG34 and MG42 teams',
+      '4 Panzer III, a StuG III, pioneers with flamethrowers',
+      'Stukas from first light',
+    ],
+    friendly: [
+      '13th Guards: 10 riflemen, 8 PPSh troopers, a DP gunner',
+      'More boats keep landing: about a hundred men',
+      'Only 120 Money: the ferries are slow',
+      'Artillery and Katyusha from the east bank',
+    ],
+  },
   // Stand-ins until the stalingrad theatre (autumn ruins) exists (STALINGRAD_BUILD.md).
   theatre: 'holland',
   timeOfDay: 'night',
   mode: 'assault',
   length: 12000,
+  // The unlock order (DECISIONS 295): the ROKS-3, for the houses on the bank. The sniper comes with Mamayev Kurgan.
   newUnit: 'flame',
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'medic', 'at', 'flame', 'conscript'],
     // The AI trains riflemen, MGs and Pak crews; its assault troops, mortars, pioneers and panzers come in the waves.
     ['sapper', 'rifle', 'lmg', 'at'],
   ],
@@ -167,7 +182,8 @@ export const M1005: MissionDef = {
     {
       type: 'hint',
       when: { at: 186 },
-      text: 'New: the ROKS Flamethrower. Buildings work like trenches; grenades and flamethrowers clear them.',
+      about: 'flame',
+      text: 'New: ROKS-3 Flamethrower. Buildings work like trenches; grenades and flamethrowers clear them.',
     },
     {
       type: 'wave',

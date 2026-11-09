@@ -16,7 +16,7 @@ import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { RENDER } from '../data/render';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import { getStalingradMission } from '../data/missions/stalingrad';
-import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
+import type { CampaignId, Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import type { SaveData } from '../meta';
@@ -153,8 +153,12 @@ export interface DebugMission {
 
 export interface DebugApi {
   ready: boolean;
-  /** The campaign in order. */
+  /** The campaign on the map, in order. */
   missions(): DebugMission[];
+  /** The campaigns the select screen offers, in its order, and the one on the map. */
+  campaigns(): { offered: CampaignId[]; current: CampaignId };
+  /** Put an offered campaign on the map (as its card on the select screen does). False if it is not offered. */
+  selectCampaign(id: CampaignId): boolean;
   /** Open every mission on the campaign map. Records no clear and awards nothing. */
   unlockAll(): void;
   /** Replace the upgrade levels (unknown upgrades dropped, levels capped; the points are not checked). Saved. */
@@ -369,6 +373,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     },
 
     unlockAll: () => app.unlockAll(),
+    campaigns: () => ({ offered: app.offered.map((c) => c.id), current: app.current.id }),
+    selectCampaign(id) {
+      if (!app.offered.some((c) => c.id === id)) return false;
+      app.selectCampaign(id);
+      ui.refresh();
+      return true;
+    },
     setUpgrades: (levels) => app.setUpgrades(levels),
     save: () => structuredClone(app.save),
     medals: () => app.save.medals,

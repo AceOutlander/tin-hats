@@ -27,15 +27,31 @@ export const M1003: MissionDef = {
   ],
   // Today's win rule: the German HQ beyond the wood (the wood's-edge capture point waits for the director).
   objective: 'Hold the railway halt, then retake the wood\'s edge and destroy the German HQ.',
+  intel: {
+    enemy: [
+      '2nd Panzer Division, out of the birch wood',
+      'About 13 tanks: Panzer IV, Panzer III and a StuG III',
+      'About 50 riflemen and MP40 troopers, MG34 teams, mortars',
+      'Stukas while the weather holds; artillery',
+    ],
+    friendly: [
+      '316th Rifle Division: 10 riflemen, 2 DP gunners, a sniper',
+      '5 PTRD teams with the new anti-tank rifles, 2 mortar crews',
+      'Katukov\'s tanks later: 3 T-34s and a KV-1',
+      'Artillery, smoke and the first Katyusha salvoes',
+    ],
+  },
   // Stand-ins until the russiaSummer winter variant exists (STALINGRAD_BUILD.md).
   theatre: 'germany',
   timeOfDay: 'overcast',
   mode: 'assault',
   length: 16000,
-  newUnit: 'at',
+  // The unlock order (DECISIONS 295): the PPD submachine gunners. The anti-tank kind came with Brest (the Tank Hunters);
+  // it is the PTRD Team from November 1941 (src/data/eras.ts). The sniper and the sanitarka are lent.
+  newUnit: 'assault',
   newSupport: 'katyusha',
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'at'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'at', 'tank'],
   ],
   supports: [
@@ -55,7 +71,7 @@ export const M1003: MissionDef = {
         { kind: 'lmg', count: 2, trenchId: 2 },
         { kind: 'at', count: 1, trenchId: 2 },
         { kind: 'sniper', count: 1, trenchId: 2 },
-        // Loans: four PTRD teams, two mortar crews and a medic.
+        // Four more PTRD teams, two mortar crews and a sanitarka (lent: the sanitarka is unlocked at Klin).
         { kind: 'at', count: 4, trenchId: 2 },
         { kind: 'mortar', count: 2 },
         { kind: 'medic', count: 1 },
@@ -94,7 +110,13 @@ export const M1003: MissionDef = {
     {
       type: 'hint',
       when: { at: 4 },
-      text: 'New: PTRD Teams. The long rifle holes a Panzer at close range. Keep them in the trenches and let the tanks come near.',
+      text: 'Your anti-tank men carry the PTRD now. The long rifle holes a Panzer at close range: keep them in the trenches and let the tanks come near.',
+    },
+    {
+      type: 'hint',
+      when: { at: 14 },
+      about: 'assault',
+      text: 'New: PPD Trooper. Fast, with a sub-machine gun and grenades: he clears a trench at close quarters. Keep him back until the counter-attack.',
     },
     {
       type: 'wave',
@@ -144,6 +166,7 @@ export const M1003: MissionDef = {
     {
       type: 'hint',
       when: { at: 362 },
+      about: 'katyusha',
       text: 'The Katyusha rocket battery: a salvo over a wide area, slow to reload. Save it for the infantry massed behind the tanks.',
     },
     {
