@@ -264,7 +264,7 @@ export const M1003: MissionDef = {
     {
       type: 'hint',
       when: { phase: 'katukov', delay: 4 },
-      text: 'Advance behind the tanks with the PTRD Teams and take the wood\'s edge, then go on to their headquarters.',
+      text: 'Advance behind the tanks with the PTRD Teams and take the wood\'s edge, then hold it: they will counter-attack.',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The wood\'s edge is ours again.' },
     {
