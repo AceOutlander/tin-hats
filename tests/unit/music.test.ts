@@ -264,7 +264,9 @@ class RecordingContext extends Context {
     return this.record(super.createBufferSource());
   }
   createConvolver(): Node {
-    return this.record(new Node('convolver'));
+    const n = new Node('convolver');
+    this.nodes.push(n);
+    return this.record(n);
   }
   private record(n: Node): Node {
     const id = this.log.length;
@@ -420,6 +422,7 @@ describe('the campaign map theme as a score', () => {
     expect(b.log).toEqual(a.log);
     const oscillators = a.nodes.filter((n) => n.kind === 'oscillator').length;
     const filters = a.nodes.filter((n) => n.kind === 'filter').length;
+    console.log(`map track graph: ${oscillators} oscillators, ${filters} filters, ${a.nodes.length} nodes`);
     expect(oscillators).toBeLessThanOrEqual(MAP_BUDGET.oscillators);
     expect(filters).toBeLessThanOrEqual(MAP_BUDGET.filters);
     // Everything is routed: every instrument's notes end up on a bus that reaches the output.

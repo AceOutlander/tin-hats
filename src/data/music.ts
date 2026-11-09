@@ -32,6 +32,9 @@ export interface PadSettings {
   level: number;
   /** Lowest and highest MIDI note it may play. */
   range: readonly [number, number];
+  /** Sweep the filters once per render quantum (under 6 ms) instead of every sample: the same to the ear, and much
+   * cheaper to render when many chords overlap. Every sample when not set. */
+  kRate?: boolean;
 }
 
 /** A distant muted horn: soft attack, a gentle vibrato that comes in late, heavily low-passed. */

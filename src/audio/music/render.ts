@@ -10,8 +10,8 @@ import type { DrumSettings, MusicInstrument, TrackDef } from '../../data/music';
 import { seededRandom } from '../dsp';
 import { startRendering, type OfflineContextCtor } from '../render';
 import { createNoiseBank, type NoiseBank } from '../synth';
-import { makeImpulse, playChoir, playDrum, playHorn, playPad, playPiano, playStringLead } from './instruments';
-import { choirChords, loopSeconds, scoreNotes } from './score';
+import { makeImpulse, playChoir, playDrum, playHorn, playPadChord, playPiano, playStringLead } from './instruments';
+import { choirChords, loopSeconds, padChords, scoreNotes } from './score';
 
 export interface RenderedTrack {
   buffer: AudioBuffer;
@@ -74,10 +74,12 @@ export function buildTrack(ctx: BaseAudioContext, out: AudioNode, def: TrackDef,
   const H = def.humanize;
   const human = (t: number): number => Math.max(0, t + (rng() * 2 - 1) * H.time);
   const velocity = (v: number): number => Math.max(0.05, Math.min(1, v * (1 + (rng() * 2 - 1) * H.velocity)));
+  // The pad a chord at a time (one filter pair per chord), not humanised.
+  for (const c of padChords(def)) playPadChord(ctx, bus('pad'), c.at, c.length, c.notes, I.pad.level * c.vel, I.pad);
   for (const n of scoreNotes(def)) {
     switch (n.instrument) {
       case 'pad':
-        playPad(ctx, bus('pad'), n.at, n.length, n.note, I.pad.level * n.vel, I.pad);
+        // Played above, chord by chord.
         break;
       case 'horn':
         playHorn(ctx, bus('horn'), human(n.at), n.length, n.note, velocity(n.vel), I.horn, bank, rng);

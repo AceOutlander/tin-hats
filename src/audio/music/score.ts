@@ -86,6 +86,18 @@ export function scoreNotes(def: TrackDef): ScoreNote[] {
   return out;
 }
 
+/** The pad's chords at their absolute times, in score order, with the section's pad level as their velocity. */
+export function padChords(def: TrackDef): { at: number; length: number; notes: readonly number[]; vel: number }[] {
+  const spb = secondsPerBeat(def);
+  const out: { at: number; length: number; notes: readonly number[]; vel: number }[] = [];
+  let beat = 0;
+  for (const s of def.sections) {
+    for (const c of s.chords) out.push({ at: (beat + c.at) * spb, length: c.beats * spb, notes: c.notes, vel: s.padLevel });
+    beat += s.bars * def.beatsPerBar;
+  }
+  return out;
+}
+
 /** The choir's chords at their absolute times, in score order. */
 export function choirChords(def: TrackDef): ScoreChoirChord[] {
   const spb = secondsPerBeat(def);

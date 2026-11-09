@@ -18,6 +18,15 @@ export function midiHz(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
+/**
+ * Automate these once per render quantum (128 frames, under 6 ms) instead of every sample: for a slow filter sweep or a
+ * vibrato the difference cannot be heard, and a swept filter or a modulated detune computed per sample is what makes
+ * a long offline render slow. A browser without the setting keeps the default.
+ */
+function kRate(...params: AudioParam[]): void {
+  for (const p of params) p.automationRate = 'k-rate';
+}
+
 function stopAt(source: AudioScheduledSourceNode, when: number): void {
   source.stop(when + AUDIO.stopPad);
 }
@@ -27,7 +36,15 @@ function stopAt(source: AudioScheduledSourceNode, when: number): void {
  * and closes again, with a slow fade in, a swell in level and a long release after `length`.
  */
 export function playPad(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, level: number, s: PadSettings): void {
-  const f = midiHz(note);
+  playPadChord(ctx, dest, at, length, [note], level, s);
+}
+
+/**
+ * A whole pad chord through one filter pair and one envelope: the same sound as `playPad` note by note (the filters and
+ * the envelope are the same for every note of a chord, and they are linear), at a fraction of the cost to render, since
+ * a swept filter is the dearest node there is. `level` is the level of each note.
+ */
+export function playPadChord(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, notes: readonly number[], level: number, s: PadSettings): void {
   const end = at + length;
   const stop = end + s.release;
   const mid = at + length * 0.5;
@@ -36,6 +53,7 @@ export function playPad(ctx: BaseAudioContext, dest: AudioNode, at: number, leng
   const filter2 = ctx.createBiquadFilter();
   for (const f2 of [filter, filter2]) {
     f2.type = 'lowpass';
+    if (s.kRate === true) kRate(f2.frequency, f2.Q);
     f2.Q.value = s.q;
     f2.frequency.setValueAtTime(s.cutoff, at);
     f2.frequency.exponentialRampToValueAtTime(s.swellCutoff, mid);
@@ -54,14 +72,17 @@ export function playPad(ctx: BaseAudioContext, dest: AudioNode, at: number, leng
   const per = 1 / Math.max(1, s.voices);
   const voice = ctx.createGain();
   voice.gain.value = per;
-  for (let v = 0; v < s.voices; v++) {
-    const osc = ctx.createOscillator();
-    osc.type = s.wave;
-    osc.frequency.value = f;
-    osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
-    osc.connect(voice);
-    osc.start(at);
-    stopAt(osc, stop);
+  for (const note of notes) {
+    const f = midiHz(note);
+    for (let v = 0; v < s.voices; v++) {
+      const osc = ctx.createOscillator();
+      osc.type = s.wave;
+      osc.frequency.value = f;
+      osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+      osc.connect(voice);
+      osc.start(at);
+      stopAt(osc, stop);
+    }
   }
   voice.connect(filter);
   filter2.connect(env);
@@ -173,6 +194,7 @@ export function playStringLead(ctx: BaseAudioContext, dest: AudioNode, at: numbe
   const lp2 = ctx.createBiquadFilter();
   for (const lp of [lp1, lp2]) {
     lp.type = 'lowpass';
+    kRate(lp.frequency, lp.Q);
     lp.Q.value = s.q;
     lp.frequency.setValueAtTime(cutoff * 0.6, at);
     lp.frequency.exponentialRampToValueAtTime(cutoff, at + s.attack * 1.5);
@@ -207,6 +229,7 @@ export function playStringLead(ctx: BaseAudioContext, dest: AudioNode, at: numbe
     const osc = ctx.createOscillator();
     osc.type = 'sawtooth';
     osc.frequency.value = f;
+    kRate(osc.frequency, osc.detune);
     osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
     depth.connect(osc.detune);
     osc.connect(voice);
@@ -259,6 +282,7 @@ export function playChoir(ctx: BaseAudioContext, dest: AudioNode, at: number, le
       osc.type = 'sawtooth';
       osc.frequency.value = f;
       const spread = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+      kRate(osc.frequency, osc.detune);
       osc.detune.value = spread + (rng() * 2 - 1) * 2;
       depth.connect(osc.detune);
       osc.connect(buzz);
@@ -278,6 +302,7 @@ export function playChoir(ctx: BaseAudioContext, dest: AudioNode, at: number, le
     const [hz1, q1, level1] = formantAt(s, band, vowel[1]);
     const bp = ctx.createBiquadFilter();
     bp.type = 'bandpass';
+    kRate(bp.frequency, bp.Q);
     bp.frequency.setValueAtTime(hz0, at);
     bp.frequency.exponentialRampToValueAtTime(hz1, end);
     bp.Q.setValueAtTime(q0, at);

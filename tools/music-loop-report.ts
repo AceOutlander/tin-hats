@@ -43,7 +43,7 @@ interface LoopReport {
   shortTermMax: number;
   seam: { step: number; localStep: number; rmsBefore: number; rmsAfter: number };
   sections: SectionReport[];
-  stems: { instrument: string; sections: number[] }[];
+  stems: { instrument: string; renderMs: number; sections: number[] }[];
 }
 
 function freePort(): Promise<number> {
@@ -99,7 +99,7 @@ const PAGE_CODE = `async (args) => {
       const solo = await music.renderTrack({ ...def, sections: def.sections.map((s) => keep(s, inst)) }, Offline);
       const d = solo.buffer.getChannelData(0);
       const k = (solo.rawPeak / def.peak) * scale;
-      stems.push({ instrument: inst, sections: times.map((s) => db(k * music.rmsOf(d, Math.round(s.start * rate), Math.min(frames, Math.round(s.end * rate))))) });
+      stems.push({ instrument: inst, renderMs: solo.renderMs, sections: times.map((s) => db(k * music.rmsOf(d, Math.round(s.start * rate), Math.min(frames, Math.round(s.end * rate))))) });
     }
   }
   const clips = {};
@@ -195,7 +195,7 @@ async function main(): Promise<number> {
     for (const s of r.sections) console.log(`  ${s.name.padEnd(28)} ${f(s.start).padStart(6)} to ${f(s.end).padStart(6)} s  rms ${f(s.rmsDb).padStart(6)}  peak ${f(s.peakDb).padStart(6)}  ${f(s.lufs).padStart(6)} LUFS`);
     if (r.stems.length > 0) {
       console.log(`stems (rms dB per section, as mixed): ${r.sections.map((s) => s.name).join(' | ')}`);
-      for (const st of r.stems) console.log(`  ${st.instrument.padEnd(8)} ${st.sections.map((v) => f(v).padStart(6)).join(' ')}`);
+      for (const st of r.stems) console.log(`  ${st.instrument.padEnd(8)} ${st.sections.map((v) => f(v).padStart(6)).join(' ')}   (alone: rendered in ${st.renderMs.toFixed(0)} ms)`);
     }
     if (wavDir) {
       mkdirSync(wavDir, { recursive: true });

@@ -212,7 +212,7 @@ export const CAMPAIGN_MAP: TrackDef = {
   humanize: { time: 0.014, velocity: 0.05 },
   seed: 1945,
   instruments: {
-    pad: { wave: 'sawtooth', voices: 3, detuneCents: 8, cutoff: 900, swellCutoff: 2000, q: 0.5, rest: 0.7, attack: 2, release: 3, level: 0.17, range: [24, 64] },
+    pad: { wave: 'sawtooth', voices: 3, detuneCents: 8, cutoff: 900, swellCutoff: 2000, q: 0.5, rest: 0.7, attack: 2, release: 3, level: 0.17, range: [24, 64], kRate: true },
     horn: {
       cutoff: 850,
       brightness: 1300,
@@ -230,9 +230,9 @@ export const CAMPAIGN_MAP: TrackDef = {
       level: 0.36,
       range: [50, 77],
     },
-    strings: { voices: 4, detuneCents: 11, cutoff: 1100, brightness: 1700, q: 0.5, attack: 0.45, release: 1.4, vibratoRate: 5.2, vibratoCents: 12, vibratoDelay: 0.35, swell: 0.3, level: 0.2, range: [48, 84] },
+    strings: { voices: 3, detuneCents: 11, cutoff: 1100, brightness: 1700, q: 0.5, attack: 0.45, release: 1.4, vibratoRate: 5.2, vibratoCents: 12, vibratoDelay: 0.35, swell: 0.3, level: 0.5, range: [48, 84] },
     choir: {
-      voices: 3,
+      voices: 2,
       detuneCents: 10,
       oo: [
         [320, 5, 1],
@@ -395,7 +395,7 @@ export const CAMPAIGN_MAP: TrackDef = {
         ['Bb7', 2],
         ['Eb', 4],
       ]),
-      horn: line(SUMMIT, 0.85, 0.6, 'ramp', 0, -12),
+      horn: line(SUMMIT, 0.7, 0.5, 'ramp', 0, -12),
       piano: [],
       drums: [
         { at: 0, vel: 0.8, pitch: TIMP_EB },
