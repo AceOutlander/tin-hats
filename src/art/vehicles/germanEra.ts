@@ -45,33 +45,45 @@ export function panzer3hTurret(ctx: Ctx, P: TankPalette): void {
 
 /** Panzer III Ausf. L: the stowage bin on the turret rear, the external mantlet and the spaced plate in front of it. */
 export function panzer3lTurret(ctx: Ctx, P: TankPalette): void {
-  // The stowage bin ("Rommelkiste") hung on the turret rear.
-  rimRect(ctx, -38, -17, 11, 13, 1.6, P.panel, P.rim, 1);
-  strokeLine(ctx, [-37, -12, -28, -12], rgba(C.ink, 0.4), 0.7);
+  // The big stowage bin ("Rommelkiste") hung on the turret rear, its lid and hasp.
+  rimRect(ctx, -39.5, -19, 13, 16, 1.6, P.panelLit, P.rim, 1);
+  strokeLine(ctx, [-38.6, -14.5, -27.4, -14.5], rgba(C.ink, 0.45), 0.8);
+  ctx.fillStyle = rgba(C.ink, 0.5);
+  ctx.fillRect(-34, -13.6, 2, 2.4);
   smallTankTurretBody(ctx, P);
   externalMantlet(ctx, P);
-  // The 20 mm spaced plate standing proud of the mantlet on two brackets, with the gap showing dark.
+  // The roof ventilator of the J and L.
+  rimRect(ctx, 2, -23, 7, 3.2, 1.2, P.bodyDark, P.rim, 0.7);
+  // The 20 mm spaced plate standing well proud of the mantlet on two brackets, the gap dark behind it.
   ctx.fillStyle = C.void;
-  ctx.fillRect(31, -14.5, 1.6, 2);
-  ctx.fillRect(31, -6.5, 1.6, 2);
-  rimPoly(ctx, [32.6, -18, 35.4, -17.4, 35.4, -1.6, 32.6, -1], mix(P.panel, P.body, 0.3), P.rim, 0.9);
+  ctx.fillRect(31, -15, 2.4, 2.4);
+  ctx.fillRect(31, -6, 2.4, 2.4);
+  rimPoly(ctx, [33.4, -19.5, 37, -19, 37, -0.8, 33.4, 0], P.panelLit, P.rim, 1);
+  strokeLine(ctx, [35.2, -18.4, 35.2, -1.4], rgba(C.ink, 0.35), 0.6);
   balkenkreuz(ctx, 5, -9.5, 6.4);
 }
 
 /** Panzer III Ausf. L hull: the Ausf. E hull with the spaced plate before the driver and spare track links on the bow. */
 export function panzer3lHull(ctx: Ctx, P: TankPalette): void {
   smallTankHull(ctx, P);
+  // Two spare road wheels hung on the rear of the hull side, a jerrycan rack on the engine deck.
+  for (const x of [-66, -55]) {
+    disc(ctx, x, -36, 4.6, '#11120e');
+    disc(ctx, x, -36, 2.8, P.panel);
+    disc(ctx, x, -36, 0.9, P.bodyDark);
+  }
+  for (let i = 0; i < 3; i++) rimRect(ctx, -72 + i * 5.2, -47.6, 4.4, 5, 0.8, P.panelLit, P.rim, 0.7);
   // The 20 mm spaced plate in front of the superstructure's front plate (the driver's visor looks through a slot in it).
   ctx.fillStyle = C.void;
-  ctx.fillRect(48.5, -48, 2.2, 7);
-  rimPoly(ctx, [50.6, -50, 54, -49.6, 54, -40.4, 50.6, -40], mix(P.panel, P.body, 0.3), P.rim, 0.9);
+  ctx.fillRect(48.5, -49, 3, 9);
+  rimPoly(ctx, [51.5, -51.5, 55.5, -51, 55.5, -39.6, 51.5, -39], P.panelLit, P.rim, 1);
   ctx.fillStyle = C.void;
-  ctx.fillRect(51.4, -46.6, 1.8, 3.2);
+  ctx.fillRect(52.4, -47.4, 2.2, 3.2);
   // Spare track links hung across the sloped bow plate.
   ctx.fillStyle = C.trackBand;
-  for (let i = 0; i < 4; i++) ctx.fillRect(56 + i * 4.6, -38.8 + i * 1.1, 3.6, 2.4);
+  for (let i = 0; i < 4; i++) ctx.fillRect(57 + i * 4.6, -38.4 + i * 1.1, 3.6, 2.4);
   ctx.fillStyle = rgba(P.rim, 0.35);
-  for (let i = 0; i < 4; i++) ctx.fillRect(56 + i * 4.6, -38.8 + i * 1.1, 3.6, 0.6);
+  for (let i = 0; i < 4; i++) ctx.fillRect(57 + i * 4.6, -38.4 + i * 1.1, 3.6, 0.6);
 }
 
 /** The short 5 cm KwK 38 L/42: thicker than the 3.7 cm, a long recoil sleeve and a plain muzzle. Origin = trunnion. */

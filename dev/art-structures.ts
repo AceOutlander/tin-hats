@@ -36,7 +36,7 @@ import {
   tileSpan,
   wirePieceLayout,
 } from '../src/art/structures';
-import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, TANK_KEYS, TANK_LOOKS, VEHICLE_LOOKS, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
+import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, TANK_KEYS, TANK_LOOKS, VEHICLE_LOOKS, aircraftLookKey, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
 import type { SpriteSpec } from '../src/art/types';
 
 declare global {
@@ -486,9 +486,13 @@ function tanksScene(ctx: Ctx, t: number): void {
     { gy: STAGE_H + 225, facing: -1, speed: 0 },
   ];
   // ?soviet=1 shows the Soviet KV-1, T-34 and T-60; ?soviet=2 the Soviet carrier beside the British one and the T-60.
+  // ?looks=t26,bt7,kv2 shows any three looks (the era looks of src/data/eras.ts among them).
   const sov = params.get('soviet');
+  const custom = (params.get('looks') ?? '').split(',').filter((l): l is Look => (VEHICLE_LOOKS as readonly string[]).includes(l));
   const xs: Partial<Record<Look, number>> =
-    sov === '1' ? { kv1: 215, t34: 565, t60: 905 } : sov === '2' ? { carrierSoviet: 215, carrier: 565, t60: 905 } : { churchill: 215, panzer4: 565, kingTiger: 905 };
+    custom.length > 0
+      ? Object.fromEntries(custom.slice(0, 3).map((l, i) => [l, 215 + i * 350]))
+      : sov === '1' ? { kv1: 215, t34: 565, t60: 905 } : sov === '2' ? { carrierSoviet: 215, carrier: 565, t60: 905 } : { churchill: 215, panzer4: 565, kingTiger: 905 };
   rows.forEach((row, r) => {
     stage(ctx, r * STAGE_H, (r + 1) * STAGE_H, row.gy);
     // Ground marks sliding backwards so the track speed can be judged against the ground.
@@ -555,6 +559,8 @@ function sovietScene(ctx: Ctx): void {
   label(ctx, 'air strike: generic', 160, 150);
   put(ctx, AIR_KEYS.il2, 450, 90);
   label(ctx, 'air strike: Il-2 (soviet)', 450, 150);
+  put(ctx, aircraftLookKey('i16'), 655, 80);
+  label(ctx, 'fighter, 1941: I-16', 655, 140);
   // The KV-2: the KV-1's track, wheels and hull under the KV-2 turret and howitzer, standing.
   const x = 860;
   const L = TANK_LAYOUT.kv1;
