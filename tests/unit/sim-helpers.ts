@@ -230,7 +230,8 @@ export function checkInvariants(b: Battle): void {
     }
     let queued = 0;
     for (const kind of KINDS) {
-      queued += side.queue[kind] * UNITS[kind].pop;
+      // A training order of a squad kind (the Soviet conscripts) holds the population of the whole squad.
+      queued += side.queue[kind] * UNITS[kind].pop * (UNITS[kind].squad ?? 1);
       if ((byKind[si][kind] ?? 0) !== side.alive[kind]) throw new Error(`${where}: side ${si} alive.${kind} is wrong`);
       if (side.queue[kind] < 0 || side.queue[kind] > CONFIG.maxQueue) throw new Error(`${where}: queue.${kind}`);
       if (side.progress[kind] < 0 || side.progress[kind] > 1 + 1e-9) throw new Error(`${where}: progress.${kind}`);

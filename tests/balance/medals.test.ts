@@ -1,6 +1,6 @@
 /**
  * Medals balance (owner's spec, 'Medals and the Armoury', and the change of 2026-11-09: units unlocked by missions
- * again, medals buy upgrades and plane call-ins). The reasonable-player bot clears the campaign in order on Normal
+ * again, medals buy upgrades and plane call-ins). The reasonable-player bot clears the campaign (Stalingrad) in order on Normal
  * without replays, starting from a fresh save.
  *
  * Before each mission the player has the types every reached mission unlocks (unitsUnlocked); the progression in
@@ -39,7 +39,7 @@ function campaign(): { steps: Step[]; medals: number } {
     const unlocked = unitsUnlocked(save, MISSIONS, (id) => isUnlocked(save, ids, id));
     const roster = missionRoster(save, m, unlocked);
     const loaned = roster.loans.map((l) => l.kind);
-    // Sappers only where the mission has money for them (Arnhem has none).
+    // Sappers only where the mission has money for them (a mission living on airdrops has none).
     const missing = MEDALS.missions[m.id].expects.filter((k) => !roster.units.includes(k) && (k !== 'sapper' || m.units[0].includes('sapper')));
     const battle = createBattle({ mission: applyRoster(m, roster), difficulty: 'normal', seed: SEED, upgrades: {}, commanders: ['bot', 'ai'] });
     const s = battle.state;
