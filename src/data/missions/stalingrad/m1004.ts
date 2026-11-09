@@ -9,9 +9,11 @@ import type { MissionDef } from '../../schema';
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1004): four phases on the brief's capture
  * points (FOUNDATIONS.md 4.5): take the first village (P1, held through its izba B2), then the forest edge (P2) past
- * the forest trench (with a scripted counter-attack from it), cut the highway (P3) and hold it for 120 s (the Il-2 is
- * offered from then on), then Klin, where the Germans wait in the houses for 240 s before their own judgement takes
- * over. The village's izbas and Klin's houses, church and station are buildings (B1 to B8, 4.3). Trained units deploy
+ * the forest trench (with a scripted counter-attack from it), cut the highway (P3) and hold it for 300 s against three
+ * columns (the Il-2 is offered from then on), then Klin, where the Germans wait in the houses for 240 s before their
+ * own judgement takes over. Klin is prepared by the army, not only the player's call-ins (DECISIONS 431): the 8th Tank
+ * Brigade with tank riders, the division's guns one shell at a time, three Katyusha salvoes on the last strongpoint,
+ * and the 365th Rifle Division when the garrison makes its last stand. The village's izbas and Klin's houses, church and station are buildings (B1 to B8, 4.3). Trained units deploy
  * at the positions taken (the points are forward spawns), the PTRD loan comes up at the village; the two frozen panzers
  * in Klin cannot move (leash 0). Deep snow slows everyone but the ski troops (the `skis` tag).
  *
@@ -38,15 +40,15 @@ export const M1004: MissionDef = {
   intel: {
     enemy: [
       '1st Panzer Division, frozen and short of fuel',
-      'About 70 riflemen in the villages, trenches and Klin',
+      'About 80 riflemen in the villages, trenches and Klin',
       'MG34 teams, Granatwerfer teams and PzB 39 teams',
-      '5 tanks, some frozen in place; 2 SdKfz 251',
+      '5 tanks, two frozen in place; 3 SdKfz 251',
       'Artillery; no aircraft in the blizzard',
     ],
     friendly: [
       '371st Rifle Division: 10 riflemen, 6 ski troopers, 2 DPs',
       'A T-34, a T-60, 2 mortar crews and 4 militia squads',
-      'PTRD teams and fresh riflemen at every village you take',
+      'PTRD teams at the village; at Klin 2 T-34s with riders',
       'Artillery, smoke, Katyusha, and the Il-2 when it clears',
     ],
   },
@@ -98,7 +100,7 @@ export const M1004: MissionDef = {
       supplies: 150,
       hqHpMul: 1,
       hqLook: 'bunkerGerman',
-      incomeMul: 0.7,
+      incomeMul: 0.5,
       sappers: 2,
       forces: [
         // V1, the first village: its two izbas.
@@ -121,9 +123,9 @@ export const M1004: MissionDef = {
         { kind: 'lmg', count: 1, buildingId: 7, behaviour: 'garrison' },
         { kind: 'at', count: 1, buildingId: 7, behaviour: 'garrison' },
         { kind: 'mortar', count: 2, x: 24200, behaviour: 'guard' },
-        // The 1st Panzer Division's tanks in Klin: a Panzer III and a Panzer IV frozen in place, one Panzer IV running.
+        // The 1st Panzer Division's tanks in Klin: two Panzer IIIs frozen in place, one Panzer IV running.
         { kind: 'lightTank', count: 1, x: 24600, behaviour: 'guard', look: 'panzer3h', leash: 0 },
-        { kind: 'tank', count: 1, x: 24900, behaviour: 'guard', leash: 0 },
+        { kind: 'lightTank', count: 1, x: 24900, behaviour: 'guard', look: 'panzer3h', leash: 0 },
         { kind: 'tank', count: 1, x: 22600, behaviour: 'guard' },
       ],
     },
@@ -188,7 +190,7 @@ export const M1004: MissionDef = {
       title: 'Cut the highway',
       objectives: [
         { id: 'highway', type: 'capture', point: { point: 'P3' }, text: 'Take the highway' },
-        { id: 'highwayHeld', type: 'hold', point: { point: 'P3' }, seconds: 120, text: 'Hold the highway' },
+        { id: 'highwayHeld', type: 'hold', point: { point: 'P3' }, seconds: 300, text: 'Hold the highway' },
       ],
       next: 'klin',
     },
@@ -204,14 +206,25 @@ export const M1004: MissionDef = {
     { id: 'forestCounter', type: 'posture', when: { phase: 'forest', delay: 120 }, side: 1, posture: 'counterattack', point: { point: 'P1' }, seconds: 60 },
     { id: 'il2', type: 'support', when: { phase: 'highway' }, side: 0, kind: 'airStrike', enabled: true },
     // Night in the blizzard, a flare over the village, then snow at dawn and a clear day (FOUNDATIONS.md 4.7).
-    { id: 'villageFlare', type: 'flare', when: { phase: 'night', delay: 200 }, side: 1, x: 7000 },
+    { id: 'villageFlare', type: 'flare', when: { phase: 'night', delay: 75 }, side: 1, x: 7000 },
     { id: 'snowAtDawn', type: 'weather', when: { phase: 'forest' }, to: 'snow', over: 120 },
     { id: 'dawn', type: 'time', when: { phase: 'forest' }, to: 'dawn', over: 180 },
     { id: 'clears', type: 'weather', when: { phase: 'highway' }, to: 'clear', over: 60 },
     { id: 'day', type: 'time', when: { phase: 'highway' }, to: 'day', over: 60 },
+    // Klin's garrison stays in the town while the columns try to force the highway (DECISIONS 431).
+    { id: 'highwayWaits', type: 'posture', when: { phase: 'highway' }, side: 1, posture: 'hold' },
     { id: 'klinWaits', type: 'posture', when: { phase: 'klin' }, side: 1, posture: 'hold' },
     { id: 'klinFree', type: 'posture', when: { phase: 'klin', delay: 240 }, side: 1, posture: 'free' },
-    { id: 'klinGuns', type: 'barrage', when: { phase: 'klin', delay: 200 }, side: 1, x: 18500, spread: 600, rounds: 8, duration: 6, weapon: 'artilleryShell', warning: 'Artillery on our line!' },
+    { id: 'klinGuns', type: 'barrage', when: { phase: 'klin', delay: 200 }, side: 1, x: 18500, spread: 600, rounds: 8, duration: 18, weapon: 'artilleryShell', warning: 'Artillery on our line!' },
+    // The division's guns prepare the assault on Klin one shell at a time: the houses at the edge of town, then the
+    // church and the station (DECISIONS 431).
+    { id: 'klinEdgeShelled', type: 'barrage', when: { phase: 'klin', delay: 40 }, side: 0, x: 21000, spread: 300, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns are shelling the edge of Klin.' },
+    { id: 'klinCentreShelled', type: 'barrage', when: { phase: 'klin', delay: 180 }, side: 0, x: 23300, spread: 400, rounds: 10, duration: 25, weapon: 'artilleryShell', warning: 'Our guns are shelling the church and the station.' },
+    // The army's Guards mortar battalion ripples a Katyusha salvo onto the last German strongpoint around their HQ, twice
+    // (DECISIONS 431): Klin is not left to the player's own call-ins.
+    { id: 'klinRockets1', type: 'barrage', when: { phase: 'klin', delay: 300 }, side: 0, x: 25200, spread: 450, rounds: 12, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the centre of Klin!' },
+    { id: 'klinRockets2', type: 'barrage', when: { phase: 'klin', delay: 540 }, side: 0, x: 25000, spread: 500, rounds: 12, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the centre of Klin!' },
+    { id: 'klinRockets3', type: 'barrage', when: { phase: 'klin', delay: 780 }, side: 0, x: 25100, spread: 500, rounds: 12, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the centre of Klin!' },
     { id: 'lastCounter', type: 'posture', when: { hqHpBelow: 0.5, side: 1 }, side: 1, posture: 'counterattack', seconds: 90 },
     // Phase 1, "Night approach" (V1).
     { type: 'announce', when: { at: 1 }, text: 'Night approach: the ski battalions are moving off into the forest.' },
@@ -287,7 +300,40 @@ export const M1004: MissionDef = {
       ],
       announce: 'A German column is on the highway!',
     },
+    {
+      // The road is the Third Panzer Group's only way west: a second column tries to force it during the hold
+      // (DECISIONS 431).
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 110 },
+      side: 1,
+      forces: [
+        { kind: 'apc', count: 1, x: 19400, behaviour: 'assault' },
+        { kind: 'rifle', count: 5, x: 19200, behaviour: 'assault' },
+      ],
+      announce: 'Another German column is trying to force the road west!',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 230 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 4, x: 19300, behaviour: 'assault' },
+        { kind: 'at', count: 1, x: 19400, behaviour: 'assault' },
+      ],
+      announce: 'A rear guard is coming out of Klin to reopen the road!',
+    },
     // Phase 4, "Klin".
+    {
+      type: 'wave',
+      when: { phase: 'klin', delay: 30 },
+      side: 0,
+      forces: [
+        // The 8th Tank Brigade of the 30th Army, with tank riders (DECISIONS 431).
+        { kind: 'tank', count: 2, at: { point: 'P3' } },
+        { kind: 'assault', count: 6, at: { point: 'P3' } },
+      ],
+      announce: 'The 8th Tank Brigade has come up the highway with tank riders.',
+    },
     { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P3' } }, text: 'The highway is cut. Their only road home is closed.' },
     {
       type: 'hint',
@@ -301,7 +347,6 @@ export const M1004: MissionDef = {
       forces: [
         { kind: 'rifle', count: 6, x: 22200 },
         { kind: 'lmg', count: 1, x: 22300 },
-        { kind: 'mortar', count: 1, x: 22500 },
       ],
       announce: 'The Klin garrison is manning the houses at the edge of town.',
     },
@@ -326,6 +371,18 @@ export const M1004: MissionDef = {
       announce: 'Every German in Klin is counter-attacking!',
     },
     {
+      // Klin was taken by the 371st and the 365th Rifle Divisions together: the 365th comes in from the north as the
+      // garrison makes its last stand (DECISIONS 431).
+      type: 'wave',
+      when: { hqHpBelow: 0.5, side: 1 },
+      side: 0,
+      forces: [
+        { kind: 'rifle', count: 8, at: { point: 'P3' } },
+        { kind: 'lmg', count: 2, at: { point: 'P3' } },
+      ],
+      announce: 'The 365th Rifle Division is coming into Klin from the north!',
+    },
+    {
       type: 'hint',
       when: { hqHpBelow: 0.5, side: 0 },
       text: 'The HQ is under fire. Fall Back lets its machine gun do the work while you rebuild.',
@@ -337,13 +394,13 @@ export const M1004: MissionDef = {
       { kind: 'rifle', count: 8, after: 0 },
       { kind: 'lmg', count: 2, after: 40 },
       { kind: 'rifle', count: 14, after: 150 },
-      { kind: 'mortar', count: 2, after: 240 },
+      { kind: 'mortar', count: 1, after: 240 },
       { kind: 'lmg', count: 3, after: 300 },
       { kind: 'at', count: 2, after: 400 },
-      { kind: 'rifle', count: 18, after: 500 },
+      { kind: 'rifle', count: 14, after: 500 },
       { kind: 'tank', count: 1, after: 900 },
     ],
-    firstAttackAfter: 600,
+    firstAttackAfter: 900,
   },
   bot: {
     sappers: 6,
@@ -360,7 +417,8 @@ export const M1004: MissionDef = {
     ],
     firstAttackAfter: 30,
   },
-  // The design's 24 to 28 minutes assume deep snow, the night phases and the hold posture (STALINGRAD_BUILD.md).
-  expectedMinutes: [13, 28],
+  // About 5 minutes to the highway, its 5-minute hold, then Klin: the bot wins in about 16 minutes with unlimited calls and
+  // about 21 with none (DECISIONS 431).
+  expectedMinutes: [15, 24],
   music: STALINGRAD_MUSIC.missions[1004],
 };

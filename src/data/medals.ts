@@ -249,7 +249,9 @@ export const MEDALS: MedalTunables = {
     },
     // A hold: the two holds are fixed, Katukov's counter-attack is timed (from its phase; first cut from the bot's 4 to 5 min).
     1003: { targetSeconds: 220, roughSeconds: 600, targetLost: 36, roughLost: 180, loans: [], expects: STAL_1003, scoring: 'timed', timedFrom: 'katukov' },
-    1004: { targetSeconds: 630, roughSeconds: 1560, targetLost: 58, roughLost: 290, loans: [], expects: STAL_1004 },
+    // Retuned with the mission (DECISIONS 431): about 0.8 of the bot's median between unlimited calls (16 min) and the loan
+    // only (21 min).
+    1004: { targetSeconds: 900, roughSeconds: 1900, targetLost: 58, roughLost: 290, loans: [], expects: STAL_1004 },
     1005: { targetSeconds: 510, roughSeconds: 1260, targetLost: 47, roughLost: 235, loans: [], expects: STAL_1005 },
     // A hold scored on time, as the brief asks.
     1006: { targetSeconds: 870, roughSeconds: 2160, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006, scoring: 'timed' },
@@ -288,12 +290,9 @@ export const MEDALS: MedalTunables = {
     // 1003 lends only the brief's new rocket battery since its tuning (DECISIONS 430): the bot wins it with no call-in,
     // and two salvoes let a player meet the Katyusha the mission introduces.
     1003: [{ kind: 'katyusha', count: 2 }],
-    1004: [
-      { kind: 'artillery', count: 8 },
-      { kind: 'smoke', count: 4 },
-      { kind: 'katyusha', count: 4 },
-      { kind: 'airStrike', count: 4 },
-    ],
+    // 1004 lends only the brief's Il-2s since its tuning (DECISIONS 431): the division's guns and the 8th Tank Brigade
+    // prepare Klin, and two sorties let a player meet the call-in the mission introduces.
+    1004: [{ kind: 'airStrike', count: 2 }],
     1005: [
       { kind: 'artillery', count: 11 },
       { kind: 'katyusha', count: 3 },

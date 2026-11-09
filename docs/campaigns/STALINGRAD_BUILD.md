@@ -55,7 +55,7 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1001 Brest | survival | 3 x 300 s under the 900 s clock | opening barrage, Nebelwerfer, siege mortar x2, 21 cm mortars; side objectives gate, StuGs |
 | 1002 Dubno | delay | strike, hold the crossroads | capture, survive 600 + kill 12, enemyReached (x 5,000, then x 10,000), income x0.4, Stuka raid, artillery, overtime waves; Dubno by 6 min, twenty tanks |
 | 1003 Volokolamsk | hold | 2 x 360 s holds, Katukov's tanks | pointLost (the halt), barrage, Stuka, Katyusha from phase 2, AI hold and counter-attack postures, capture + hold 150 s; no tank at the halt (until phase 3), ten tanks; timed from phase 3 |
-| 1004 Klin | assault | village, forest, highway (+ hold 120 s), Klin | forward spawns (`at`), frozen panzers (leash 0), counter-attack posture, Il-2 from phase 3, hold for 240 s then free, artillery, the last counter-attack; the station, the highway in 20 min |
+| 1004 Klin | assault | village, forest, highway (+ hold 300 s against three columns), Klin | forward spawns (`at`), frozen panzers (leash 0), counter-attack posture, Il-2 from phase 3, hold for 240 s then free, artillery, the 8th Tank Brigade, the division's guns and three Katyusha salvoes on Klin, the last counter-attack met by the 365th (DECISIONS 431); the station, the highway in 20 min |
 | 1005 Volga | special | landing (hold 180 s), high bank, station, hold the station | pointLost (landing), Nebelwerfer, Stukas, a 45 s prep at phase 4; battalion ashore (fewer than two boat loads hit, `ferryLoads`), nail factory |
 | 1006 Kurgan | hold | foot, slope, water tanks + summit, summit hold | destroy (the water tanks, buildings), 45 s prep at phase 4 with a zone, Stukas, Nebelwerfer, banner, AI hold on the summit; both tanks by 12 min, no assault gun survives |
 | 1007 Pavlov's House | survival | take the house, day one, night one, day two, last night | capture with a 180 s deadline, prep after phase 0, pointLost (day one), Stuka raid, Katyusha for the last night, artillery cooldown 90 s; the trench stays open, no German inside; house health in the score |
@@ -227,7 +227,7 @@ theatre (`art-backdrops.test.ts`), and the 1009 case of `sim-budget.test.ts`. Ho
 | 1001 Brest | russiaSummer | clear at dawn; phase 2: day over 60 s, smoke over 30 s |
 | 1002 Dubno | russiaSummer | clear, day; dust from 60 s; dusk 400 s into the hold |
 | 1003 Volokolamsk | russiaSummer winter | overcast; snow at phase 2; dusk at phase 3 |
-| 1004 Klin | russiaSummer winter, then stalingrad winter for Klin | blizzard by night, a flare over the village at 200 s; snow and dawn in the forest; clear and day for the highway (the Il-2 flies) |
+| 1004 Klin | russiaSummer winter, then stalingrad winter for Klin | blizzard by night, a flare over the village at 75 s; snow and dawn in the forest; clear and day for the highway (the Il-2 flies) |
 | 1005 Volga | stalingrad | smoke by night, the Germans' flares over the landing every 40 s; dawn at the station (Stukas from then), day for the hold; the high bank before first light (600 s) |
 | 1006 Kurgan | stalingrad | overcast and smoke |
 | 1007 Pavlov's House | stalingrad | smoke; night, day one, night one (flares), day two, the last night (flares, snow) |
@@ -411,7 +411,7 @@ Every new save (and every save converted to version 11) starts with 3 smoke and 
 | 1001 Brest | (none) |
 | 1002 Dubno | artillery 6 |
 | 1003 Volokolamsk | artillery 6, Katyusha 2, smoke 1 |
-| 1004 Klin | artillery 8, smoke 4, Katyusha 4, Il-2 4 |
+| 1004 Klin | Il-2 2 (DECISIONS 431; was artillery 8, smoke 4, Katyusha 4, Il-2 4) |
 | 1005 Volga | artillery 11, Katyusha 3 |
 | 1006 Mamayev Kurgan | artillery 8, smoke 5, Katyusha 4 |
 | 1007 Pavlov's House | artillery 6, Katyusha 1 |

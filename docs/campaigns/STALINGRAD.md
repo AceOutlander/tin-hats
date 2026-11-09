@@ -413,7 +413,7 @@ Expected 17 to 23 minutes (the bot wins in a median 16.8; DECISIONS 430).
 ## Mission 4: The Moscow counter-offensive: Klin
 
 - **Id** 1004, key `klin`. **Date** 6 to 15 December 1941; the mission depicts the push on Klin
-  (`1941-12-12`). **Place** Klin, 56.33 N, 36.73 E. **Mode** assault. **Length** about 26 minutes. **Map** 26,000 wu.
+  (`1941-12-12`). **Place** Klin, 56.33 N, 36.73 E. **Mode** assault. **Length** about 16 to 21 minutes. **Map** 26,000 wu.
   **Theatre** `russiaSummer` winter variant, with the `stalingrad` theatre's winter variant reused for the town ruins
   in the last sector.
 - **History**:
@@ -469,27 +469,35 @@ Expected 17 to 23 minutes (the bot wins in a median 16.8; DECISIONS 430).
 - **Enemy**:
   - HQ with low income (at most the player's; mission `incomeMul` 0.7). Start garrisons: V1 (8 riflemen, 1 MG34),
     T1 (6 riflemen, 1 MG, 1 Granatwerfer), T2 (6 riflemen, 2 MG, 1 Pak 38).
-  - Klin: 12 riflemen in houses, 2 MG, 2 mortars, 1 Pak 38, 2 Panzer III and 1 Panzer IV, of which 2 are frozen in
+  - Klin: 12 riflemen in houses, 2 MG, 2 mortars, 1 Pak 38, 2 Panzer III and 1 Panzer IV; the two Panzer IIIs are frozen in
     place (`behaviour: 'guard'`, leash 0).
-  - AI build: riflemen and MGs, rarely tanks.
+  - AI build: riflemen and MGs, rarely tanks; its own first attack not before 900 s, and it holds in Klin while the
+    highway is fought over (DECISIONS 431).
   - Supports: artillery; no air in blizzard.
 
 ### Phases and events
 
 1. **"Night approach"** (capture P1). Weather `blizzard` (visibility 0.7), time night (0.65).
    - 60 s: hint "Ski troops cross deep snow at full speed."
-   - 200 s: flare event over V1 (20 s visibility 1.0).
+   - 75 s: flare event over V1 (20 s visibility 1.0), while the ski troops close on the village (the phase is often over
+     by 200 s).
 2. **"Through the forest"** (capture P2).
    - Phase start: weather to `snow` over 120 s; time to dawn over 180 s.
    - 120 s: counter-attack from T1 (`posture: 'counterattack'` at P1, 6 riflemen and 1 Panzer III).
    - Hint: "Deploy at the village: your new troops start there."
-3. **"Cut the highway"**: capture P3, then hold it 120 s.
+3. **"Cut the highway"**: capture P3, then hold it 300 s (DECISIONS 431).
    - Phase start: weather `clear` over 60 s, time day; Il-2 enabled.
-   - 60 s: German column on the highway (2 trucks as `apc` with the `opelBlitz` look, 8 riflemen, 1 Panzer IV).
+   - 60 s: German column on the highway (2 SdKfz 251 as `apc`, 8 riflemen, 1 Panzer IV).
+   - P3 taken + 110 s: a second column (1 SdKfz 251, 5 riflemen); + 230 s: a rear guard out of Klin (4 riflemen, 1 PzB 39
+     team). Klin's garrison holds its posture through the phase.
 4. **"Klin"** (destroy the enemy HQ).
    - Phase start: the German posture is `hold` for 240 s (they wait in the houses).
-   - 200 s: artillery on the player's front.
-   - At enemy HQ hp below 50%: the last counter-attack, of every German unit.
+   - 30 s: the 8th Tank Brigade comes up at P3 (2 T-34s with 6 PPD tank riders).
+   - 40 s and 180 s: the division's guns on the edge of town and on the church and station, 10 shells one by one over 25 s.
+   - 300 s, 540 s and 780 s: a Guards mortar (Katyusha) salvo on the last strongpoint by the German HQ, 12 rockets over 10 s.
+   - 200 s: artillery on the player's front (8 shells over 18 s).
+   - At enemy HQ hp below 50%: the last counter-attack, of every German unit; the 365th Rifle Division comes in at P3
+     (8 riflemen, 2 DPs).
 
 ### Side objectives
 
@@ -498,7 +506,7 @@ Expected 17 to 23 minutes (the bot wins in a median 16.8; DECISIONS 430).
 
 ### Medals
 
-Timed: target 27 minutes, target casualties 55.
+Timed: target 15 minutes (900 s, none at 1,900 s), target casualties 58 (DECISIONS 431).
 
 ### Music, weather, time
 
@@ -514,7 +522,7 @@ Timed: target 27 minutes, target casualties 55.
 3. PTRDs and the T-34 meet the counter-attack. Cut the highway with artillery on T2 and Katyusha on its reserves.
 4. In Klin, house by house: mortars and assault troops on each building; Il-2 on the frozen tanks.
 
-Expected 24 to 28 minutes.
+Expected 15 to 24 minutes: about 16 with every call-in, about 21 with none (DECISIONS 431).
 
 ---
 
