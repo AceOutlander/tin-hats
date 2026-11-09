@@ -27,20 +27,45 @@ What each part of the campaign has today, and what waits for which foundation fe
 - Buildings for the Katyusha's second counter (explosive x0.7 inside).
 - The campaign select screen, campaign map (bounds lon 22 to 47, lat 46 to 57.5), theme and map music fields.
 
-**Art the art job must add** (stand-ins today, so everything renders):
+**Soviet art: drawn** (no British or German stand-ins left; `tests/unit/art-soviet.test.ts` guards it). Screenshots in
+`docs/screenshots/stalingrad-art-*.png` (local only).
 
-- SSh-40 helmet: a first simple shape (`ssh40Path` in src/art/figure/parts.ts); also the pilotka and ushanka headgear,
-  greatcoat roll, telogreika, snow smocks.
-- Small arms: Mosin-Nagant (drawn as `kar98`), Mosin with PU scope (`kar98Scoped`), DP-27 with its pan magazine
-  (`bren`), PPSh-41 with its drum (`mp40`), PTRD-41 (`panzerschreck`), F-1 grenade (`mills`), TT-33 (`pistol`), the
-  Maxim for the HQ gun (draws the German MG today).
-- Vehicles: T-34/76 (Panzer IV rig with a Soviet turret), KV-1 (Churchill rig with a Soviet turret), T-60 (small tank
-  rig), the Soviet Universal Carrier (British carrier with Soviet crew), a GAZ-AA truck (Bedford shape), the BM-13
-  launcher if the salvo is to show its trucks.
-- Aircraft: Il-2, Pe-2, Yak-1, Po-2 (the British shapes with a red star today).
-- HQ stages: rain-cape tent, zemlyanka, log dugout, concrete DOT (British tent, big tent, dugout, bunker today); the
-  plain red `sovietBanner` pennant (a plain red pennant colour today).
-- A Katyusha HUD icon is drawn (three rockets); the art job may refine it.
+- Soldiers (src/art/figure/soviet.ts): the SSh-40, the skatka greatcoat roll over the shoulder, the duffel bag, the
+  belt with the two-cell pouch, bread bag and spade. Small arms: Mosin-Nagant 1891/30 with the spike bayonet, the
+  Mosin with the PU scope, the DP-27 with its pan, the PPSh-41 with its drum, the 82 mm mortar, the PTRD-41, the TT-33
+  (the officer's pistol, `tt33`), the F-1 grenade and the PTRD round.
+- Headgear (`setFigureHeadgear`, FIGURE_HEADGEAR): pilotka, ushanka, the SSh-40 over the ushanka, and the snow smock's
+  white hood (`snowHood`).
+- Winter clothing (`setFigureClothing(anim, 'telogreika' | 'snowSmock')`, FIGURE_CLOTHING in src/data/looksGear.ts):
+  the quilted telogreika (torso and sleeves) and the white two-piece snow smock (torso, sleeves and thighs; the dark
+  valenki and shins still show). Drawn in place of the body sprites, so the figure keeps its rim and its 38 parts.
+- Vehicles (src/art/vehicles): the T-34/76 (./t34), the KV-1 model 1941 on a rig of its own (./kv: six small road
+  wheels, three return rollers, the welded turret with the rear DT, the ZiS-5; upgrade gear: track links, the 1941
+  bolted screens, sandbags, turret box, pintle DT, long ZiS-5), the T-60 on a rig of its own (./t60: four road wheels,
+  the driver's cab, the faceted turret and the long 20 mm TNSh; drawn a little over life size like the other light
+  tanks), the Lend-Lease Universal Carrier with a Soviet crew, a red star and a DP on the mount (now a gear look, so
+  the APC upgrades show), the GAZ-AA supply truck (tall rounded cab, upright radiator shell, swooping Ford-pattern
+  wing, lamps on stalks) for the dump and haul looks.
+- Aircraft (./sovietPlanes, same boxes and anchors as the other nations' types, so the plane upgrades show): Pe-2
+  (glazed nose, long greenhouse canopy, long nacelles, twin oval fins), Yak-1 (pointed spinner, razorback, belly
+  radiator), Po-2 (fabric biplane, open cockpits, the bare radial), and the Il-2 Shturmovik for the air strike
+  (`AIR_STRIKE_PLANE` in src/data/artLayout.ts; the sky pool picks the calling side's plane with `airStrikeKey`).
+- HQ: the four stages (rain-cape tent, zemlyanka, log dugout, concrete DOT) and the gun positions; the heavy gun is the
+  Maxim M1910/30 (the big winter filler cap) on the Sokolov mount with its shield. The flag `sovietRed`; the trench
+  pennant `sovietBanner` is the plain red cloth (`pennant.soviet` in src/data/artLayout.ts), as NATIONS.md asks. The
+  Katyusha HUD icon (three rockets) is drawn.
+
+**Drawn and registered for a later job to select** (no data selects them yet):
+
+- The 1941 and winter looks: the pilotka, the ushanka, the helmet over the ushanka, the telogreika, the snow smock and
+  hood. The headgear and clothing setters exist; the era table (`NationEraDef`, FOUNDATIONS 5.1) or a weather or
+  mission field must call them per unit (for example the snow smock for snipers and scouts in the winter missions).
+- The KV-2 (1941, Dubno): `KV2_KEYS` (turret and 152 mm howitzer, worn on the KV-1 rig) with `KV2_TURRET` (turret box,
+  trunnion in turret space, gun length). Fielding it needs a vehicle look that swaps turret, trunnion and barrel.
+- The BM-13 Katyusha launcher on the ZiS-6 (`KATYUSHA_LAUNCHER_KEY`, `BM13_LAYOUT`: rail pivot, angle and length); in
+  the vehicle atlas. The salvo still flies in from off screen; showing the trucks is the call-in's job.
+- Not drawn: the 1941 T-26, BT-7 and I-16, the PPD, the RGD-33 grenade, the ROKS flamethrower (the shared flamethrower
+  stands in), the 37 mm 61-K AA gun (the AA crew works the DP), and the 1943 looks (shoulder boards, camouflage suits).
 
 ## Music (theme, battle tracks, map track)
 
