@@ -294,6 +294,7 @@ const DEFAULT_SETTINGS: SettingsView = {
   sfxVolume: 100,
   reduceFlash: false,
   showBlood: true,
+  showFps: false,
 };
 
 const mock = {

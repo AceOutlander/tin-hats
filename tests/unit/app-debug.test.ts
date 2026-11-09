@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONFIG } from '../../src/data/config';
 import { App } from '../../src/app/app';
 import { debugEnabled, installDebug } from '../../src/app/debug';
 import { createMemoryStorage } from '../../src/meta';
@@ -186,12 +187,14 @@ describe('debug hooks', () => {
       expect(after.tally.supportCalled.artillery).toBe(1);
     });
 
-    it('grant population on top of supplies, so one of every kind can be trained', () => {
+    it('grant population, but never past the cap of 100 that holds everywhere', () => {
       const { api } = setup();
       api.startSandbox(7);
-      const before = api.state();
-      api.grantPopulation(25);
-      expect(api.state().popCap).toBe(before.popCap + 25);
+      expect(api.state().popCap).toBe(CONFIG.popCap);
+      api.grantPopulation(60);
+      api.grantPopulation(60);
+      expect(api.state().popCap).toBe(CONFIG.popCap);
+      expect(CONFIG.popCap).toBe(100);
     });
 
     it('give the camera scale for converting a world x to a screen x', () => {

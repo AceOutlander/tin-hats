@@ -177,7 +177,7 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const sx = j[J_HIP * 2] + Math.cos(sp) * 1.6 - Math.sin(sp) * 1.2;
   const sy = j[J_HIP * 2 + 1] + Math.sin(sp) * 1.6 + Math.cos(sp) * 1.2;
   put(out[S_SATCHEL], G.satchel, sx, sy, p[P_SATCHEL], G.satchelShow);
-  putJ(out[S_HEAD], B.head, j, J_NECK, p[P_NECK]);
+  putJ(out[S_HEAD], a.kind === 'flame' ? B.headMask : B.head, j, J_NECK, p[P_NECK]);
   putJ(out[S_HELMET], G.helmet, j, J_HEAD, helmRot);
 
   // Weapon (or crate), its bipod and baseplate, hand items.

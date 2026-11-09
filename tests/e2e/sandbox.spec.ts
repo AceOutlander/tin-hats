@@ -17,12 +17,14 @@ import {
   grantSupplies,
   lookAt,
   open,
+  openCallIns,
   setTimeScale,
   shot,
   startMission,
   startSandbox,
   state,
   tap,
+  tapCallIn,
   tapIfThere,
   tapWorld,
   test,
@@ -116,13 +118,23 @@ test.describe('proving ground (Phase 2)', () => {
         const s = await state(page);
         return TRAIN_KINDS.every((k) => s.queue[k] > 0);
       }).toBe(true);
-      // The supports sit on the left edge and must not run into the training bar.
+      // The call-ins sit on the left edge, folded and open, and must not run into the training bar or under the top bar.
+      const folded = await buttonRects(page);
+      expect(folded.callins, 'the Call-ins toggle is shown').toBeTruthy();
+      expect(folded['callins-column'], 'the column starts folded').toBeUndefined();
+      expect(folded.callins.y + folded.callins.h).toBeLessThanOrEqual(folded['train-sapper'].y + 1);
+      await openCallIns(page);
       const rects = await buttonRects(page);
       for (const kind of SUPPORTS) {
         const support = rects[`support-${kind}`];
         expect(support, `${kind} button shown`).toBeTruthy();
-        expect(support.y + support.h).toBeLessThanOrEqual(rects['train-sapper'].y + 1);
+        expect(Math.min(support.w, support.h), `${kind} is still a fair target`).toBeGreaterThanOrEqual(40);
+        expect(support.y + support.h).toBeLessThanOrEqual(rects.callins.y + 1);
+        expect(support.y, `${kind} stays below the top bar`).toBeGreaterThanOrEqual(rects.minimap.y + rects.minimap.h - 1);
       }
+      await shot(page, `sandbox-hud-${size.w}x${size.h}-callins`);
+      await tap(page, 'callins');
+      await expect(page.getByTestId('callins-column')).toBeHidden();
       await tap(page, 'train-sapper');
       await shot(page, `sandbox-hud-${size.w}x${size.h}-queued`);
     });
@@ -142,11 +154,12 @@ test.describe('proving ground (Phase 2)', () => {
       await page.touchscreen.tap(where.x, where.y);
       await expect.poll(async () => (await state(page)).controlled?.kind, { message: 'control taken' }).toBe('assault');
       await expect(page.getByTestId('ability')).toBeVisible();
+      await openCallIns(page);
       await page.waitForTimeout(500);
       await shot(page, `sandbox-control-hud-${size.w}x${size.h}`);
 
       const rects = await buttonRects(page);
-      const names = ['stick', 'release', 'ability', 'fire', 'order-fallBack', 'order-hold', 'order-advance', ...SUPPORTS.map((k) => `support-${k}`)];
+      const names = ['stick', 'release', 'ability', 'fire', 'order-fallBack', 'order-hold', 'order-advance', 'callins', ...SUPPORTS.map((k) => `support-${k}`)];
       for (const name of names) expect(rects[name], `${name} is shown`).toBeTruthy();
       for (const name of ['release', 'ability', 'fire']) {
         expect(Math.min(rects[name].w, rects[name].h), `${name} is a big enough target`).toBeGreaterThanOrEqual(44);
@@ -159,6 +172,10 @@ test.describe('proving ground (Phase 2)', () => {
           expect(apart, `${names[i]} and ${names[j]} do not overlap`).toBe(true);
         }
       }
+      // The open call-ins column stops under the unit card in the top-left corner.
+      const card = await page.locator('.th-ctrl-card').boundingBox();
+      if (!card) throw new Error('no unit card');
+      for (const kind of SUPPORTS) expect(rects[`support-${kind}`].y, `${kind} clears the unit card`).toBeGreaterThanOrEqual(card.y + card.height - 1);
       expect(rects['train-sapper'].x, 'the training bar starts right of the joystick').toBeGreaterThanOrEqual(rects.stick.x + rects.stick.w);
       for (const name of ['ability', 'release', 'fire']) {
         const fits = await page.getByTestId(name).locator('.th-fbtn-label').evaluate((n) => n.scrollWidth <= n.clientWidth + 1);
@@ -186,10 +203,21 @@ test.describe('proving ground (Phase 2)', () => {
     await begin(page, 31);
     await setTimeScale(page, 1);
     await lookAt(page, 1500);
-    await expect(page.getByTestId('support-artillery')).toBeVisible();
+    const column = page.getByTestId('callins-column');
 
-    // Aim, then cancel with the banner button: nothing is called.
-    await tap(page, 'support-artillery');
+    // The call-ins start folded into one toggle with a pip per call-in, all ready; a tap opens it, another folds it.
+    await expect(page.getByTestId('callins')).toBeVisible();
+    await expect(column).toBeHidden();
+    await expect(page.getByTestId('support-artillery')).toBeHidden();
+    await expect(page.locator('.th-pip.is-ready')).toHaveCount(SUPPORTS.length);
+    await tap(page, 'callins');
+    await expect(column).toBeVisible();
+    await expect(page.getByTestId('support-artillery')).toBeVisible();
+    await tap(page, 'callins');
+    await expect(column).toBeHidden();
+
+    // Aim, then cancel with the banner button: nothing is called, and the column stays open for another pick.
+    await tapCallIn(page, 'artillery');
     await expect.poll(async () => (await state(page)).targeting).toBe('artillery');
     await expect(page.getByTestId('cancel-targeting')).toBeVisible();
     await expect(page.getByText('Tap the battlefield')).toBeVisible();
@@ -197,16 +225,24 @@ test.describe('proving ground (Phase 2)', () => {
     await shot(page, 'sandbox-targeting');
     await tap(page, 'cancel-targeting');
     await expect.poll(async () => (await state(page)).targeting).toBeNull();
+    await expect(column).toBeVisible();
     // Aim again and tap the same support button: that cancels too. Escape does as well.
     await tap(page, 'support-smoke');
     await expect.poll(async () => (await state(page)).targeting).toBe('smoke');
     await tap(page, 'support-smoke');
     await expect.poll(async () => (await state(page)).targeting).toBeNull();
+    await expect(column).toBeVisible();
     await tap(page, 'support-airStrike');
     await expect.poll(async () => (await state(page)).targeting).toBe('airStrike');
     await expect(page.getByTestId('cancel-targeting')).toBeVisible(); // the HUD has caught up with the sim
     await page.keyboard.press('Escape');
     await expect.poll(async () => (await state(page)).targeting).toBeNull();
+    await expect(page.getByTestId('cancel-targeting')).toBeHidden(); // the HUD has caught up: nothing aimed there either
+    await expect(column).toBeVisible();
+    // With nothing aimed, Escape folds the open column (and does not pause).
+    await page.keyboard.press('Escape');
+    await expect(column).toBeHidden();
+    expect((await state(page)).paused).toBe(false);
     // A tap on the battlefield with nothing aimed calls nothing.
     await tapWorld(page, 1600);
     await page.waitForTimeout(300);
@@ -220,19 +256,26 @@ test.describe('proving ground (Phase 2)', () => {
     const at: Record<SupportKind, number> = { smoke: 1450, artillery: 1900, airStrike: 1650, bomber: 1650, fighter: 1650, recon: 1650 };
     for (const kind of SUPPORTS) {
       const blasts = (await state(page)).tally.explosion;
-      await tap(page, `support-${kind}`);
+      await tapCallIn(page, kind);
       await expect.poll(async () => (await state(page)).targeting, { message: `${kind} aimed` }).toBe(kind);
+      await expect(column, 'the column stays open while aiming').toBeVisible();
       await tapWorld(page, at[kind]);
       await expect.poll(async () => (await state(page)).tally.supportCalled[kind], { message: `${kind} reached the sim` }).toBe(1);
       const called = await state(page);
       expect(called.targeting, 'aiming ends with the call').toBeNull();
       expect(called.supports[kind].cooldown, `${kind} cooldown started`).toBeGreaterThan(0);
+      await expect(column, 'the call folds the column away').toBeHidden();
+      // Folded, the toggle's pip for it shows the cooldown.
+      const pip = page.locator(`.th-pip[data-kind="${kind}"]`);
+      await expect(pip).toBeVisible();
+      await expect(pip).not.toHaveClass(/is-ready/);
+      expect(await pip.locator('.th-sweep').evaluate((n) => getComputedStyle(n).getPropertyValue('--p').trim())).not.toBe('');
       const button = page.getByTestId(`support-${kind}`);
       await expect(button).not.toHaveClass(/is-ready/);
       await expect(button.locator('.th-sbtn-sec')).toHaveText(/^\d+/);
       expect(await button.locator('.th-sweep').evaluate((n) => getComputedStyle(n).getPropertyValue('--p').trim())).not.toBe('');
       // A second tap on the field does not call it again, and the button refuses while it cools down.
-      await tap(page, `support-${kind}`);
+      await tapCallIn(page, kind);
       await tapWorld(page, at[kind] + 40);
       await page.waitForTimeout(200);
       expect((await state(page)).tally.supportCalled[kind]).toBe(1);

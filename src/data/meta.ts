@@ -39,6 +39,8 @@ export interface MetaTunables {
   defaultReduceFlash: boolean;
   /** "Show blood" (a small dark pool under each soldier killed by gunfire) of a fresh save, and of a save from before it existed. */
   defaultShowBlood: boolean;
+  /** "Show FPS" (a small frame-rate readout in a corner of the battle) of a fresh save, and of a save from before it existed. */
+  defaultShowFps: boolean;
   /**
    * The volume defaults save version 3 was written with. A version 3 save still holding one of them was never moved
    * by the player, so the step to version 4 brings it to today's default; a value the player chose is kept.
@@ -48,7 +50,7 @@ export interface MetaTunables {
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 6,
+  saveVersion: 7,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
   firstClearPoints: 2,
@@ -62,5 +64,6 @@ export const META: MetaTunables = {
   defaultSfxVolume: VOLUME.defaults.sfx,
   defaultReduceFlash: false,
   defaultShowBlood: true,
+  defaultShowFps: false,
   v3DefaultVolumes: { music: 100, ambience: 100, sfx: 100 },
 };

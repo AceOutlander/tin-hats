@@ -87,6 +87,7 @@ export class HudModel {
       hint: null,
       tip: null,
       minimap: emptyMinimap(CONFIG.maxUnits),
+      fps: null,
     };
   }
 
@@ -105,6 +106,7 @@ export class HudModel {
         const btn: TrainButtonState = {
           kind,
           name: faction.unitNames[kind],
+          label: faction.buttonNames[kind] ?? faction.unitNames[kind],
           cost: UNITS[kind].cost,
           pop: UNITS[kind].pop,
           queued: 0,

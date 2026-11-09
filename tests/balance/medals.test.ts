@@ -131,10 +131,11 @@ describe('medals across the campaign on Normal, without replays', () => {
     }
   });
 
-  // Prices were raised by the owner (2026-11-08: old types x2, new types x3), so the costliest core type, the tank,
-  // may still be on loan at the end; every core infantry type must be owned by then.
-  it('owns every core infantry type by the last mission; only the tank may still be on loan there', () => {
-    const last = steps[steps.length - 1];
-    expect(last.loaned.filter((k) => k !== 'tank')).toEqual([]);
+  // Troop prices were raised twice by the owner (2026-11-08: x2/x3, then troops x2 again), so a first run through the
+  // campaign cannot buy the whole army; missions lend what their design expects (MEDALS.autoLoanCount). A sensible
+  // progression is still required: the player keeps buying new types along the way.
+  it('keeps buying new types through the campaign, at least 3 by the last mission', () => {
+    const bought = steps.flatMap((s) => s.bought);
+    expect(new Set(bought).size, bought.join(' ')).toBeGreaterThanOrEqual(3);
   });
 });

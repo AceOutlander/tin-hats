@@ -14,7 +14,10 @@ export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'ar
 
 export interface TrainButtonState {
   kind: UnitKind;
+  /** Full name, for the details and the screen reader. */
   name: string;
+  /** Short label that fits the button ("Flamer" for "Flamethrower"). */
+  label: string;
   cost: number;
   pop: number;
   /** Units of this kind waiting or in training. */
@@ -113,6 +116,17 @@ export interface HudState {
   /** The tutorial tip on show, or null. The object is reused; compare `seq`. */
   tip: TipState | null;
   minimap: MinimapState;
+  /** The "Show FPS" readout, or null when the setting is off. */
+  fps: FpsState | null;
+}
+
+/** The frame-rate readout's numbers (src/app/fpsMeter.ts). The object is reused; `seq` changes whenever the numbers do. */
+export interface FpsState {
+  seq: number;
+  fps: number;
+  /** Milliseconds per frame over the last second: the average and the slowest frame. */
+  avgMs: number;
+  worstMs: number;
 }
 
 export type HudAction =
@@ -225,6 +239,8 @@ export interface SettingsView {
   reduceFlash: boolean;
   /** "Show blood": a small dark pool under each soldier killed by gunfire (on by default). */
   showBlood: boolean;
+  /** "Show FPS": a small frame-rate readout in a corner of the battle (off by default). */
+  showFps: boolean;
 }
 
 /**

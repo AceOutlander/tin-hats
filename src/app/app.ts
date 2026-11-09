@@ -41,6 +41,7 @@ import type { BattleView, WeatherMode } from '../render/contracts';
 import { createBattle } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
 import { buildCampaignView, buildResult } from './campaignView';
+import { FpsMeter } from './fpsMeter';
 import { GameLoop } from './loop';
 import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
 import { MusicIntensity } from './musicIntensity';
@@ -95,6 +96,8 @@ export class App implements AppApi {
   readonly tips: TipMemory;
   /** The title screen's storm. */
   readonly storm: MenuStormDirector;
+  /** The "Show FPS" readout's numbers (measured in every battle frame, shown only with the setting on). */
+  readonly fps = new FpsMeter();
   /** Picks the battle-music layer from the battle (null outside a battle). */
   musicIntensity: MusicIntensity | null = null;
   /** The campaign map track is on. */
@@ -138,8 +141,12 @@ export class App implements AppApi {
       if (this.session && !this.loop.paused) this.session.tapUnit(id);
     };
     this.view.setFrameHandler((dtMs) => {
-      if (this.session) this.loop.frame(dtMs);
-      else this.storm.frame(dtMs);
+      if (this.session) {
+        this.fps.frame(dtMs);
+        this.loop.frame(dtMs);
+      } else {
+        this.storm.frame(dtMs);
+      }
     });
   }
 
@@ -247,6 +254,7 @@ export class App implements AppApi {
     this.pendingResult = null;
     this.lastResult = null;
     this.loop.reset();
+    this.fps.reset();
     // A new battle always starts at normal speed; only the debug hooks change it.
     this.loop.timeScale = 1;
     // The battle music: the map track and the menu theme let go of their buffers (only the mission's music is held in
@@ -336,6 +344,7 @@ export class App implements AppApi {
     const session = this.session;
     if (!session) return;
     const state = session.fill(this.loop.paused, this.save.settings.muted);
+    state.fps = this.save.settings.showFps ? this.fps.state : null;
     if (this.ui && this.ui.current() === 'battle') this.ui.updateHud(state);
   }
 

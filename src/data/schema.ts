@@ -204,6 +204,8 @@ export interface FactionDef {
   name: string;
   adjective: string;
   unitNames: Record<UnitKind, string>;
+  /** Short labels for the training buttons where the name is too long to fit (others show the name's first word). */
+  buttonNames: Partial<Record<UnitKind, string>>;
   /** One-line role text for briefings and the Quartermaster. */
   unitBlurbs: Record<UnitKind, string>;
   supportNames: Record<SupportKind, string>;

@@ -1,7 +1,7 @@
 /**
  * Medals and the Armoury over a SaveData: the score of a win and the medals it pays, the replay decay per mission
  * and difficulty, buying unit types and plane call-ins, and which units the player may field in a mission (what the
- * Armoury owns, cut to what the mission allows, plus loans). Pure functions; the ones that change a save change it in place.
+ * Armoury owns, in every mission, plus loans). Pure functions; the ones that change a save change it in place.
  */
 import { MEDALS, type ArmouryItemDef, type LoanDef, type MissionMedalDef } from '../data/medals';
 import type { Difficulty, MissionDef, MissionMode, SupportKind, UnitKind } from '../data/schema';
@@ -175,10 +175,11 @@ function soldSupports(): SupportKind[] {
   return MEDALS.armoury.filter((a) => a.type === 'support').map((a) => a.id as SupportKind);
 }
 
-/** Unit types this mission lets the player field, if owned. */
+/**
+ * Unit types the player may field in this mission, if owned: the mission's own list plus every type sold in the
+ * Armoury. No mission rules out a bought type, replays included (owner, 2026-11-08).
+ */
 export function missionAllows(mission: MissionDef): UnitKind[] {
-  const def = MEDALS.missions[mission.id];
-  if (def?.allow) return [...def.allow];
   const out: UnitKind[] = [...mission.units[0]];
   for (const kind of soldUnits()) if (!out.includes(kind)) out.push(kind);
   return out;
@@ -205,8 +206,15 @@ export function missionRoster(save: SaveData, mission: MissionDef): Roster {
   const supports: SupportKind[] = [...mission.supports[0]];
   for (const kind of soldSupports()) if (save.armoury.includes(kind) && !supports.includes(kind)) supports.push(kind);
   const loans: LoanDef[] = [];
-  for (const loan of MEDALS.missions[mission.id]?.loans ?? []) {
+  const def = missionMedals(mission.id);
+  for (const loan of def.loans) {
     if (!units.includes(loan.kind) && fieldable(loan.kind) && loan.count > 0) loans.push({ ...loan });
+  }
+  // Whatever else the design expects and the player has not bought comes on loan too (free types the mission does
+  // not list stay out, like sappers where there is no money).
+  for (const kind of def.expects) {
+    if (isFree(kind) || units.includes(kind) || !fieldable(kind) || loans.some((l) => l.kind === kind)) continue;
+    if (MEDALS.autoLoanCount > 0) loans.push({ kind, count: MEDALS.autoLoanCount });
   }
   return { units, supports, loans };
 }

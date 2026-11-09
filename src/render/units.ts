@@ -999,7 +999,33 @@ export class UnitViews {
     for (let i = this.dying.length - 1; i >= 0; i--) {
       this.updateDying(this.dying[i], dt, camLeft, camRight);
     }
+    this.capBodies();
     this.placeRing();
+  }
+
+  /**
+   * More than RENDER.units.maxBodies bodies and husks lying still: the one closest to its fade (whose fall is over)
+   * starts fading now. One per frame, so a barrage's dead thin out gradually.
+   */
+  private capBodies(): void {
+    const list = this.dying;
+    if (list.length <= U.maxBodies) return;
+    let lying = 0;
+    let oldest: UnitView | null = null;
+    let best = -Infinity;
+    for (let i = 0; i < list.length; i++) {
+      const v = list[i];
+      const tank = v instanceof TankView;
+      const still = tank ? 0 : (v as FigureView).anim.deathEnd;
+      const t = v.deadTime - still - (tank ? U.huskLinger : U.corpseLinger);
+      if (t >= 0) continue;
+      lying++;
+      if (v.deadTime >= still && t > best) {
+        best = t;
+        oldest = v;
+      }
+    }
+    if (lying > U.maxBodies && oldest) oldest.deadTime -= best;
   }
 
   /**

@@ -27,6 +27,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
       aa: 'Bofors Crew',
       lightTank: 'Cruiser Tank',
     },
+    buttonNames: { apc: 'Carrier', flame: 'Flamer', commander: 'Lt.' },
     unitBlurbs: {
       sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
@@ -82,6 +83,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
       aa: 'Flak Crew',
       lightTank: 'Panzer III',
     },
+    buttonNames: { mortar: 'Werfer', at: 'Schreck', sniper: 'Sniper', flame: 'Flammer', commander: 'Leutnant' },
     unitBlurbs: {
       sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',

@@ -52,6 +52,14 @@ export function formatIncome(tenths: number): string {
   return `${sign}${Math.floor(a / 10)}.${a % 10}/s`;
 }
 
+/** The "Show FPS" readout, e.g. "60 fps · 16.7 ms avg · 33.4 max" (frames per second, then ms per frame over the last second). */
+export function formatFps(fps: number, avgMs: number, worstMs: number): string {
+  const f = Number.isFinite(fps) ? Math.round(fps) : 0;
+  const a = Number.isFinite(avgMs) ? avgMs : 0;
+  const w = Number.isFinite(worstMs) ? worstMs : 0;
+  return `${f} fps · ${a.toFixed(1)} ms avg · ${w.toFixed(1)} max`;
+}
+
 /**
  * A label short enough for a narrow button: the full name when it fits,
  * otherwise its first word ("Assault Trooper" -> "Assault").
