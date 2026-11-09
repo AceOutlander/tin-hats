@@ -65,6 +65,10 @@ export const titleScreen: ScreenFactory = (ctx) => {
 
   const logo = el('div', 'th-logo');
   const helmet = el('div', 'th-logo-helmet');
+  helmet.dataset.testid = 'title-helmet';
+  // Takes taps (they do nothing visible): the hidden admin panel's secret entry counts them (src/ui/admin).
+  helmet.dataset.interactive = '';
+  helmet.dataset.adminTap = '';
   helmet.append(helmetIcon());
   add(
     logo,

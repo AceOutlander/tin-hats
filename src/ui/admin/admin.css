@@ -1,0 +1,298 @@
+/*
+ * The hidden admin panel (src/ui/admin). Above the screens, the HUD and the confirm slip; below the rotate overlay.
+ * Plain and compact: it is a tool, not part of the game's look, but it keeps the theme's colours and thumb-sized targets.
+ */
+
+.th-admin-modal,
+.th-admin-panel,
+.th-admin-fab,
+.th-admin-bar,
+.th-admin-debug {
+  z-index: 8;
+}
+
+.th-admin-modal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 6, 0.6);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.th-admin-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(86vw, 300px);
+  padding: 14px;
+}
+
+.th-admin-input {
+  width: 100%;
+  min-height: var(--th-touch);
+  padding: 0 12px;
+  font: 600 18px var(--th-font-body);
+  color: var(--th-ink);
+  background: #f6efdb;
+  border: 2px solid var(--th-khaki-dark);
+  border-radius: 4px;
+  user-select: text;
+  -webkit-user-select: text;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.th-admin-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* The small button that stays up while the panel is unlocked: right edge, half way down, clear of the HUD. */
+.th-admin-fab {
+  position: absolute;
+  top: calc(50% - 22px);
+  right: calc(var(--th-safe-right) + 4px);
+  width: 44px;
+  height: 44px;
+  font: 700 11px var(--th-font-display);
+  letter-spacing: 0.08em;
+  color: var(--th-paper);
+  background: rgba(20, 21, 15, 0.72);
+  border: 2px solid var(--th-brass);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.th-admin-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 62vw);
+  padding-right: var(--th-safe-right);
+  color: var(--th-paper);
+  background: #16170f;
+  border-left: 2px solid var(--th-brass);
+  box-shadow: -6px 0 18px rgba(0, 0, 0, 0.55);
+  font: 13px var(--th-font-body);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.th-admin-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 6px;
+  border-bottom: 1px solid var(--th-khaki-dark);
+}
+
+.th-admin-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.th-admin-tabs .th-admin-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.th-admin-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 6px 8px 12px;
+}
+
+.th-admin-entry {
+  padding: 6px 0 8px;
+  border-bottom: 1px solid rgba(140, 123, 74, 0.35);
+}
+
+.th-admin-entry.is-pending {
+  opacity: 0.5;
+}
+
+.th-admin-label {
+  margin: 0 0 4px;
+  font: 700 11px var(--th-font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--th-brass);
+}
+
+.th-admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin: 3px 0;
+}
+
+.th-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.th-admin-btn {
+  min-width: 44px;
+  min-height: 40px;
+  padding: 0 10px;
+  font: 700 12px var(--th-font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--th-paper);
+  background: linear-gradient(180deg, #4e5624 0%, var(--th-olive-dark) 100%);
+  border: 1px solid #0d0f05;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.th-admin-grid .th-admin-btn {
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.th-admin-btn[aria-pressed='true'] {
+  color: var(--th-ink);
+  background: linear-gradient(180deg, #e3c06c 0%, var(--th-brass) 100%);
+}
+
+.th-admin-btn.is-danger {
+  background: linear-gradient(180deg, #a23a2b 0%, #6d1c13 100%);
+}
+
+.th-admin-btn.is-wide {
+  flex: 1 1 auto;
+}
+
+.th-admin-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.th-admin-btn:active:not(:disabled) {
+  filter: brightness(0.85);
+}
+
+.th-admin-x {
+  flex: none;
+  font-size: 20px;
+}
+
+.th-admin-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.th-admin-value {
+  min-width: 44px;
+  font: 700 15px var(--th-font-display);
+  color: var(--th-paper);
+}
+
+.th-admin-note {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--th-paper-dim);
+}
+
+.th-admin-select {
+  flex: 1 1 auto;
+  min-height: 40px;
+  font: 14px var(--th-font-body);
+  color: var(--th-ink);
+  background: #f6efdb;
+  border-radius: 4px;
+  pointer-events: auto;
+}
+
+.th-admin-text {
+  width: 100%;
+  height: 72px;
+  margin-top: 4px;
+  font: 11px var(--th-font-type);
+  color: var(--th-ink);
+  background: #f6efdb;
+  border-radius: 4px;
+  resize: none;
+  user-select: text;
+  -webkit-user-select: text;
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+
+/* The bar while a spawn or pick mode waits for a tap on the field: under the HUD's top bar, centred. */
+.th-admin-bar {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 120px);
+  padding: 4px 4px 4px 12px;
+  transform: translateX(-50%);
+  font: 700 12px var(--th-font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-paper);
+  background: rgba(20, 21, 15, 0.88);
+  border: 2px solid var(--th-brass);
+  border-radius: 6px;
+  pointer-events: auto;
+}
+
+.th-admin-bar-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.th-admin-debug {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.th-admin-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.th-admin-readout {
+  position: absolute;
+  top: 54px;
+  left: calc(var(--th-safe-left) + 6px);
+  max-width: 60%;
+  margin: 0;
+  padding: 4px 6px;
+  font: 10px/1.3 var(--th-font-type);
+  white-space: pre-wrap;
+  color: #e9f5d0;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+}
+
+.th-admin-readout[hidden],
+.th-admin-canvas[hidden] {
+  display: none;
+}
