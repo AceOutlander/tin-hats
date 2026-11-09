@@ -8,10 +8,14 @@ import type { MissionDef } from '../../schema';
  * (trench 3) and the assembly hall (trench 4) are held in turn, the T-34s straight off the line dug in among the
  * halls, while panzers and infantry come through the workers' settlement wave after wave.
  *
- * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the halls are trenches (no
- * buildings, floors or rubble yet), a 60 s prep phase comes first (the bot wires the gate), "lose if six get past the cliffs"
- * is the HQ, the loans are scripted waves, StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank`
- * kind (the era's Panzer III Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40 crew the `at` kind. The attackers have no HQ, so they call in no Stukas.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the brief's delay, in three 420 s
+ * phases under the one clock to dark (the bombers, hall by hall, until dark), lost if six Germans get past the cliffs
+ * (x 2,000) at once. The halls are trenches (no buildings, floors or rubble yet), a 60 s prep phase comes first (the
+ * bot wires the gate); the barrage, the Stukas (scripted raids: the attackers have no HQ), the heavy bomb on the
+ * machine shops and the Nebelwerfer are scripted; the loans are scripted waves. The mode stays `survival` (no enemy HQ,
+ * a winning clock) and the medals score it as a delay, with a kill bonus. StuG III Ausf. F, Panzer III J and L and
+ * Panzer IV Ausf. G are the `tank` kind (the era's Panzer III Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40
+ * crew the `at` kind.
  */
 export const M1008: MissionDef = {
   id: 1008,
@@ -106,7 +110,42 @@ export const M1008: MissionDef = {
     ],
   },
   timer: { seconds: 1260, onExpire: 'win', label: 'Until dark' },
+  // The mission director (FOUNDATIONS.md 3): three phases of the brief (STALINGRAD.md, mission 8) on the old clock.
+  phases: [
+    {
+      id: 'bombers',
+      title: 'The bombers',
+      objectives: [{ id: 'bombers', type: 'survive', seconds: 420, text: 'Hold the factory' }],
+      lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
+      sideObjectives: [
+        { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { trench: 2 } }, atEnd: true, bonus: 0.2 },
+        { id: 'tanks25', text: 'Twenty-five tanks', objective: { id: 'tanks25Dead', type: 'kill', side: 1, kinds: ['tank'], count: 25 }, bonus: 0.1 },
+      ],
+      next: 'halls',
+    },
+    {
+      id: 'halls',
+      title: 'Hall by hall',
+      objectives: [{ id: 'halls', type: 'survive', seconds: 420, text: 'Hold the halls' }],
+      lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
+      next: 'dark',
+    },
+    {
+      id: 'dark',
+      title: 'Until dark',
+      objectives: [{ id: 'dark', type: 'survive', seconds: 420, text: 'Until dark' }],
+      lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
+      next: null,
+    },
+  ],
   events: [
+    // The director's events: the opening barrage and Stukas on the yard, the Stuka on the foundry, the heavy bomb on the
+    // machine shops, the Nebelwerfer at dusk.
+    { id: 'openingBarrage', type: 'barrage', when: { phase: 'bombers' }, side: 1, x: 8000, spread: 300, rounds: 8, duration: 5, weapon: 'artilleryShell', warning: 'Artillery!' },
+    { id: 'stukaYard', type: 'airRaid', when: { phase: 'bombers', delay: 2 }, side: 1, support: 'airStrike', x: 8000 },
+    { id: 'stukaFoundry', type: 'airRaid', when: { phase: 'bombers', delay: 150 }, side: 1, support: 'airStrike', x: 5200 },
+    { id: 'heavyBomb', type: 'barrage', when: { phase: 'halls', delay: 240 }, side: 1, x: 6300, spread: 60, rounds: 1, duration: 0, weapon: 'heavyBomb' },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'dark', delay: 100 }, side: 1, x: 5200, spread: 300, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
     {
       type: 'hint',
       when: { at: 3 },

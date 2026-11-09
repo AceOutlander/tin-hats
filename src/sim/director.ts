@@ -443,7 +443,7 @@ function updateSideObjectives(w: World, time: number): void {
         fireObjectiveEvents(w, def.objective.id);
         fireObjectiveEvents(w, so.id);
         // Earned for good unless something can still fail it.
-        if (!fail || (so.untilPhase >= 0 && d.phase >= so.untilPhase)) {
+        if (!def.atEnd && (!fail || (so.untilPhase >= 0 && d.phase >= so.untilPhase))) {
           so.status = 'done';
           emitDone(w, so.text, true);
         }
@@ -477,6 +477,8 @@ function closeSideObjectives(w: World, won: boolean, time: number): void {
       continue;
     }
     let ok = def.objective ? so.met : true;
+    // Still true at the end (a point still held), if asked.
+    if (ok && def.atEnd && def.objective && so.progress) ok = evalObjective(w.state, def.objective, so.progress, time);
     if (!def.objective && def.within !== undefined && time > def.within) ok = false;
     so.status = ok ? 'done' : 'failed';
   }

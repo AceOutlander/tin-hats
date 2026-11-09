@@ -824,6 +824,8 @@ export interface SideObjectiveDef {
   objective?: ObjectiveDef;
   failIf?: LossDef;
   within?: number;
+  /** The objective must still hold when the battle ends (1008: the machine shops still ours at dark). */
+  atEnd?: boolean;
   until?: string;
   /** Share added to the 0..1 medal score (0.1 = +10%). */
   bonus: number;
