@@ -204,6 +204,23 @@ export const RENDER = {
   },
 
   /** Markers. */
+  /** The prep phase (src/render/buildSites.ts): build sites, their progress bars and the placement ghost (wu, colours). */
+  buildSites: {
+    patch: 0x6b5638,
+    patchAlpha: 0.55,
+    patchH: 3,
+    barY: 46,
+    barH: 3,
+    barMinW: 30,
+    barBack: 0x1d1c16,
+    barFill: 0x9ccf5c,
+    /** A site no sapper is working on yet. */
+    barIdle: 0xc9a43a,
+    ghostOk: 0x7fe07a,
+    ghostBad: 0xe0564a,
+    ghostAlpha: 0.32,
+    ghostH: 34,
+  },
   marker: {
     /** Select ring under the controlled unit: scale and alpha; a tank's ring widens by its length / ringBaseW, its height by at most ringMaxTall. */
     ringScale: 1,

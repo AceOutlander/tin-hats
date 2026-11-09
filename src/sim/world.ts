@@ -4,6 +4,7 @@
  * here is part of the public API.
  */
 import type {
+  BuildableId,
   MissionAiPlan,
   MissionDef,
   Order,
@@ -136,6 +137,12 @@ export const CMD_KIND_ORDER = 5;
 export const CMD_FOLLOW = 6;
 /** Every kind follows the army order again. */
 export const CMD_FOLLOW_ALL = 7;
+/** Prep phase: a build site of `build` at `x`. */
+export const CMD_BUILD = 8;
+/** Prep phase: cancel the build site with id `unit`. */
+export const CMD_CANCEL_BUILD = 9;
+/** Prep phase: ready, end it now. */
+export const CMD_READY = 10;
 
 /** A queued command, flattened so the queue can be pooled. Only the fields of its `type` are meaningful. */
 export interface QueuedCommand {
@@ -149,6 +156,7 @@ export interface QueuedCommand {
   moveX: number;
   fire: boolean;
   ability: boolean;
+  build: BuildableId;
 }
 
 function blankCommand(): QueuedCommand {
@@ -163,6 +171,7 @@ function blankCommand(): QueuedCommand {
     moveX: 0,
     fire: false,
     ability: false,
+    build: 'wire',
   };
 }
 
@@ -311,6 +320,10 @@ export interface AiState {
   contactSince: number;
   /** Battle time of its last support call-in. */
   lastSupportTime: number;
+  /** True for the test bot (side 0's "reasonable player"), false for the AI. */
+  bot: boolean;
+  /** Prep phase: index of the next build of MissionDef.prep.bot to place. */
+  prepNext: number;
   /** Scratch: wanted number of units per kind index. */
   desired: Int16Array;
 }
@@ -427,4 +440,6 @@ export interface World {
   aaAny: number;
   /** Per side: commander speeches so far (picks the line, so no random number is drawn). */
   speechCount: Int32Array;
+  /** Id the next build site gets. */
+  nextSiteId: number;
 }

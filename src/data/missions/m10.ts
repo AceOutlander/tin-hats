@@ -28,6 +28,7 @@ export const M10: MissionDef = {
   length: 14000,
   newUnit: null,
   newSupport: 'airStrike',
+  unlocks: ['aa'],
   units: [
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'],

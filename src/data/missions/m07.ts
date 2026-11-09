@@ -16,7 +16,7 @@ export const M07: MissionDef = {
   date: '6 June 1944',
   mapPos: { lon: -0.29, lat: 49.3 },
   briefing: [
-    'H-Hour is 0725 and the Navy has put you ashore on Sword, a strip of sand between Ouistreham and Lion-sur-Mer. The tide is making, the obstacles are mined, and the beachhead consists of a headquarters in a shell hole and whatever the landing craft could be persuaded to leave behind. Supplies will trickle in until the beach is open. It was never advertised as a comfortable morning.',
+    'H-Hour is 0725 and the Navy has put you ashore on Sword, a strip of sand between Ouistreham and Lion-sur-Mer. The tide is making, the obstacles are mined, and the beachhead consists of a headquarters in a shell hole and whatever the landing craft could be persuaded to leave behind. Money will trickle in until the beach is open. It was never advertised as a comfortable morning.',
     'The Germans have built the sea wall into a strongpoint: wire, a trench, and concrete pillboxes sited to rake the whole beach. Rifle bullets bounce off concrete with a cheerful ping and achieve nothing else. The answer is the PIAT, a spring-powered projector that throws a hollow-charge bomb a short way and with great conviction. It is poor against infantry, remarkable against a pillbox, and the only thing in the section that will frighten a Panzer.',
     'Clear the sea wall, push inland through the second and third lines, and put the German headquarters out of action. The 21st Panzer Division is known to be somewhere near Caen and will certainly be along later in the day. Once the sea wall is ours the second wave will land behind you with more PIAT teams. Keep them back for the Panzers, and keep riflemen in front of them.',
   ],
@@ -88,7 +88,7 @@ export const M07: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
-      text: 'Weak HQ, thin income. Spend supplies on what the beach needs: Sappers first, then a PIAT Team or two.',
+      text: 'Weak HQ, thin income. Spend money on what the beach needs: Sappers first, then a PIAT Team or two.',
     },
     {
       type: 'hint',

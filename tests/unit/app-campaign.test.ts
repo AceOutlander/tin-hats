@@ -10,13 +10,12 @@ import { APP } from '../../src/data/app';
 import { mapX, mapY } from '../../src/data/campaignMap';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
-import { MEDALS } from '../../src/data/medals';
-import { UPGRADES } from '../../src/data/upgrades';
+import { UPGRADE_LEVEL_MEDALS, UPGRADES } from '../../src/data/upgrades';
 import { createMemoryStorage, loadSave, recordClear } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView } from './app-helpers';
 
-/** Medals per Quartermaster level. */
-const PRICE = UPGRADES[0].costPerLevel;
+/** Medals for Quartermaster levels 1, 2 and 3. */
+const [L1, L2, L3] = UPGRADE_LEVEL_MEDALS;
 
 function makeApp(storage = createMemoryStorage()) {
   const view = createFakeView();
@@ -66,7 +65,8 @@ describe('the campaign over the real missions', () => {
   it('introduces the new units and supports the campaign promises', () => {
     const { app } = makeApp();
     const cards = app.campaign().missions;
-    expect(cards.map((c) => c.newUnit?.kind ?? null)).toEqual(['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', null, null]);
+    expect(cards.map((c) => c.newUnit?.kind ?? null)).toEqual(['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', null, 'aa']);
+    expect(cards.map((c) => (c.moreNewUnits ?? []).map((u) => u.kind))).toEqual([[], [], [], [], ['commander'], ['flame'], [], ['apc'], [], []]);
     expect(cards.map((c) => c.newSupport?.kind ?? null)).toEqual([null, null, null, 'artillery', null, 'smoke', null, null, null, 'airStrike']);
     for (const c of cards) {
       if (c.newUnit) {
@@ -140,28 +140,30 @@ describe('upgrades in the campaign', () => {
     const { app, storage } = makeApp();
     app.buyUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({});
-    app.save.medals = 4 * PRICE;
+    // Levels 1, 2 and 3 of hqHealth and level 1 of hqIncome.
+    app.save.medals = L1 + L2 + L3 + L1;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqIncome');
     expect(app.save.upgrades).toEqual({ hqHealth: 2, hqIncome: 1 });
-    expect(app.campaign().pointsAvailable).toBe(PRICE);
+    expect(app.campaign().pointsAvailable).toBe(L3);
+    expect(app.campaign().upgrades.find((u) => u.id === 'hqHealth')?.cost, 'the card shows the next level price').toBe(L3);
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({ hqHealth: 3, hqIncome: 1 });
     expect(app.campaign().pointsAvailable).toBe(0);
     app.refundUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({ hqHealth: 2, hqIncome: 1 });
-    expect(app.campaign().pointsAvailable).toBe(PRICE);
+    expect(app.campaign().pointsAvailable).toBe(L3);
     expect(loadSave(storage, { upgradeDefs: UPGRADES }).data.upgrades).toEqual({ hqHealth: 2, hqIncome: 1 });
     app.refundAll();
     expect(app.save.upgrades).toEqual({});
-    expect(app.campaign().pointsAvailable).toBe(4 * PRICE);
+    expect(app.campaign().pointsAvailable).toBe(L1 + L2 + L3 + L1);
   });
 
   it('builds the battle with the upgrade levels of the save', () => {
     const { app } = makeApp();
-    app.save.medals = 2 * PRICE;
+    app.save.medals = L1 + L2;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     app.startMission(1, 'normal');
@@ -179,7 +181,7 @@ describe('upgrades in the campaign', () => {
 
   it('keeps upgrades off the enemy and out of the next battle once refunded', () => {
     const { app } = makeApp();
-    app.save.medals = PRICE;
+    app.save.medals = L1;
     app.buyUpgrade('hqHealth');
     app.startMission(1, 'normal');
     const sides = app.session?.battle.state.sides;
@@ -274,7 +276,7 @@ describe('mission events in the battle', () => {
     const { app, view } = scripted(events);
     const hud = () => app.session?.hud.state;
     runTo(app, view, 5.5);
-    expect(hud()?.banner).toBe('Airdrop: +80 supplies');
+    expect(hud()?.banner).toBe('Airdrop: +80 money');
     runTo(app, view, 9.5);
     expect(hud()?.banner).toBe(APP.notices.wave);
     runTo(app, view, 14.5);
@@ -320,10 +322,11 @@ describe('what the HUD shows of a mission', () => {
     expect(app.session?.hud.state.timer).toBeNull();
   });
 
-  it('offers every bought type in every mission (no sapper button at Arnhem, which has no money)', () => {
+  it('offers every unlocked type in every mission (no sapper button at Arnhem, which has no money)', () => {
     const { app } = makeApp();
-    // Everything bought: no mission rules a bought type out (owner, 2026-11-08), mission 1 and Arnhem included.
-    app.save.armoury = MEDALS.armoury.map((a) => a.id);
+    // The whole campaign cleared, so everything unlocked: no mission rules an unlocked type out (owner, 2026-11-08),
+    // mission 1 and Arnhem included.
+    for (const m of MISSIONS) recordClear(app.save, m.id, 'normal');
     app.startMission(1, 'normal');
     const first = app.session?.hud.state.train.map((b) => b.kind) ?? [];
     expect(first).toEqual(expect.arrayContaining(['sapper', 'rifle', 'lmg', 'tank', 'flame', 'apc']));
@@ -335,8 +338,9 @@ describe('what the HUD shows of a mission', () => {
     for (const k of mission(9).units[0]) expect(kinds).toContain(k);
   });
 
-  // Since medals, the buttons come from the Armoury (cut to what each mission allows), not from reaching a mission.
-  it('offers the types the Armoury owns, and lends the ones a mission needs', () => {
+  // Units are unlocked by missions again (owner, 2026-11-09): a mission fields its own types, and every type of every
+  // mission reached so far; nothing is lent and nothing is bought.
+  it('offers the types the missions reached unlock, with nothing on loan', () => {
     const { app } = makeApp();
     const trained = (id: number) => {
       app.startMission(id, 'normal');
@@ -345,19 +349,17 @@ describe('what the HUD shows of a mission', () => {
     const ownLmg = mission(2)
       .start[0].forces.filter((f) => f.kind === 'lmg')
       .reduce((n, f) => n + f.count, 0);
-    const loan = MEDALS.missions[2].loans.find((l) => l.kind === 'lmg')?.count ?? 0;
-    expect(loan).toBeGreaterThan(0);
-    expect(trained(2)).toEqual(['sapper', 'rifle']);
-    // Not bought: Bren gunners on loan stand at the HQ from the start, beside the ones the mission places itself.
-    expect(app.session?.battle.state.sides[0].alive.lmg).toBe(ownLmg + loan);
-    app.save.medals = 1000;
-    app.buyArmoury('lmg');
-    app.buyArmoury('tank');
-    expect(trained(2)).toContain('lmg');
+    expect(trained(1)).toEqual(['sapper', 'rifle']);
+    expect(trained(2)).toEqual(['sapper', 'rifle', 'lmg']);
     expect(app.session?.battle.state.sides[0].alive.lmg).toBe(ownLmg);
-    // Bought types field in every mission, the tutorial mission included.
-    expect(trained(3)).toEqual(['sapper', 'rifle', 'lmg', 'tank']);
-    expect(trained(1)).toEqual(['sapper', 'rifle', 'lmg', 'tank']);
+    // Units cannot be bought.
+    app.save.medals = 1000;
+    app.buyArmoury('tank');
+    expect(app.save.medals).toBe(1000);
+    expect(trained(1)).toEqual(['sapper', 'rifle']);
+    // Missions 1 to 3 cleared: mission 4 is reached, so its types field everywhere, the tutorial mission included.
+    for (const id of [1, 2, 3]) recordClear(app.save, id, 'normal');
+    expect(trained(1)).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar']);
   });
 
   it('lists the supports the mission gives the player', () => {

@@ -95,6 +95,8 @@ function runUntil(r: Rig, target: string, limit: number): boolean {
 
 /** Do the first lessons of Basic Training at once: a sapper, three riflemen and Hold. */
 function firstLessons(r: Rig): void {
+  // Ready at once: the prep phase lesson that opens the course counts as done.
+  r.session.dispatch({ type: 'ready' });
   r.session.dispatch({ type: 'train', kind: 'sapper' });
   for (let i = 0; i < 3; i++) r.session.dispatch({ type: 'train', kind: 'rifle' });
   r.session.dispatch({ type: 'order', order: 'hold' });
@@ -205,7 +207,7 @@ describe('the steps of a mission', () => {
 });
 
 describe('the guided steps in Basic Training', () => {
-  it('starts with a welcome, then supplies and sappers, pointing at the supplies readout', () => {
+  it('starts with a welcome, then building in the prep phase, then supplies and sappers', () => {
     const r = rig(BASIC_TRAINING);
     r.run(0.5);
     expect(r.tip()).toBeNull();
@@ -214,14 +216,24 @@ describe('the guided steps in Basic Training', () => {
     expect(r.tip()?.target).toBe('field');
     r.session.dispatch({ type: 'dismissTip' });
     r.run(TUTORIAL.gapSeconds + 0.5);
+    expect(r.tutorial.activeId).toBe('prepPhase');
+    expect(r.tip()?.target).toBe('build-wire');
+    // Placing a build ends the lesson.
+    r.session.dispatch({ type: 'build', kind: 'wire' });
+    r.session.tapGround(1250);
+    r.session.dispatch({ type: 'confirmBuild' });
+    r.run(1);
+    r.run(TUTORIAL.gapSeconds + 0.5);
     expect(r.tip()?.target).toBe('supplies');
-    expect(r.tip()?.text).toMatch(/Supplies/);
+    expect(r.tip()?.text).toMatch(/Money/);
     expect(r.tutorial.activeId).toBe('supplies');
   });
 
   it('moves on when the player does the thing, and never blocks play', () => {
     const r = rig(BASIC_TRAINING);
-    // A sapper trained before its lesson comes up: that lesson is skipped as done.
+    // Ready at once (the opening prep lesson is done), and a sapper trained before its lesson comes up: that lesson is
+    // skipped as done.
+    r.session.dispatch({ type: 'ready' });
     r.session.dispatch({ type: 'train', kind: 'sapper' });
     expect(runUntil(r, 'train-rifle', 40)).toBe(true);
     expect(r.session.battle.state.sides[0].queue.sapper + r.session.battle.state.sides[0].alive.sapper).toBeGreaterThanOrEqual(3);
@@ -240,12 +252,12 @@ describe('the guided steps in Basic Training', () => {
   it('gives up on a tip the player ignores after its time, and goes on to the next', () => {
     const r = rig(BASIC_TRAINING);
     const seen: string[] = [];
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 150; i++) {
       r.run(1);
       const target = r.tip()?.target;
       if (target && seen[seen.length - 1] !== target) seen.push(target);
     }
-    expect(seen.slice(0, 5)).toEqual(['field', 'supplies', 'train-sapper', 'train-rifle', 'order-hold']);
+    expect(seen.slice(0, 6)).toEqual(['field', 'build-wire', 'supplies', 'train-sapper', 'train-rifle', 'order-hold']);
   });
 
   it('points at the map strip after the trench lesson, and a look around ends the tip', () => {

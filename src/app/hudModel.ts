@@ -6,11 +6,12 @@
 import { APP } from '../data/app';
 import { CONFIG } from '../data/config';
 import { FACTIONS } from '../data/factions';
+import { PREP } from '../data/prep';
 import type { Side, UnitKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
-import { orderCost, orderPop, type Battle } from '../sim';
-import type { ControlState, HudState, MinimapState, SupportButtonState, TrainButtonState } from '../ui/contracts';
+import { orderCost, orderPop, type Battle, type BattleState } from '../sim';
+import type { ControlState, HudState, MinimapState, PrepHudState, SupportButtonState, TrainButtonState } from '../ui/contracts';
 
 /** Whose unit health the player may see (the battle view's HpReveal). */
 export interface HpShownQuery {
@@ -88,11 +89,28 @@ export class HudModel {
       tip: null,
       minimap: emptyMinimap(CONFIG.maxUnits),
       fps: null,
+      prep: null,
     };
   }
 
   /** A new battle: the player's buttons, the objective text and the minimap's fixed parts. Allocates. */
+  /** The prep phase panel of this battle (reused every frame), or null for a mission without one. */
+  private prepPanel: PrepHudState | null = null;
+
   begin(battle: Battle): void {
+    const prep = battle.state.prep;
+    this.prepPanel = prep
+      ? {
+          secondsLeft: prep.secondsLeft,
+          builds: prep.buildables.map((id) => {
+            const b = PREP.buildables[id];
+            return { id, name: b.name, cost: b.cost, seconds: b.seconds, canAfford: false };
+          }),
+          placing: null,
+          placeOk: false,
+          sites: 0,
+        }
+      : null;
     const s = battle.state;
     const st = this.state;
     const me = s.sides[0];
@@ -169,6 +187,7 @@ export class HudModel {
     st.pop = me.pop;
     st.popCap = me.popCap;
     st.order = me.order;
+    st.prep = fillPrep(this.prepPanel, s, me.supplies);
 
     const train = st.train;
     for (let i = 0; i < train.length; i++) {
@@ -287,4 +306,16 @@ export class HudModel {
     }
     m.unitCount = n;
   }
+}
+
+/** The prep panel's numbers this frame, or null once the prep phase is over (or the mission has none). */
+function fillPrep(panel: PrepHudState | null, s: BattleState, money: number): PrepHudState | null {
+  const prep = s.prep;
+  if (panel === null || prep === null || !prep.active || s.over) return null;
+  panel.secondsLeft = prep.secondsLeft;
+  for (const b of panel.builds) b.canAfford = money >= b.cost;
+  let sites = 0;
+  for (const site of s.sites) if (site.side === 0) sites++;
+  panel.sites = sites;
+  return panel;
 }

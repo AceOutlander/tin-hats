@@ -24,6 +24,7 @@ import {
   stripFrac,
 } from './format';
 import { ICONS, type IconName } from './icons';
+import { PrepPanel } from './prep';
 import { capturePointer, isPrimaryPointer, onPress, onTap } from './input';
 import { MINIMAP_PAD, MinimapView } from './minimap';
 import './hud.css';
@@ -91,7 +92,7 @@ const TIP_ARROW_INSET = 16;
 const TIP_NARROW_MIN = 170;
 
 function tipSideOf(target: TipTarget): TipSide {
-  if (target === 'supplies' || target === 'minimap') return 'below';
+  if (target === 'supplies' || target === 'minimap' || target === 'prep-ready' || target.startsWith('build-')) return 'below';
   if (target === 'field') return 'float';
   return target.startsWith('support-') ? 'right' : 'above';
 }
@@ -233,7 +234,7 @@ class TrainView {
     this.name = new TextCell(el('span', 'th-tbtn-name', b));
     const price = el('span', 'th-tbtn-price', b);
     const cost = el('span', 'th-tbtn-cost', price);
-    icon('crate', cost);
+    icon('money', cost);
     this.cost = new TextCell(el('span', '', cost));
     const pop = el('span', 'th-tbtn-pop', price);
     icon('helmet', pop);
@@ -394,6 +395,7 @@ class HudView implements Hud {
   private bannerAlt = false;
   private readonly hintText: TextCell;
   private readonly hintOn: FlagCell;
+  private readonly prep: PrepPanel;
   private readonly objBox: HTMLElement;
 
   // Tutorial tip.
@@ -493,7 +495,7 @@ class HudView implements Hud {
 
     const supplies = el('div', 'th-res th-supplies', top);
     supplies.dataset.tip = 'supplies';
-    icon('crate', supplies);
+    icon('money', supplies);
     const supCol = el('div', 'th-res-col', supplies);
     this.supplies = new TextCell(el('span', 'th-supplies-num', supCol, '0'));
     this.income = el('span', 'th-supplies-inc', supCol);
@@ -555,6 +557,13 @@ class HudView implements Hud {
     const hint = el('div', 'th-hint', center);
     this.hintText = new TextCell(hint);
     this.hintOn = new FlagCell(hint, 'is-on');
+
+    // ----- Prep phase (defensive missions): countdown, Ready, builds -----
+    this.prep = new PrepPanel(center, (action) => {
+      if (!this.live()) return;
+      this.app.uiSound('click');
+      this.app.dispatch(action);
+    });
 
     // ----- Left edge: call-ins, folded into one toggle until it is tapped -----
     const callIns = el('div', 'th-callins', root);
@@ -744,6 +753,7 @@ class HudView implements Hud {
     this.state = s;
     if (!this.visible) return;
 
+    this.prep.update(s.prep);
     this.supplies.set(Math.floor(s.supplies));
     const income = incomeTenths(s.incomePerSec);
     if (income !== this.lastIncome) {

@@ -50,9 +50,9 @@ export interface AppTunables {
    * mission can say what ran out.
    */
   reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw' | 'admin', { win: string; lose: string }>;
-  /** Short banners for scripted events that carry no text of their own. `{n}` = the supplies delivered. */
+  /** Short banners for scripted events that carry no text of their own. `{n}` = the money delivered. */
   /** HUD banners: an airdrop, a survival wave, the King Tiger's arrival (bossArrived). */
-  notices: { airdrop: string; wave: string; boss: string };
+  notices: { airdrop: string; wave: string; boss: string; prepEnded: string };
   /** One line per support for the briefing's "new support" card. */
   supportBlurbs: Record<SupportKind, string>;
   /** Quartermaster level text: "+X% label" per stat. */
@@ -102,7 +102,7 @@ export const APP: AppTunables = {
     // Only the hidden admin panel ends a battle this way.
     admin: { win: 'Victory declared from the admin panel', lose: 'Defeat declared from the admin panel' },
   },
-  notices: { airdrop: 'Airdrop: +{n} supplies', wave: 'Enemy wave incoming', boss: 'Warning: King Tiger sighted' },
+  notices: { airdrop: 'Airdrop: +{n} money', wave: 'Enemy wave incoming', boss: 'Warning: King Tiger sighted', prepEnded: 'Here they come!' },
   supportBlurbs: {
     artillery: 'Calls a barrage of shells down on a spot you choose. Hurts everything caught in the open.',
     smoke: 'Lays a screen that blocks direct fire for a few seconds. Cover an advance with it.',

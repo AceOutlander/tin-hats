@@ -163,6 +163,9 @@ export class Tutorial {
   private readonly ordered = countRecord<Order>(ORDERS);
   private readonly called = countRecord<SupportKind>(SUPPORT_KINDS);
   private kindOrders = 0;
+  /** Build sites the player has placed (prep phase), and whether the prep phase is over. */
+  private placed = 0;
+  private prepOver = false;
   private pans = 0;
   private controls = 0;
   private wasDragging = false;
@@ -211,9 +214,11 @@ export class Tutorial {
 
   /** An event of the last sim step. */
   note(e: SimEvent): void {
+    if (e.type === 'prepEnded') this.prepOver = true;
     if (e.side !== 0) return;
     if (e.type === 'trainStarted' && e.kind !== null) this.trained[e.kind]++;
     else if (e.type === 'supportCalled' && e.support !== null) this.called[e.support]++;
+    else if (e.type === 'buildStarted') this.placed++;
   }
 
   /** The player did something on the HUD. */
@@ -410,6 +415,10 @@ export class Tutorial {
         return this.ordered[c.order] >= c.min;
       case 'armyOrder':
         return this.armyOrder === c.order;
+      case 'placed':
+        return this.placed >= c.min;
+      case 'prepOver':
+        return this.prepOver;
       case 'kindOrdered':
         return this.kindOrders >= c.min;
       case 'entrenched':

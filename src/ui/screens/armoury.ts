@@ -1,6 +1,6 @@
 /**
- * Armoury screen: every unit type and plane call-in, with its icon, its names in every nation and its price in
- * medals. Riflemen and sappers are free; anything else is bought once with medals and then fields for every nation.
+ * Armoury screen: every unit type (free, unlocked, or locked with the mission that unlocks it) and the plane call-ins,
+ * which are bought once with medals. Units are unlocked by missions and field for every nation.
  * Reached from the campaign map.
  */
 import type { SupportKind, UnitKind } from '../../data/schema';
@@ -73,8 +73,12 @@ export const armouryScreen: ScreenFactory = (ctx) => {
       label = 'Free';
       price.textContent = 'Issued';
     } else if (item.owned) {
-      label = 'Owned';
+      label = item.type === 'unit' ? 'Unlocked' : 'Owned';
       price.textContent = 'All nations';
+    } else if (item.type === 'unit') {
+      // Units are unlocked by missions, never bought (owner, 2026-11-09).
+      label = 'Locked';
+      price.textContent = item.lockedNote ?? '';
     } else {
       label = 'Buy';
       add(price, glyph('medal', 'th-icon th-icon-small'), String(item.price));
@@ -82,7 +86,11 @@ export const armouryScreen: ScreenFactory = (ctx) => {
     const buy = button({
       testid: `armoury-buy-${item.id}`,
       className: 'th-btn-small th-btn-primary th-btn-stack th-up-buy',
-      aria: item.owned ? `${item.name}: owned` : `Buy ${item.name} for ${item.price} medals`,
+      aria: item.owned
+        ? `${item.name}: ${item.type === 'unit' ? 'unlocked' : 'owned'}`
+        : item.type === 'unit'
+          ? `${item.name}: unlocked in ${item.lockedNote ?? 'a later mission'}`
+          : `Buy ${item.name} for ${item.price} medals`,
       content: [el('span', 'th-btn-label', label), price],
       onTap: () => {
         if (!item.canBuy) {

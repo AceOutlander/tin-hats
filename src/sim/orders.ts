@@ -9,6 +9,7 @@
 import { CONFIG } from '../data/config';
 import type { UnitAction } from '../data/schema';
 import { senseMount, updateMount } from './combat';
+import { inPrep } from './prep';
 import { crushWire, inEnemyWire } from './projectiles';
 import { DT, KIND_HAS_ARMOUR, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
 import { senseControlled } from './control';
@@ -275,6 +276,22 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
     }
     return;
   }
+  // Prep phase: a sapper given a build site walks there and works (updateBuilds counts his work).
+  if (u.site >= 0) {
+    const sites = s.sites;
+    for (let i = 0; i < sites.length; i++) {
+      const site = sites[i];
+      if (site.id !== u.site) continue;
+      u.goalX = site.x;
+      if (walk(w, u, dir)) {
+        u.velX = 0;
+        u.facing = dir;
+      }
+      return;
+    }
+    u.site = -1;
+    u.task = TASK_TO_DUMP;
+  }
   switch (u.task) {
     case TASK_TO_DUMP:
       // Sappers spread over the width of the dump, mirrored for side 1 so both sides walk the same distances.
@@ -311,6 +328,7 @@ export function moveUnits(w: World): void {
   const s = w.state;
   const units = s.units;
   const anyWire = s.wires.length > 0;
+  const prep = inPrep(s);
   if (w.doorTimer[0] > 0) w.doorTimer[0] -= w.dt;
   if (w.doorTimer[1] > 0) w.doorTimer[1] -= w.dt;
 
@@ -340,6 +358,12 @@ export function moveUnits(w: World): void {
         u.task = TASK_TO_DUMP;
         u.facing = dir;
       }
+      continue;
+    }
+
+    // Prep phase: the enemy stands where it is until the attack starts.
+    if (prep && u.side === 1) {
+      u.velX = 0;
       continue;
     }
 

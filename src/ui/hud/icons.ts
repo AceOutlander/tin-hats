@@ -38,6 +38,12 @@ function planeSvg(kind: keyof typeof PLANE_GLYPHS): string {
 }
 
 export const ICONS = {
+  /** A banknote: the money readout and every price (the resource is called money; sappers still carry boxes). */
+  money: svg(
+    `<path ${STROKE} stroke-width="2" d="M2.5 6.5h19v11h-19z"/>` +
+      `<circle ${STROKE} stroke-width="1.6" cx="12" cy="12" r="2.6"/>` +
+      '<path d="M5 9h2v2H5zM17 13h2v2h-2z"/>',
+  ),
   /** Supply crate. */
   crate: svg(
     `<path ${STROKE} stroke-width="2" d="M3 6.5h18v12H3z"/>` +

@@ -9,7 +9,7 @@ import type { MissionDef } from '../../schema';
  * attacks by day, raiding parties by night, tanks on the second day, flamethrowers on the last night.
  *
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1007): the house is a trench with many
- * slots (no buildings or floors yet), the prep phase's wire is laid at the start, the day and night phases are timed
+ * slots (no buildings or floors yet), a 60 s prep phase comes first (the bot wires the doors), the day and night phases are timed
  * waves (no time-of-day changes), the loans are scripted waves, and StuG III Ausf. F and Panzer III J are the `tank`
  * kind. The attackers have no HQ, so they call in no Stukas.
  */
@@ -67,11 +67,15 @@ export const M1007: MissionDef = {
     { id: 2, x: 2450, width: 220, slots: 12, owner: -1 },
   ],
   pillboxes: [],
-  // The sappers' wire across the doors and out on the square.
-  wire: [
-    { id: 1, x: 2760, width: 110, owner: 0 },
-    { id: 2, x: 3400, width: 160, owner: 0 },
-  ],
+  wire: [],
+  // A minute to wire the doors and the square before the first attack (the bot builds what used to be laid at the start).
+  prep: {
+    seconds: 60,
+    bot: [
+      { kind: 'wire', x: 2760 },
+      { kind: 'wire', x: 3400 },
+    ],
+  },
   timer: { seconds: 1320, onExpire: 'win', label: 'Until the counter-offensive' },
   events: [
     {
@@ -239,6 +243,7 @@ export const M1007: MissionDef = {
     ],
     firstAttackAfter: 30,
   },
-  expectedMinutes: [22, 22.2],
+  // The 22 min clock plus up to a minute of prep.
+  expectedMinutes: [22, 23.2],
   music: STALINGRAD_MUSIC.missions[1007],
 };

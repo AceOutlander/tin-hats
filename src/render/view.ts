@@ -38,6 +38,7 @@ import { FramePerf, type PerfReport } from './perf';
 import { QualityGovernor, startQuality } from './quality';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { renderSprites } from './sprites';
+import { BuildSiteViews, type Placing } from './buildSites';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
@@ -90,6 +91,9 @@ export class BattleViewImpl implements BattleView {
   private backdrop: BackdropView | null = null;
   private units: UnitViews | null = null;
   private structures: StructureViews | null = null;
+  private buildSites: BuildSiteViews | null = null;
+  /** The build the player is placing in a prep phase (the ghost), or null. */
+  private placing: Placing | null = null;
   private effects: EffectsSystem | null = null;
   private input: PanInput | null = null;
   private weatherView: WeatherView | null = null;
@@ -223,6 +227,7 @@ export class BattleViewImpl implements BattleView {
     this.units.blood.setEnabled(this.showBlood);
     this.units.hpReveal = this.hpReveal;
     this.structures = new StructureViews(scene, layers, reg);
+    this.buildSites = new BuildSiteViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
     this.nightTint = addImage(scene, layers.byName.nightTint, reg.get(RENDER_KEYS.whiteTL).frame);
@@ -384,6 +389,8 @@ export class BattleViewImpl implements BattleView {
     if (this.nightTint) this.nightTint.visible = false;
     this.setControlled(-1);
     this.setTargeting(null);
+    this.placing = null;
+    this.buildSites?.clear();
   }
 
   setFrameHandler(fn: ((dtMs: number) => void) | null): void {
@@ -473,7 +480,9 @@ export class BattleViewImpl implements BattleView {
       ctx.camRight = left + viewW;
       ctx.night = this.nightLevel();
       ctx.sound.setView(rig.centerX, viewW);
+      this.structures.sync(state); // trenches, pillboxes and wire built in the prep phase
       this.structures.update(state, dt);
+      this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
       this.weatherView?.update(dt, left, viewW, this.effects.enabled);
       this.effects.update(dt, this.realDt);
@@ -539,7 +548,7 @@ export class BattleViewImpl implements BattleView {
     const wx = this.camera.left + cssX / k;
     const wy = VIEW_TOP_WU + cssY / k;
     this.hoverX = wx;
-    if (this.targeting === null && this.units && this.battle) {
+    if (this.targeting === null && this.placing === null && this.units && this.battle) {
       const id = this.units.pick(this.playerSide, wx, wy, RENDER.input.pickRadius, k);
       if (id >= 0) {
         this.onTapUnit?.(id);
@@ -551,6 +560,11 @@ export class BattleViewImpl implements BattleView {
 
   setControlled(unitId: number): void {
     if (this.units) this.units.controlledId = unitId;
+  }
+
+  /** The prep phase's placement ghost: where, how wide, and whether it can go there; null hides it. */
+  setPlacing(p: Placing | null): void {
+    this.placing = p;
   }
 
   setTargeting(kind: TargetingKind | null): void {

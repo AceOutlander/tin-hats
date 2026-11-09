@@ -105,12 +105,13 @@ for (const m of MISSIONS) {
     // The briefing carries the mission's own text and a NEW card for what it introduces.
     const briefing = arrived(page, 'briefing');
     await expect(briefing).toContainText(m.objective);
-    const cards = (m.newUnit ? 1 : 0) + (m.newSupport ? 1 : 0);
+    const newUnits = [...(m.newUnit ? [m.newUnit] : []), ...(m.unlocks ?? [])];
+    const cards = newUnits.length + (m.newSupport ? 1 : 0);
     await expect(briefing.locator('.th-new')).toHaveCount(cards);
-    if (m.newUnit) await expect(briefing.locator('.th-new-name').first()).toHaveText(FACTIONS.british.unitNames[m.newUnit]);
+    if (newUnits.length > 0) await expect(briefing.locator('.th-new-name').first()).toHaveText(FACTIONS.british.unitNames[newUnits[0]]);
     if (m.newSupport) await expect(briefing.locator('.th-new-name').last()).toHaveText(FACTIONS.british.supportNames[m.newSupport]);
     await expect(briefing.getByTestId('difficulty-normal')).toHaveAttribute('aria-pressed', 'true');
-    if (cards === 2) {
+    if (cards >= 2) {
       await page.waitForTimeout(2800); // let the typewriter finish
       await shot(page, `campaign-briefing-${pad(m.id)}`);
     }

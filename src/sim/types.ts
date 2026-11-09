@@ -11,6 +11,7 @@
  * - Fields marked "internal" are sim bookkeeping; the view may read but should not need them.
  */
 import type {
+  BuildableId,
   DamageType,
   Difficulty,
   FactionId,
@@ -87,7 +88,16 @@ export type Command =
    * moveX -1..1 (clamped); fire = the fire button is held; ability = the ability button was pressed
    * (a one-off press, used on the next tick).
    */
-  | { type: 'controlInput'; moveX: number; fire: boolean; ability: boolean };
+  | { type: 'controlInput'; moveX: number; fire: boolean; ability: boolean }
+  /**
+   * Prep phase only: place a build site centred on world x. Dropped unless the mission offers this buildable, the spot
+   * is in the side's build zone and clear of structures and other sites, and the side can pay (paid now).
+   */
+  | { type: 'build'; kind: BuildableId; x: number }
+  /** Take back an unfinished build site of this side by its id; its money comes back in full. */
+  | { type: 'cancelBuild'; site: number }
+  /** End the prep phase now (the "Ready" button). */
+  | { type: 'ready' };
 
 /**
  * An admin panel action (src/sim/admin.ts). Not a command: battle.admin() applies it at once, between ticks, so it
@@ -296,6 +306,8 @@ export interface UnitState {
   goalX: number;
   /** internal: speed in wu/s it walks at this tick (set together with goalX). */
   moveSpeed: number;
+  /** Id of the build site this sapper works on (prep phase), -1 for none: he walks there instead of hauling. */
+  site: number;
   /** internal: sapper task (0 walking to the dump, 1 loading, 2 carrying back). */
   task: number;
   /** internal: seconds left in the current task (sapper loading). */
@@ -532,6 +544,40 @@ export interface SmokeState {
 }
 
 /** The mission clock, when the mission has one. */
+/** A defensive mission's prep phase (src/sim/prep.ts). */
+export interface PrepState {
+  /** True until the countdown runs out or the player is ready. */
+  active: boolean;
+  secondsLeft: number;
+  total: number;
+  /** Battle time it ended, or -1 while it runs. The mission clock and events count from here. */
+  endedAt: number;
+  /** What may be built. */
+  buildables: BuildableId[];
+  /** Side 0's build zone (side 1 never builds). */
+  zoneFrom: number;
+  zoneTo: number;
+}
+
+/**
+ * A fortification being built: no protection until done. One sapper works on it at a time; when its progress reaches
+ * 1 it becomes the structure (a trench, a pillbox or a wire belt) and leaves this list.
+ */
+export interface BuildSiteState {
+  id: number;
+  kind: BuildableId;
+  side: Side;
+  x: number;
+  width: number;
+  /** 0..1. */
+  progress: number;
+  /** Pool index of the sapper working on it, -1 for none yet. */
+  worker: number;
+  workerId: number;
+  /** Money paid for it (given back on a cancel). */
+  cost: number;
+}
+
 export interface TimerState {
   secondsLeft: number;
   total: number;
@@ -574,6 +620,10 @@ export interface BattleState {
   dumps: [DumpState | null, DumpState | null];
   /** The mission timer, or null. */
   timer: TimerState | null;
+  /** The prep phase of a defensive mission, or null for a mission without one. */
+  prep: PrepState | null;
+  /** Build sites not yet finished (placed in the prep phase), in the order placed. */
+  sites: BuildSiteState[];
 }
 
 // ---------------------------------------------------------------------------
@@ -610,7 +660,10 @@ export type SimEventType =
   | 'planeDown'
   | 'reconReveal'
   | 'apcUnload'
-  | 'ignite';
+  | 'ignite'
+  | 'buildStarted'
+  | 'buildDone'
+  | 'prepEnded';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an

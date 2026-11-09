@@ -1,7 +1,6 @@
 /** Rules and keys of the save data and campaign progress (src/meta). */
 import type { Difficulty } from './schema';
 import { VOLUME } from './sounds';
-import { UPGRADE_MEDALS_PER_LEVEL } from './upgrades';
 
 export interface MetaTunables {
   /** Storage key of the save. */
@@ -22,9 +21,14 @@ export interface MetaTunables {
   firstClearPoints: number;
   /**
    * Medals for each unspent upgrade point of an old save: one point bought one upgrade level, so it converts to the
-   * medal price of one level (src/data/upgrades.ts), and the player can buy exactly what the points would have bought.
+   * medal price one level had then (20), and the player could buy exactly what the points would have bought.
    */
   legacyPointMedals: number;
+  /**
+   * Medals every upgrade level cost before the re-pricing of save version 8 (src/data/upgrades.ts UPGRADE_LEVEL_MEDALS
+   * today). The step to version 8 gives back the difference for the levels a save holds.
+   */
+  legacyUpgradeLevelMedals: number;
   /** Upgrade levels per upgrade (an upgrade definition may have fewer). */
   maxUpgradeLevel: number;
   /** Settings of a fresh save. */
@@ -50,11 +54,12 @@ export interface MetaTunables {
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 8,
+  saveVersion: 9,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
   firstClearPoints: 2,
-  legacyPointMedals: UPGRADE_MEDALS_PER_LEVEL,
+  legacyPointMedals: 20,
+  legacyUpgradeLevelMedals: 20,
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',
   defaultMuted: false,

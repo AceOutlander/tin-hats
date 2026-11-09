@@ -121,6 +121,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   if (mission && mission.newUnit) {
     news.append(newCard('Unit', unitIcon(mission.newUnit.kind, 44, ctx.opts.paintUnitIcon), mission.newUnit.name, mission.newUnit.blurb));
   }
+  for (const unit of mission?.moreNewUnits ?? []) {
+    news.append(newCard('Unit', unitIcon(unit.kind, 44, ctx.opts.paintUnitIcon), unit.name, unit.blurb));
+  }
   if (mission && mission.newSupport) {
     news.append(newCard('Support', supportIcon(mission.newSupport.kind), mission.newSupport.name, mission.newSupport.blurb));
   }

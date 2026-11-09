@@ -6,10 +6,11 @@ import type { MissionDef } from '../../schema';
  * through the first day against the 45th Infantry Division's waves, which cross from the South Island on the right.
  *
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1001): the ring barracks (B1), the garrison
- * club (B2) and the Kholm Gate (B3) are trenches standing in for buildings, the prep phase's wire is laid before the
- * battle, and the three phases are three 240 s stretches of the one clock (720 s). The opening barrage, the
- * Nebelwerfer salvo, the 21 cm mortars and the Karl siege mortar wait for scripted call-ins (side 1 has no HQ, so no
- * commander calls anything). The two StuG III Ausf. B are the `tank` kind until the `stug3b` look exists.
+ * club (B2) and the Kholm Gate (B3) are trenches standing in for buildings, a 60 s prep phase comes first (the test bot
+ * wires the gate), and the three phases are three 240 s stretches of the one clock (720 s, from the end of the prep
+ * phase). The opening barrage, the Nebelwerfer salvo, the 21 cm mortars and the Karl siege mortar wait for scripted
+ * call-ins (side 1 has no HQ, so no commander calls anything). The two StuG III Ausf. B are the `tank` kind until the
+ * `stug3b` look exists.
  */
 export const M1001: MissionDef = {
   id: 1001,
@@ -70,8 +71,9 @@ export const M1001: MissionDef = {
     { id: 3, x: 3100, width: 160, slots: 6, owner: 0 },
   ],
   pillboxes: [],
-  // The prep phase's wire in front of the gate, laid before the battle until the prep phase exists.
-  wire: [{ id: 1, x: 3420, width: 110, owner: 0 }],
+  wire: [],
+  // Sixty seconds to dig in before the first wave: the bot wires the Kholm Gate and digs a foxhole behind it.
+  prep: { seconds: 60, bot: [{ kind: 'wire', x: 3420 }, { kind: 'foxhole', x: 2700 }] },
   timer: { seconds: 720, onExpire: 'win', label: 'Until nightfall' },
   events: [
     // Phase 1, "The first morning" (0 to 240 s).
@@ -248,6 +250,7 @@ export const M1001: MissionDef = {
     ],
     firstAttackAfter: 9999,
   },
-  expectedMinutes: [12, 12.2],
+  // The 12 min clock plus up to a minute of prep (the bot calls Ready once its builds stand).
+  expectedMinutes: [12, 13.2],
   music: STALINGRAD_MUSIC.missions[1001],
 };

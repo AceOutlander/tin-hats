@@ -96,6 +96,7 @@ export function createUnit(index: number): UnitState {
     goalX: 0,
     moveSpeed: 0,
     task: TASK_TO_DUMP,
+    site: -1,
     taskTime: 0,
     cell: -1,
     cellSpan: 0,
@@ -232,6 +233,7 @@ export function spawnUnit(
   u.goalX = px;
   u.moveSpeed = 0;
   u.task = TASK_TO_DUMP;
+  u.site = -1;
   u.taskTime = 0;
   const serial = ++w.spawnCount[side];
   u.jitter = (serial * JITTER_STEP) % 1;

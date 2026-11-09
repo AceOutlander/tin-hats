@@ -31,7 +31,8 @@ import type { DamageType, FactionId, Side } from '../data/schema';
 import type { HqGunStyle, HqStyle, SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { lookStyle } from '../meta/looks';
-import type { BattleState } from '../sim';
+import { PREP } from '../data/prep';
+import type { BattleState, PillboxState, TrenchState, WireState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
@@ -195,6 +196,8 @@ export class StructureViews {
   private readonly pieces = createWirePieces();
   private time = 0;
   private flashInv = 1;
+  /** The earth the battle's trench sprites were baked in (build), for trenches dug later (sync). */
+  private palette: TrenchPalette = null as unknown as TrenchPalette;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -239,6 +242,16 @@ export class StructureViews {
       seen.add(w);
       out.push(trenchSpec('back', w, palette), trenchSpec('front', w, palette));
     }
+    // Trenches and foxholes the prep phase may dig later.
+    if (state.prep) {
+      for (const id of state.prep.buildables) {
+        const b = PREP.buildables[id];
+        const w = Math.round(b.width);
+        if (b.makes !== 'trench' || seen.has(w)) continue;
+        seen.add(w);
+        out.push(trenchSpec('back', w, palette), trenchSpec('front', w, palette));
+      }
+    }
     return out;
   }
 
@@ -267,32 +280,11 @@ export class StructureViews {
   /** Create the views for a battle's structures (`palette`: the one battleSpecs built its trenches in). */
   build(state: BattleState, palette: TrenchPalette, looks: readonly SideLooks[]): void {
     this.clear();
+    this.palette = palette;
     const reg = this.reg;
     const gy = VIEW.groundY;
     // Trench back walls first (DEPTH.trenchBack), then fronts (DEPTH.trenchFront).
-    for (const t of state.trenches) {
-      const backKey = trenchKey('back', t.width, palette);
-      const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(backKey).frame);
-      setKey(back, reg, backKey, 1);
-      back.x = t.x;
-      back.y = gy;
-      this.trenchBack.push(back);
-      const frontKey = trenchKey('front', t.width, palette);
-      const front = addImage(this.scene, this.layers.byName.trenchFront, reg.get(frontKey).frame);
-      setKey(front, reg, frontKey, 1);
-      front.x = t.x;
-      front.y = gy;
-      this.trenchFront.push(front);
-      const stake = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
-      stake.setTint(TRENCH_LAYOUT.stakeColor);
-      stake.visible = false;
-      this.trenchStake.push(stake);
-      const pennant = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
-      pennant.visible = false;
-      this.trenchPennant.push(pennant);
-      this.trenchOwner.push(-2);
-      this.trenchFade.push(1);
-    }
+    for (const t of state.trenches) this.addTrench(t);
     for (let side = 0; side < 2; side++) {
       const d = state.dumps[side];
       // A side that can never have sappers (mission 9 lives on airdrops) has no use for a dump.
@@ -304,22 +296,67 @@ export class StructureViews {
       img.y = gy;
       this.dumps.push(img);
     }
-    for (const p of state.pillboxes) {
-      const img = addImage(this.scene, this.layers.byName.fortification, reg.get(pillboxKey('intact')).frame);
-      setKey(img, reg, pillboxKey('intact'), dirOf(p.side));
-      img.x = p.x;
-      img.y = gy;
-      this.pillboxes.push(img);
-      const fl = addImage(this.scene, this.layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
-      fl.setBlendMode(Phaser.BlendModes.ADD);
-      fl.visible = false;
-      this.pillboxFlash.push(fl);
-      this.pillboxFlashTime.push(0);
-      this.pillboxState.push('');
-    }
+    for (const p of state.pillboxes) this.addPillbox(p);
     // Wire: one or a few end-on pieces per belt, centred in its width (the far half behind every unit row, the near
     // half over them), with the debris each piece leaves on the ground once the belt is destroyed.
-    const wy = gy + WIRE_LAYOUT.dy;
+    for (const w of state.wires) this.addWire(w);
+    this.buildHqs(state, looks);
+  }
+
+  /**
+   * Views for structures built during the battle (the prep phase appends trenches, pillboxes and wire belts to the
+   * state's lists): anything past the lists' views gets one. Cheap when nothing changed.
+   */
+  sync(state: BattleState): void {
+    for (let i = this.trenchBack.length; i < state.trenches.length; i++) this.addTrench(state.trenches[i]);
+    for (let i = this.pillboxes.length; i < state.pillboxes.length; i++) this.addPillbox(state.pillboxes[i]);
+    for (let i = this.wireIds.length; i < state.wires.length; i++) this.addWire(state.wires[i]);
+  }
+
+  private addTrench(t: TrenchState): void {
+    const reg = this.reg;
+    const gy = VIEW.groundY;
+    const backKey = trenchKey('back', t.width, this.palette);
+    const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(backKey).frame);
+    setKey(back, reg, backKey, 1);
+    back.x = t.x;
+    back.y = gy;
+    this.trenchBack.push(back);
+    const frontKey = trenchKey('front', t.width, this.palette);
+    const front = addImage(this.scene, this.layers.byName.trenchFront, reg.get(frontKey).frame);
+    setKey(front, reg, frontKey, 1);
+    front.x = t.x;
+    front.y = gy;
+    this.trenchFront.push(front);
+    const stake = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
+    stake.setTint(TRENCH_LAYOUT.stakeColor);
+    stake.visible = false;
+    this.trenchStake.push(stake);
+    const pennant = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
+    pennant.visible = false;
+    this.trenchPennant.push(pennant);
+    this.trenchOwner.push(-2);
+    this.trenchFade.push(1);
+  }
+
+  private addPillbox(p: PillboxState): void {
+    const reg = this.reg;
+    const img = addImage(this.scene, this.layers.byName.fortification, reg.get(pillboxKey('intact')).frame);
+    setKey(img, reg, pillboxKey('intact'), dirOf(p.side));
+    img.x = p.x;
+    img.y = VIEW.groundY;
+    this.pillboxes.push(img);
+    const fl = addImage(this.scene, this.layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
+    fl.setBlendMode(Phaser.BlendModes.ADD);
+    fl.visible = false;
+    this.pillboxFlash.push(fl);
+    this.pillboxFlashTime.push(0);
+    this.pillboxState.push('');
+  }
+
+  private addWire(w: WireState): void {
+    const reg = this.reg;
+    const wy = VIEW.groundY + WIRE_LAYOUT.dy;
     const piece = (key: string, layer: Phaser.GameObjects.Layer, x: number, sx: number): Img => {
       const fr = reg.get(key);
       const img = addImage(this.scene, layer, fr.frame);
@@ -328,7 +365,7 @@ export class StructureViews {
       img.setScale(sx / fr.scale, 1 / fr.scale);
       return img;
     };
-    for (const w of state.wires) {
+    {
       const back: Img[] = [];
       const front: Img[] = [];
       const crushed: Img[] = [];
@@ -353,6 +390,11 @@ export class StructureViews {
       this.wireOffsets.push(Array.from(p.x.subarray(0, p.count)));
       this.wireWrecks.push(new WireWreck());
     }
+  }
+
+  private buildHqs(state: BattleState, looks: readonly SideLooks[]): void {
+    const reg = this.reg;
+    const gy = VIEW.groundY;
     for (let side = 0; side < 2; side++) {
       const s = state.sides[side];
       if (!s.hq) continue;

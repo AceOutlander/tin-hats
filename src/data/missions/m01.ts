@@ -57,12 +57,12 @@ export const M01: MissionDef = {
     {
       type: 'hint',
       when: { at: 2 },
-      text: 'Sappers carry supplies from the dump to your HQ. Train another Sapper to earn faster.',
+      text: 'Sappers carry boxes from the dump to your HQ: that is your money. Train another Sapper to earn faster.',
     },
     {
       type: 'hint',
       when: { at: 16 },
-      text: 'Supplies buy troops. Train Riflemen to build your company.',
+      text: 'Money buys troops. Train Riflemen to build your company.',
     },
     {
       type: 'hint',

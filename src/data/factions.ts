@@ -31,7 +31,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
     },
     buttonNames: { apc: 'Carrier', flame: 'Flamer', commander: 'Lt.' },
     unitBlurbs: {
-      sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
+      sapper: 'Carries boxes from the dump to the HQ: that is your money. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
       lmg: 'Long bursts that shred infantry in the open. Slow on the move.',
       assault: 'Fast, short-ranged, and carries grenades. Clears trenches and hurts pillboxes.',
@@ -92,7 +92,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
     },
     buttonNames: { mortar: 'Werfer', at: 'Schreck', sniper: 'Sniper', flame: 'Flammer', commander: 'Leutnant' },
     unitBlurbs: {
-      sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
+      sapper: 'Carries boxes from the dump to the HQ: that is your money. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
       lmg: 'Long bursts that shred infantry in the open. Slow on the move.',
       assault: 'Fast, short-ranged, and carries grenades. Clears trenches and hurts pillboxes.',
@@ -155,7 +155,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
     },
     buttonNames: { apc: 'Carrier', flame: 'Flamer', commander: 'Lt.', aa: 'AA Crew' },
     unitBlurbs: {
-      sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
+      sapper: 'Carries boxes from the dump to the HQ: that is your money. Does not fight.',
       rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
       lmg: 'Long bursts from a pan-fed DP. Shreds infantry in the open. Slow on the move.',
       assault: 'Fast, with a drum-fed PPSh and grenades. Clears trenches and hurts pillboxes.',

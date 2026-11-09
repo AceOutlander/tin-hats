@@ -74,6 +74,8 @@ export const BASIC_TRAINING: MissionDef = {
   // The old pillbox: the practice target for the call-in, at a third of its usual health.
   pillboxes: [{ id: 1, x: 3900, side: 1, hpMul: 0.35 }],
   wire: [],
+  // The course opens with a short prep phase: the first lesson is building (the student wires the ground ahead).
+  prep: { seconds: 45, buildables: ['wire', 'foxhole'], bot: [{ kind: 'wire', x: 1250 }] },
   timer: null,
   events: [],
   ai: {

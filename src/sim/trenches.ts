@@ -7,6 +7,7 @@
  * infantry do; the old owner's reservations are then cancelled.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import type { TrenchDef } from '../data/schema';
 import { KIND_SAPPER } from './tables';
 import type { UnitState } from './types';
 import type { World } from './world';
@@ -26,6 +27,43 @@ export function layoutTrenches(w: World): void {
     }
     total += trench.slots;
   }
+}
+
+/**
+ * A trench dug during the battle (the prep phase): appended to state.trenches, with the slot arrays grown to hold its
+ * slots after every existing one, so no index already handed out changes. Returns its index in state.trenches.
+ */
+export function addTrench(w: World, def: TrenchDef): number {
+  const trenches = w.state.trenches;
+  const t = trenches.length;
+  trenches.push({ id: def.id, x: def.x, width: def.width, slots: def.slots, owner: def.owner, occupants: 0, capturedAt: -1 });
+  const grow32 = (a: Int32Array, n: number): Int32Array => {
+    const b = new Int32Array(n);
+    b.set(a.subarray(0, Math.min(a.length, n)));
+    return b;
+  };
+  const grow64 = (a: Float64Array, n: number): Float64Array => {
+    const b = new Float64Array(n);
+    b.set(a.subarray(0, Math.min(a.length, n)));
+    return b;
+  };
+  const total = slotCount(trenches);
+  const first = total - def.slots;
+  w.trenchSlot0 = grow32(w.trenchSlot0, t + 1);
+  w.trenchTaken = grow32(w.trenchTaken, t + 1);
+  w.trenchHalf = grow64(w.trenchHalf, t + 1);
+  w.trenchInside = grow32(w.trenchInside, (t + 1) * 2);
+  w.slotX = grow64(w.slotX, total);
+  w.slotUnit = grow32(w.slotUnit, total);
+  w.trenchSlot0[t] = first;
+  w.trenchTaken[t] = 0;
+  w.trenchHalf[t] = def.width / 2;
+  const spacing = def.slots > 0 ? Math.min(CONFIG.trenchSlotSpacing, def.width / def.slots) : 0;
+  for (let k = 0; k < def.slots; k++) {
+    w.slotX[first + k] = def.x + (k - (def.slots - 1) / 2) * spacing;
+    w.slotUnit[first + k] = -1;
+  }
+  return t;
 }
 
 /** Total slots over all trenches (the size of the slot arrays). */

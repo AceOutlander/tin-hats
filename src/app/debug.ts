@@ -16,6 +16,7 @@ import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { RENDER } from '../data/render';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import { BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
+import { getStalingradMission } from '../data/missions/stalingrad';
 import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
@@ -66,6 +67,8 @@ export interface DebugState {
   timeScale: number;
   /** Seconds left on the mission timer, or null. */
   timer: number | null;
+  /** The prep phase: running or not, seconds left, and build sites still being built; null for a mission without one. */
+  prep: { active: boolean; secondsLeft: number; sites: number; trenches: number; wires: number; pillboxes: number } | null;
   /** The upgrade levels this battle was built with (empty outside a battle). */
   upgrades: UpgradeLevels;
   /** How far toward night the view has been told to darken the sky (0..1; only a deadline mission darkens). */
@@ -140,6 +143,8 @@ export interface DebugMission {
   timer: { seconds: number; onExpire: 'win' | 'lose'; label: string } | null;
   newUnit: UnitKind | null;
   newSupport: SupportKind | null;
+  /** Further unit types the mission unlocks (MissionDef.unlocks). */
+  unlocks: UnitKind[];
   /** What the player may train and call in. */
   units: UnitKind[];
   supports: SupportKind[];
@@ -186,6 +191,8 @@ export interface DebugApi {
    * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
    */
   startSandbox(seed?: number, mirror?: boolean): boolean;
+  /** Start a Stalingrad mission (1001 to 1010) on its own, never saved: the campaign is not on the map yet. */
+  startStalingrad(id: number, difficulty?: Difficulty, seed?: number): boolean;
   /** Start Basic Training, as the title screen's button does. */
   startTraining(): boolean;
   /**
@@ -361,6 +368,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         timer: m.timer ? { ...m.timer } : null,
         newUnit: m.newUnit,
         newSupport: m.newSupport,
+        unlocks: [...(m.unlocks ?? [])],
         units: [...m.units[0]],
         supports: [...m.supports[0]],
         enemyHq: m.start[1].hasHq,
@@ -459,6 +467,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       app.autopilot = on;
     },
 
+    startStalingrad(id, difficulty, seed) {
+      const m = getStalingradMission(id);
+      if (!m) return false;
+      app.beginUnlisted(m, difficulty ?? 'normal', seed);
+      return true;
+    },
+
     startSandbox(seed, mirror) {
       app.beginUnlisted(mirror === true ? SANDBOX_MIRROR : SANDBOX, 'normal', seed);
       return true;
@@ -506,6 +521,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           units: [zeroCounts(), zeroCounts()],
           hq: [null, null],
           timer: null,
+          prep: null,
           upgrades: {},
           darkness: 0,
           resultReady: app.lastResult !== null,
@@ -552,6 +568,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         units: [copyCounts(s.sides[0].alive), copyCounts(s.sides[1].alive)],
         hq: [hq(0), hq(1)],
         timer: s.timer ? s.timer.secondsLeft : null,
+        prep: s.prep
+          ? { active: s.prep.active, secondsLeft: s.prep.secondsLeft, sites: s.sites.length, trenches: s.trenches.length, wires: s.wires.length, pillboxes: s.pillboxes.length }
+          : null,
         upgrades: { ...session.battle.config.upgrades },
         darkness: app.darkness,
         resultReady: app.lastResult !== null,

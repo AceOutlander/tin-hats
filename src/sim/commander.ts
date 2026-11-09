@@ -14,10 +14,11 @@ import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { canTrain } from './commands';
+import { buildProblem, inPrep, missionTime } from './prep';
 import { canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, KIND_SQUAD } from './tables';
 import type { CommanderKind, SideState } from './types';
-import { CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
+import { CMD_BUILD, CMD_ORDER, CMD_READY, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
 
 /** Build the commander memory for a side, or null for human and idle commanders. */
 export function createAi(w: World, kind: CommanderKind): AiState | null {
@@ -34,6 +35,8 @@ export function createAi(w: World, kind: CommanderKind): AiState | null {
     contactSince: -1,
     lastSupportTime: -AI.supportGap,
     desired: new Int16Array(KIND_COUNT),
+    bot: kind === 'bot',
+    prepNext: 0,
   };
 }
 
@@ -249,7 +252,8 @@ function build(w: World, si: number, ai: AiState): void {
  */
 function decideOrder(w: World, si: number, ai: AiState): void {
   const side = w.state.sides[si];
-  const time = w.state.time;
+  // On the mission clock: a prep phase does not count toward the plan's first attack.
+  const time = missionTime(w.state);
   if (time - ai.lastOrderTime < AI.minOrderInterval) return;
   const order = side.order;
   const capped = side.pop >= fullArmyPop(side) * AI.popCapAttackFrac;
@@ -437,10 +441,37 @@ function think(w: World, si: number, ai: AiState): void {
 /** Let each AI or bot commander think when its interval comes round. Both sides read the same state. */
 export function runCommanders(w: World): void {
   const tick = w.state.tick;
+  const prep = inPrep(w.state);
   for (let si = 0; si < 2; si++) {
     const ai = w.ai[si];
-    if (ai && tick % ai.thinkTicks === 0) think(w, si, ai);
+    if (!ai || tick % ai.thinkTicks !== 0) continue;
+    // The enemy waits out the prep phase; the test bot places its builds first, then plays as usual.
+    if (prep && si === 1) continue;
+    if (prep && ai.bot) prepBuild(w, si, ai);
+    think(w, si, ai);
   }
+}
+
+/**
+ * The test bot in a prep phase: the next build of the mission's plan (MissionDef.prep.bot), one per think, as money
+ * allows (a build that can never be placed is skipped); Ready once the whole plan is placed and built.
+ */
+function prepBuild(w: World, si: number, ai: AiState): void {
+  const s = w.state;
+  const plan = w.mission.prep?.bot ?? [];
+  while (ai.prepNext < plan.length) {
+    const step = plan[ai.prepNext];
+    const problem = buildProblem(s, si, step.kind, step.x);
+    if (problem === 'money') return;
+    ai.prepNext++;
+    if (problem === null) {
+      const c = w.commands.push(si, CMD_BUILD);
+      c.build = step.kind;
+      c.x = step.x;
+      return;
+    }
+  }
+  if (plan.length > 0 && s.sites.length === 0) w.commands.push(si, CMD_READY);
 }
 
 /**

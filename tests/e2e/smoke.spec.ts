@@ -79,6 +79,7 @@ test.describe('debug hooks', () => {
         'setUpgrades',
         'startMission',
         'startSandbox',
+        'startStalingrad',
         'startTraining',
         'takeMedals',
         'state',

@@ -80,6 +80,7 @@ export const M04: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
+      about: 'mortar',
       text: 'New: Mortar Teams. They outrange every rifle and drop shells into trenches and onto bunkers. Keep them behind your line.',
     },
     {

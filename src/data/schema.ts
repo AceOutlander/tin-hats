@@ -318,8 +318,10 @@ export interface UpgradeDef {
   support?: SupportKind;
   /** One entry per level (3 levels); each level lists its cumulative effects. */
   levels: UpgradeEffect[][];
-  /** Upgrade points per level. */
+  /** Medals for each level when levelCosts is absent. */
   costPerLevel: number;
+  /** Medals for level 1, 2, 3 (the price of buying that level); overrides costPerLevel. */
+  levelCosts?: number[];
 }
 
 export type UpgradeLevels = Record<string, number>;
@@ -645,7 +647,8 @@ export type MissionTrigger =
 export type MissionEventDef =
   | { type: 'wave'; when: MissionTrigger; side: Side; forces: ForceDef[]; announce?: string }
   | { type: 'airdrop'; when: MissionTrigger; side: Side; supplies: number }
-  | { type: 'hint'; when: MissionTrigger; text: string }
+  /** `about`: the unit or call-in a "New:" hint introduces; dropped when the player already had it before this mission. */
+  | { type: 'hint'; when: MissionTrigger; text: string; about?: UnitKind | SupportKind }
   | { type: 'announce'; when: MissionTrigger; text: string };
 
 /** One step of an AI build plan: keep `count` of `kind` alive once `after` seconds have passed. */
@@ -706,6 +709,11 @@ export interface MissionDef {
   length: number;
   newUnit: UnitKind | null;
   newSupport: SupportKind | null;
+  /**
+   * Further unit types this mission unlocks (newUnit is the first). Reaching a mission unlocks newUnit, these and
+   * every type in its own unit list, for every mission after it in any campaign (owner, 2026-11-09).
+   */
+  unlocks?: UnitKind[];
   /** Units and supports each side may use: index 0 = side 0 (player), 1 = side 1. */
   units: [UnitKind[], UnitKind[]];
   supports: [SupportKind[], SupportKind[]];
@@ -713,6 +721,12 @@ export interface MissionDef {
   trenches: TrenchDef[];
   pillboxes: PillboxDef[];
   wire: WireDef[];
+  /**
+   * A prep phase before the enemy attacks (defensive missions; src/data/prep.ts): its countdown (default
+   * PREP.defaultSeconds), what may be built (default every buildable), the zone the player builds in (default their
+   * half of the field, behind their front), and the test bot's build plan.
+   */
+  prep?: MissionPrepDef;
   /** Survival: win when it expires. Deadline: lose when it expires. */
   timer: { seconds: number; onExpire: 'win' | 'lose'; label: string } | null;
   events: MissionEventDef[];
@@ -725,3 +739,15 @@ export interface MissionDef {
   /** The battle music (src/data/musicTracks): the track this mission plays. */
   music: BattleTrackName;
 }
+
+/** A mission's prep phase (MissionDef.prep). */
+export interface MissionPrepDef {
+  seconds?: number;
+  buildables?: BuildableId[];
+  zone?: { from: number; to: number };
+  /** What the "reasonable player" test bot builds, in order, as money allows. */
+  bot?: { kind: BuildableId; x: number }[];
+}
+
+/** What a prep phase can build (src/data/prep.ts). Tank traps wait for a vehicle blocker in the sim. */
+export type BuildableId = 'wire' | 'foxhole' | 'trench' | 'pillbox';

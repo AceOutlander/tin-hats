@@ -9,7 +9,7 @@ import type { SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from '../../src
 import { UNITS } from '../../src/data/units';
 import { MEDALS } from '../../src/data/medals';
 import { SUPPORTS, SUPPORT_KINDS } from '../../src/data/supports';
-import { UPGRADE_MEDALS_PER_LEVEL, UPGRADES, upgradableKinds, upgradableSupports } from '../../src/data/upgrades';
+import { UPGRADE_LEVEL_MEDALS, UPGRADES, upgradableKinds, upgradableSupports } from '../../src/data/upgrades';
 import { WEAPONS } from '../../src/data/weapons';
 import type { Battle } from '../../src/sim';
 import { KIND_INDEX } from '../../src/sim/tables';
@@ -78,7 +78,7 @@ describe('the upgrade table', () => {
   it('gives every upgrade three levels at one price each (in medals), a name and a description, with modest growing effects', () => {
     for (const u of UPGRADES) {
       expect(u.levels, u.id).toHaveLength(MAX);
-      expect(u.costPerLevel, u.id).toBe(UPGRADE_MEDALS_PER_LEVEL);
+      expect(u.levelCosts, u.id).toEqual([...UPGRADE_LEVEL_MEDALS]);
       expect(u.name.length, u.id).toBeGreaterThan(3);
       expect(u.description.length, u.id).toBeGreaterThan(15);
       for (let l = 0; l < MAX; l++) {
@@ -211,14 +211,14 @@ const LEGACY_IDS = [
   'tankDamage',
 ];
 
-/** Every unit type the player can field: the free trainable types and every unit sold in the Armoury (not sappers). */
+/** Every unit type the player can field (MEDALS.units), sappers left out. */
 function buyableKinds(): UnitKind[] {
-  const kinds = [...MEDALS.free, ...MEDALS.armoury.filter((i) => i.type === 'unit').map((i) => i.id as UnitKind)];
+  const kinds = MEDALS.units.map((u) => u.kind);
   return kinds.filter((k) => k !== 'sapper' && UNITS[k].trainable && !UNITS[k].enemyOnly);
 }
 
 function buyableSupports(): SupportKind[] {
-  return MEDALS.armoury.filter((i) => i.type === 'support').map((i) => i.id as SupportKind);
+  return MEDALS.armoury.map((i) => i.id);
 }
 
 describe('the generated upgrade tracks', () => {
@@ -240,7 +240,7 @@ describe('the generated upgrade tracks', () => {
       expect(second, kind).toHaveLength(1);
       for (const u of [...health, ...second]) {
         expect(u.levels, u.id).toHaveLength(3);
-        expect(u.costPerLevel, u.id).toBe(UPGRADE_MEDALS_PER_LEVEL);
+        expect(u.levelCosts, u.id).toEqual([...UPGRADE_LEVEL_MEDALS]);
       }
       // The same multipliers as the original units' tracks.
       expect(health[0].levels.map((l) => l[0].mul), kind).toEqual(byId('rifleHealth').levels.map((l) => l[0].mul));

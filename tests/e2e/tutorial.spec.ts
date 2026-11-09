@@ -52,7 +52,7 @@ test.describe('tutorial, mission 1', () => {
     await playThroughMenus(page, 1, false);
 
     // 1. Supplies and sappers: the bubble points at the supplies readout, which pulses.
-    await expectTip(page, /Supplies buy troops/, '[data-tip="supplies"]');
+    await expectTip(page, /Money buys troops/, '[data-tip="supplies"]');
     {
       const { tip, control, size } = await rects(page, '[data-tip="supplies"]');
       // Below the top bar, on the screen, and not on top of the control it explains.
@@ -137,7 +137,7 @@ test.describe('tutorial, mission 1', () => {
   test('can be closed with its own button, and a closed tip does not come back', async ({ page }) => {
     await open(page);
     await playThroughMenus(page, 1, false);
-    await expectTip(page, /Supplies buy troops/, '[data-tip="supplies"]');
+    await expectTip(page, /Money buys troops/, '[data-tip="supplies"]');
     const close = page.getByTestId('tip-dismiss');
     const box = await close.boundingBox();
     expect(box && box.width >= 47.5 && box.height >= 47.5, 'the close button is a full touch target').toBe(true);
@@ -147,7 +147,7 @@ test.describe('tutorial, mission 1', () => {
     await expect.poll(() => seenTips(page)).toContain('supplies');
     // The next tip comes after a short pause, and it is a different one.
     await expect(bubble(page)).toBeVisible({ timeout: 20_000 });
-    await expect(bubble(page)).not.toContainText(/Supplies buy troops/);
+    await expect(bubble(page)).not.toContainText(/Money buys troops/);
   });
 
   test('is silent while the hints setting is off, and speaks again when it is switched on', async ({ page }) => {
@@ -174,6 +174,6 @@ test.describe('tutorial, mission 1', () => {
     expect(await seenTips(page)).toEqual([]);
     await backToTitle(page);
     await playThroughMenus(page, 1, false);
-    await expectTip(page, /Supplies buy troops/, '[data-tip="supplies"]');
+    await expectTip(page, /Money buys troops/, '[data-tip="supplies"]');
   });
 });
