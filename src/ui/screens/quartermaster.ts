@@ -2,11 +2,10 @@
  * Quartermaster screen: the upgrade list grouped by HQ and sappers, then by
  * unit, with level pips, per-level effects, buy and refund, and Refund all.
  */
-import { FACTIONS } from '../../data/factions';
-import type { UnitKind } from '../../data/schema';
+import type { SupportKind, UnitKind } from '../../data/schema';
 import type { UpgradeView } from '../contracts';
 import { add, button, clear, el, stencil } from '../shell/dom';
-import { glyph, helmetIcon, unitIcon } from '../shell/icons';
+import { glyph, helmetIcon, supportIcon, unitIcon } from '../shell/icons';
 import { withScrollCue } from '../shell/scrollCue';
 import type { ScreenFactory } from '../shell/types';
 
@@ -16,27 +15,33 @@ const PREVIEW_H = 44;
 
 interface Group {
   unit: UnitKind | null;
+  support: SupportKind | null;
   name: string;
   items: UpgradeView[];
 }
 
-/** HQ and sapper upgrades first, then one group per unit in the order the data lists them. */
+/**
+ * HQ and sapper upgrades first, then one group per unit and per call-in in the order the data lists them. Group
+ * names come with the view (the player's own nation).
+ */
 export function groupUpgrades(upgrades: readonly UpgradeView[]): Group[] {
-  const hq: Group = { unit: null, name: 'HQ and sappers', items: [] };
+  let hq: Group | null = null;
   const groups: Group[] = [];
   for (const up of upgrades) {
-    if (up.unit === null || up.unit === 'sapper') {
+    if (up.support === null && (up.unit === null || up.unit === 'sapper')) {
+      if (!hq) hq = { unit: null, support: null, name: up.group, items: [] };
       hq.items.push(up);
       continue;
     }
-    let group = groups.find((g) => g.unit === up.unit);
+    const unit = up.support === null ? up.unit : null;
+    let group = groups.find((g) => g.unit === unit && g.support === up.support);
     if (!group) {
-      group = { unit: up.unit, name: FACTIONS.british.unitNames[up.unit], items: [] };
+      group = { unit, support: up.support, name: up.group, items: [] };
       groups.push(group);
     }
     group.items.push(up);
   }
-  return hq.items.length > 0 ? [hq, ...groups] : groups;
+  return hq ? [hq, ...groups] : groups;
 }
 
 export const quartermasterScreen: ScreenFactory = (ctx) => {
@@ -173,7 +178,11 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
     for (const group of groups) {
       const section = el('section', 'th-qm-group');
       const heading = el('h2', 'th-group');
-      const icon = group.unit ? unitIcon(group.unit, 30, ctx.opts.paintUnitIcon) : helmetIcon('th-helmet th-unit-icon');
+      const icon = group.support
+        ? supportIcon(group.support, 'th-support-icon th-unit-icon')
+        : group.unit
+          ? unitIcon(group.unit, 30, ctx.opts.paintUnitIcon)
+          : helmetIcon('th-helmet th-unit-icon');
       icon.classList.add('th-group-icon');
       add(heading, icon, el('span', undefined, group.name));
       const grid = el('div', 'th-qm-grid');

@@ -8,7 +8,9 @@ import type Phaser from 'phaser';
 import { PLANE_LAYOUT, type PlaneKind } from '../../data/artLayout';
 import { RENDER } from '../../data/render';
 import type { FactionId } from '../../data/schema';
-import { planeKey, planeShadowKey } from '../../art/vehicles';
+import { PLANE_KINDS, planeGearKey, planeKey, planeShadowKey } from '../../art/vehicles';
+import type { SideLooks } from '../../data/upgradeLooks';
+import { planeGearOf } from '../../meta/looks';
 import type { SpriteRegistry } from '../atlas';
 import { addImage, type Layers } from '../layers';
 import { CALLIN_KEYS, RENDER_KEYS } from '../sprites';
@@ -75,6 +77,8 @@ export class PlanePool {
   private glintNext = 0;
   private readonly flakInv: number;
   private readonly glowInv: number;
+  /** Plane gear level per side and plane type (PLANE_KINDS order), from setLooks. */
+  private readonly gear = new Int8Array(2 * PLANE_KINDS.length);
 
   constructor(
     scene: Phaser.Scene,
@@ -105,6 +109,11 @@ export class PlanePool {
       img.setBlendMode(1);
       this.glints.push(new Puff(img));
     }
+  }
+
+  /** The gear a side's planes wear (its Quartermaster call-in upgrades); null = none. The sprites come from the unit gear atlas. */
+  setLooks(side: number, looks: SideLooks | null): void {
+    for (let i = 0; i < PLANE_KINDS.length; i++) this.gear[side * PLANE_KINDS.length + i] = planeGearOf(looks, PLANE_KINDS[i]);
   }
 
   clear(): void {
@@ -156,7 +165,10 @@ export class PlanePool {
     p.glintT = 0;
     p.fallT = 0;
     p.dive = 0;
-    const k = planeKey(kind, faction);
+    // Its gear variant when the side has the upgrade and the battle built the sprite, else the plain plane.
+    const level = this.gear[(side === 1 ? 1 : 0) * PLANE_KINDS.length + PLANE_KINDS.indexOf(kind)];
+    const geared = level > 0 ? planeGearKey(kind, faction, level) : '';
+    const k = geared !== '' && this.reg.has(geared) ? geared : planeKey(kind, faction);
     if (k !== p.key) {
       const fr = this.reg.get(k);
       p.body.setFrame(fr.frame);

@@ -355,6 +355,8 @@ export class BattleViewImpl implements BattleView {
     this.units.reset(opts.visualSeed);
     this.units.setLooks(0, looks[0]);
     this.units.setLooks(1, looks[1]);
+    this.effects.ctx.planes.setLooks(0, looks[0]);
+    this.effects.ctx.planes.setLooks(1, looks[1]);
     this.effects.clear();
     this.effects.ctx.state = state;
     this.effects.ctx.playerSide = opts.playerSide;

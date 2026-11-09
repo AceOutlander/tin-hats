@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin Hats: upgrade looks audit</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #6f6a58;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Upgrade looks audit (dev server only): every level of one upgrade look at battle zoom (VIEW: 0.95 CSS px per wu,
+      as on an 844x390 phone), and level 0 next to level 3 as a 2x close-up.
+        looks-audit.html?unit=rifle        a unit kind's gear: each health and damage level, both nations (tank, apc too)
+        looks-audit.html?plane=bomber      a call-in plane at each level of its upgrade, both nations
+        looks-audit.html?track=hq;f=german the HQ, HQ gun, dump or sapper haul at each stage (track=hq|hqGun|dump|sapper)
+      ';' works in place of '&' (needed when the URL goes through x.cmd):
+        x.cmd npx tsx tools/shot.ts "dev/looks-audit.html?unit=flame" out.png --ready --h=430
+    -->
+    <canvas id="c"></canvas>
+    <script type="module" src="./looks-audit.ts"></script>
+  </body>
+</html>

@@ -66,9 +66,14 @@ export interface AppTunables {
     unitHealth: string;
     unitDamage: string;
     unitHeal: string;
+    supportRate: string;
+    supportReach: string;
+    supportTime: string;
   };
   /** Level text of an upgrade level whose effects change nothing. */
   effectNone: string;
+  /** Quartermaster: the heading of the HQ and sapper upgrades. */
+  upgradeHqGroup: string;
 }
 
 export const APP: AppTunables = {
@@ -116,7 +121,12 @@ export const APP: AppTunables = {
     unitHealth: 'health',
     unitDamage: 'damage',
     unitHeal: 'healing',
+    // The rate shows as the cooldown it shortens (describeEffect).
+    supportRate: 'cooldown',
+    supportReach: 'area',
+    supportTime: 'time',
   },
   effectNone: 'No change',
+  upgradeHqGroup: 'HQ and sappers',
 };
 

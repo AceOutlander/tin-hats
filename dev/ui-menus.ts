@@ -346,6 +346,8 @@ function campaign(): CampaignView {
       name: up.name,
       description: up.description,
       unit: up.unit,
+      support: null,
+      group: up.unit !== null && up.unit !== 'sapper' ? UNIT_NAMES[up.unit] : 'HQ and sappers',
       level,
       maxLevel: MAX_LEVEL,
       cost: 1,

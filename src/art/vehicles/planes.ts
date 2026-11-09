@@ -7,6 +7,8 @@
  * upper surfaces, a pale belly, glazing and a propeller blur.
  */
 import { ART_COLORS as C, PLANE_LAYOUT, type PlaneKind } from '../../data/artLayout';
+import { PLANE_GEAR_ART, PLANE_GEAR_NATION } from '../../data/looksGear';
+import { PLANE_GEAR_STEPS, type PlaneGearPiece } from '../../data/upgradeLooks';
 import { FACTIONS } from '../../data/factions';
 import type { FactionId } from '../../data/schema';
 import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, inside, makeSpec, mix, rgba, rimmed } from '../props/kit';
@@ -294,6 +296,74 @@ const PAINT: Record<PlaneKind, (ctx: Ctx, f: FactionId) => void> = {
   fighter: paintFighter,
   recon: paintRecon,
 };
+
+// ---------------------------------------------------------------------------
+// Upgrade gear (PLANE_GEAR_STEPS): stripes, a drop tank, a painted nose with mission tallies
+// ---------------------------------------------------------------------------
+
+/** The sprite of a plane at a gear level (1 to 3); level 0 is planeKey. */
+export function planeGearKey(kind: PlaneKind, faction: FactionId, level: number): string {
+  return level <= 0 ? planeKey(kind, faction) : `veh/air/${kind}/${faction}/gear${Math.min(3, Math.floor(level))}`;
+}
+
+function has(piece: PlaneGearPiece, level: number): boolean {
+  return PLANE_GEAR_STEPS.some((s) => s.piece === piece && s.level <= level);
+}
+
+function paintPlaneGear(ctx: Ctx, kind: PlaneKind, f: FactionId, level: number): void {
+  const G = PLANE_GEAR_ART[kind];
+  const N = PLANE_GEAR_NATION[f];
+  if (has('stripes', level)) {
+    // Painted on the fuselage only (source-atop keeps the paint inside what is drawn).
+    const S = G.stripes;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < S.n; i++) {
+      ctx.fillStyle = N.stripes[i % N.stripes.length];
+      ctx.fillRect(S.x + i * S.w, S.y0, S.w + 0.2, S.y1 - S.y0);
+    }
+    ctx.restore();
+  }
+  if (has('nose', level)) {
+    const S = G.nose;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = rgba(N.nose, 0.9);
+    ctx.fillRect(S.x0, S.y0, S.x1 - S.x0, S.y1 - S.y0);
+    ctx.restore();
+    // Mission tallies: small pale bars under the cockpit.
+    ctx.fillStyle = N.tally;
+    for (let i = 0; i < S.n; i++) ctx.fillRect(S.tallyX + i * S.dx, S.tallyY, 1.6, 4.2);
+  }
+  if (has('dropTank', level)) {
+    const T = G.dropTank;
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(T.x - T.rx * 0.3, T.y - T.ry);
+    ctx.lineTo(T.x - T.rx * 0.3, T.y - T.ry - 3);
+    ctx.moveTo(T.x + T.rx * 0.3, T.y - T.ry);
+    ctx.lineTo(T.x + T.rx * 0.3, T.y - T.ry - 3);
+    ctx.stroke();
+    rimmed(ctx, (c) => ellipse(c, T.x, T.y, T.rx, T.ry), N.tank, RIM, 0.2, 1.2);
+  }
+}
+
+/** The plane sprites of one type and nation at a gear level (empty at level 0, which is the plain plane). */
+export function planeGearSpecs(kind: PlaneKind, faction: FactionId, level: number): SpriteSpec[] {
+  if (level <= 0) return [];
+  const L = PLANE_LAYOUT[kind];
+  const T = PLANE_GEAR_ART[kind].dropTank;
+  // Room under the belly for the drop tank.
+  const below = Math.max(L.box.h - L.box.oy, Math.ceil(T.y + T.ry + 2));
+  const box = { w: L.box.w, h: L.box.oy + below, ox: L.box.ox, oy: L.box.oy };
+  return [
+    makeSpec(planeGearKey(kind, faction, level), box, (ctx) => {
+      PAINT[kind](ctx, faction);
+      paintPlaneGear(ctx, kind, faction, level);
+    }),
+  ];
+}
 
 /** Soft shadow on the ground, stretched to the type's span. */
 function paintPlaneShadow(ctx: Ctx, kind: PlaneKind): void {

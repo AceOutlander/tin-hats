@@ -19,6 +19,7 @@ import {
   sanitizeSave,
   writeSave,
   type SaveData,
+  upgradeLevel,
   type StorageLike,
 } from '../../src/meta';
 
@@ -510,6 +511,19 @@ describe('a save checked against the game', () => {
     const data = sanitizeSave(doc({ upgrades: { sapperDrill: 1, rifleHealth: 3 }, medals: 15 }), rules);
     expect(data?.upgrades).toEqual({ sapperDrill: 1, rifleHealth: 3 });
     expect(data?.medals).toBe(15);
+  });
+
+  it('loads a save from before the new unit tracks with every old level kept and every new track at level 0', () => {
+    const old = { sapperDrill: 1, rifleHealth: 3, medicHealing: 2, tankDamage: 1 };
+    const data = sanitizeSave({ ...doc({ upgrades: old, medals: 40 }), version: 6 }, rules);
+    expect(data?.upgrades).toEqual(old);
+    expect(data?.medals).toBe(40);
+    if (!data) return;
+    for (const id of ['apcHealth', 'apcDamage', 'flameHealth', 'flameDamage', 'commanderHealth', 'commanderDamage', 'aaHealth', 'aaDamage', 'bomberTurnaround', 'fighterTurnaround', 'reconOptics']) {
+      expect(UPGRADES.some((u) => u.id === id), id).toBe(true);
+      expect(upgradeLevel(data, id), id).toBe(0);
+    }
+    expect(pointsSpent(data, UPGRADES)).toBe(7 * UPGRADES[0].costPerLevel);
   });
 
   it('keeps the last mission only if the campaign has it', () => {

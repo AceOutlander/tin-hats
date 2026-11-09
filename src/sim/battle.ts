@@ -4,7 +4,7 @@
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { MissionDef, Order, Side, SupportKind, UnitKind } from '../data/schema';
-import { SUPPORT_KINDS } from '../data/supports';
+import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
 import { applyDamage } from './combat';
@@ -116,6 +116,13 @@ function cooldownRecord(): Record<SupportKind, number> {
   return out;
 }
 
+/** Each support's full cooldown for a side: the data cooldown divided by its upgrade (supportRate). */
+function fullCooldownRecord(mods: SideMods): Record<SupportKind, number> {
+  const out = new CooldownRecord();
+  for (let k = 0; k < SUPPORT_KINDS.length; k++) out[SUPPORT_KINDS[k]] = SUPPORTS[SUPPORT_KINDS[k]].cooldown / mods.supportRate[k];
+  return out;
+}
+
 function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
   const dir = side === 0 ? 1 : -1;
   const x = side === 0 ? CONFIG.hqInset : mission.length - CONFIG.hqInset;
@@ -163,6 +170,7 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     alive: kindRecord(0),
     supportAvailable,
     supportCooldown: cooldownRecord(),
+    supportCooldownFull: fullCooldownRecord(mods),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
     holdLineX: 0,
     controlled: -1,

@@ -30,9 +30,21 @@ import {
   type FigurePart,
 } from '../art/figure';
 import { bigLoadKey, cartKey, truckKey } from '../art/props/supplyLooks';
-import { TANK_KEYS, createTankPose, isGearLook, layoutTank, tankGearKeys, tankGearSpecs, vehicleLookOf, type TankPose, type TankState } from '../art/vehicles';
+import {
+  PLANE_KINDS,
+  TANK_KEYS,
+  createTankPose,
+  isGearLook,
+  layoutTank,
+  planeGearSpecs,
+  tankGearKeys,
+  tankGearSpecs,
+  vehicleLookOf,
+  type TankPose,
+  type TankState,
+} from '../art/vehicles';
+import type { SpriteSpec } from '../art/types';
 import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type VehicleLook } from '../data/artLayout';
-import { FACTIONS } from '../data/factions';
 import { FX_KEYS } from '../data/fx';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
@@ -41,7 +53,7 @@ import type { DamageType, FactionId, Side, UnitKind } from '../data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { createRng, mixSeed, type Rng01 } from '../fx';
-import { lookStyle } from '../meta/looks';
+import { lookStyle, planeGearOf } from '../meta/looks';
 import type { BattleState, UnitState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { BloodPools, type PoolImage } from './blood';
@@ -58,8 +70,10 @@ const STATE_LIVE = 1;
 const STATE_DYING = 2;
 
 const U = RENDER.unit;
-/** Atlas group of the tank gear variants a battle needs (built in setLooks, dropped in reset). */
+/** Atlas group of the tank, APC and plane gear variants a battle needs (built in setLooks, dropped in reset). */
 const GEAR_GROUP = 'unitGear';
+/** Vehicle kinds whose look may carry gear (the look decides: isGearLook). */
+const GEAR_VEHICLE_KINDS: readonly UnitKind[] = ['tank', 'heavyTank', 'apc'];
 
 /**
  * Put one part on its image: figure-space position (px, py), rotation and scale (sx, sy), drawn at (x0, y0) with
@@ -780,8 +794,14 @@ export class UnitViews {
   setLooks(side: Side, looks: SideLooks | null): void {
     this.looks[side] = looks;
     if (!looks) return;
-    const look = FACTIONS[looks.faction].look;
-    const specs = [...tankGearSpecs(look.tank, this.gearOf(side, 'tank')), ...tankGearSpecs(look.heavyTank, this.gearOf(side, 'heavyTank'))];
+    const f = looks.faction;
+    const specs: SpriteSpec[] = [];
+    for (const kind of GEAR_VEHICLE_KINDS) {
+      const look = vehicleLookOf(kind, f);
+      if (isGearLook(look)) specs.push(...tankGearSpecs(look, this.gearOf(side, kind)));
+    }
+    // The call-in planes' gear (PlanePool picks these keys up when the side's plane flies).
+    for (const kind of PLANE_KINDS) specs.push(...planeGearSpecs(kind, f, planeGearOf(looks, kind)));
     if (specs.length > 0) this.reg.addAtlas(GEAR_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
   }
 

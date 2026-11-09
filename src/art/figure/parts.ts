@@ -652,19 +652,21 @@ function paintPistol(ctx: Ctx): void {
   line(ctx, STEEL_L, 0.3, [0.8, 0.2, 2.0, 1.2, 0.8, 1.4]);
 }
 
-/** Flamethrower fuel and gas tanks on his back, anchored at the chest joint like the pack. */
+/** Flamethrower fuel and gas tanks on his back, harness and hose stub, in pack space (anchored at the chest joint like the pack). */
+export function paintFlamePack(ctx: Ctx, tint: string, dark: string): void {
+  // Far tank, the gas bottle between, the near tank (side on they overlap).
+  solid(ctx, dark, () => rrect(ctx, -9.8, -9.6, 4.2, 14.2, 2.0));
+  solid(ctx, STEEL, () => rrect(ctx, -6.4, -8.0, 2.4, 9.6, 1.2));
+  solid(ctx, tint, () => rrect(ctx, -8.4, -9.0, 4.4, 14.0, 2.1), 'rgba(20, 21, 15, 0.6)', 0.4);
+  line(ctx, dark, 0.5, [-8.0, -5.6, -4.4, -5.6]);
+  line(ctx, dark, 0.5, [-8.0, 1.6, -4.4, 1.6]);
+  // Harness strap over the shoulder and the hose stub at the bottom.
+  line(ctx, dark, 0.7, [-4.2, -7.4, -1.2, -7.0, 0.2, -5.0]);
+  line(ctx, BLACK, 0.9, [-6.2, 5.0, -4.2, 5.0]);
+}
+
 function flamePackSpec(key: string, tint: string, dark: string): SpriteSpec {
-  return makeSpec(key, -10.6, -10.6, 0.8, 5.4, (ctx) => {
-    // Far tank, the gas bottle between, the near tank (side on they overlap).
-    solid(ctx, dark, () => rrect(ctx, -9.8, -9.6, 4.2, 14.2, 2.0));
-    solid(ctx, STEEL, () => rrect(ctx, -6.4, -8.0, 2.4, 9.6, 1.2));
-    solid(ctx, tint, () => rrect(ctx, -8.4, -9.0, 4.4, 14.0, 2.1), 'rgba(20, 21, 15, 0.6)', 0.4);
-    line(ctx, dark, 0.5, [-8.0, -5.6, -4.4, -5.6]);
-    line(ctx, dark, 0.5, [-8.0, 1.6, -4.4, 1.6]);
-    // Harness strap over the shoulder and the hose stub at the bottom.
-    line(ctx, dark, 0.7, [-4.2, -7.4, -1.2, -7.0, 0.2, -5.0]);
-    line(ctx, BLACK, 0.9, [-6.2, 5.0, -4.2, 5.0]);
-  });
+  return makeSpec(key, -10.6, -10.6, 0.8, 5.4, (ctx) => paintFlamePack(ctx, tint, dark));
 }
 
 function paintPiatBomb(ctx: Ctx): void {

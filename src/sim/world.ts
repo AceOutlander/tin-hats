@@ -13,6 +13,7 @@ import type {
   UpgradeDef,
   UpgradeLevels,
 } from '../data/schema';
+import { SUPPORT_KINDS } from '../data/supports';
 import type { EventQueue } from './events';
 import type { Rng } from './rng';
 import { KIND_COUNT, KIND_INDEX } from './tables';
@@ -37,6 +38,10 @@ export interface SideMods {
   unitHealth: Float64Array;
   unitDamage: Float64Array;
   unitHeal: Float64Array;
+  /** Per support index (SUPPORT_KINDS): cooldown divisor, area and effect-time multipliers. */
+  supportRate: Float64Array;
+  supportReach: Float64Array;
+  supportTime: Float64Array;
   /** Mission incomeMul x difficulty aiIncomeMul (AI sides only): scales passive income and sapper deliveries. */
   income: number;
   /** Difficulty aiIncomeMul (AI sides only): scales scripted airdrops, which the mission sizes itself. */
@@ -58,6 +63,9 @@ export function createSideMods(): SideMods {
     unitHealth: new Float64Array(KIND_COUNT).fill(1),
     unitDamage: new Float64Array(KIND_COUNT).fill(1),
     unitHeal: new Float64Array(KIND_COUNT).fill(1),
+    supportRate: new Float64Array(SUPPORT_KINDS.length).fill(1),
+    supportReach: new Float64Array(SUPPORT_KINDS.length).fill(1),
+    supportTime: new Float64Array(SUPPORT_KINDS.length).fill(1),
     income: 1,
     airdrop: 1,
     wave: 1,
@@ -102,6 +110,15 @@ export function applyUpgrades(mods: SideMods, levels: UpgradeLevels, defs: reado
           break;
         case 'unitHeal':
           mods.unitHeal[KIND_INDEX[effect.unit]] *= effect.mul;
+          break;
+        case 'supportRate':
+          mods.supportRate[SUPPORT_KINDS.indexOf(effect.support)] *= effect.mul;
+          break;
+        case 'supportReach':
+          mods.supportReach[SUPPORT_KINDS.indexOf(effect.support)] *= effect.mul;
+          break;
+        case 'supportTime':
+          mods.supportTime[SUPPORT_KINDS.indexOf(effect.support)] *= effect.mul;
           break;
       }
     }
