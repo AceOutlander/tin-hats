@@ -44,6 +44,27 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
+## PAUSED for the usage limit at 2026-11-09 12:25Z (resume just after the 13:10Z reset)
+
+Paused cleanly at 87%. Nothing pushed; live is still Beta v0.12.0. No test browsers, servers or node processes running.
+- `stalingrad-core` (C:dev	in-hats-stal-core) at 1e2e6b9, clean: era table, campaign select + map + briefings +
+  unlocks, British placeholders removed (save version 10), and the mission director (phases, objectives, side
+  objectives, triggers, events, medal scoring; all 10 missions rewritten on it and passing the balance checks).
+- `stalingrad-e2` (C:dev	in-hats-stal-e2) at 38699c2: ground sectors, capture points, forward deploy, rally Fall Back
+  (sim, render, HUD); WIP checkpoint, not finished.
+- `stalingrad-e3` (C:dev	in-hats-stal-e3) at ec57957: buildings and rubble (sim, tests, art and renderer in
+  progress); WIP checkpoint, not finished.
+- `stalingrad` (C:dev	in-hats-stalingrad) at 18a2b28: art + music + systems; WIP checkpoint of the browser-spec job.
+Resume steps (max two jobs):
+1. Resume the engine workflow: Workflow({scriptPath: 'C:UsersmarcmAppDataLocalTempclaudefb17822dcadfc66c19d9338-3067-4e3f-9234-d869d35b29c3scratchpadstalingrad-engine.js',
+   resumeFromRunId: 'wf_ae472a8e-d30', args: the same {clusters: [...]} as the first launch (the audit clusters,
+   journal of run wf_b14b3c19-35c, first result)}). The director replays from cache; e2 and e3 rerun and continue in
+   their worktrees; then merge 1, pair 2 (weather, obstacles), merge 2, review.
+2. The browser-spec workflow (stalingrad-browser-specs-wf_96d5ba93-8c8.js, 'wf_96d5ba93-8c8') resumes only when a job
+   slot is free (after the engine pairs).
+3. Then merge stalingrad-core into stalingrad, the missions/playtest phase, a campaign critic, final checks and
+   docs/MORNING_REPORT.md.
+
 ## RESUMED after the usage limit (main session c19d9338, 08:12Z); was paused at 07:30Z
 
 Paused cleanly at 85% of the 5-hour window. Nothing pushed; live is still Beta v0.12.0. No processes running.
