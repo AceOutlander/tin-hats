@@ -143,10 +143,12 @@ export interface HudState {
   /** The side objectives begun so far, for the pause screen (not the battle HUD: phone space). */
   sideObjectives?: { text: string; status: 'open' | 'done' | 'failed' }[];
   /**
-   * The training bar's "Deploy at" chip (FOUNDATIONS.md 4.5): where trained units walk out, or null when the mission
-   * offers no spawn point to the player. The object is reused; `label` changes when the choice or its place does.
+   * The training bar's "Deploy at" button (FOUNDATIONS.md 4.5): where trained units walk out, or null when the mission
+   * offers no spawn point to the player. The object is reused; `label` (the whole sentence, for screen readers) and
+   * `place` (the point's name, or HQ, on the button) change when the choice or its place does; `front`: the front-most
+   * point held, chosen anew as the front moves.
    */
-  deploy?: { label: string; closed: boolean } | null;
+  deploy?: { label: string; place: string; front: boolean; closed: boolean } | null;
   /**
    * The training bar's "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): the enemy minefield the player can see, or enemy tank
    * trap or road block, nearest the middle of the view, at x; busy while sappers already work on it. Null when there is

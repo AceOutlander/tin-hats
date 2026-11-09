@@ -986,39 +986,85 @@
 }
 
 /*
- * "Deploy at" (FOUNDATIONS.md 4.5): a small tab on the training bar's top edge, so the bar keeps its size. It sits at
- * the bar's right end: the left end has the call-ins toggle above it.
+ * "Deploy at" (FOUNDATIONS.md 4.5): the training bar's first button, outside its scrolling part, so nothing of the
+ * battlefield is hidden (owner, 2026-11-09). A narrow column: the caption, the place on two short lines at most, and
+ * a "Front" mark while it follows the front.
  */
-.th-deploy {
-  position: absolute;
-  right: 6px;
-  bottom: calc(100% + 3px);
-  max-width: calc(100% - 12px);
+.th-trainwrap.has-deploy {
+  display: flex;
+  --dep-w: calc(var(--tbtn-w) + 12px);
+}
+
+.th-trainwrap.has-deploy .th-train {
+  flex: 0 1 auto;
   min-width: 0;
-  min-height: 30px;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 6px;
-  background: var(--plate-bg);
-  border: 1px solid var(--plate-edge);
-  color: var(--th-brass);
-  font-size: var(--fs-s);
-  letter-spacing: 0.03em;
-  white-space: nowrap;
+  padding-left: 0;
+}
+
+.th-trainwrap.has-deploy .th-more-l {
+  left: calc(var(--dep-w) + 7px);
+}
+
+.th-deploy {
+  flex: none;
+  width: var(--dep-w);
+  min-width: 48px;
+  height: var(--tbtn-h);
+  margin: 3px;
+  padding: 3px 2px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 5px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--th-brass);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.th-deploy-cap {
+  flex: none;
+  opacity: 0.8;
+}
+
+.th-deploy-text {
+  flex: none;
+  max-width: 100%;
+  color: var(--th-paper);
+  /* A long word (Perelazovsky) is set a little smaller (--dep-fit, from the HUD) rather than broken or cut. */
+  font-size: calc(var(--fs-xs) * var(--dep-fit, 1));
+  letter-spacing: 0;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.th-deploy-front {
+  display: none;
+  flex: none;
+  opacity: 0.8;
+}
+
+.th-deploy.is-front .th-deploy-front {
+  display: block;
 }
 
 .th-deploy[hidden] {
   display: none;
 }
 
-.th-deploy.is-closed {
+.th-deploy.is-closed .th-deploy-text {
   opacity: 0.6;
   text-decoration: line-through;
 }
 
-/* "Clear" (FOUNDATIONS.md 4.6 and 4.8): the same tab, stacked above "Deploy at" when both show. */
+/* "Clear" (FOUNDATIONS.md 4.6 and 4.8): a small tab on the training bar's top edge, at its right end. */
 .th-clear {
   position: absolute;
   right: 6px;
@@ -1039,9 +1085,6 @@
   text-overflow: ellipsis;
 }
 
-.th-clear.is-stacked {
-  bottom: calc(100% + 36px);
-}
 
 .th-clear[hidden] {
   display: none;
@@ -1051,11 +1094,14 @@
   opacity: 0.6;
 }
 
-/* Buttons give up a few pixels (never below 54) before the bar starts to scroll. */
+/*
+ * Buttons give up a few pixels before the bar starts to scroll, never below a width that grows with the name line's
+ * font (both follow the screen height), so every unit name fits at every phone size (tests/e2e/hud-labels.spec.ts).
+ */
 .th-tbtn {
   flex: 0 1 auto;
   width: var(--tbtn-w);
-  min-width: 54px;
+  min-width: clamp(54px, 15.5vh, 76px);
   height: var(--tbtn-h);
   padding: 2px 2px 3px;
   flex-direction: column;

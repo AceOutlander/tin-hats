@@ -328,11 +328,24 @@
   transform: none;
 }
 
-/* Waiting for the battle music (src/ui/shell/missionLoad.ts): the caption shows the progress. */
+/* Starting a battle (src/ui/shell/missionLoad.ts): the caption says so and a short bar along the bottom fills. */
 .th-btn.is-loading {
   cursor: progress;
   filter: saturate(0.7);
   font-variant-numeric: tabular-nums;
+}
+
+.th-btn.is-loading::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  bottom: 4px;
+  width: calc((100% - 12px) * var(--th-load, 0));
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(30, 22, 6, 0.75);
+  transition: width 0.2s ease-out;
+  pointer-events: none;
 }
 
 .th-btn-primary {

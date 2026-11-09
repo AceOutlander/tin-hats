@@ -146,6 +146,11 @@ export interface AudioOptions {
   renderPiece?: (def: BattleTrackDef, piece: BattlePiece, rate: number) => Promise<RenderedPiece>;
   /** Waits between battle-music pieces (tests make it instant; default: a timer). */
   wait?: (ms: number) => Promise<void>;
+  /**
+   * Waits for a quiet moment before the next battle-music piece once the battle runs (default: requestIdleCallback
+   * after MUSIC_BATTLE.render.battleGapMs; with `wait` injected and no `idle`, that wait).
+   */
+  idle?: () => Promise<void>;
   /** Random source in 0..1 for pitch spread and variations. Default Math.random. */
   random?: () => number;
   /** Use this context instead of creating one on unlock(). For tests and offline rendering. */
@@ -200,15 +205,16 @@ export interface GameAudio {
   /** Let go of a looping track's buffer (fading it out first if it plays); asked for again, it is rendered again. */
   releaseMusic(name: MusicTrackName): void;
   /**
-   * Render a battle track before its battle, a piece at a time (any other battle music is released first). Resolves
-   * true once every piece is in, false when it failed, cannot render here, or was cut short by a release or by a
-   * battle starting; it never rejects. The same track again resolves at once (or joins the render under way, or
+   * Render a battle track, a piece at a time (any other battle music is released first), the opening calm layer
+   * first. Resolves true once every piece is in, false when it failed, cannot render here, or was cut short by a
+   * release; it never rejects. A battle starting meanwhile does not stop it (see prepareBattleMusic). The same track again resolves at once (or joins the render under way, or
    * finishes the pieces a cut-short load left out). `onProgress` hears pieces ready of the total.
    */
   loadBattleMusic(name: BattleTrackName, onProgress?: (ready: number, total: number) => void): Promise<boolean>;
   /**
    * The battle starts with this track: what loadBattleMusic rendered plays from the top, its build layer fading in.
-   * Nothing is rendered from here on (a load still under way stops): a track that was not loaded stays silent.
+   * A load still under way carries on during the battle, one piece at a time in idle moments (owner, 2026-11-09);
+   * until a layer is in, the music stays on the calm one. A track that was never loaded stays silent.
    */
   prepareBattleMusic(name: BattleTrackName): void;
   /** The layer the battle asks for; it crossfades on the next bar line. */
@@ -227,6 +233,11 @@ export interface GameAudio {
   resume(): void;
   /** Resolves when every buffer requested so far has been rendered. */
   whenReady(): Promise<void>;
+  /**
+   * Resolves true once the battle music held for `name` can start (its opening calm layer is in), false when it is
+   * not being loaded, failed or was let go of. Never rejects.
+   */
+  battleMusicStartable(name: BattleTrackName): Promise<boolean>;
   /** Live counters. The same object is returned every time. */
   getStats(): Readonly<AudioStats>;
 }
@@ -244,6 +255,17 @@ function now(): number {
 
 function timer(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** The next idle moment after `ms` (a plain timer where requestIdleCallback is missing). */
+function idleAfter(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const scope = globalThis as unknown as { requestIdleCallback?: (cb: () => void, opts: { timeout: number }) => number };
+      if (scope.requestIdleCallback) scope.requestIdleCallback(() => resolve(), { timeout: MUSIC_BATTLE.render.idleTimeoutMs });
+      else resolve();
+    }, ms);
+  });
 }
 
 function ignore(): void {
@@ -327,6 +349,9 @@ class AudioEngine implements GameAudio {
   private readonly musicOut: MusicStats = { wanted: null, current: null, render: 'idle', playing: false, fade: 0, level: 0, seconds: 0, sampleRate: 0, channels: 0, bytes: 0, renderMs: 0, buildMs: 0 };
   private readonly renderPiece: ((def: BattleTrackDef, piece: BattlePiece, rate: number) => Promise<RenderedPiece>) | null;
   private readonly wait: (ms: number) => Promise<void>;
+  private readonly idle: () => Promise<void>;
+  /** Waiters for the opening calm piece (battleMusicStartable). */
+  private startable: ((ok: boolean) => void)[] = [];
   private battle: BattleMusicPlayer | null = null;
   private battleGen = 0;
   /** The load under way (loadBattleMusic): its generation, its promise and the hand that settles it early. */
@@ -385,6 +410,8 @@ class AudioEngine implements GameAudio {
     this.renderMusic = options.renderMusic ?? null;
     this.renderPiece = options.renderPiece ?? null;
     this.wait = options.wait ?? timer;
+    const injected = options.wait;
+    this.idle = options.idle ?? (injected ? () => injected(MUSIC_BATTLE.render.battleGapMs) : () => idleAfter(MUSIC_BATTLE.render.battleGapMs));
     this.contextCtor = options.context ? null : findContext();
     for (const name of ONE_SHOT_NAMES) {
       const def: SoundDef = SOUNDS[name];
@@ -732,12 +759,29 @@ class AudioEngine implements GameAudio {
       this.battleLoad = null;
       this.battleProgress = null;
     }
+    this.settleStartable(this.battleOut.piecesReady > 0 && this.battleOut.state !== 'failed');
     load.settle(ok);
+  }
+
+  battleMusicStartable(name: BattleTrackName): Promise<boolean> {
+    const b = this.battleOut;
+    if (!this.battle || b.track !== name || b.state === 'failed') return Promise.resolve(false);
+    if (b.piecesReady > 0) return Promise.resolve(true);
+    if (!this.battleLoad) return Promise.resolve(false);
+    return new Promise((resolve) => this.startable.push(resolve));
+  }
+
+  private settleStartable(ok: boolean): void {
+    const waiting = this.startable;
+    if (waiting.length === 0) return;
+    this.startable = [];
+    for (const w of waiting) w(ok);
   }
 
   /** Stop a load under way: what it rendered stays, nothing more lands, and whoever waits on it hears false. */
   private stopLoading(): void {
     this.battleGen++;
+    this.settleStartable(false);
     const load = this.battleLoad;
     if (load) this.finishLoad(load, false);
   }
@@ -761,18 +805,18 @@ class AudioEngine implements GameAudio {
   }
 
   prepareBattleMusic(name: BattleTrackName): void {
-    // The battle is starting: from here on nothing renders.
-    this.stopLoading();
     const b = this.battleOut;
     const same = this.battle;
     if (same && b.track === name) {
       this.battleLive = true;
-      // Loaded before the battle (or a restart): play what is rendered, from the top.
+      // Loaded before the battle (or a restart): play what is rendered, from the top. A load under way carries on in
+      // the battle's idle moments (renderBattle); one cut short earlier stays as it is.
       same.restart();
       same.setTarget(this.battleLayer);
-      if (b.state === 'rendering') b.state = b.piecesReady === b.piecesTotal ? 'ready' : 'partial';
+      if (b.state === 'rendering' && !this.battleLoad) b.state = b.piecesReady === b.piecesTotal ? 'ready' : 'partial';
       return;
     }
+    this.stopLoading();
     // Never loaded (the debug hooks start battles straight away): the battle plays without music.
     this.releaseBattleMusic();
     this.resetBattleStats(name);
@@ -820,13 +864,18 @@ class AudioEngine implements GameAudio {
       b.renderMs = now() - started;
       if (b.piecesReady === 1) b.firstMs = b.renderMs;
       this.battleProgress?.(b.piecesReady, b.piecesTotal);
-      await this.wait(R.gapMs);
+      this.settleStartable(true);
+      // Before the battle a short gap, so the page keeps drawing; in the battle one piece at a time, each in an idle
+      // moment, so the frames never wait on it.
+      if (this.battleLive) await this.idle();
+      else await this.wait(R.gapMs);
       return gen === this.battleGen && !failed;
     };
     const first = queue.shift();
     if (first && !(await one(first))) return false;
-    const lane = async (): Promise<boolean> => {
-      for (let piece = queue.shift(); piece; piece = queue.shift()) if (!(await one(piece))) return false;
+    // Once the battle runs, only the first lane takes new pieces.
+    const lane = async (_: unknown, k: number): Promise<boolean> => {
+      for (let piece = queue.shift(); piece; piece = k > 0 && this.battleLive ? undefined : queue.shift()) if (!(await one(piece))) return false;
       return true;
     };
     const lanes = await Promise.all(Array.from({ length: Math.max(1, Math.floor(R.lanes)) }, lane));

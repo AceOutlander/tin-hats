@@ -1,4 +1,4 @@
-/**
+﻿/**
  * createBattleView(): the Phaser 4 game, its one scene, and the glue between
  * battle state and every view (backdrop, structures, units, effects, camera,
  * input). See ./contracts.ts for the public API.
@@ -381,9 +381,7 @@ export class BattleViewImpl implements BattleView {
             spans: other.filter((sec) => sec.backdrop === secondTheatre).map((sec) => ({ from: sec.from, to: sec.to })),
           }
         : undefined;
-    const __t0 = performance.now(); const __T = (n: string): void => console.log('[T]', n, (performance.now() - __t0).toFixed(0));
     this.backdrop.build(mission.theatre, baseTime, opts.visualSeed, ground, { variant, times: timed ? times : undefined, second });
-    __T('backdrop');
     this.backdrop.setAllHidden(false);
     const colours = getTheatreColours(mission.theatre, baseTime, variant);
     this.nightAlpha = colours.nightTintAlpha;
@@ -407,7 +405,6 @@ export class BattleViewImpl implements BattleView {
     this.obstaclesOn = obstaclesNeeded(mission);
     if (this.obstaclesOn) specs.push(...obstacleSpecs());
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
-    __T('atlas');
     this.structures.build(state, earth, looks);
     if (this.obstaclesOn) this.obstacles?.build(state);
     this.points?.build(state);
@@ -415,7 +412,6 @@ export class BattleViewImpl implements BattleView {
       this.registry.addAtlas(BUILDING_GROUP, BuildingViews.battleSpecs(state), RENDER.buildingTextureScale, RENDER.atlasMaxSize);
       this.buildings.build(state);
     }
-    __T('buildings');
     this.units.reset(opts.visualSeed);
     this.units.setLooks(0, looks[0]);
     this.units.setLooks(1, looks[1]);
@@ -436,7 +432,6 @@ export class BattleViewImpl implements BattleView {
     this.scriptedRain = false;
     this.weatherView?.attach(opts.visualSeed, this.skyScripted && this.weather === 'auto' ? 'clear' : this.weather, mission.theatre);
     this.skyView?.attach(mission, opts.visualSeed, baseTime, timed);
-    __T('units+effects+weather+sky');
     this.camera.setLength(state.length);
     // Open on the player's own end of the map, the whole HQ clear of the screen edge (the clamp's edge margin).
     this.camera.setCenter(opts.playerSide === 0 ? -state.length : 2 * state.length, true);

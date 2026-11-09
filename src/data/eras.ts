@@ -170,13 +170,18 @@ export const NATION_ERAS: Record<FactionId, readonly NationEraDef[]> = {
  * Romanian nation yet) in the Romanian khaki-brown greatcoat and the Adrian helmet, under Romanian names; the Red
  * Army's ski troops (mission 1004) go in white snow smocks and hoods.
  */
-export const INFANTRY_LOOKS: Record<'romanian' | 'skiTroops', { nation: FactionId; headgear: FigureHeadgear; clothing: FigureClothing; names: Partial<Record<UnitKind, string>> }> = {
+export const INFANTRY_LOOKS: Record<
+  'romanian' | 'skiTroops',
+  { nation: FactionId; headgear: FigureHeadgear; clothing: FigureClothing; names: Partial<Record<UnitKind, string>>; buttonNames?: Partial<Record<UnitKind, string>> }
+> = {
   skiTroops: { nation: 'soviet', headgear: 'snowHood', clothing: 'snowSmock', names: { assault: 'Ski Trooper', rifle: 'Ski Trooper' } },
   romanian: {
     nation: 'german',
     headgear: 'adrian',
     clothing: 'greatcoatRomanian',
     names: { rifle: 'Infanterist (Romanian)', lmg: 'ZB vz. 30 Gunner (Romanian)', assault: 'Grenadier (Romanian)', mortar: 'Mortar Team (Romanian)', at: 'Anti-tank Team (Romanian)', sniper: 'Lunetist (Romanian)', medic: 'Sanitar (Romanian)' },
+    // Short enough for a unit button at every phone size (tests/e2e/hud-labels.spec.ts), should a look reach one.
+    buttonNames: { rifle: 'Soldat', lmg: 'ZB Gunner', assault: 'Grenadier', mortar: 'Mortar', at: 'Anti-tank', sniper: 'Lunetist', medic: 'Sanitar' },
   },
 };
 

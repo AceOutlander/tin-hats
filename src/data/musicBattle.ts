@@ -312,16 +312,23 @@ export const MUSIC_BATTLE = {
     /** Seconds rendered past each section for its tails (they ring over the start of whatever comes next). */
     tail: 2,
     /**
-     * The whole track is rendered before its battle starts (on the briefing, the start waiting for it), never while
-     * the battle runs. Milliseconds between pieces, so the page and its loading progress keep drawing meanwhile.
+     * The track starts rendering when the briefing opens, the opening calm (build) layer first; Begin waits only for
+     * that piece, and the rest carries on during the battle (owner, 2026-11-09, DECISIONS 406). Milliseconds between
+     * pieces before the battle, so the page and its loading progress keep drawing meanwhile.
      */
     gapMs: 24,
+    /**
+     * In the battle: one piece at a time (one lane), each started in an idle moment (requestIdleCallback, waiting at
+     * most idleTimeoutMs) at least battleGapMs after the last, so the frames never wait on the music.
+     */
+    battleGapMs: 250,
+    idleTimeoutMs: 1000,
     /**
      * Pieces rendered at once, each in its own OfflineAudioContext (the browser gives each its own render thread),
      * after the first, which renders alone and settles the sample rate.
      */
     lanes: 3,
-    /** A load still unfinished after this many milliseconds is given up on: the battle starts without music. */
+    /** A calm layer still unfinished after this many milliseconds is given up on: the battle starts without music. */
     loadTimeoutMs: 60_000,
     /**
      * A piece's notes are added to its graph this many seconds of music at a time, each chunk while the render is

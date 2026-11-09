@@ -20,8 +20,11 @@ import {
   incomeTenths,
   quant,
   shortName,
+  BUTTON_NAME_CHARS,
   stickValue,
   stripFrac,
+  trainButtonName,
+  deployPlaceFit,
 } from './format';
 import { ICONS, type IconName } from './icons';
 import { PrepPanel } from './prep';
@@ -66,7 +69,8 @@ const SUPPORT_ICON: Record<SupportKind, IconName> = {
 const LEVEL: readonly string[] = ['0', '1', '2'];
 
 /** Longest label that fits a training or support button before it is cut to its first word. */
-const NAME_CHARS = 10;
+const NAME_CHARS = BUTTON_NAME_CHARS;
+
 /** Middle of the joystick travel that reads as "not moving". */
 const STICK_DEAD_ZONE = 0.14;
 /** The minimap is repainted on every Nth update, and at once whenever the camera moves. */
@@ -249,7 +253,7 @@ class TrainView {
   apply(s: TrainButtonState): void {
     if (s.name !== this.rawName) {
       this.rawName = s.name;
-      this.name.set(shortName(s.label, NAME_CHARS));
+      this.name.set(trainButtonName(s.label));
       this.node.setAttribute('aria-label', `Train ${s.name}`);
     }
     this.fullName = s.name;
@@ -429,16 +433,21 @@ class HudView implements Hud {
   // Bottom bar.
   private readonly trainWrap: HTMLElement;
   private readonly trainBar: HTMLElement;
-  /** The "Deploy at" chip on the training bar (FOUNDATIONS.md 4.5): hidden unless the mission has spawn points. */
+  /**
+   * The "Deploy at" button (FOUNDATIONS.md 4.5): in the training bar, at its left end, beside the unit buttons (owner,
+   * 2026-11-09: it must not cover the battlefield); hidden unless the mission has spawn points.
+   */
   private readonly deployButton: HTMLButtonElement;
   private readonly deployText: TextCell;
   private readonly deployClosed: FlagCell;
+  private readonly deployFront: FlagCell;
+  private readonly deployIn: FlagCell;
   private deployShown: boolean | null = null;
-  /** The "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): above "Deploy at" when both show. */
+  private deployLabel = '';
+  /** The "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): a tab on the training bar's top edge. */
   private readonly clearButton: HTMLButtonElement;
   private readonly clearText: TextCell;
   private readonly clearBusy: FlagCell;
-  private readonly clearStacked: FlagCell;
   private clearShown: boolean | null = null;
   private readonly trainViews: TrainView[] = [];
   private readonly supportViews: SupportView[] = [];
@@ -663,22 +672,26 @@ class HudView implements Hud {
 
     const trainWrap = el('div', 'th-hplate th-trainwrap', bottom);
     this.trainWrap = trainWrap;
+    // "Deploy at": the bar's first button, outside its scrolling part; each tap steps to the next spawn point (the
+    // front, the HQ...). A caption, the place (two short lines at most) and a "front" mark when it follows the front.
+    const deploy = button('th-hbtn th-deploy', 'deploy-at', 'Deploy at', trainWrap);
+    deploy.hidden = true;
+    el('span', 'th-deploy-cap', deploy, 'Deploy');
+    this.deployText = new TextCell(el('span', 'th-deploy-text', deploy));
+    el('span', 'th-deploy-front', deploy, 'Front');
+    this.deployClosed = new FlagCell(deploy, 'is-closed');
+    this.deployFront = new FlagCell(deploy, 'is-front');
+    this.deployIn = new FlagCell(trainWrap, 'has-deploy');
+    this.deployButton = deploy;
+    onTap(deploy, () => this.app.dispatch({ type: 'deploy' }));
     const trainBar = el('div', 'th-train', trainWrap);
     trainBar.dataset.interactive = '';
     this.trainBar = trainBar;
-    // "Deploy at": a tab on the training bar's top edge; each tap steps to the next spawn point (the front, the HQ...).
-    const deploy = button('th-hbtn th-deploy', 'deploy-at', 'Deploy at', trainWrap);
-    deploy.hidden = true;
-    this.deployText = new TextCell(el('span', 'th-deploy-text', deploy));
-    this.deployClosed = new FlagCell(deploy, 'is-closed');
-    this.deployButton = deploy;
-    onTap(deploy, () => this.app.dispatch({ type: 'deploy' }));
     // "Clear": a sapper goes to clear the enemy minefield or obstacle in view.
     const clear = button('th-hbtn th-clear', 'clear-job', 'Send a sapper to clear it', trainWrap);
     clear.hidden = true;
     this.clearText = new TextCell(el('span', 'th-deploy-text', clear));
     this.clearBusy = new FlagCell(clear, 'is-busy');
-    this.clearStacked = new FlagCell(clear, 'is-stacked');
     this.clearButton = clear;
     onTap(clear, () => this.app.dispatch({ type: 'clear' }));
     icon('chevLeft', el('span', 'th-more th-more-l', trainWrap));
@@ -841,10 +854,17 @@ class HudView implements Hud {
     if (showDeploy !== this.deployShown) {
       this.deployShown = showDeploy;
       this.deployButton.hidden = !showDeploy;
+      this.deployIn.set(showDeploy);
     }
     if (deploy !== null && showDeploy) {
-      this.deployText.set(deploy.label);
+      this.deployText.set(deploy.place);
       this.deployClosed.set(deploy.closed);
+      this.deployFront.set(deploy.front);
+      if (deploy.label !== this.deployLabel) {
+        this.deployLabel = deploy.label;
+        this.deployButton.setAttribute('aria-label', deploy.label);
+        this.deployButton.style.setProperty('--dep-fit', String(deployPlaceFit(deploy.place)));
+      }
     }
     const clear = s.clear ?? null;
     const showClear = clear !== null && train.length > 0;
@@ -855,7 +875,6 @@ class HudView implements Hud {
     if (clear !== null && showClear) {
       this.clearText.set(clear.label);
       this.clearBusy.set(clear.busy);
-      this.clearStacked.set(showDeploy);
     }
 
     // Army scope lights the army order. A kind scope lights the order that kind obeys: its own, or the

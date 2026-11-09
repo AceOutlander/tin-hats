@@ -122,30 +122,19 @@ export class BackdropView {
     const extra = `${variant}/${times.join('+')}/${second ? `${second.theatre}~${second.variant}:${second.spans.map((s) => `${s.from}-${s.to}`).join(',')}` : ''}`;
     const ident = `${theatre}/${time}/${seed}/${bands.map((b) => `${b.from}-${b.to}:${b.style}`).join(',')}/${extra}`;
     if (ident === this.ident) return;
-    const __c = performance.now();
     this.clear();
-    console.log('[T] clear', (performance.now() - __c).toFixed(0));
     this.ident = ident;
     this.version++;
     this.baseTime = time;
-    let __g = performance.now();
     const defs = getBackdrop(theatre, time, seed, variant);
-    console.log('[T] getBackdrop', (performance.now() - __g).toFixed(0));
     this.pixels = backdropRasterArea(defs);
     let groundCanvas: HTMLCanvasElement | null = null;
     for (const def of defs) {
       const texKey = `bgtex/${def.slot}`;
-      const __a = performance.now();
       const canvas = rasteriseBackdropLayer(def);
-      console.log('[T] layer', def.slot, canvas.width + 'x' + canvas.height, (performance.now() - __a).toFixed(0));
-      __g = performance.now();
-      canvas.getContext('2d')?.getImageData(0, 0, 1, 1);
-      console.log('[T]   flush', (performance.now() - __g).toFixed(0));
-      __g = performance.now();
       if (def.slot === 'ground') groundCanvas = canvas;
       const tex = this.scene.textures.addCanvas(texKey, canvas);
       if (!tex) throw new Error(`backdrop texture ${texKey} already exists`);
-      console.log('[T]   addCanvas', (performance.now() - __g).toFixed(0));
       this.views.push({ def, texKey, images: [], tint: 0xffffff, hidden: false, skyline: null, alpha: 1 });
     }
     for (const t of times) {
@@ -169,9 +158,7 @@ export class BackdropView {
 
   /** Rasterise one extra layer, starting unseen (alpha 0). */
   private addExtra(def: BackdropLayer, texKey: string, time: TimeOfDay | null): void {
-    const __a = performance.now();
     if (!this.scene.textures.addCanvas(texKey, rasteriseBackdropLayer(def))) throw new Error(`backdrop texture ${texKey} already exists`);
-    console.log('[T] extra', texKey, (performance.now() - __a).toFixed(0));
     this.pixels += backdropRasterArea([def]);
     this.extras.push({ def, texKey, images: [], tint: 0xffffff, hidden: false, skyline: null, alpha: 0, time });
   }
@@ -227,9 +214,7 @@ export class BackdropView {
     for (const b of bands) {
       if (tiles.has(b.style)) continue;
       const def = getGroundLayer(theatre, time, seed, b.style, EXTRA_GROUND_TILE, variant);
-      const __a = performance.now();
       const canvas = rasteriseBackdropLayer(def);
-      console.log('[T] groundtile', b.style, (performance.now() - __a).toFixed(0));
       const texKey = `bgtex/ground/${b.style}`;
       if (!this.scene.textures.addCanvas(texKey, canvas)) throw new Error(`backdrop texture ${texKey} already exists`);
       this.groundKeys.push(texKey);
@@ -249,9 +234,7 @@ export class BackdropView {
       const left = tiles.get(bands[i - 1].style)!;
       const right = tiles.get(bands[i].style)!;
       const edge = bands[i].from;
-      const __a = performance.now();
       const canvas = blendCanvas(left, right, edge - GROUND_BLEND / 2, GROUND_BLEND, groundDef);
-      console.log('[T] blend', i, (performance.now() - __a).toFixed(0));
       const texKey = `bgtex/ground/blend${i}`;
       if (!this.scene.textures.addCanvas(texKey, canvas)) throw new Error(`backdrop texture ${texKey} already exists`);
       this.groundKeys.push(texKey);
@@ -510,11 +493,11 @@ function blendCanvas(
   const out = document.createElement('canvas');
   out.width = pw;
   out.height = ph;
-  const ctx = out.getContext('2d');
+  const ctx = out.getContext('2d', { willReadFrequently: true });
   const top = document.createElement('canvas');
   top.width = pw;
   top.height = ph;
-  const tctx = top.getContext('2d');
+  const tctx = top.getContext('2d', { willReadFrequently: true });
   if (!ctx || !tctx) return out;
   drawSlice(ctx, left, x0, width, scale);
   drawSlice(tctx, right, x0, width, scale);

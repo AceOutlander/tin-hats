@@ -2,13 +2,13 @@
  * How long Begin takes to reach the battle (owner, 2026-11-09: "Start the battle within about 2 seconds"). The built
  * game, real taps from the campaign map through the briefing: Begin tapped as soon as the briefing shows (the worst
  * case: the music had no head start), and Begin tapped after a few seconds on the briefing. The battle music's calm
- * layer is all a start waits for; the rest renders during the battle, a little at a time.
+ * layer is all a start waits for; the rest renders during the battle, a little at a time (DECISIONS 406).
  */
 import type { Page } from '@playwright/test';
 import type { BattleMusicStats } from '../../src/audio';
 import { arrived, expect, open, state, tap, test, unlockAll, type Hooked } from './helpers';
 
-/** Begin to the battle screen (ms), owner's target "within about 2 seconds" (DECISIONS 406). */
+/** Begin to the battle screen (ms), owner's target "within about 2 seconds". */
 const BEGIN_TARGET_MS = 2000;
 
 const battleMusic = (page: Page): Promise<BattleMusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.stats() as BattleMusicStats);

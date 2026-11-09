@@ -338,7 +338,6 @@ export class App implements AppApi {
     const played = armoury && campaign ? applyRoster(shown, missionRoster(this.save, mission, p.unlocked)) : shown;
     this.launched = { mission, armoury };
     this.lastMedals = null;
-    const __t0 = performance.now(); const __T = (n: string): void => console.log('[T]', n, (performance.now() - __t0).toFixed(0));
     const battle = createBattle({
       mission: played,
       difficulty,
@@ -347,9 +346,7 @@ export class App implements AppApi {
       commanders: [this.autopilot ? 'bot' : 'human', 'ai'],
       upgradeDefs: this.upgradeDefs,
     });
-    __T('createBattle');
     this.view.attach(battle, { playerSide: 0, weather: this.weatherMode, visualSeed: seed + APP.visualSeedOffset });
-    __T('attach');
     this.view.setAudio(this.audio);
     this.view.setDarkness(0);
     this.darkness = 0;
@@ -379,9 +376,7 @@ export class App implements AppApi {
     this.loadToken++;
     this.audio.prepareBattleMusic(mission.music);
     this.audio.resume();
-    __T('session+music');
     this.ui?.show('battle', { missionId: mission.id });
-    __T('ui');
   }
 
   /** Throw the current battle away without recording anything; its music is let go of too, unless `keepMusic`. */
@@ -571,11 +566,12 @@ export class App implements AppApi {
   }
 
   /**
-   * Render a mission's battle music, every layer, before its battle: the briefing starts it when it opens and its Begin
-   * waits on it, as do the result screen's Replay and the title's Basic Training. Resolves true when the battle may
-   * start (the music is in, could not be made, or took over MUSIC_BATTLE.render.loadTimeoutMs, and then the battle
-   * starts without it); false when the load was let go of first (back to the map) or a later call took over. Never
-   * rejects. The track already held (a replay, a restart) resolves at once. `onProgress` hears 0..1.
+   * Render a mission's battle music: the briefing starts it when it opens and its Begin waits on the opening calm layer
+   * only (the rest renders during the battle), as do the result screen's Replay and the title's Basic Training.
+   * Resolves true when the battle may start (the calm layer is in, the music could not be made, or it took over
+   * MUSIC_BATTLE.render.loadTimeoutMs, and then the battle starts without it); false when the load was let go of first
+   * (back to the map) or a later call took over. Never rejects. The track already held (a replay, a restart) resolves
+   * at once. `onProgress` hears 0..1 (1 once the calm layer is in).
    */
   loadMission(id: number, onProgress?: (fraction: number) => void): Promise<boolean> {
     const mission = id === BASIC_TRAINING_ID ? trainingMission() : this.campaignFor(id)?.missions.find((m) => m.id === id);
@@ -586,7 +582,9 @@ export class App implements AppApi {
     const timeout = new Promise<void>((resolve) => {
       timer = setTimeout(resolve, MUSIC_BATTLE.render.loadTimeoutMs);
     });
-    const music = this.audio.loadBattleMusic(mission.music, report).then(
+    // The whole track renders; the start waits only for its opening calm layer (owner, 2026-11-09, DECISIONS 406).
+    const all = this.audio.loadBattleMusic(mission.music, report && ((ready) => report(Math.min(ready, 1), 1)));
+    const music = Promise.race([all, this.audio.battleMusicStartable(mission.music)]).then(
       () => undefined,
       () => undefined,
     );

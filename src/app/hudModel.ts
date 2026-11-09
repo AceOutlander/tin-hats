@@ -108,7 +108,7 @@ export class HudModel {
   private phaseKey = -1;
   private sideKey = '';
   /** The "Deploy at" chip (reused) and what it was last made from. */
-  private readonly deployChip = { label: '', closed: false };
+  private readonly deployChip = { label: '', place: '', front: false, closed: false };
   private deployKey = -9;
   /** The "Clear" chip (reused). */
   private readonly clearChip = { label: '', x: 0, busy: false };
@@ -353,6 +353,8 @@ export class HudModel {
     this.deployKey = key;
     const chip = this.deployChip;
     const at = me.deployPoint >= 0 ? s.points[me.deployPoint].label : 'HQ';
+    chip.front = me.deploy === DEPLOY_AUTO;
+    chip.place = me.deploy === DEPLOY_AUTO ? at : me.deploy === DEPLOY_HQ ? 'HQ' : s.points[me.deploy].label;
     if (me.deploy === DEPLOY_AUTO) chip.label = `Deploy: ${at} (front)`;
     else if (me.deploy === DEPLOY_HQ) chip.label = 'Deploy: HQ';
     else chip.label = `Deploy: ${s.points[me.deploy].label}`;

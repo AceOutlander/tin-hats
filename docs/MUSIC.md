@@ -174,16 +174,18 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
 
 - Mono at 16 kHz (22.05 kHz if a browser refuses); each piece (one layer of one section, or a sting) keeps 2 s of tail.
 - At most 30 MB of samples per mission, at least 180 s of distinct material. Arras: 25.4 MB, 334 s.
-- Rendered in full before the battle starts, never while it runs (the owner's lag report): `loadBattleMusic` renders
-  every piece of every layer (prep included) and both stings, the first piece alone, then three at a time
-  (`render.lanes`, each in its own offline context and so its own render thread) with 24 ms after each piece, and
-  `prepareBattleMusic`, called as the battle starts, only plays what is held and stops any load still under way, so no
-  render work is scheduled once the battle runs (`tests/unit/music-battle.test.ts`). The briefing starts the load when
-  it opens; Begin waits for it, its caption showing "Loading 40%" (`src/ui/shell/missionLoad.ts`), as do the result
-  screen's Replay or Retry and the title's Basic Training. Nothing plays until the battle starts; then the build layer
-  fades in. If the render fails, or is not done within 60 s (`render.loadTimeoutMs`), the battle starts anyway with
-  whatever is in (silent if nothing); a battle started straight from the debug hooks without `battleMusic.load` is
-  silent. Whole track at most 45 s in headless Chromium (11 to 20 s seen one piece at a time, 5 to 8 s with three
+- The calm layer first, the rest in the battle's idle moments (owner, 2026-11-09, DECISIONS 406; this replaces the
+  earlier "rendered in full before the battle, never while it runs"): `loadBattleMusic` renders every piece of every
+  layer (prep included) and both stings, the opening section's build layer first and alone, then three at a time
+  (`render.lanes`, each in its own offline context and so its own render thread) with 24 ms after each piece. The
+  briefing starts the load when it opens; Begin waits only for that first piece (`battleMusicStartable`; about 0.1 to
+  0.7 s in headless Chromium, usually done while the orders are read), its caption showing "Loading" over a short bar
+  (`src/ui/shell/missionLoad.ts`), as do the result screen's Replay or Retry and the title's Basic Training. Once
+  `prepareBattleMusic` starts the battle, the load carries on one piece at a time (one lane), each started in an idle
+  moment (`requestIdleCallback`, at least `render.battleGapMs` after the last), and until a layer is in the music stays
+  on the calm one (`tests/unit/music-battle.test.ts`). Nothing plays until the battle starts; then the build layer
+  fades in. If the render fails, or the calm layer is not in within 60 s (`render.loadTimeoutMs`), the battle starts
+  anyway without music; a battle started straight from the debug hooks without `battleMusic.load` is silent. Whole track at most 45 s in headless Chromium (11 to 20 s seen one piece at a time, 5 to 8 s with three
   lanes; DECISIONS 324), no piece's graph build over 60 ms of main
   thread: a piece's notes are added to its graph 2 s of music at a time (`render.chunkSeconds`), each chunk while the
   offline render is suspended just before it, so a busy section is never one long task.

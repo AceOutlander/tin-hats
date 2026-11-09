@@ -293,6 +293,8 @@ export function createFakeAudio(): FakeAudio {
     }),
     battleMusic: () => null,
     whenReady: () => Promise.resolve(),
+    // The fake's load is all or nothing: its own promise says when (a test making it hang tests the timeout).
+    battleMusicStartable: () => new Promise<boolean>(() => undefined),
     getStats: () => ({ voices: 0, played: 0, dropped: 0, stolen: 0, rendered: 0, state: 'running' }),
   };
   return audio;
