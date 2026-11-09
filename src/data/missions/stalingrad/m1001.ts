@@ -6,9 +6,9 @@ import type { MissionDef } from '../../schema';
  *
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1001): the ring barracks (B1), the garrison
  * club (B2) and the Kholm Gate (B3) are trenches standing in for buildings, a 60 s prep phase comes first (the test bot
- * wires the gate), and the three phases are three 240 s stretches of the one clock (720 s, from the end of the prep
- * phase). The opening barrage, the Nebelwerfer salvo, the 21 cm mortars and the Karl siege mortar wait for scripted
- * call-ins (side 1 has no HQ, so no commander calls anything). The two StuG III Ausf. B are the `tank` kind with the
+ * wires the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
+ * clock to nightfall). The opening barrage, the Nebelwerfer salvo, the Karl siege mortar and the 21 cm mortars are
+ * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The two StuG III Ausf. B are the `tank` kind with the
  * `stug3b` look (src/data/eras.ts).
  */
 export const M1001: MissionDef = {
@@ -92,7 +92,40 @@ export const M1001: MissionDef = {
   // Sixty seconds to dig in before the first wave: the bot wires the Kholm Gate and digs a foxhole behind it.
   prep: { seconds: 60, bot: [{ kind: 'wire', x: 3420 }, { kind: 'foxhole', x: 2700 }] },
   timer: { seconds: 720, onExpire: 'win', label: 'Until nightfall' },
+  // The mission director (FOUNDATIONS.md 3): three 240 s phases under the one clock to nightfall.
+  phases: [
+    {
+      id: 'morning',
+      title: 'The first morning',
+      objectives: [{ id: 'morning', type: 'survive', seconds: 240, text: 'Hold the citadel' }],
+      sideObjectives: [
+        { id: 'gate', text: 'The Kholm Gate holds', failIf: { type: 'pointLost', point: { trench: 3 } }, bonus: 0.15 },
+        { id: 'stugs', text: 'Knock out both assault guns', objective: { id: 'stugsDead', type: 'kill', side: 1, kinds: ['tank'], count: 2 }, bonus: 0.1 },
+      ],
+      next: 'parties',
+    },
+    {
+      id: 'parties',
+      title: 'Assault parties',
+      objectives: [{ id: 'parties', type: 'survive', seconds: 240, text: 'Hold the citadel' }],
+      next: 'guns',
+    },
+    {
+      id: 'guns',
+      title: 'The guns',
+      objectives: [{ id: 'guns', type: 'survive', seconds: 240, text: 'Hold until nightfall' }],
+      next: null,
+    },
+  ],
   events: [
+    // The scripted fire of a side with no HQ (FOUNDATIONS.md 3.3): the opening barrage, the Nebelwerfer, the siege
+    // mortar and the 21 cm mortars, free and on the phase clocks.
+    { id: 'openingBarrage', type: 'banner', when: { phase: 'morning' }, text: 'Artillery!', sound: 'alarm' },
+    { type: 'barrage', when: { phase: 'morning' }, side: 1, x: 2500, spread: 900, rounds: 14, duration: 8, weapon: 'artilleryShell' },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'parties', delay: 20 }, side: 1, x: 3100, spread: 220, rounds: 12, duration: 3, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
+    { id: 'karl1', type: 'barrage', when: { phase: 'guns', delay: 90 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
+    { id: 'karl2', type: 'barrage', when: { phase: 'guns', delay: 180 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
+    { id: 'mortar21', type: 'barrage', when: { phase: 'guns', delay: 120 }, side: 1, x: 250, spread: 200, rounds: 6, duration: 5, weapon: 'mortar21', warning: 'Heavy mortars!' },
     // Phase 1, "The first morning" (0 to 240 s).
     { type: 'announce', when: { at: 1 }, text: 'The first morning: the guns across the Bug have opened fire.' },
     {

@@ -6,10 +6,11 @@ import type { MissionDef } from '../../schema';
  * few of the first PTRD anti-tank rifles, until Katukov's tanks come up; then it throws the Germans back past the
  * wood's edge. The mission depicts the real battle, not the "28 Panfilov men" legend, and names no individuals.
  *
- * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1003): two 360 s holds and the counter-attack
- * are one timeline (the bot holds until Katukov's tanks arrive at 720 s); the win is the German HQ beyond the wood, as
- * no capture point can end a phase yet. A 60 s prep phase comes first (the bot wires the halt); the tank traps, snow, the
- * opening barrage, the Pak 38 and mortar posture and the "lose if the halt falls" rule wait for their features.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1003): a hold. A 60 s prep phase comes
+ * first (the bot wires the halt); phases 1 and 2 hold the halt (trench 2 stands in for P1) for 360 s each and are lost
+ * if it falls; the German barrage on the halt, the Stuka and the Pak 38 and mortar posture are scripted; the Katyusha
+ * is offered from phase 2; phase 3 brings Katukov's tanks and takes the wood's edge (trench 3 for P2), where the
+ * Germans counter-attack 90 s after it falls; it is held for 150 s. The tank traps and the snow wait for their features.
  */
 export const M1003: MissionDef = {
   id: 1003,
@@ -44,7 +45,7 @@ export const M1003: MissionDef = {
   // Stand-ins until the russiaSummer winter variant exists (STALINGRAD_BUILD.md).
   theatre: 'germany',
   timeOfDay: 'overcast',
-  mode: 'assault',
+  mode: 'hold',
   length: 16000,
   // The unlock order (DECISIONS 295): the PPD submachine gunners. The anti-tank kind came with Brest (the Tank Hunters);
   // it is the PTRD Team from November 1941 (src/data/eras.ts). The sniper and the sanitarka are lent.
@@ -61,6 +62,8 @@ export const M1003: MissionDef = {
   start: [
     {
       faction: 'soviet',
+      // The rocket battery comes up behind the halt in phase 2.
+      supportsOff: ['katyusha'],
       hasHq: true,
       supplies: 350,
       hqHpMul: 1,
@@ -104,7 +107,52 @@ export const M1003: MissionDef = {
   // A minute to wire the halt before the first attack (the bot builds what used to be laid before the battle).
   prep: { seconds: 60, bot: [{ kind: 'wire', x: 5900 }] },
   timer: null,
+  // The mission director (FOUNDATIONS.md 3): two holds of the halt, then the counter-attack to the wood's edge.
+  phases: [
+    {
+      id: 'morning',
+      title: 'The morning attack',
+      objectives: [{ id: 'morning', type: 'survive', seconds: 360, text: 'Hold the halt' }],
+      lose: [{ type: 'pointLost', point: { trench: 2 } }],
+      sideObjectives: [
+        {
+          id: 'noTank',
+          text: 'No tank reaches the halt',
+          failIf: { type: 'enemyReached', x: 5200, count: 1, kinds: ['lightTank', 'tank', 'heavyTank'] },
+          until: 'katukov',
+          bonus: 0.15,
+        },
+        { id: 'ten', text: 'Ten tanks', objective: { id: 'tenTanks', type: 'kill', side: 1, kinds: ['lightTank', 'tank', 'heavyTank'], count: 10 }, bonus: 0.1 },
+      ],
+      next: 'again',
+    },
+    {
+      id: 'again',
+      title: 'They come again',
+      objectives: [{ id: 'again', type: 'survive', seconds: 360, text: 'Hold the halt' }],
+      lose: [{ type: 'pointLost', point: { trench: 2 } }],
+      next: 'katukov',
+    },
+    {
+      id: 'katukov',
+      title: "Katukov's tanks",
+      // Take the wood's edge, then hold it through the counter-attack that comes 90 s after it falls.
+      objectives: [
+        { id: 'woodEdge', type: 'capture', point: { trench: 3 }, text: "Take the wood's edge" },
+        { id: 'woodHeld', type: 'hold', point: { trench: 3 }, seconds: 150, text: 'Hold the edge' },
+      ],
+      next: null,
+    },
+  ],
   events: [
+    // The director's events: the barrage on the halt, the Stuka, the rocket battery, the German posture.
+    { id: 'openingBarrage', type: 'barrage', when: { phase: 'morning' }, side: 1, x: 5600, spread: 400, rounds: 5, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on the halt!' },
+    // The Stuka goes for the rear trench and the road behind the halt (on the halt itself it broke the hold, DECISIONS E1).
+    { id: 'stuka', type: 'airRaid', when: { phase: 'morning', delay: 60 }, side: 1, support: 'airStrike', x: 4200 },
+    { id: 'katyusha', type: 'support', when: { phase: 'again' }, side: 0, kind: 'katyusha', enabled: true },
+    { id: 'pakHold', type: 'posture', when: { phase: 'again', delay: 160 }, side: 1, posture: 'hold' },
+    { id: 'katukovFree', type: 'posture', when: { phase: 'katukov' }, side: 1, posture: 'free' },
+    { id: 'woodCounter', type: 'posture', when: { pointCapturedBy: 0, point: { trench: 3 }, delay: 90 }, side: 1, posture: 'counterattack', point: { trench: 3 }, seconds: 120 },
     // Phase 1, "The morning attack" (0 to 360 s).
     { type: 'announce', when: { at: 1 }, text: 'The morning attack: the ground is frozen and the panzers are moving.' },
     {
@@ -165,7 +213,7 @@ export const M1003: MissionDef = {
     { type: 'announce', when: { at: 360 }, text: 'They come again. The rocket battery has come up behind the halt.' },
     {
       type: 'hint',
-      when: { at: 362 },
+      when: { phase: 'again', delay: 2 },
       about: 'katyusha',
       text: 'The Katyusha rocket battery: a salvo over a wide area, slow to reload. Save it for the infantry massed behind the tanks.',
     },
@@ -205,7 +253,7 @@ export const M1003: MissionDef = {
     // Phase 3, "Katukov's tanks".
     {
       type: 'wave',
-      when: { at: 720 },
+      when: { phase: 'katukov' },
       side: 0,
       forces: [
         { kind: 'tank', count: 3, x: 2500 },
@@ -215,7 +263,7 @@ export const M1003: MissionDef = {
     },
     {
       type: 'hint',
-      when: { at: 724 },
+      when: { phase: 'katukov', delay: 4 },
       text: 'Advance behind the tanks with the PTRD Teams and take the wood\'s edge, then go on to their headquarters.',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The wood\'s edge is ours again.' },

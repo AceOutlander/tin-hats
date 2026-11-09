@@ -6,11 +6,12 @@ import type { MissionDef } from '../../schema';
  * The player starts with a large, mostly obsolete tank force: one KV-1 and one KV-2, three T-34s, and three BT-7s and
  * two T-26s (the light tanks are the majority, as in the 34th Tank Division).
  *
- * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1002): the mission is an assault on the
- * German supply column park at the end of the Ikva road (the enemy HQ); the "delay" mode, the 12-tank kill count, the
- * capture point at the crossroads and the phase 2 income cut wait for the mission director. Dubno's houses are trenches,
- * the two Flak 88s are anti-tank teams on guard (no German gun kind engages tanks yet), and phase 2's counter-attacks
- * are keyed to the capture of the crossroads trench.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1002): a delay. Phase 1 takes the
+ * crossroads (trench 3 stands in for the capture point P1); phase 2 holds it for 600 s and destroys twelve tanks,
+ * counted over the whole mission, with the supply road cut (income x0.4), a Stuka raid and artillery on Dubno; if the
+ * clock runs out before the twelfth tank the phase goes on with a panzer wave every 60 s. Eight enemies past x 10,000
+ * lose it (past x 5,000 in phase 1, the group's start line, so an idle commander loses too). Dubno's houses are
+ * trenches and the two Flak 88s are anti-tank teams on guard (no German gun kind engages tanks yet).
  */
 export const M1002: MissionDef = {
   id: 1002,
@@ -26,8 +27,7 @@ export const M1002: MissionDef = {
     'Their panzers have raced ahead of their infantry and their columns. The Panzer IIIs are quick and well handled, but their small guns bounce off our KVs. The eighty-eights do not, so find them first. Most of our tanks are old T-26s and BTs; the few KVs and T-34s are the best tanks on this field, so spend them wisely.',
     'One corps cannot throw the enemy back across the border. We can cut his road at Dubno, burn his tanks and hold him until dark, so the armies behind us can form a line. Destroy twelve of his tanks and keep him off the crossings.',
   ],
-  // Today's win rule: the HQ is the supply column park on the Ikva road (the kill count and the hold wait, see above).
-  objective: 'Take Dubno, then cut the road: destroy the German supply park on the Ikva road.',
+  objective: 'Take the Dubno crossroads, then hold them until dusk and destroy twelve panzers.',
   intel: {
     enemy: [
       '11th Panzer Division, with an HQ that sends up more',
@@ -44,7 +44,7 @@ export const M1002: MissionDef = {
   },
   theatre: 'france',
   timeOfDay: 'day',
-  mode: 'assault',
+  mode: 'delay',
   length: 22000,
   // The unlock order (DECISIONS 295): Dubno, the great tank battle of 1941, brings the T-34 and the mortar crews.
   newUnit: 'tank',
@@ -115,7 +115,53 @@ export const M1002: MissionDef = {
   pillboxes: [],
   wire: [],
   timer: null,
+  // The mission director (FOUNDATIONS.md 3): take the crossroads, then the delay at them (STALINGRAD.md, mission 2).
+  phases: [
+    {
+      id: 'strike',
+      title: 'Strike for Dubno',
+      objectives: [{ id: 'crossroads', type: 'capture', point: { trench: 3 }, text: 'Take the crossroads' }],
+      // The group's start line: an army that never moves off loses the road to their panzers.
+      lose: [{ type: 'enemyReached', x: 5000, count: 8 }],
+      sideObjectives: [
+        { id: 'quick', text: 'Dubno by six minutes', objective: { id: 'dubnoFast', type: 'capture', point: { trench: 3 } }, within: 360, bonus: 0.15 },
+        {
+          id: 'twenty',
+          text: 'Twenty tanks',
+          objective: { id: 'twentyTanks', type: 'kill', side: 1, kinds: ['lightTank', 'tank', 'heavyTank'], count: 20 },
+          bonus: 0.1,
+        },
+      ],
+      next: 'crossroads',
+    },
+    {
+      id: 'crossroads',
+      title: 'Hold the crossroads',
+      objectives: [
+        { id: 'dusk', type: 'survive', seconds: 600, text: 'Until dusk' },
+        { id: 'tanks', type: 'kill', side: 1, kinds: ['lightTank', 'tank', 'heavyTank'], count: 12, text: 'Tanks destroyed' },
+      ],
+      lose: [{ type: 'enemyReached', x: 10000, count: 8 }],
+      next: null,
+    },
+  ],
   events: [
+    // Phase 2 begins with the road behind cut (the announcement on taking the crossroads says so).
+    { id: 'roadCut', type: 'income', when: { phase: 'crossroads' }, side: 0, mul: 0.4 },
+    { id: 'stukas', type: 'airRaid', when: { phase: 'crossroads', delay: 120 }, side: 1, support: 'airStrike', x: 14500 },
+    { id: 'dubnoShelled', type: 'barrage', when: { phase: 'crossroads', delay: 250 }, side: 1, x: 13900, spread: 400, rounds: 8, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on Dubno!' },
+    // The twelfth tank not dead by dusk: the phase goes on, with a panzer wave every minute until it is.
+    {
+      id: 'overtime',
+      type: 'wave',
+      when: { phaseEvery: 60, phase: 'crossroads', from: 600 },
+      side: 1,
+      forces: [
+        { kind: 'lightTank', count: 2, x: 18500, behaviour: 'assault' },
+        { kind: 'rifle', count: 3, x: 18400, behaviour: 'assault' },
+      ],
+      announce: 'More panzers are coming up the Ikva road.',
+    },
     { type: 'announce', when: { at: 1 }, text: 'Strike for Dubno: the group moves off through Verba.' },
     {
       type: 'hint',
@@ -169,7 +215,7 @@ export const M1002: MissionDef = {
     // Phase 2, "Hold the crossroads": panzer counter-attacks from the Ikva road.
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 30 },
+      when: { phase: 'crossroads', delay: 30 },
       side: 1,
       forces: [
         { kind: 'lightTank', count: 2, x: 18500, behaviour: 'assault' },
@@ -180,7 +226,7 @@ export const M1002: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 180 },
+      when: { phase: 'crossroads', delay: 180 },
       side: 1,
       forces: [
         // Panzer IIIs with the 5 cm gun (the 11th Panzer had both guns; HISTORY.md).
@@ -192,7 +238,7 @@ export const M1002: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 330 },
+      when: { phase: 'crossroads', delay: 330 },
       side: 1,
       forces: [
         { kind: 'lightTank', count: 2, x: 18500, behaviour: 'assault' },
@@ -203,7 +249,7 @@ export const M1002: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 480 },
+      when: { phase: 'crossroads', delay: 480 },
       side: 1,
       forces: [
         { kind: 'lightTank', count: 4, x: 18500, behaviour: 'assault' },
@@ -214,8 +260,8 @@ export const M1002: MissionDef = {
     },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 560 },
-      text: 'Dusk is coming. Push down the Ikva road and burn the supply park before they can bring up more.',
+      when: { phase: 'crossroads', delay: 560 },
+      text: 'Dusk is coming. Hold the crossroads a little longer: every panzer burnt here is one fewer on the road east.',
     },
     {
       type: 'hint',
