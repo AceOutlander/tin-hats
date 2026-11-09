@@ -39,6 +39,8 @@ import {
 import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, TANK_KEYS, TANK_LOOKS, VEHICLE_LOOKS, aircraftLookKey, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
 import type { SpriteSpec } from '../src/art/types';
 import { buildingKey, buildingSpecs, coverPropSpecs, propKey, windowXs, type BuildingPiece } from '../src/art/structures/buildings';
+import { OBSTACLE_KEYS as OK, obstacleSpecs } from '../src/art/structures/obstacles';
+import { OBSTACLE_ART as OA } from '../src/data/obstacles';
 import { missionHqKey, missionHqSpecs } from '../src/art/structures/hqBuildings';
 import { BUILDING_LAYOUT, MISSION_HQ_STYLES } from '../src/data/looksBuilding';
 import type { BuildingLook, CoverPropLook } from '../src/data/schema';
@@ -101,7 +103,7 @@ function put(ctx: Ctx, key: string, x: number, y: number, rot = 0, flip = false,
 // Options
 // ---------------------------------------------------------------------------
 
-type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags' | 'soviet' | 'buildings';
+type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags' | 'soviet' | 'buildings' | 'obstacles';
 const SCENES: { id: SceneId; h: number }[] = [
   { id: 'hq', h: 560 },
   { id: 'field', h: 620 },
@@ -110,6 +112,7 @@ const SCENES: { id: SceneId; h: number }[] = [
   { id: 'flags', h: 340 },
   { id: 'soviet', h: 560 },
   { id: 'buildings', h: 1840 },
+  { id: 'obstacles', h: 920 },
 ];
 
 /** The building types the buildings scene shows: look, width, slots per floor, floors. */
@@ -207,6 +210,59 @@ function buildingsScene(ctx: Ctx): void {
     label(ctx, `HQ ${style}`, x, rows[5] + 16);
     x += 380;
   }
+}
+
+/**
+ * Obstacles and water (FOUNDATIONS.md 4.4, 4.6, 4.8): tank traps and a road block with a man between their halves and
+ * their wrecks; a sandbag wall with a man behind it and a sandbagged front; a minefield's signs and mines; a girder
+ * bridge, its broken end and a pontoon bridge over the water; the ferry boat with its load.
+ */
+function obstaclesScene(ctx: Ctx): void {
+  const rows = [300, 620, 900];
+  rows.forEach((gy, r) => stage(ctx, r === 0 ? 0 : rows[r - 1] + 1, gy + 20, gy));
+  let gy = rows[0];
+  const piece = (back: string, front: string, x: number, man: boolean): void => {
+    put(ctx, back, x, gy);
+    if (man) figure(ctx, x + 6, gy + VIEW.rowDy[2], 1, 1, 'stand');
+    put(ctx, front, x, gy);
+  };
+  piece(OK.hedgehogBack, OK.hedgehogFront, 100, true);
+  piece(OK.hedgehogBack, OK.hedgehogFront, 100 + OA.piecePitch, false);
+  label(ctx, 'tank traps', 122, gy + 70);
+  put(ctx, OK.hedgehogDown, 260, gy);
+  label(ctx, 'tank traps, gone', 260, gy + 70);
+  piece(OK.roadBlockBack, OK.roadBlockFront, 400, true);
+  label(ctx, 'road block', 400, gy + 70);
+  put(ctx, OK.roadBlockDown, 520, gy);
+  label(ctx, 'road block, gone', 520, gy + 70);
+  put(ctx, OK.sandbagBack, 640, gy);
+  figure(ctx, 672, VIEW.trenchFeetY - VIEW.groundY + gy, 1, 1, 'stand');
+  put(ctx, OK.sandbagFront, 640, gy);
+  label(ctx, 'sandbag wall', 672, gy + 70);
+  put(ctx, OK.sandbagLow, 780, gy + 44);
+  put(ctx, OK.sandbagLow, 780 + OA.lowTileW, gy + 44);
+  label(ctx, 'sandbagged front', 840, gy + 70);
+  put(ctx, OK.mineSign, 960, gy - 34);
+  for (let i = 0; i < 9; i++) put(ctx, OK.mine, 980 + i * 21, gy + VIEW.rowDy[i % 4]);
+  put(ctx, OK.mineSign, 1170, gy - 34);
+  label(ctx, 'minefield (seen)', 1060, gy + 70);
+  gy = rows[1];
+  for (let i = 0; i < 4; i++) put(ctx, OK.deck, 60 + i * OA.deckTileW, gy);
+  figure(ctx, 200, gy + VIEW.rowDy[1], 1, 1, 'stand');
+  for (let i = 0; i < 4; i++) put(ctx, OK.deckNear, 60 + i * OA.deckTileW, gy);
+  label(ctx, 'bridge', 250, gy - 110);
+  put(ctx, OK.deckBroken, 520, gy);
+  put(ctx, OK.deckBroken, 700, gy, 0, true);
+  label(ctx, 'blown', 610, gy - 110);
+  for (let i = 0; i < 3; i++) put(ctx, OK.pontoonDeck, 820 + i * OA.deckTileW, gy);
+  for (let i = 0; i < 3; i++) put(ctx, OK.pontoonNear, 820 + i * OA.deckTileW, gy);
+  label(ctx, 'pontoon', 960, gy - 110);
+  gy = rows[2];
+  put(ctx, OK.boat, 200, gy + OA.boatDy);
+  put(ctx, OK.boatLoad, 200, gy + OA.boatDy);
+  label(ctx, 'ferry, loaded', 200, gy + 70);
+  put(ctx, OK.boat, 500, gy + OA.boatDy, 0, true);
+  label(ctx, 'ferry, empty', 500, gy + 70);
 }
 
 const params = new URLSearchParams(location.search);
@@ -764,6 +820,9 @@ function render(t: number): void {
     case 'buildings':
       buildingsScene(ctx);
       break;
+    case 'obstacles':
+      obstaclesScene(ctx);
+      break;
   }
 }
 
@@ -783,7 +842,14 @@ function buildNav(): void {
 }
 
 function boot(): void {
-  const specs = [...structureSpecs(), ...vehicleSpecs(), ...propSpecs(), ...FACTION_IDS.flatMap((f) => truckSpecs(f)), ...buildingSpecList()];
+  const specs = [
+    ...structureSpecs(),
+    ...vehicleSpecs(),
+    ...propSpecs(),
+    ...FACTION_IDS.flatMap((f) => truckSpecs(f)),
+    ...buildingSpecList(),
+    ...obstacleSpecs(),
+  ];
   for (const spec of specs) rasters.set(spec.key, rasterise(spec));
   window.__stats = { sprites: specs.length };
   buildNav();

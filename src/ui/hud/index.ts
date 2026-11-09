@@ -434,6 +434,12 @@ class HudView implements Hud {
   private readonly deployText: TextCell;
   private readonly deployClosed: FlagCell;
   private deployShown: boolean | null = null;
+  /** The "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): above "Deploy at" when both show. */
+  private readonly clearButton: HTMLButtonElement;
+  private readonly clearText: TextCell;
+  private readonly clearBusy: FlagCell;
+  private readonly clearStacked: FlagCell;
+  private clearShown: boolean | null = null;
   private readonly trainViews: TrainView[] = [];
   private readonly supportViews: SupportView[] = [];
   // Call-ins: a "Call-ins" toggle with a mini pip per call-in, which opens the column of call-in buttons above it.
@@ -667,6 +673,14 @@ class HudView implements Hud {
     this.deployClosed = new FlagCell(deploy, 'is-closed');
     this.deployButton = deploy;
     onTap(deploy, () => this.app.dispatch({ type: 'deploy' }));
+    // "Clear": a sapper goes to clear the enemy minefield or obstacle in view.
+    const clear = button('th-hbtn th-clear', 'clear-job', 'Send a sapper to clear it', trainWrap);
+    clear.hidden = true;
+    this.clearText = new TextCell(el('span', 'th-deploy-text', clear));
+    this.clearBusy = new FlagCell(clear, 'is-busy');
+    this.clearStacked = new FlagCell(clear, 'is-stacked');
+    this.clearButton = clear;
+    onTap(clear, () => this.app.dispatch({ type: 'clear' }));
     icon('chevLeft', el('span', 'th-more th-more-l', trainWrap));
     icon('chevRight', el('span', 'th-more th-more-r', trainWrap));
     trainBar.addEventListener('scroll', this.onTrainScroll, { passive: true });
@@ -831,6 +845,17 @@ class HudView implements Hud {
     if (deploy !== null && showDeploy) {
       this.deployText.set(deploy.label);
       this.deployClosed.set(deploy.closed);
+    }
+    const clear = s.clear ?? null;
+    const showClear = clear !== null && train.length > 0;
+    if (showClear !== this.clearShown) {
+      this.clearShown = showClear;
+      this.clearButton.hidden = !showClear;
+    }
+    if (clear !== null && showClear) {
+      this.clearText.set(clear.label);
+      this.clearBusy.set(clear.busy);
+      this.clearStacked.set(showDeploy);
     }
 
     // Army scope lights the army order. A kind scope lights the order that kind obeys: its own, or the

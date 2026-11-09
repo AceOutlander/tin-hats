@@ -10,7 +10,8 @@ import type { MissionDef } from '../../schema';
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1007): phase 0 takes the house (a building
  * of four floors with seven windows each, FOUNDATIONS.md 4.3; two Germans inside) before first light, and brings
- * Afanasyev's section up the communication trench; the 60 s prep phase follows it (the bot wires the doors); then day
+ * Afanasyev's section up the communication trench; the 60 s prep phase follows it: wire, AP minefields and sandbags in
+ * the windows (FOUNDATIONS.md 4.6 and 4.8; the bot mines the square, wires the doors and sandbags the house); then day
  * one (lost if the house falls, a Stuka raid), night one, day two with the tanks and the last night (the Katyusha comes
  * up for it), all under the one 22-minute clock. The attackers have no HQ: their Stukas are scripted raids. The
  * artillery reloads in 90 s here. The communication trench is the capture point P1 (its side objective keeps it open);
@@ -140,8 +141,11 @@ export const M1007: MissionDef = {
       prep: {
         seconds: 60,
         zone: { from: 2200, to: 4000 },
+        buildables: ['wire', 'minefield', 'sandbags'],
         bot: [
+          { kind: 'minefield', x: 3100 },
           { kind: 'wire', x: 2760 },
+          { kind: 'sandbags', x: 2450 },
           { kind: 'wire', x: 3400 },
         ],
       },

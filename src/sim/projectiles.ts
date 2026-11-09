@@ -11,6 +11,9 @@ import { CONFIG, SPECIALS } from '../data/config';
 import { FIRE_DAMAGE } from '../data/damage';
 import type { Side } from '../data/schema';
 import { splashWalls } from './buildings';
+import { splashMines } from './mines';
+import { splashObstacles } from './obstacles';
+import { hitFerries, splashBridges } from './water';
 import {
   CLASS_BUILDING,
   CLASS_FORT,
@@ -199,7 +202,14 @@ function explode(w: World, pi: number): void {
       wire.hp -= weapon.damage * p.damageMul * falloff;
       if (wire.hp <= 0) destroyWire(w, wire, true);
     }
+    // Obstacles and water (FOUNDATIONS.md 4.4, 4.6, 4.8): blasts wear down obstacles and bridges and set mines off.
+    const dmg = weapon.damage * p.damageMul;
+    if (s.obstacles.length > 0) splashObstacles(w, x, r, dmg);
+    if (s.minefields.length > 0) splashMines(w, side, x, r, dmg);
+    if (s.bridges.length > 0) splashBridges(w, side, x, r, dmg);
   }
+  // A boat crossing under the barrage (FOUNDATIONS.md 4.4).
+  if (s.ferries.length > 0) hitFerries(w, side, x);
 }
 
 /** Move every projectile in flight; those that arrive explode. Runs before anyone fires this tick. */

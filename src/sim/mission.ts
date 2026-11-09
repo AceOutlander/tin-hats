@@ -11,6 +11,7 @@ import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
 import { deployX } from './points';
 import { claimSlot, enterSlot } from './trenches';
 import { makeVeteran, spawnUnit } from './units';
+import { boardFerry, ferryFor } from './water';
 import type { World } from './world';
 
 /**
@@ -40,6 +41,8 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let step = (dir * CONFIG.spacing) / 2;
   let inFormation = atStart && behaviour === 'army' && side.hq !== null;
   let trench = -1;
+  // A wave sent to a ferry landing the side holds (or a point beyond one) waits for the next boat (FOUNDATIONS.md 4.4).
+  let ferry = -1;
   // A building's window slots are its slot record's (src/sim/buildings.ts).
   const seatId = force.trenchId ?? (force.buildingId !== undefined ? buildingTrenchId(force.buildingId) : undefined);
   // A forward spawn point the side holds (ForceDef.at): just behind it, going back.
@@ -49,6 +52,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
       // A capture point: just behind its zone, where trained units deploy.
       const k = s.points.findIndex((p) => p.id === at.point);
       if (k >= 0) baseX = deployX(w, si, k);
+      if (k >= 0 && !atStart) ferry = ferryFor(w, si, k);
     } else {
       // A trench, or a building by its slot record (src/sim/buildings.ts).
       const atId = refTrenchId(at);
@@ -59,7 +63,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     step = -dir * CONFIG.spacing;
     inFormation = false;
   }
-  if (force.x === undefined && seatId === undefined && !atStart) {
+  if (force.x === undefined && seatId === undefined && !atStart && ferry < 0) {
     // The same rule for a wave at the HQ door, the map edge or a spawn point (the 1004 counter-attack): if its leading
     // man would stand at or behind the other side's line, the wave forms up just ahead of that line, going back, and
     // is cut off when there is no ground left.
@@ -143,6 +147,10 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     // Names and looks only (FOUNDATIONS.md 5.1): the force's look inside the era, and its nation if not the side's.
     if (force.look !== undefined) u.look = force.look;
     if (force.nation !== undefined) u.faction = force.nation;
+    if (ferry >= 0) {
+      boardFerry(w, u, ferry);
+      continue;
+    }
     if (behaviour === 'garrison') u.postTrench = trench;
     let x: number;
     if (seat && claimSlot(w, u, trench)) {

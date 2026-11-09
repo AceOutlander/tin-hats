@@ -5,6 +5,7 @@
  */
 import { CONFIG, SPECIALS } from '../data/config';
 import { FIRE_DAMAGE } from '../data/damage';
+import { OBSTACLES } from '../data/obstacles';
 import { damageBuilding } from './buildings';
 import { LAUNCH, launch } from './projectiles';
 import {
@@ -51,6 +52,13 @@ import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, GROUND_INV_CELL, type W
 
 /** Index of the bullet damage type (a bullet in the back ignites a flamethrower). */
 const BULLET = DAMAGE_TYPES.indexOf('bullet');
+const EXPLOSIVE_TYPE = DAMAGE_TYPES.indexOf('explosive');
+
+/** True if the slot record at trench index `ti` is a building with sandbags in its windows (a prep build). */
+function sandbagged(sandbags: readonly { trench: number; building: number }[], ti: number): boolean {
+  for (let i = 0; i < sandbags.length; i++) if (sandbags[i].building >= 0 && sandbags[i].trench === ti) return true;
+  return false;
+}
 /** Fire on men at a building's windows, in place of the matrix value (FIRE_DAMAGE in src/data/damage.ts). */
 const FIRE_BUILDING = FIRE_DAMAGE.infantryBuilding ?? 1;
 
@@ -547,6 +555,11 @@ export function applyDamage(w: World): void {
           if (c < 0) c = 0;
           else if (c >= g.count) c = g.count - 1;
           amount *= g.cover[c];
+        }
+        // Sandbags in the windows of the building he holds (fire still burns him out).
+        if (s.sandbags.length > 0 && u.trenchId >= 0 && (flags & DMG_FLUSH) === 0 && sandbagged(s.sandbags, u.trench)) {
+          if (dtype === BULLET) amount *= OBSTACLES.sandbagBullet;
+          else if (dtype === EXPLOSIVE_TYPE) amount *= OBSTACLES.sandbagExplosive;
         }
         u.hp -= amount;
         u.hitTime = s.time;

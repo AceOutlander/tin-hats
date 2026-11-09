@@ -110,6 +110,8 @@ export class HudModel {
   /** The "Deploy at" chip (reused) and what it was last made from. */
   private readonly deployChip = { label: '', closed: false };
   private deployKey = -9;
+  /** The "Clear" chip (reused). */
+  private readonly clearChip = { label: '', x: 0, busy: false };
 
   private makePrepPanel(prep: BattleState['prep']): void {
     this.prepSource = prep;
@@ -296,6 +298,51 @@ export class HudModel {
     this.refreshControl(battle, hp);
     this.refreshMinimap(battle, camCenterX, camViewW);
     if (st.deploy) this.refreshDeploy(s);
+    st.clear = this.refreshClear(s, camCenterX, camViewW);
+  }
+
+  /**
+   * The "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): the enemy minefield side 0 can see, or enemy obstacle, nearest the
+   * middle of the view and within it; null when there is none or side 0 has no sapper. Allocation free.
+   */
+  private refreshClear(s: BattleState, camCenterX: number, camViewW: number): HudState['clear'] {
+    if (s.over || (s.minefields.length === 0 && s.obstacles.length === 0) || s.sides[0].alive.sapper <= 0) return null;
+    const half = camViewW / 2;
+    let best = Infinity;
+    let label = '';
+    let x = 0;
+    let target: 'minefield' | 'obstacle' = 'minefield';
+    let index = -1;
+    for (let k = 0; k < s.minefields.length; k++) {
+      const f = s.minefields[k];
+      if (!f.alive || f.owner === 0 || !f.known[0]) continue;
+      const d = Math.max(0, Math.abs(f.x - camCenterX) - f.width / 2);
+      if (d > half || d >= best) continue;
+      best = d;
+      label = 'Clear mines';
+      x = f.x;
+      target = 'minefield';
+      index = k;
+    }
+    for (let k = 0; k < s.obstacles.length; k++) {
+      const o = s.obstacles[k];
+      if (!o.alive || o.owner === 0) continue;
+      const d = Math.max(0, Math.abs(o.x - camCenterX) - o.width / 2);
+      if (d > half || d >= best) continue;
+      best = d;
+      label = o.kind === 'tankTrap' ? 'Clear tank traps' : 'Clear road block';
+      x = o.x;
+      target = 'obstacle';
+      index = k;
+    }
+    if (index < 0) return null;
+    let busy = false;
+    for (const job of s.clears) if (job.side === 0 && job.target === target && job.index === index) busy = true;
+    const chip = this.clearChip;
+    chip.label = busy ? 'Sappers clearing' : label;
+    chip.x = x;
+    chip.busy = busy;
+    return chip;
   }
 
   /** The "Deploy at" chip: rebuilt only when the choice or where it resolves to changes. */

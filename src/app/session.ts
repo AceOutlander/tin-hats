@@ -439,6 +439,11 @@ export class BattleSession {
       case 'deploy':
         this.battle.command(0, { type: 'deploy', at: nextDeploy(this.battle.state) });
         return true;
+      case 'clear': {
+        const chip = this.hud.state.clear;
+        if (chip && !chip.busy) this.battle.command(0, { type: 'clear', x: chip.x });
+        return true;
+      }
       case 'dismissTip':
         return true;
       default:

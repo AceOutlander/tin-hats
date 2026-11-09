@@ -16,8 +16,10 @@ import type {
   Difficulty,
   FactionId,
   MissionDef,
+  MineKind,
   MissionMode,
   ObjectiveDef,
+  ObstacleKind,
   Order,
   Side,
   SupportKind,
@@ -105,7 +107,12 @@ export type Command =
    * Where trained units walk out (the "Deploy at" chip, FOUNDATIONS.md 4.5): 'auto' = the forward-most owned,
    * uncontested spawn point (the default), 'hq' = the HQ door, or an index into state.points. Sappers always use the HQ.
    */
-  | { type: 'deploy'; at: 'auto' | 'hq' | number };
+  | { type: 'deploy'; at: 'auto' | 'hq' | number }
+  /**
+   * A sappers' Clear job (FOUNDATIONS.md 4.6 and 4.8) on the enemy minefield this side can see, or the enemy tank trap
+   * or road block, nearest world x (within CLEAR_PICK). Dropped when there is none or a job is already on it.
+   */
+  | { type: 'clear'; x: number };
 
 /**
  * An admin panel action (src/sim/admin.ts). Not a command: battle.admin() applies it at once, between ticks, so it
@@ -395,6 +402,8 @@ export interface UnitState {
   skis: boolean;
   /** internal: Fall Back: index into state.points of the rally point it is heading for or holds, -1 for none (the HQ). */
   rally: number;
+  /** Index into state.ferries of the ferry it waits for or crosses on (inside, off the field), -1 for none. */
+  ferry: number;
 }
 
 /** Admin panel cheats in force on one side (AdminAction). All off in a normal battle. */
@@ -624,6 +633,116 @@ export interface WireState {
   alive: boolean;
 }
 
+/** A tank trap or road block (MissionDef.obstacles, or built in a prep phase; src/sim/obstacles.ts). */
+export interface ObstacleState {
+  id: number;
+  x: number;
+  width: number;
+  owner: Side;
+  kind: ObstacleKind;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  /** Vehicles of the other side held at it this tick. */
+  held: number;
+}
+
+/** A minefield (MissionDef.minefields, or laid in a prep phase; src/sim/mines.ts). */
+export interface MinefieldState {
+  id: number;
+  /** Centre and width of what is left of it (a Clear job eats in from the near edge). */
+  x: number;
+  width: number;
+  owner: Side;
+  mines: MineKind;
+  /** 0..1. */
+  density: number;
+  marked: boolean;
+  /** Per side: it sees the field (its owner always; the other side once marked, set off, shelled or seen from the air). */
+  known: [boolean, boolean];
+  /** False once cleared or thinned to nothing. */
+  alive: boolean;
+  /** Mines gone off under men so far. */
+  blasts: number;
+}
+
+/** A bridge (MissionDef.bridges; src/sim/water.ts). */
+export interface BridgeState {
+  id: number;
+  x0: number;
+  x1: number;
+  hp: number;
+  maxHp: number;
+  /** -1 nobody, else the side holding it (its point's owner when it has one). */
+  owner: number;
+  /** True while it spans the river (vehicles cross, nobody wades). */
+  standing: boolean;
+  /** Charges ready to blow; cleared when the other side holds its point. */
+  wired: boolean;
+  /** The side that laid the charges, -1 for none. */
+  demolitionSide: number;
+  look: 'bridge' | 'pontoon';
+  /** Index into state.points of the point on it, -1 for none. */
+  point: number;
+  /** Battle time it fell, -1 while it stands or never stood. */
+  downAt: number;
+}
+
+/**
+ * A ferry serving a capture point (CapturePointDef.ferry; src/sim/water.ts): a boat every `every` seconds lands what
+ * waited for it. While it crosses it is at boatX.
+ */
+export interface FerryState {
+  /** Index into state.points of the landing. */
+  point: number;
+  side: Side;
+  /** Where it puts out from and where it lands (wu). */
+  from: number;
+  to: number;
+  cross: number;
+  every: number;
+  hitShare: number;
+  /** Battle time the next boat lands. */
+  nextArrive: number;
+  /** True while a boat is on the water; boatX is where. */
+  sailing: boolean;
+  boatX: number;
+  /** Men aboard the boat on the water. */
+  load: number;
+  /** The boat on the water has been hit. */
+  hit: boolean;
+  /** Boats that landed men, boats hit on the way, and men lost with them. */
+  landed: number;
+  loadsLost: number;
+  menLost: number;
+}
+
+/** A sapper's Clear job on an enemy minefield or obstacle (src/sim/mines.ts and obstacles.ts). */
+export interface ClearJobState {
+  /** Shares the build sites' id space (UnitState.site names it). */
+  id: number;
+  side: Side;
+  target: 'minefield' | 'obstacle';
+  /** Index into state.minefields or state.obstacles. */
+  index: number;
+  /** Where the sapper stands to work: the near edge, from the side's own end. */
+  x: number;
+  /** Pool index of the sapper on it, -1 for none yet. */
+  worker: number;
+  workerId: number;
+}
+
+/** Sandbags built in a prep phase: a sandbag wall (its own slot record) or sandbags in a building's windows. */
+export interface SandbagState {
+  /** Index into state.trenches of the slot record they fortify (the wall's own, or the building's). */
+  trench: number;
+  /** Index into state.buildings when they are in a building's windows, -1 for a wall. */
+  building: number;
+  x: number;
+  width: number;
+  side: Side;
+}
+
 /** A supply dump: indestructible scenery where a side's sappers load. */
 export interface DumpState {
   side: Side;
@@ -801,6 +920,18 @@ export interface BattleState {
   prep: PrepState | null;
   /** Build sites not yet finished (placed in the prep phase), in the order placed. */
   sites: BuildSiteState[];
+  /** Tank traps and road blocks (the mission's, then those built). */
+  obstacles: ObstacleState[];
+  /** Minefields (the mission's, then those laid). */
+  minefields: MinefieldState[];
+  /** Bridges, in mission order. */
+  bridges: BridgeState[];
+  /** Ferries, one per capture point with `ferry`. */
+  ferries: FerryState[];
+  /** Sappers' Clear jobs not yet done. */
+  clears: ClearJobState[];
+  /** Sandbags built (walls and buildings' windows). */
+  sandbags: SandbagState[];
   /** The mission director: the current phase, its objectives, the side objectives (src/sim/director.ts). */
   director: DirectorState;
   /** Scripted weather and time of day (src/sim/sky.ts). */
@@ -935,7 +1066,21 @@ export type SimEventType =
   | 'objectiveDone'
   | 'pointCaptured'
   /** A building lost its top floor (targetIndex = index in state.buildings, value = floors left, x = its centre). */
-  | 'floorCollapsed';
+  | 'floorCollapsed'
+  /** A tank trap or road block is gone (targetIndex = index in state.obstacles, x, side = its owner, cause). */
+  | 'obstacleDestroyed'
+  /** A mine went off (targetIndex = index in state.minefields, x, side = the victim's side, unit, unitId, kind). */
+  | 'mineBlast'
+  /** A bridge fell (targetIndex = index in state.bridges, x = its centre, cause 'explosive'). */
+  | 'bridgeBlown'
+  /** A bridge was put across (targetIndex = index in state.bridges, x = its centre). */
+  | 'bridgeBuilt'
+  /** A boat landed (targetIndex = index in state.ferries, side, x = the landing, value = men ashore). */
+  | 'ferryLanded'
+  /** A boat was hit crossing (targetIndex = index in state.ferries, side, x = the boat, value = men lost). */
+  | 'ferryHit'
+  /** A Clear job is done (side, x, text = 'minefield' | 'obstacle'). */
+  | 'clearDone';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an

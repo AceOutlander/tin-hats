@@ -128,6 +128,7 @@ export function createUnit(index: number): UnitState {
     invincible: false,
     skis: false,
     rally: -1,
+    ferry: -1,
   };
 }
 
@@ -275,6 +276,7 @@ export function spawnUnit(
   u.invincible = false;
   u.skis = false;
   u.rally = -1;
+  u.ferry = -1;
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = def.formationDepth;
@@ -314,7 +316,9 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
     killer.kills++;
     killer.killsByKind[u.kind]++;
   }
-  if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
+  // Men waiting for (or on) a ferry are off the field but not in the HQ.
+  if (u.inside && u.carrier < 0 && u.ferry < 0 && side.hq) side.hq.garrison--;
+  u.ferry = -1;
   if (u.passengers > 0) dropPassengers(w, u, false);
   freeCell(w, u);
   releaseSlot(w, u);
@@ -354,7 +358,8 @@ export function removeUnit(w: World, u: UnitState): void {
   side.pop -= u.def.pop;
   side.alive[u.kind]--;
   if (u.veteran) w.escorts[u.side * KIND_COUNT + u.kindIndex]--;
-  if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
+  if (u.inside && u.carrier < 0 && u.ferry < 0 && side.hq) side.hq.garrison--;
+  u.ferry = -1;
   if (u.passengers > 0) dropPassengers(w, u, false);
   freeCell(w, u);
   releaseSlot(w, u);

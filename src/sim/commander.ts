@@ -9,7 +9,7 @@
  * reactions to what it sees), pick the order from relative strength with
  * hysteresis, and call in supports.
  */
-import { AI, AI_PLANES, AI_RECOVERY } from '../data/ai';
+import { AI, AI_CLEAR, AI_PLANES, AI_RECOVERY } from '../data/ai';
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
@@ -19,7 +19,7 @@ import { buildProblem, inPrep, missionTime } from './prep';
 import { canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, KIND_SQUAD } from './tables';
 import type { CommanderKind, SideState } from './types';
-import { CMD_BUILD, CMD_ORDER, CMD_READY, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
+import { CMD_BUILD, CMD_CLEAR, CMD_ORDER, CMD_READY, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
 
 /** Build the commander memory for a side, or null for human and idle commanders. */
 export function createAi(w: World, kind: CommanderKind): AiState | null {
@@ -457,6 +457,49 @@ function callSupports(w: World, si: number, ai: AiState): void {
   }
 }
 
+/**
+ * Minefields and obstacles in the way (FOUNDATIONS.md 4.6 and 4.8): the nearest enemy minefield the side can see, or
+ * enemy tank trap or road block, ahead of its leading unit within AI.supportReach. The artillery shells a field once
+ * the supports above have passed it over (blasts break mines), and with sappers to spare (AI_CLEAR) one goes to clear
+ * it while it lies behind the enemy's front. The AI and the test bot alike; nothing happens on a field without any.
+ */
+function clearTheWay(w: World, si: number, ai: AiState): void {
+  const s = w.state;
+  if (s.minefields.length === 0 && s.obstacles.length === 0) return;
+  const dir = si === 0 ? 1 : -1;
+  const lead = w.armedFront[si];
+  let bestX = NaN;
+  let bestD = Infinity;
+  let field = false;
+  for (let k = 0; k < s.minefields.length; k++) {
+    const f = s.minefields[k];
+    if (!f.alive || f.owner === si || !f.known[si]) continue;
+    const near = f.x - (dir * f.width) / 2;
+    const d = (near - lead) * dir;
+    if (d < -f.width || d > AI.supportReach || d >= bestD) continue;
+    bestD = d;
+    bestX = f.x;
+    field = true;
+  }
+  for (let k = 0; k < s.obstacles.length; k++) {
+    const o = s.obstacles[k];
+    if (!o.alive || o.owner === si) continue;
+    const near = o.x - (dir * o.width) / 2;
+    const d = (near - lead) * dir;
+    if (d < -o.width || d > AI.supportReach || d >= bestD) continue;
+    bestD = d;
+    bestX = o.x;
+    field = false;
+  }
+  if (!Number.isFinite(bestX)) return;
+  if (field && s.time - ai.lastSupportTime >= AI.supportGap && canCallSupport(w, si, 'artillery')) issueSupport(w, si, ai, 'artillery', bestX);
+  const side = s.sides[si];
+  if (side.alive.sapper < AI_CLEAR.minSappers) return;
+  for (const job of s.clears) if (job.side === si) return;
+  if ((w.front[1 - si] - bestX) * dir < AI_CLEAR.frontMargin) return;
+  w.commands.push(si, CMD_CLEAR).x = bestX;
+}
+
 function think(w: World, si: number, ai: AiState): void {
   const side = w.state.sides[si];
   const hq = side.hq;
@@ -465,6 +508,7 @@ function think(w: World, si: number, ai: AiState): void {
   build(w, si, ai);
   decideOrder(w, si, ai);
   callSupports(w, si, ai);
+  clearTheWay(w, si, ai);
 }
 
 /** Let each AI or bot commander think when its interval comes round. Both sides read the same state. */

@@ -45,6 +45,9 @@ import { renderSprites } from './sprites';
 import { BuildSiteViews, type Placing } from './buildSites';
 import { PointViews } from './points';
 import { BuildingViews } from './buildings';
+import { ObstacleViews } from './obstacles';
+import { obstaclesNeeded } from '../data/obstacles';
+import { obstacleSpecs } from '../art/structures/obstacles';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
@@ -102,6 +105,10 @@ export class BattleViewImpl implements BattleView {
   private structures: StructureViews | null = null;
   private points: PointViews | null = null;
   private buildings: BuildingViews | null = null;
+  /** Tank traps, road blocks, sandbags, minefields, bridges and the ferry (FOUNDATIONS.md 4.4, 4.6, 4.8). */
+  private obstacles: ObstacleViews | null = null;
+  /** The battle being shown has any of them (obstaclesNeeded, worked out once at attach). */
+  private obstaclesOn = false;
   private buildSites: BuildSiteViews | null = null;
   /** The build the player is placing in a prep phase (the ghost), or null. */
   private placing: Placing | null = null;
@@ -244,6 +251,7 @@ export class BattleViewImpl implements BattleView {
     this.structures = new StructureViews(scene, layers, reg);
     this.points = new PointViews(scene, layers, reg);
     this.buildings = new BuildingViews(scene, layers, reg);
+    this.obstacles = new ObstacleViews(scene, layers, reg);
     this.buildSites = new BuildSiteViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
@@ -394,8 +402,11 @@ export class BattleViewImpl implements BattleView {
     ];
     this.looks = looks;
     const specs = StructureViews.battleSpecs(state, earth, looks);
+    this.obstaclesOn = obstaclesNeeded(mission);
+    if (this.obstaclesOn) specs.push(...obstacleSpecs());
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
     this.structures.build(state, earth, looks);
+    if (this.obstaclesOn) this.obstacles?.build(state);
     this.points?.build(state);
     if (this.buildings && state.buildings.length > 0) {
       this.registry.addAtlas(BUILDING_GROUP, BuildingViews.battleSpecs(state), RENDER.buildingTextureScale, RENDER.atlasMaxSize);
@@ -432,6 +443,8 @@ export class BattleViewImpl implements BattleView {
     this.structures?.clear();
     this.points?.clear();
     this.buildings?.clear();
+    this.obstacles?.clear();
+    this.obstaclesOn = false;
     this.effects?.clear();
     this.weatherView?.clear();
     this.skyView?.clear();
@@ -540,6 +553,10 @@ export class BattleViewImpl implements BattleView {
       this.structures.update(state, dt);
       this.points?.update(state, dt);
       this.buildings?.update(state);
+      if (this.obstaclesOn) {
+        this.obstacles?.sync(state);
+        this.obstacles?.update(state, this.playerSide);
+      }
       this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
       if (this.skyView) {

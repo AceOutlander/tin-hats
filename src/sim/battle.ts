@@ -9,6 +9,10 @@ import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
 import { applyAdmin, cheatSupplies, cheatTraining, inspectAi } from './admin';
 import { createBuildings, layoutBuildings, updateBuildings } from './buildings';
+import { updateClears } from './clear';
+import { createMinefields, updateMines } from './mines';
+import { createObstacles, updateObstacles } from './obstacles';
+import { createBridges, createFerries, layBridges, updateBridges, updateFerries } from './water';
 import { applyDamage } from './combat';
 import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
@@ -48,6 +52,7 @@ import { createMount, createUnit, resetMount } from './units';
 import {
   CMD_BUILD,
   CMD_CANCEL_BUILD,
+  CMD_CLEAR,
   CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
@@ -268,6 +273,8 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
 
   const hq0 = sides[0].hq;
   const hq1 = sides[1].hq;
+  // After the buildings: a point that is a building follows the building's slot record.
+  const points = createPoints(mission, trenches);
   return {
     tick: 0,
     time: 0,
@@ -284,8 +291,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     trenches,
     pillboxes,
     wires,
-    // After the buildings: a point that is a building follows the building's slot record.
-    points: createPoints(mission, trenches),
+    points,
     buildings,
     dumps: [
       hq0 ? { side: 0, x: hq0.doorX + CONFIG.dumpDistance } : null,
@@ -293,6 +299,13 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     ],
     prep: createPrep(mission, hq0 ? hq0.x : null),
     sites: [],
+    // Obstacles and water (FOUNDATIONS.md 4.4, 4.6 and 4.8): all empty for a mission without them.
+    obstacles: createObstacles(mission),
+    minefields: createMinefields(mission),
+    bridges: createBridges(mission, points),
+    ferries: createFerries(mission, points),
+    clears: [],
+    sandbags: [],
     timer: mission.timer
       ? {
           secondsLeft: mission.timer.seconds,
@@ -400,6 +413,7 @@ class BattleImpl implements Battle, World {
     this.cells = [new Uint8Array(cellCount), new Uint8Array(cellCount)];
     this.state = createState(config, this.mods);
     this.ground = buildGroundField(mission);
+    layBridges(this); // standing bridges are road over the river
     // The mission's trenches, then the slot records of its buildings and cover props.
     const trenchCount = this.state.trenches.length;
     const slots = slotCount(this.state.trenches);
@@ -446,17 +460,22 @@ class BattleImpl implements Battle, World {
     updateSky(this); // a weather or time change past its midpoint takes effect; flares burn out
     cheatTraining(this); // admin panel: instant training
     updateEconomy(this);
+    updateFerries(this); // boats put out and land the men who waited for them
     updateBuilds(this); // sappers on build sites; a finished site becomes its structure
+    updateClears(this); // sappers on Clear jobs at enemy minefields and obstacles
     updateSupports(this); // cooldowns; strikes launch their rounds and lay their smoke
 
     computeFronts(this);
     senseUnits(this);
     senseStructures(this, s.tick % this.retargetTicks === 0);
-    moveUnits(this); // wire slows and is crushed here
+    moveUnits(this); // wire slows and is crushed here; obstacles and rivers stop vehicles
+    updateMines(this); // whoever moved through an enemy minefield rolls for a blast
+    updateObstacles(this); // vehicles held at an obstacle work it loose
     updateCarriers(this); // men climb into APCs, loaded APCs unload at the front
     updateTrenches(this); // drop into slots, captures
     updateBuildings(this); // who holds and who is inside each building
     updatePoints(this, this.dt); // capture points change hands; contested points; where each side deploys
+    updateBridges(this); // a bridge follows its point; holding it cuts the charges
     updateProjectiles(this); // rounds already in flight land on the new positions
     updateAuras(this); // each side's commander
     fireAntiAir(this); // guns with a plane in reach fire at it (and hold their fire at the ground)
@@ -521,6 +540,9 @@ class BattleImpl implements Battle, World {
         break;
       case 'deploy':
         q.push(side, CMD_DEPLOY).unit = cmd.at === 'auto' ? DEPLOY_AUTO : cmd.at === 'hq' ? DEPLOY_HQ : cmd.at;
+        break;
+      case 'clear':
+        q.push(side, CMD_CLEAR).x = cmd.x;
         break;
       case 'controlInput': {
         const c = q.push(side, CMD_CONTROL_INPUT);

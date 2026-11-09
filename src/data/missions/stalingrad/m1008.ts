@@ -13,7 +13,8 @@ import type { MissionDef } from '../../schema';
  * (x 2,000) at once. The halls are two-floor buildings (FOUNDATIONS.md 4.3), goods wagons in the yard are cover props
  * (the snipers' post), the HQ a log dugout in the bank; the machine shops are the capture point P2 (held through B3), a
  * forward spawn and the rally point Fall Back sends the men in the yard to; the ground is rubble throughout; a 60 s
- * prep phase comes first (the bot wires the gate); the barrage, the Stukas (scripted raids: the attackers have no HQ),
+ * prep phase of wire, sandbags, AP mines, tank traps and road blocks comes first (FOUNDATIONS.md 4.6 and 4.8: the bot
+ * wires, mines and traps the yard and sandbags the machine shops); the barrage, the Stukas (scripted raids: the attackers have no HQ),
  * the heavy bomb that brings down a floor of the machine shops and the Nebelwerfer are scripted; the loans are
  * scripted waves. The mode stays `survival` (no enemy HQ, a winning clock) and the medals score it as a delay, with a
  * kill bonus. StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank` kind (the era's Panzer III
@@ -122,13 +123,17 @@ export const M1008: MissionDef = {
   // The machine shops (FOUNDATIONS.md 4.5), held through the building B3. A forward
   // spawn point, and the rally point Fall Back sends the men in the yard to.
   capturePoints: [{ id: 'P2', x: 6300, width: 260, label: 'Machine shops', owner: 0, captureTime: 0, spawn: true, contestRadius: 500, structure: { building: 3 } }],
-  // A minute to wire the yard gate and the gap in front of the machine shops; the line is past half the field, so the
-  // zone is given.
+  // A minute to wire, mine and trap the yard and sandbag the machine shops; the line is past half the field, so the zone
+  // is given.
   prep: {
     seconds: 60,
     zone: { from: 1000, to: 8600 },
+    buildables: ['wire', 'sandbags', 'minefield', 'tankTrap', 'roadBlock'],
     bot: [
-      { kind: 'wire', x: 8350 },
+      { kind: 'wire', x: 8180 },
+      { kind: 'tankTrap', x: 8535 },
+      { kind: 'minefield', x: 8350 },
+      { kind: 'sandbags', x: 6300 },
       { kind: 'wire', x: 6650 },
     ],
   },

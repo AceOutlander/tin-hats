@@ -13,6 +13,7 @@ import { ANTI_AIR, PLANES, SUPPORTS, SUPPORT_COST, SUPPORT_KINDS, TOP_ATTACK_SUP
 import { LAUNCH, launch, spawnSmoke } from './projectiles';
 import { airGrounded } from './sky';
 import { KIND_ANTI_AIR, weaponIndex } from './tables';
+import { spotMinefields } from './mines';
 import type { UnitState } from './types';
 import type { World } from './world';
 
@@ -162,6 +163,8 @@ function reveal(w: World, si: number, k: number): void {
   e.x = w.strikeX[si * SUPPORT_COUNT + k];
   e.value = def.spread * w.mods[si].supportReach[k];
   e.x2 = def.duration * w.mods[si].supportTime[k];
+  // The observer marks the minefields he flies over (FOUNDATIONS.md 4.6).
+  if (w.state.minefields.length > 0) spotMinefields(w, si, e.x, e.value);
 }
 
 /** Advance aircraft k of side si to `t` seconds after its call: enter, drop its rounds or look, leave. */

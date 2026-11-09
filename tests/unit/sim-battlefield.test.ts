@@ -424,7 +424,8 @@ describe('the campaign missions on the battlefield', () => {
     expect(ids(1006)).toEqual(['P1', 'P2']);
     expect(ids(1007)).toEqual(['P1']);
     expect(ids(1008)).toEqual(['P2']);
-    expect(ids(1009)).toEqual(['P1', 'P2', 'P3', 'P4']);
+    // P5 is the Kalach bridge's point (FOUNDATIONS.md 4.4: the brief's "capture the bridge's point").
+    expect(ids(1009)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5']);
     expect(ids(1010)).toEqual(['P1', 'P2', 'P3']);
     for (const m of STALINGRAD_MISSIONS) expect((m.sectors ?? []).length, String(m.id)).toBeGreaterThan(0);
     expect(getMission(1006)!.sectors!.find((s) => s.label === 'The summit')!.heightBonus).toBe(1.1);
@@ -437,6 +438,6 @@ describe('the campaign missions on the battlefield', () => {
     expect(m.length).toBe(30000);
     const b = makeBattle({ mission: m, commanders: ['bot', 'ai'] });
     expect(world(b).ground!.count).toBe(600);
-    expect(b.state.points.length).toBe(4);
+    expect(b.state.points.length).toBe(5);
   });
 });

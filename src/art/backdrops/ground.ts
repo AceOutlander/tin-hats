@@ -384,6 +384,22 @@ function steppeDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
   scatterPebbles(ctx, rng, w, 40, 0.7, 2.6, sc.tone(P.pebble, 0.05), sc.tone(P.stoneShade, 0.05));
 }
 
+/** A river's surface: long low swells, glints of light along them, and a few drifting reeds and foam streaks. */
+function waterDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
+  const P = sc.pal;
+  scatterPatches(ctx, rng, w, 30, 40, 180, sc.tone(P.groundDark, 0, 0.18), 1.2);
+  ripples(ctx, rng, w, 420, sc.tone(P.groundDark, 0, 0.35), sc.tone(P.groundLight, 0, 0.4));
+  // Glints: short bright dashes, sparser toward the horizon.
+  ctx.fillStyle = sc.tone(P.pebble, 0.15, 0.45);
+  for (let i = 0; i < 140; i++) {
+    const x = range(rng, 2, w - 2);
+    const y = planeY(rng, 1.3);
+    const d = depthAt(y);
+    ctx.fillRect(x, y, lerp(2, 12, d) * range(rng, 0.5, 1.4), lerp(0.4, 1.1, d));
+  }
+  scatterTufts(ctx, rng, w, 18, 3, 8, [sc.tone(P.tuft, 0, 0.5)]);
+}
+
 /**
  * Paint the whole ground strip. The context is in view-space y. `style` (default: the theatre's own) picks the
  * detail; a style with its own colours (GROUND_PALETTES: snow, deep snow, rubble, steppe) paints in them.
@@ -460,6 +476,9 @@ export function paintGround(ctx: Ctx, base: Scene, rng: Rng, w: number, style: G
       break;
     case 'forest':
       forestDetail(ctx, sc, rng, w);
+      break;
+    case 'water':
+      waterDetail(ctx, sc, rng, w);
       break;
   }
 

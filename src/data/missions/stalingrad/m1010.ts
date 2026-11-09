@@ -10,8 +10,10 @@ import type { MissionDef } from '../../schema';
  * `hqLook` store). The Sixth Army is starving and short of fuel: its tanks are on guard where they ran dry, its income
  * is low, and it has no aircraft.
  *
- * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): four phases (two backdrops), no
- * buildings yet, the minefield is wire; the ground is snow and the steppe under snow, then the city's rubble. Seven
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): four phases (two backdrops); the
+ * minefield on the western steppe at x 6,600 is a mixed (AP and AT) field (FOUNDATIONS.md 4.6), unmarked: the fifth
+ * barrage lands on it, showing it and breaking part of it, and sappers clear the rest; the ground is snow and the
+ * steppe under snow, then the city's rubble. Seven
  * thousand guns: five free barrages, then the western steppe and Pitomnik (P1); Gumrak (P2); the ruins (P3), where
  * nests show themselves every 120 s and the Germans hold their positions (the three points are open ground taken by
  * holding it 10 s once the trench in it is cleared, and forward spawns once ours); the Univermag, whose HQ surrenders
@@ -191,11 +193,12 @@ export const M1010: MissionDef = {
   ],
   pillboxes: [],
   wire: [
-    // The minefield and wire on the western steppe.
+    // The wire on the western steppe and in front of the ruins.
     { id: 1, x: 4200, width: 140, owner: 1 },
-    { id: 2, x: 6600, width: 160, owner: 1 },
     { id: 3, x: 19400, width: 140, owner: 1 },
   ],
+  // The minefield on the western steppe (FOUNDATIONS.md 4.6): anti-tank and anti-personnel mines, unmarked.
+  minefields: [{ id: 1, x: 6600, width: 300, owner: 1, mines: 'mixed', density: 0.6, marked: false }],
   // The brief's sectors (FOUNDATIONS.md 4.1): the frozen steppe, the airfield and Gumrak under snow, the city's ruins.
   sectors: [
     { from: 0, to: 3000, ground: 'snow', label: 'Jump-off line' },
@@ -281,6 +284,7 @@ export const M1010: MissionDef = {
       when: { at: 4 },
       text: 'Let the guns land, then tanks and infantry through the wire together. Your tanks crush wire; your men cannot.',
     },
+    { type: 'hint', when: { at: 30 }, text: 'Artillery breaks the mines too. Then send the sappers to clear the rest.' },
     {
       type: 'hint',
       when: { at: 40 },

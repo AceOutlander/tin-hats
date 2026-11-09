@@ -12,17 +12,20 @@ import type { MissionDef } from '../../schema';
  * Siren: the free opening barrage and a Katyusha salvo on the Romanian line, which is taken (P1, held through trench
  * 3); the steppe: Perelazovsky (P2, held through its house B2; B3 is the Romanian corps headquarters; FOUNDATIONS.md
  * 4.3) and the Don hills (P3, open ground taken by holding it 10 s), with the Il-2 and the Po-2 offered from here; the
- * Kalach bridge: its guard post (pillbox 2) is destroyed while the column drives in disguised for 40 s; Sovetsky (P4,
+ * Kalach bridge (FOUNDATIONS.md 4.4): bridge 1 over the Don, German and wired, is taken (its point P5, within 180 s for
+ * the side objective) while the column drives in disguised for 40 s past its guard post (pillbox 2); at 180 s the
+ * Germans blow it unless P5 is ours (holding it cuts the wires), and then infantry wade the ford (the river itself, at
+ * 0.35) while the tanks wait 180 s for the engineers' pontoon (bridge 2, the `bridge` event); Sovetsky (P4,
  * through trench 6, past the houses of Kalach, B4 and B5), whose capture closes the ring with the green flares. The HQ
  * is a log dugout (`hqLook`). Trained units deploy at the positions taken (P1 to P3 are the Soviet forward spawns,
  * spawnFor 0), and the loaned carriers, PTRDs and mortars come up at P1. The ground is the brief's sectors (snow, the
- * steppe under snow, the climb into the Don hills, the Kalach bridge as road until bridges exist). The Romanians field
+ * steppe under snow, the climb into the Don hills, the Don under the Kalach bridge). An AP minefield lies in front of the
+ * Romanian line at x 3,800 (4.6), unmarked: the barrage or the first blast shows it, then sappers clear it. The Romanians field
  * as German troops in the `romanian` look (khaki-brown greatcoat, Adrian helmet; no Romanian nation yet); every German
  * and Romanian tank (Pz 38(t), Panzer III, Panzer IV, R-2) is the `tank` kind (the era's Panzer III Ausf. L, the Panzer
  * IV Ausf. G by look, the R-2s as the short-gun Panzer III stand-in `panzer3h`; no Pz 38(t) or R-2 is drawn), since
  * `lightTank` is the 1939 to 1941 Panzer III Ausf. E; the 37 mm and Pak 38/40 crews are the `at` kind; the KV-1S stands
- * in as a T-34 (`tank`). The fog, the blizzard and the bridge's demolition (bridges, FOUNDATIONS.md 4.4) wait for their
- * features.
+ * in as a T-34 (`tank`).
  *
  * Weather and time (FOUNDATIONS.md 4.7): the steppe theatre's winter look; the attack goes in at dawn in fog
  * (visibility 0.6, no air); it lifts over 120 s into a clear day, the short window for the Il-2s, until the blizzard
@@ -161,11 +164,17 @@ export const M1009: MissionDef = {
   wire: [
     { id: 1, x: 3800, width: 160, owner: 1 },
     { id: 2, x: 5300, width: 120, owner: 1 },
-    // The wired bridge.
-    { id: 3, x: 23800, width: 140, owner: 1 },
   ],
-  // The brief's sectors (FOUNDATIONS.md 4.1): snow, the open steppe under snow, the climb into the Don hills, the
-  // Kalach bridge (road until rivers and bridges exist, 4.4) and the road to Sovetsky.
+  // The Romanian AP minefield in front of their line, under the wire (FOUNDATIONS.md 4.6).
+  minefields: [{ id: 1, x: 3800, width: 260, owner: 1, mines: 'ap', density: 0.45, marked: false }],
+  // The Kalach bridge (FOUNDATIONS.md 4.4): German, held through P5, wired for demolition; and the engineers' pontoon,
+  // put across 180 s after the bridge goes (the `bridge` event).
+  bridges: [
+    { id: 1, x0: 23600, x1: 24400, owner: 1, point: 'P5', demolition: { side: 1, wired: true } },
+    { id: 2, x0: 23600, x1: 24400, owner: 0, standing: false, look: 'pontoon' },
+  ],
+  // The brief's sectors (FOUNDATIONS.md 4.1): snow, the open steppe under snow, the climb into the Don hills, the Don
+  // (water: vehicles cross only on the bridge, 4.4) and the road to Sovetsky.
   sectors: [
     { from: 0, to: 3000, ground: 'snow', label: 'Serafimovich bridgehead' },
     { from: 3000, to: 7000, ground: 'snow', label: 'Romanian line' },
@@ -173,7 +182,7 @@ export const M1009: MissionDef = {
     { from: 16000, to: 19500, ground: 'slopeUp', label: 'Don hills' },
     { from: 19500, to: 23000, ground: 'snow', label: 'Don hills' },
     { from: 23000, to: 23600, ground: 'snow', label: 'The Don at Kalach' },
-    { from: 23600, to: 24400, ground: 'road', label: 'Kalach bridge' },
+    { from: 23600, to: 24400, ground: 'water', label: 'The Don' },
     { from: 24400, to: 25000, ground: 'snow', label: 'The Don at Kalach' },
     { from: 25000, to: 30000, ground: 'road', label: 'Road to Sovetsky' },
   ],
@@ -186,6 +195,8 @@ export const M1009: MissionDef = {
     { id: 'P2', x: 13000, width: 320, label: 'Perelazovsky', owner: 1, captureTime: 0, spawn: true, spawnFor: 0, contestRadius: 600, structure: { building: 2 } },
     { id: 'P3', x: 21000, width: 400, label: 'Don hills', owner: 1, captureTime: 10, spawn: true, spawnFor: 0, contestRadius: 600 },
     { id: 'P4', x: 28800, width: 300, label: 'Sovetsky', owner: 1, captureTime: 0, spawn: false, contestRadius: 600, structure: { trench: 6 } },
+    // The Kalach bridge: taken by holding the span alone for 5 s; holding it cuts the demolition wires.
+    { id: 'P5', x: 24000, width: 800, label: 'Kalach bridge', owner: 1, captureTime: 5, spawn: false, contestRadius: 400 },
   ],
   timer: null,
   // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 9).
@@ -211,10 +222,10 @@ export const M1009: MissionDef = {
     {
       id: 'bridge',
       title: 'The Kalach bridge',
-      objectives: [{ id: 'bridgePost', type: 'destroy', structures: [{ pillbox: 2 }], text: 'Take the bridge' }],
+      objectives: [{ id: 'bridgeTaken', type: 'capture', point: { point: 'P5' }, text: 'Take the bridge' }],
       sideObjectives: [
-        // Before they can blow it: 180 s from the start of the phase (the demolition itself waits for bridges).
-        { id: 'bridgeIntact', text: 'The bridge intact', objective: { id: 'bridgeFast', type: 'destroy', structures: [{ pillbox: 2 }] }, withinPhase: 180, bonus: 0.2 },
+        // Before they can blow it: 180 s from the start of the phase, when the demolition comes.
+        { id: 'bridgeIntact', text: 'The bridge intact', objective: { id: 'bridgeFast', type: 'capture', point: { point: 'P5' } }, withinPhase: 180, bonus: 0.2 },
       ],
       next: 'sovetsky',
     },
@@ -338,6 +349,16 @@ export const M1009: MissionDef = {
       when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 3 },
       text: 'Go for the bridge at once with the fastest tanks, before they can blow it.',
     },
+    // The demolition (FOUNDATIONS.md 4.4): at 180 s into the phase, unless P5 is ours by then (the wires are cut).
+    { id: 'blowBridge', type: 'demolish', when: { phase: 'bridge', delay: 180 }, bridge: 1 },
+    { type: 'banner', when: { structureDestroyed: { bridge: 1 } }, text: 'They have blown the Kalach bridge!', sound: 'alarm' },
+    {
+      type: 'hint',
+      when: { structureDestroyed: { bridge: 1 }, delay: 3 },
+      text: 'Infantry can wade the ford below the bridge. The tanks must wait for the pontoon the engineers are building.',
+    },
+    { id: 'pontoon', type: 'bridge', when: { structureDestroyed: { bridge: 1 }, delay: 180 }, bridge: 2 },
+    { type: 'announce', when: { structureDestroyed: { bridge: 1 }, delay: 181 }, text: 'The pontoon bridge is across. Tanks over the Don!' },
     {
       type: 'wave',
       when: { phase: 'sovetsky', delay: 60 },

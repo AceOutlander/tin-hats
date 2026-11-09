@@ -147,6 +147,12 @@ export interface HudState {
    * offers no spawn point to the player. The object is reused; `label` changes when the choice or its place does.
    */
   deploy?: { label: string; closed: boolean } | null;
+  /**
+   * The training bar's "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): the enemy minefield the player can see, or enemy tank
+   * trap or road block, nearest the middle of the view, at x; busy while sappers already work on it. Null when there is
+   * none in view or no sapper to send. The object is reused.
+   */
+  clear?: { label: string; x: number; busy: boolean } | null;
 }
 
 /** One build the prep phase offers. */
@@ -210,7 +216,9 @@ export type HudAction =
   /** Prep phase: start the attack now. */
   | { type: 'ready' }
   /** The "Deploy at" chip: on to the next choice (the front, the HQ, each spawn point). */
-  | { type: 'deploy' };
+  | { type: 'deploy' }
+  /** The "Clear" chip: a sapper goes to clear the minefield or obstacle it names. */
+  | { type: 'clear' };
 
 export interface MissionCard {
   id: number;
