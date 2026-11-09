@@ -3,14 +3,15 @@
  * marshes, the front line of the selected mission's date (with the earlier ones faint behind it), lettering, a compass
  * rose and the campaign route. The mission pins themselves are DOM buttons laid over this canvas.
  */
-import { BRITISH_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapFront, type MapProjection, type MapShape } from '../../data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapFront, type MapProjection, type MapShape } from '../../data/campaignMap';
+import { STALINGRAD_MAP } from '../../data/campaignMapStalingrad';
 import { clearLabels, type LabelBox, type Obstacle } from './mapLayout';
 
 /**
  * The room a mission pin takes on the map (CSS px around its centre): the 30 px disc and its selection ring, and
  * the three pips under it. Lettering keeps `pad` clear of this and is moved at most `maxShift`, in `step` px tries.
  */
-const PIN_FOOTPRINT = { halfW: 22, up: 21, down: 27, pad: 3, maxShift: 70, step: 4 } as const;
+const PIN_FOOTPRINT = { halfW: 22, up: 21, down: 27, pad: 3, maxShift: CAMPAIGN_MAP_VIEW.labelMaxShiftPx, step: 4 } as const;
 
 export type PinState = 'locked' | 'open' | 'cleared';
 
@@ -282,7 +283,7 @@ export function paintCampaignMap(
   cssW: number,
   cssH: number,
   pins: readonly MapPin[],
-  map: CampaignMapDef = BRITISH_MAP,
+  map: CampaignMapDef = STALINGRAD_MAP,
   dateIso?: string,
 ): void {
   const dpr = Math.min(CAMPAIGN_MAP_VIEW.maxPixelRatio, Math.max(1, window.devicePixelRatio || 1));

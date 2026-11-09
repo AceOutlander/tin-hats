@@ -1,4 +1,4 @@
-import { BRITISH_MAP, type CampaignMapDef } from './campaignMap';
+import type { CampaignMapDef } from './campaignMap';
 import { STALINGRAD_MAP } from './campaignMapStalingrad';
 import type { MusicTrackName } from './music';
 import { STALINGRAD_MUSIC } from './musicCampaigns';
@@ -14,10 +14,11 @@ export interface Campaign extends CampaignDef {
 
 /**
  * The campaigns (docs/campaigns/FOUNDATIONS.md section 6), in select-screen order. Mission ids have four digits by
- * campaign (Stalingrad 1001 to 1010); 'british' is today's campaign (ids 1 to 10), kept until the new campaigns
- * replace it.
+ * campaign (Stalingrad 1001 to 1010). Stalingrad is the only campaign today: the ten British placeholder missions were
+ * removed with its release (owner, docs/QUEUE.md "The current missions are placeholders"). With one campaign on offer
+ * Play goes straight to its map; the select screen shows once a second campaign joins this list.
  */
-export const CAMPAIGN_IDS: readonly CampaignId[] = ['stalingrad', 'british'];
+export const CAMPAIGN_IDS: readonly CampaignId[] = ['stalingrad'];
 
 function range(first: number, last: number): number[] {
   const out: number[] = [];
@@ -35,23 +36,11 @@ export const CAMPAIGNS: Record<CampaignId, Campaign> = {
     missionIds: range(1001, 1010),
     unlock: { always: true },
     card: 'From the first morning at Brest to the ruins on the Volga.',
-    // Being built on the stalingrad branch: it must not reach the live site (owner, docs/QUEUE.md).
-    released: false,
+    // The game's only campaign since the British placeholders went (it ships with their removal). A campaign still
+    // being built sets this false: it then shows only on the dev server, with ?unreleased=1, or after the admin unlock.
+    released: true,
     map: STALINGRAD_MAP,
     mapMusic: STALINGRAD_MUSIC.map,
-  },
-  british: {
-    id: 'british',
-    nation: 'british',
-    title: 'The Line',
-    subtitle: 'May 1940 to February 1945',
-    missionRange: { first: 1, last: 10 },
-    missionIds: range(1, 10),
-    unlock: { always: true },
-    card: 'The British campaign: from Arras in 1940 to the Reichswald.',
-    released: true,
-    map: BRITISH_MAP,
-    mapMusic: 'map',
   },
 };
 

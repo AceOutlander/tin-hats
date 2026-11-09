@@ -2,7 +2,7 @@
  * Era-correct forces by date (docs/campaigns/FOUNDATIONS.md 5.1 and 5.2; src/data/eras.ts, src/data/equipment.ts):
  * every Stalingrad mission resolves, for both sides, to names and looks inside their service windows (no PPSh, T-34-85
  * or long Panzer III in June 1941; the later Panzer III in the 1942 missions), the winter missions wear the winter
- * looks, the per-force looks and roster nations reach the units, and the British campaign is unchanged.
+ * looks, the per-force looks and roster nations reach the units, and a mission without a date (the proving ground, Basic Training) is unchanged.
  */
 import { describe, expect, it } from 'vitest';
 import { AIRCRAFT_LOOKS, TANK_LAYOUT, VEHICLE_LOOKS, type VehicleLook } from '../../src/data/artLayout';
@@ -24,7 +24,7 @@ import { FACTION_IDS, FACTIONS } from '../../src/data/factions';
 import { FIGURE_LOADOUT, WEAPON_GEOM } from '../../src/data/figure';
 import { isFigureKind } from '../../src/art/figure';
 import { FIGURE_CLOTHING, FIGURE_HEADGEAR } from '../../src/data/looksGear';
-import { MISSIONS } from '../../src/data/missions';
+import { FIELD } from './fixtures';
 import { SANDBOX, SANDBOX_MIRROR } from '../../src/data/missions/sandbox';
 import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { BASIC_TRAINING } from '../../src/data/missions/training';
@@ -141,8 +141,8 @@ describe('the era table (FOUNDATIONS.md 5.1)', () => {
   });
 });
 
-describe('the British campaign is unchanged', () => {
-  it.each([...MISSIONS, SANDBOX, SANDBOX_MIRROR, BASIC_TRAINING].map((m) => [m.id, m] as const))(
+describe('a mission without a date is unchanged (the proving ground, Basic Training, the test field)', () => {
+  it.each([FIELD, SANDBOX, SANDBOX_MIRROR, BASIC_TRAINING].map((m) => [m.id, m] as const))(
     'mission %i has no date for the era table, so both sides show their default names and looks',
     (_id, m) => {
       expect(m.dateIso).toBeUndefined();
@@ -350,7 +350,7 @@ describe('per-force looks and roster nations reach the units (FOUNDATIONS.md 5.1
 
   it('keeps every unit kind named in every era of every nation', () => {
     for (const f of FACTION_IDS) {
-      for (const m of [...STALINGRAD_MISSIONS, MISSIONS[0]]) {
+      for (const m of [...STALINGRAD_MISSIONS, FIELD]) {
         const e = missionEra(m, f);
         for (const kind of UNIT_KINDS) expect(e.names[kind], `${m.id} ${f} ${kind}`).toBeTruthy();
       }

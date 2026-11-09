@@ -3,7 +3,8 @@
  * where the campaign has them, the front line of the selected mission's date; the selected mission's card, and the way
  * into the briefing, the Armoury, the Quartermaster and Settings.
  */
-import { BRITISH_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapProjection } from '../../data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapProjection } from '../../data/campaignMap';
+import { STALINGRAD_MAP } from '../../data/campaignMapStalingrad';
 import { boxPan, clampPan, layoutPins, type PinBox } from './mapLayout';
 import type { MissionCard } from '../contracts';
 import { add, button, clear, el, setStencil, stencil } from '../shell/dom';
@@ -129,7 +130,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
 
   // --- State -------------------------------------------------------------
   let missions: MissionCard[] = [];
-  let mapDef: CampaignMapDef = BRITISH_MAP;
+  let mapDef: CampaignMapDef = STALINGRAD_MAP;
   let proj: MapProjection = projection(mapDef.bounds);
   /** The date of the front line painted last (the selected mission's), so a new selection repaints only when it changes. */
   let paintedFront: string | null = null;

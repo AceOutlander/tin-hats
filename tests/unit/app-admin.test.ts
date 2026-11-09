@@ -160,7 +160,7 @@ describe('the admin controller', () => {
 
   it('spawns a King Tiger squad for the enemy at a tapped spot, and any kind for the player', () => {
     const { app, view, admin } = makeAdmin();
-    app.beginMission(1, 'normal', 5, true);
+    app.beginMission(1002, 'normal', 5, true);
     admin.run({ type: 'place', spec: { what: 'kingTigerSquad', side: 'enemy', count: 1 } });
     expect(admin.info().placing).toEqual({ what: 'kingTigerSquad', side: 'enemy', count: 1 });
     view.onTapGround?.(2600);
@@ -168,14 +168,16 @@ describe('the admin controller', () => {
     const tiger = enemy.find((u) => u.kind === 'heavyTank');
     expect(tiger?.x).toBe(2600);
     expect(enemy.filter((u) => u.veteran && u.kind === 'rifle')).toHaveLength(3);
-    // The King Tiger warning comes up as it does in mission 10.
+    // The King Tiger warning comes up as it did in the old mission 10.
     expect(app.session?.hud.state.banner).toBe(APP.notices.boss);
     // Placing goes on until it is stopped.
     view.onTapGround?.(2800);
     expect(living(app, 1).filter((u) => u.kind === 'heavyTank')).toHaveLength(2);
+    // Dubno starts the player with light tanks of their own (BT-7s): ten more come where the tap was.
+    const ownLight = living(app, 0).filter((u) => u.kind === 'lightTank').length;
     admin.run({ type: 'place', spec: { what: 'lightTank', side: 'mine', count: 10 } });
     view.onTapGround?.(1400);
-    expect(living(app, 0).filter((u) => u.kind === 'lightTank')).toHaveLength(10);
+    expect(living(app, 0).filter((u) => u.kind === 'lightTank')).toHaveLength(ownLight + 10);
     admin.run({ type: 'place', spec: null });
     expect(app.adminTaps).toBeNull();
     const before = living(app).length;
@@ -185,7 +187,7 @@ describe('the admin controller', () => {
 
   it('picks a unit with a tap and kills, heals, guards or turns it', () => {
     const { app, view, admin } = makeAdmin();
-    app.beginMission(1, 'normal', 5, true);
+    app.beginMission(1002, 'normal', 5, true);
     app.session?.admin({ type: 'spawn', side: 1, kind: 'rifle', x: 3000, count: 1 });
     const target = living(app, 1).find((u) => u.x === 3000) as UnitState;
     admin.run({ type: 'pick', on: true });
@@ -212,7 +214,7 @@ describe('the admin controller', () => {
 
   it('acts on whole sides and HQs, and fills an army', () => {
     const { app, admin } = makeAdmin();
-    app.beginMission(1, 'normal', 5, true);
+    app.beginMission(1002, 'normal', 5, true);
     admin.run({ type: 'fill', side: 'enemy', kind: 'rifle' });
     const enemy = app.session?.battle.state.sides[1];
     expect(enemy?.pop).toBe(enemy?.popCap);
@@ -230,7 +232,7 @@ describe('the admin controller', () => {
 
   it('sets, freezes and fills supplies, trains instantly and fires scripted events', () => {
     const { app, admin } = makeAdmin();
-    app.beginMission(1, 'normal', 5, true);
+    app.beginMission(1002, 'normal', 5, true);
     admin.run({ type: 'setSupplies', amount: 0 });
     admin.run({ type: 'addSupplies', amount: 500 });
     expect(admin.info().battle?.supplies).toBe(500);
@@ -252,7 +254,7 @@ describe('the admin controller', () => {
   it('wins or loses on the spot without recording anything', () => {
     for (const win of [true, false]) {
       const { app, view, ui, admin } = makeAdmin();
-      app.beginMission(1, 'normal', 5, true);
+      app.beginMission(1002, 'normal', 5, true);
       const before = structuredClone(app.save);
       admin.run({ type: 'speed', scale: 0 });
       admin.run({ type: 'end', win });
@@ -267,10 +269,10 @@ describe('the admin controller', () => {
 
   it('restarts on another difficulty, and sets the speed, weather, time of day and enemy health', () => {
     const { app, view, admin } = makeAdmin();
-    app.beginMission(2, 'normal', 5, true);
+    app.beginMission(1001, 'normal', 5, true);
     admin.run({ type: 'restart', difficulty: 'insane' });
     expect(app.session?.difficulty).toBe('insane');
-    expect(app.session?.mission.id).toBe(2);
+    expect(app.session?.mission.id).toBe(1001);
     for (const scale of ADMIN.timeScales) {
       admin.run({ type: 'speed', scale });
       expect(admin.info().timeScale).toBe(scale);
@@ -328,7 +330,7 @@ describe('the admin controller', () => {
     };
     expect(admin.debugFrame(frame)).toBe(false);
     expect(admin.readout()).toBe('No battle');
-    app.beginMission(10, 'normal', 5, true);
+    app.beginMission(1010, 'normal', 5, true);
     admin.run({ type: 'overlay', layer: 'points', on: true });
     expect(admin.debugFrame(frame)).toBe(true);
     // Two HQ doors, every trench, and the landing spots of scripted waves.

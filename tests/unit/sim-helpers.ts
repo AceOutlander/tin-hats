@@ -4,7 +4,7 @@
  * to pooled objects.
  */
 import { CONFIG } from '../../src/data/config';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import type { Difficulty, MissionDef, SideStart, UnitKind, UpgradeDef, UpgradeLevels } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import {
@@ -27,7 +27,7 @@ export type MissionOverrides = Partial<Omit<MissionDef, 'start'>> & {
 };
 
 /**
- * A mission for one test: mission 1's rules and data on an empty field. Both sides begin with
+ * A mission for one test: the test field's rules and data (./fixtures.ts) with nothing on it. Both sides begin with
  * an HQ, no supplies, no sappers, no forces, full-strength HQs and normal income, and no
  * scripted events, so a test only adds what it needs.
  */
@@ -43,7 +43,7 @@ export function testMission(over: MissionOverrides = {}): MissionDef {
     forces: [],
     ...extra,
   });
-  return { ...M01, events: [], ...rest, start: [blank('british', a), blank('german', b)] };
+  return { ...FIELD, events: [], ...rest, start: [blank('british', a), blank('german', b)] };
 }
 
 /** The same mission with side 1 given side 0's start, so a battle between two identical commanders is fair. */

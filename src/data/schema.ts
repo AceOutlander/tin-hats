@@ -240,10 +240,11 @@ export interface FactionDef {
 
 /**
  * Campaigns (FOUNDATIONS.md section 6). Mission ids have four digits by campaign: Stalingrad 1001 to 1010, D-Day 2001
- * to 2010, Road to Berlin 3001 to 3010, Africa 4001 to 4010. 'british' is today's campaign (ids 1 to 10), kept until
- * the new campaigns replace it.
+ * to 2010, Road to Berlin 3001 to 3010, Africa 4001 to 4010. Stalingrad is the only one built so far; the ten British
+ * placeholder missions (ids 1 to 10) were removed with its release (saves archive their progress, src/meta/save.ts).
+ * A new campaign adds its id here.
  */
-export type CampaignId = 'british' | 'stalingrad';
+export type CampaignId = 'stalingrad';
 
 export interface CampaignDef {
   id: CampaignId;

@@ -3,7 +3,11 @@
  * how big to draw the map, and how to push clustered mission pins apart so
  * every pin keeps a full-size touch target.
  */
-import { BRITISH_PROJECTION, CAMPAIGN_MAP_VIEW, type MapProjection } from '../../data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, projection, type MapProjection } from '../../data/campaignMap';
+import { STALINGRAD_MAP } from '../../data/campaignMapStalingrad';
+
+/** The projection the layout uses when none is given: the Stalingrad map's (the only campaign today). */
+const DEFAULT_PROJECTION: MapProjection = projection(STALINGRAD_MAP.bounds);
 
 export interface MapSize {
   w: number;
@@ -11,7 +15,7 @@ export interface MapSize {
 }
 
 /** The map always covers its viewport and never shrinks below the minimum width, so small phones pan. */
-export function mapSizeFor(viewW: number, viewH: number, aspect: number = BRITISH_PROJECTION.aspect): MapSize {
+export function mapSizeFor(viewW: number, viewH: number, aspect: number = DEFAULT_PROJECTION.aspect): MapSize {
   const w = Math.max(viewW, viewH * aspect, CAMPAIGN_MAP_VIEW.minWidthPx);
   return { w: Math.round(w), h: Math.round(w / aspect) };
 }
@@ -50,14 +54,14 @@ function placePins(lons: readonly number[], lats: readonly number[], size: MapSi
 /**
  * Pick the map size and pin positions for a view. Small phones get the full-size
  * map (they pan). Bigger screens get the largest map, no smaller than the fit
- * floor, on which every pin is on screen at once. `proj` is the campaign's map projection (default the British map).
+ * floor, on which every pin is on screen at once. `proj` is the campaign's map projection (default the Stalingrad map).
  */
 export function layoutPins(
   lons: readonly number[],
   lats: readonly number[],
   viewW: number,
   viewH: number,
-  proj: MapProjection = BRITISH_PROJECTION,
+  proj: MapProjection = DEFAULT_PROJECTION,
 ): PinLayout {
   const base = mapSizeFor(viewW, viewH, proj.aspect);
   const full = placePins(lons, lats, base, proj);

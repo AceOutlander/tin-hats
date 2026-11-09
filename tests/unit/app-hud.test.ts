@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { HudModel } from '../../src/app/hudModel';
 import { APP } from '../../src/data/app';
 import { CONFIG } from '../../src/data/config';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { MissionDef } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import { createBattle, type Battle, type UnitState } from '../../src/sim';
 
-function battleOf(mission: MissionDef = M01): Battle {
+function battleOf(mission: MissionDef = FIELD): Battle {
   return createBattle({ mission, difficulty: 'normal', seed: 5, upgrades: {}, commanders: ['human', 'ai'] });
 }
 
@@ -26,7 +26,7 @@ describe('HudModel', () => {
     expect(train.map((t) => t.name)).toEqual(['Sapper', 'Rifleman']);
     expect(train[1].cost).toBe(UNITS.rifle.cost);
     expect(train[1].pop).toBe(UNITS.rifle.pop);
-    expect(model.state.objective).toBe(M01.objective);
+    expect(model.state.objective).toBe(FIELD.objective);
     expect(model.state.supports).toEqual([]);
     expect(model.state.minimap.colors).toHaveLength(2);
   });
@@ -120,7 +120,7 @@ describe('HudModel', () => {
     }
     expect(expected).toBeGreaterThan(0);
     expect(m.unitCount).toBe(expected);
-    expect(m.length).toBe(M01.length);
+    expect(m.length).toBe(FIELD.length);
     expect(m.camX).toBe(1050);
     expect(m.camW).toBe(900);
     expect(m.hq[0]).not.toBeNull();
@@ -130,7 +130,7 @@ describe('HudModel', () => {
   });
 
   it('shows trenches and live pillboxes on the minimap', () => {
-    const mission: MissionDef = structuredClone(M01);
+    const mission: MissionDef = structuredClone(FIELD);
     mission.trenches = [{ id: 0, x: 2000, width: 200, slots: 6, owner: 0 }];
     mission.pillboxes = [
       { id: 0, x: 4200, side: 1, hpMul: 1 },
@@ -152,7 +152,7 @@ describe('HudModel', () => {
   });
 
   it('shows the mission timer and flags it urgent near the end', () => {
-    const mission: MissionDef = structuredClone(M01);
+    const mission: MissionDef = structuredClone(FIELD);
     mission.mode = 'survival';
     mission.timer = { seconds: 120, onExpire: 'win', label: 'Hold the line' };
     mission.start[1].hasHq = false;

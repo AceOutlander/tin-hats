@@ -103,6 +103,11 @@ export const CAMPAIGN_MAP_VIEW = {
   fitMarginPx: 30,
   /** Space kept clear above the pins (the Back button and title sit there). */
   fitTopMarginPx: 52,
+  /**
+   * Furthest a map label is moved to clear the mission pins (src/ui/screens/mapPaint.ts). 90 lets the Stalingrad map's
+   * Kalach, boxed in by the city markers and Pitomnik on mid-size screens, find a clear spot (70 left it under a pin).
+   */
+  labelMaxShiftPx: 90,
 } as const;
 
 const DEG = Math.PI / 180;
@@ -137,20 +142,20 @@ export function projection(bounds: MapBounds): MapProjection {
   };
 }
 
-/** The British campaign's projection (the exports below keep their old names). */
-export const BRITISH_PROJECTION: MapProjection = projection(MAP_BOUNDS);
+/** The western map's projection (MAP_ASPECT, mapX and mapY below use it). */
+export const WEST_PROJECTION: MapProjection = projection(MAP_BOUNDS);
 
 /** Width divided by height of the projected map. */
-export const MAP_ASPECT = BRITISH_PROJECTION.aspect;
+export const MAP_ASPECT = WEST_PROJECTION.aspect;
 
 /** Longitude to a 0..1 fraction of the map width (may fall outside for off-map points). */
 export function mapX(lon: number): number {
-  return BRITISH_PROJECTION.x(lon);
+  return WEST_PROJECTION.x(lon);
 }
 
 /** Latitude to a 0..1 fraction of the map height, 0 at the top (Mercator, so shapes look familiar). */
 export function mapY(lat: number): number {
-  return BRITISH_PROJECTION.y(lat);
+  return WEST_PROJECTION.y(lat);
 }
 
 /** The front a mission of this date shows: the last one on or before it, or null (before the first, or none). */
@@ -395,8 +400,12 @@ export const MAP_LABELS: readonly MapLabel[] = [
   { text: 'BLACK SEA', lon: 31.6, lat: 43.3, kind: 'sea' },
 ];
 
-/** The British campaign's situation map: western Europe and North Africa, 1940 to 1945. */
-export const BRITISH_MAP: CampaignMapDef = {
+/**
+ * The situation map of western Europe and North Africa, 1940 to 1945. It was the British placeholder campaign's map;
+ * no campaign uses it since those missions were removed (DECISIONS 304), and it is kept for the western campaigns to
+ * come (D-Day, Africa: FOUNDATIONS.md section 6).
+ */
+export const WEST_MAP: CampaignMapDef = {
   bounds: MAP_BOUNDS,
   land: MAP_LAND,
   water: MAP_WATER,

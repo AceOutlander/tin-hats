@@ -42,11 +42,11 @@ function startPop(m: MissionDef, side: Side): number {
 }
 
 describe('Stalingrad missions 1001 to 1005', () => {
-  it('are listed in order in STALINGRAD_MISSIONS, belong to the campaign, and stay out of the legacy list', () => {
+  it('are listed in order in STALINGRAD_MISSIONS, belong to the campaign, and are among the game\'s campaign missions', () => {
     expect(STALINGRAD_MISSIONS.slice(0, IDS.length).map((m) => m.id)).toEqual([...IDS]);
     for (const id of IDS) {
       expect(campaignOf(id)).toBe('stalingrad');
-      expect(MISSIONS.some((m) => m.id === id), `mission ${id} is wired by the integrator`).toBe(false);
+      expect(MISSIONS.some((m) => m.id === id), `mission ${id} is in MISSIONS`).toBe(true);
     }
     expect(new Set(STALINGRAD_MISSIONS.map((m) => m.key)).size).toBe(STALINGRAD_MISSIONS.length);
   });

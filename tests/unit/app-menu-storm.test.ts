@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { App } from '../../src/app/app';
+import { App, MAP_MUSIC } from '../../src/app/app';
 import { MENU_STORM } from '../../src/data/menuStorm';
 import { createMemoryStorage, loadSave } from '../../src/meta';
 import { VOLUME } from '../../src/data/sounds';
@@ -82,10 +82,10 @@ describe('the title storm in the app', () => {
     expect(audio.music).toBe('menu');
     app.onScreen('title');
     app.onScreen('campaign');
-    expect(audio.music).toBe('map');
+    expect(audio.music).toBe(MAP_MUSIC);
     app.onScreen('title');
     expect(audio.music).toBe('menu');
-    app.startMission(1, 'normal');
+    app.startMission(1001, 'normal');
     app.onScreen('battle');
     expect(audio.music).toBe(null);
   });
@@ -97,7 +97,7 @@ describe('the title storm in the app', () => {
     expect(app.storm.running).toBe(false);
     expect(view.menuScene).toBe(false);
     app.onScreen('title');
-    app.startMission(1, 'normal');
+    app.startMission(1001, 'normal');
     app.onScreen('battle');
     expect(app.storm.running).toBe(false);
     expect(audio.bedOn).toBe(false);

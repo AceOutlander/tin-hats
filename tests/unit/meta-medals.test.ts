@@ -1,8 +1,9 @@
 /**
  * Medals and the Armoury (src/meta/medals.ts): the score of a win, the replay decay per mission and difficulty,
  * Armoury purchases (plane call-ins), unit types unlocked by missions, what the player fields in a mission, the NEW
- * cards and hints,
- * and the steps from save version 5 (upgrade points) to medals and from version 7 (units bought) to 8.
+ * cards and hints, and the steps from save version 5 (upgrade points) to medals, from version 7 (units bought) to 8
+ * and from version 9 to 10 (the British placeholder missions removed: what they earned stays). The missions are the
+ * Stalingrad campaign's.
  */
 import { describe, expect, it } from 'vitest';
 import { MEDALS } from '../../src/data/medals';
@@ -43,8 +44,17 @@ const mission = (id: number): MissionDef => {
 };
 const rules = { missionIds: MISSIONS.map((m) => m.id), upgradeDefs: UPGRADES };
 
+/** A copy of an assault with no sappers and no income (as the old Arnhem lived on airdrops). */
+function noMoney(): MissionDef {
+  const m: MissionDef = structuredClone(mission(1002));
+  m.units[0] = m.units[0].filter((k) => k !== 'sapper');
+  m.start[0] = { ...m.start[0], sappers: 0, incomeMul: 0 };
+  return m;
+}
+
 describe('the score of a win', () => {
-  const def = missionMedals(4);
+  // Dubno (assault) and Brest (survival).
+  const def = missionMedals(1002);
 
   it('pays 3 for a rough clear and 30 for a perfect one (owner, 2026-11-08)', () => {
     const perfect = scoreWin('assault', def, { seconds: def.targetSeconds, lost: def.targetLost, hqFrac: 1 }, 'normal', 0);
@@ -71,7 +81,7 @@ describe('the score of a win', () => {
   });
 
   it('scores a survival mission on casualties and HQ health, not time (its length is fixed)', () => {
-    const s = missionMedals(2);
+    const s = missionMedals(1001);
     const intact = scoreWin('survival', s, { seconds: 240, lost: s.targetLost, hqFrac: 1 }, 'normal', 0);
     expect(intact.time).toBeNull();
     expect(intact.medals).toBe(MEDALS.perfect);
@@ -99,30 +109,39 @@ describe('the score of a win', () => {
       if (m.mode === 'assault') expect(d.roughSeconds).toBeGreaterThan(d.targetSeconds);
     }
   });
+
+  it('keeps no medal targets for the removed British missions 1 to 10', () => {
+    for (let id = 1; id <= 10; id++) expect(MEDALS.missions[id], `mission ${id}`).toBeUndefined();
+    expect(
+      Object.keys(MEDALS.missions)
+        .map(Number)
+        .sort((a, b) => a - b),
+    ).toEqual(MISSIONS.map((m) => m.id));
+  });
 });
 
 describe('replays pay 50% less each time, per mission and difficulty', () => {
   it('halves the medals on each win of the same mission on the same difficulty, rounded down', () => {
     const save = defaultSave();
-    const m = mission(3);
-    const def = missionMedals(3);
+    const m = mission(1003);
+    const def = missionMedals(1003);
     const stats = { seconds: def.targetSeconds + 17, lost: def.targetLost + 3, hqFrac: 1 };
     const base = scoreWin('assault', def, stats, 'normal', 0).base;
     const paid = [0, 1, 2, 3].map(() => recordWin(save, m, 'normal', stats).medals);
     expect(paid).toEqual([base, Math.floor(base / 2), Math.floor(base / 4), Math.floor(base / 8)]);
     expect(save.medals).toBe(paid.reduce((a, b) => a + b, 0));
-    expect(winsOn(save, 3, 'normal')).toBe(4);
+    expect(winsOn(save, 1003, 'normal')).toBe(4);
   });
 
   it('pays in full for the first win on a harder difficulty, and keeps each mission on its own count', () => {
     const save = defaultSave();
     const stats = { seconds: 100, lost: 0, hqFrac: 1 };
-    recordWin(save, mission(3), 'normal', stats);
-    recordWin(save, mission(3), 'normal', stats);
-    expect(recordWin(save, mission(3), 'hard', stats).replayFactor).toBe(1);
-    expect(recordWin(save, mission(4), 'normal', stats).replayFactor).toBe(1);
-    expect(recordWin(save, mission(3), 'hard', stats).replayFactor).toBe(0.5);
-    expect(save.wins).toEqual({ '3': { normal: 2, hard: 2 }, '4': { normal: 1 } });
+    recordWin(save, mission(1003), 'normal', stats);
+    recordWin(save, mission(1003), 'normal', stats);
+    expect(recordWin(save, mission(1003), 'hard', stats).replayFactor).toBe(1);
+    expect(recordWin(save, mission(1004), 'normal', stats).replayFactor).toBe(1);
+    expect(recordWin(save, mission(1003), 'hard', stats).replayFactor).toBe(0.5);
+    expect(save.wins).toEqual({ '1003': { normal: 2, hard: 2 }, '1004': { normal: 1 } });
   });
 
   it('gives the percentage the briefing shows', () => {
@@ -179,53 +198,65 @@ describe('the Armoury', () => {
 describe('unit types unlocked by missions (owner, 2026-11-09)', () => {
   const ids = MISSIONS.map((m) => m.id);
   const reachedOf = (save: ReturnType<typeof defaultSave>) => (id: number) => isUnlocked(save, ids, id);
+  const ALL: UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'commander', 'aa', 'conscript'];
 
-  it('starts every player with sappers and riflemen', () => {
+  it('starts every player with sappers and riflemen, and the types of the first mission (always reached)', () => {
     const save = defaultSave();
-    expect(unitsUnlocked(save, MISSIONS, reachedOf(save))).toEqual(['sapper', 'rifle']);
+    expect(unitsUnlocked(save, MISSIONS, reachedOf(save))).toEqual(['sapper', 'rifle', 'lmg', 'at']);
+    expect(unitsUnlocked(save, MISSIONS, () => false)).toEqual(['sapper', 'rifle']);
   });
 
   it('unlocks each mission type when the mission is reached, for good', () => {
     const save = defaultSave();
-    recordClear(save, 1, 'normal');
-    expect(unitsUnlocked(save, MISSIONS, reachedOf(save))).toEqual(['sapper', 'rifle', 'lmg']);
+    recordClear(save, 1001, 'normal');
+    expect(unitsUnlocked(save, MISSIONS, reachedOf(save))).toEqual(['sapper', 'rifle', 'lmg', 'mortar', 'at', 'tank']);
     for (const m of MISSIONS) recordClear(save, m.id, 'normal');
-    expect(unitsUnlocked(save, MISSIONS, reachedOf(save)).sort()).toEqual(
-      ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'commander', 'aa'].sort(),
-    );
+    expect(unitsUnlocked(save, MISSIONS, reachedOf(save)).sort()).toEqual([...ALL].sort());
+    // The Red Army's signature kind comes after the Armoury's list.
+    expect(unitsUnlocked(save, MISSIONS, reachedOf(save)).at(-1)).toBe('conscript');
   });
 
   it('unlocks the newer units in the missions the data names', () => {
     const at = (kind: UnitKind) => unlockingMission(kind, MISSIONS)?.id;
-    expect([at('lmg'), at('assault'), at('mortar'), at('sniper'), at('medic'), at('at'), at('tank')]).toEqual([2, 3, 4, 5, 6, 7, 8]);
-    expect([at('commander'), at('flame'), at('apc'), at('aa')]).toEqual([5, 6, 8, 10]);
+    expect([at('lmg'), at('assault'), at('mortar'), at('sniper'), at('medic'), at('at'), at('tank')]).toEqual([1001, 1003, 1002, 1006, 1004, 1001, 1002]);
+    expect([at('commander'), at('flame'), at('apc'), at('aa'), at('conscript')]).toEqual([1007, 1005, 1009, 1006, 1004]);
   });
 
-  it('keeps types bought in the Armoury before the change unlocked', () => {
+  it('keeps types bought in the Armoury before the change, and those the British missions unlocked, unlocked', () => {
     const save = defaultSave();
-    save.armoury = ['tank'];
-    expect(unitsUnlocked(save, MISSIONS, reachedOf(save))).toEqual(['sapper', 'rifle', 'tank']);
+    save.armoury = ['tank', 'commander'];
+    expect(unitsUnlocked(save, MISSIONS, reachedOf(save))).toEqual(['sapper', 'rifle', 'lmg', 'at', 'tank', 'commander']);
   });
 
   it('shows NEW cards only for what the mission really unlocks for this player', () => {
     const save = defaultSave();
     const news = (id: number) => newsFor(save, MISSIONS, reachedOf(save), mission(id));
-    expect(news(1).units).toEqual(['rifle']);
+    expect(news(1001).units).toEqual(['lmg', 'at']);
     for (const m of MISSIONS.slice(0, 5)) recordClear(save, m.id, 'normal');
-    expect(news(6)).toEqual({ units: ['medic', 'flame'], support: 'smoke' });
-    // A replay of a mission whose types later missions also unlock brings nothing new.
-    expect(news(2).units).toEqual([]);
-    expect(news(4).support).toBeNull();
-    // A type bought before the change is not new either.
-    save.armoury = ['medic'];
-    expect(news(6).units).toEqual(['flame']);
+    expect(news(1006)).toEqual({ units: ['sniper', 'aa'], support: null });
+    // A replay of a mission whose types and call-ins later missions also bring brings nothing new.
+    expect(news(1002).units).toEqual([]);
+    expect(news(1003)).toEqual({ units: [], support: null });
+    // A type kept unlocked in the save (bought before the change, or from the British missions) is not new either.
+    save.armoury = ['sniper'];
+    expect(news(1006).units).toEqual(['aa']);
+  });
+
+  it('shows the NEW support card of a mission the first time, and not once a later mission has brought it', () => {
+    const save = defaultSave();
+    const news = (id: number) => newsFor(save, MISSIONS, reachedOf(save), mission(id));
+    for (const m of MISSIONS.slice(0, 2)) recordClear(save, m.id, 'normal');
+    expect(news(1003)).toEqual({ units: ['assault'], support: 'katyusha' });
+    recordClear(save, 1003, 'normal');
+    expect(news(1004).support).toBe('airStrike');
+    expect(news(1003).support).toBeNull();
   });
 
   it('drops the "New:" hints about things the player already had', () => {
-    const m = mission(6);
+    const m = mission(1003);
     const hints = (x: MissionDef) => x.events.filter((e) => e.type === 'hint' && e.about !== undefined).length;
-    expect(hints(withNews(m, { units: ['medic'], support: 'smoke' }))).toBe(2);
-    expect(hints(withNews(m, { units: ['medic'], support: null }))).toBe(1);
+    expect(hints(withNews(m, { units: ['assault'], support: 'katyusha' }))).toBe(2);
+    expect(hints(withNews(m, { units: ['assault'], support: null }))).toBe(1);
     expect(hints(withNews(m, { units: [], support: null }))).toBe(0);
     expect(withNews(m, { units: [], support: null }).newUnit).toBeNull();
   });
@@ -234,11 +265,13 @@ describe('unit types unlocked by missions (owner, 2026-11-09)', () => {
 describe('what the player fields in a mission', () => {
   it('fields the mission own types and the free types it lists, with no loans needed', () => {
     const save = defaultSave();
-    const r = missionRoster(save, mission(7));
-    expect(r.units).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at']);
+    const m = mission(1006);
+    const r = missionRoster(save, m);
+    expect(r.units).toEqual(m.units[0]);
+    expect(r.units).toEqual(expect.arrayContaining(['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'flame', 'aa', 'conscript']));
     expect(r.loans).toEqual([]);
     // No sappers where the mission has none.
-    expect(missionRoster(save, mission(9)).units).not.toContain('sapper');
+    expect(missionRoster(save, noMoney()).units).not.toContain('sapper');
   });
 
   it('fields every unlocked type in every mission, replays included', () => {
@@ -246,46 +279,53 @@ describe('what the player fields in a mission', () => {
     const all = playerUnitKinds();
     save.armoury = MEDALS.armoury.map((a) => a.id);
     const planes = MEDALS.armoury.map((a) => a.id as SupportKind);
-    for (const m of MISSIONS) {
+    for (const m of [...MISSIONS, noMoney()]) {
       const r = missionRoster(save, m, all);
       for (const k of all) if (k !== 'sapper' || m.units[0].includes('sapper')) expect(r.units, `mission ${m.id}: ${k}`).toContain(k);
       for (const k of planes) expect(r.supports, `mission ${m.id}: ${k}`).toContain(k);
       expect(applyRoster(m, r).units[0]).toEqual(r.units);
     }
-    // Mission 1 fields everything unlocked too; Arnhem still has no sappers (it has no supply economy).
-    expect(missionRoster(save, mission(1), all).units).toContain('tank');
-    expect(missionRoster(save, mission(9), all).units).not.toContain('sapper');
+    // The first mission fields everything unlocked too; a mission with no money still has no sappers.
+    expect(missionRoster(save, mission(1001), all).units).toContain('tank');
+    expect(missionRoster(save, noMoney(), all).units).not.toContain('sapper');
   });
 
   it('lends a mission own loans only when the type is not unlocked', () => {
-    const m = mission(8);
-    const bare: MissionDef = { ...m, newUnit: null, unlocks: [], units: [['sapper', 'rifle'], m.units[1]] };
-    const r = missionRoster(defaultSave(), bare);
-    expect(r.loans.map((l) => l.kind)).toEqual(['at', 'tank']);
-    expect(missionRoster(defaultSave(), m).loans).toEqual([]);
+    // No Stalingrad mission lends anything (each unlocks its own types), so a test mission carries the loans.
+    const id = 9990;
+    MEDALS.missions[id] = { ...MEDALS.fallback, loans: [{ kind: 'at', count: 3 }, { kind: 'tank', count: 2 }] };
+    try {
+      const m: MissionDef = { ...mission(1009), id };
+      const bare: MissionDef = { ...m, newUnit: null, unlocks: [], units: [['sapper', 'rifle'], m.units[1]] };
+      const r = missionRoster(defaultSave(), bare);
+      expect(r.loans.map((l) => l.kind)).toEqual(['at', 'tank']);
+      expect(missionRoster(defaultSave(), m).loans).toEqual([]);
+    } finally {
+      delete MEDALS.missions[id];
+    }
   });
 
   it('only ever fields types the sim can train', () => {
-    const r = missionRoster(defaultSave(), mission(8), playerUnitKinds());
+    const r = missionRoster(defaultSave(), mission(1009), playerUnitKinds());
     for (const k of r.units) expect(UNITS[k].trainable, k).toBe(true);
   });
 
   it('adds owned plane call-ins to the mission own ones', () => {
     const save = defaultSave();
-    expect(missionRoster(save, mission(6)).supports).toEqual(['artillery', 'smoke']);
+    expect(missionRoster(save, mission(1006)).supports).toEqual(['artillery', 'smoke', 'katyusha']);
     save.armoury = ['recon', 'bomber'];
-    expect(missionRoster(save, mission(6)).supports).toEqual(['artillery', 'smoke', 'recon', 'bomber']);
+    expect(missionRoster(save, mission(1006)).supports).toEqual(['artillery', 'smoke', 'katyusha', 'recon', 'bomber']);
   });
 
   it('applies the roster to a copy of the mission and leaves the data alone', () => {
-    const m = mission(8);
+    const m = mission(1009);
     const roster = missionRoster(defaultSave(), m);
     const played = applyRoster(m, roster);
     expect(played.units[0]).toEqual(roster.units);
     expect(played.units[1]).toEqual(m.units[1]);
     expect(played.supports[0]).toEqual(m.supports[0]);
-    expect(m.start[0].forces).toEqual(mission(8).start[0].forces);
-    expect(mission(8).units[0]).toContain('tank');
+    expect(m.start[0].forces).toEqual(mission(1009).start[0].forces);
+    expect(mission(1009).units[0]).toContain('tank');
   });
 });
 
@@ -308,21 +348,24 @@ describe('saves from before medals (version 5 and older)', () => {
     expect(data.medals).toBe(5 * META.legacyPointMedals + 20);
     expect(META.legacyPointMedals).toBe(20);
     expect(data.upgrades).toEqual({ hqIncome: 2, rifleHealth: 1 });
-    expect(data.cleared).toEqual(v5.cleared);
-    expect(data.lastMission).toBe(4);
+    // Its British clears are archived (version 10), and the map no longer opens on a British mission.
+    expect(data.cleared).toEqual({});
+    expect(data.legacy?.cleared).toEqual(v5.cleared);
+    expect(data.lastMission).toBe(0);
   });
 
-  it('marks nothing bought: the missions it reached unlock their types', () => {
+  it('keeps every type the British missions it reached had unlocked (missions 1 to 5)', () => {
     const data = sanitizeSave(v5, rules);
-    expect(data?.armoury).toEqual([]);
+    expect(data?.armoury).toEqual(['lmg', 'assault', 'mortar', 'sniper', 'commander']);
   });
 
-  it('counts each cleared mission and difficulty as one win, so a replay pays 50%', () => {
+  it('counts each cleared mission and difficulty as one win, archived with the British clears', () => {
     const data = sanitizeSave(v5, rules);
-    expect(data?.wins).toEqual({ '1': { normal: 1, hard: 1 }, '2': { normal: 1 }, '3': { insane: 1 }, '4': { normal: 1 } });
+    expect(data?.wins).toEqual({});
+    expect(data?.legacy?.wins).toEqual({ '1': { normal: 1, hard: 1 }, '2': { normal: 1 }, '3': { insane: 1 }, '4': { normal: 1 } });
     if (!data) return;
-    expect(recordWin(data, mission(1), 'normal', { seconds: 1, lost: 0, hqFrac: 1 }).replayFactor).toBe(0.5);
-    expect(recordWin(data, mission(1), 'insane', { seconds: 1, lost: 0, hqFrac: 1 }).replayFactor).toBe(1);
+    // The Stalingrad missions were never won: a first win pays in full.
+    expect(recordWin(data, mission(1001), 'normal', { seconds: 1, lost: 0, hqFrac: 1 }).replayFactor).toBe(1);
   });
 
   it('migrates a version 1 save the same way, step by step', () => {
@@ -330,8 +373,10 @@ describe('saves from before medals (version 5 and older)', () => {
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v1) }), rules);
     expect(loaded.status).toBe('ok');
     expect(loaded.data.medals).toBe(5 * META.legacyPointMedals + 10);
-    expect(loaded.data.armoury).toEqual([]);
-    expect(loaded.data.wins).toEqual({ '1': { normal: 1 }, '2': { normal: 1 }, '3': { hard: 1 } });
+    // Missions 1 to 4 reached: the Bren, the assault troops and the mortar stay unlocked.
+    expect(loaded.data.armoury).toEqual(['lmg', 'assault', 'mortar']);
+    expect(loaded.data.wins).toEqual({});
+    expect(loaded.data.legacy?.wins).toEqual({ '1': { normal: 1 }, '2': { normal: 1 }, '3': { hard: 1 } });
     expect(loaded.data.upgrades).toEqual({ tankDamage: 1 });
     expect(loaded.data.settings.muted).toBe(true);
   });
@@ -341,14 +386,16 @@ describe('saves from before medals (version 5 and older)', () => {
     expect(data?.medals).toBe(0);
     expect(data?.armoury).toEqual([]);
     expect(data?.wins).toEqual({});
+    expect(data?.legacy).toBeUndefined();
   });
 
-  it('round-trips a version 6 save unchanged', () => {
+  it('round-trips a current save unchanged, its legacy block included', () => {
     const save = defaultSave();
     save.medals = 123;
     save.armoury = ['lmg', 'bomber'];
-    save.wins = { '2': { hard: 3 } };
-    save.cleared = { '1': ['normal'], '2': ['hard'] };
+    save.wins = { '1002': { hard: 3 } };
+    save.cleared = { '1001': ['normal'], '1002': ['hard'] };
+    save.legacy = { cleared: { '1': ['normal'] }, wins: { '1': { normal: 2 } } };
     expect(sanitizeSave(JSON.parse(JSON.stringify(save)), rules)).toEqual(save);
   });
 
@@ -360,7 +407,9 @@ describe('saves from before medals (version 5 and older)', () => {
     // The Bren bought at version 6 comes back as medals at version 8 (once, however often it is listed).
     expect(data?.medals).toBe(MEDALS.unitRefunds.lmg);
     expect(data?.armoury).toEqual(['lmg']);
-    expect(data?.wins).toEqual({ '1': { hard: 2 } });
+    // The British mission 1's good count is archived; there is no mission 99.
+    expect(data?.wins).toEqual({});
+    expect(data?.legacy).toEqual({ cleared: {}, wins: { '1': { hard: 2 } } });
   });
 });
 
@@ -372,7 +421,7 @@ describe('saves from when units were bought (version 7 to 8)', () => {
     expect(data?.armoury).toEqual(['lmg', 'tank', 'bomber']);
     if (!data) return;
     const ids = MISSIONS.map((m) => m.id);
-    expect(unitsUnlocked(data, MISSIONS, (id) => isUnlocked(data, ids, id))).toEqual(['sapper', 'rifle', 'lmg', 'tank']);
+    expect(unitsUnlocked(data, MISSIONS, (id) => isUnlocked(data, ids, id))).toEqual(['sapper', 'rifle', 'lmg', 'at', 'tank']);
   });
 
   it('gives back what upgrade levels cost before the re-pricing, minus what they cost now', () => {
@@ -383,14 +432,15 @@ describe('saves from when units were bought (version 7 to 8)', () => {
     expect(data?.upgrades).toEqual({ hqIncome: 1, hqHealth: 2, hqGun: 3 });
   });
 
-  it('migrates a version 5 player the same way: the missions reached unlock their types', () => {
+  it('migrates a version 5 player the same way: what the British missions reached unlocked fields in every mission', () => {
     const v5 = { version: 5, cleared: { '1': ['normal'], '2': ['normal'], '3': ['normal'], '4': ['normal'] }, upgrades: {}, lastMission: 4, settings: {} };
     const data = sanitizeSave(v5, rules);
     if (!data) throw new Error('no save');
     const ids = MISSIONS.map((m) => m.id);
     const unlocked = unitsUnlocked(data, MISSIONS, (id) => isUnlocked(data, ids, id));
-    const r = missionRoster(data, mission(5), unlocked);
-    for (const k of mission(5).units[0]) expect(r.units).toContain(k);
+    const r = missionRoster(data, mission(1001), unlocked);
+    for (const k of mission(1001).units[0]) expect(r.units).toContain(k);
+    for (const k of ['assault', 'mortar', 'sniper', 'commander'] as const) expect(r.units, k).toContain(k);
     expect(r.loans).toEqual([]);
   });
 });

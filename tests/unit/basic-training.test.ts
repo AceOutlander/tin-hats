@@ -494,8 +494,10 @@ describe('the save, version 9', () => {
     // Version 8 gave back the 90 medals the Bren gun cost; it stays unlocked.
     expect(loaded.data.medals).toBe(55 + (MEDALS.unitRefunds.lmg ?? 0));
     expect(loaded.data.armoury).toEqual(['lmg']);
-    expect(loaded.data.cleared).toEqual(v6.cleared);
-    expect(loaded.data.lastMission).toBe(1);
+    // Version 10 archived the British clear and win (those missions are gone) and kept everything they earned.
+    expect(loaded.data.cleared).toEqual({});
+    expect(loaded.data.legacy).toEqual({ cleared: v6.cleared, wins: v6.wins });
+    expect(loaded.data.lastMission).toBe(0);
     // An old player can still earn the reward once.
     expect(completeTraining(loaded.data)).toBe(MEDALS.trainingReward);
     expect(loaded.data.medals).toBe(55 + (MEDALS.unitRefunds.lmg ?? 0) + MEDALS.trainingReward);

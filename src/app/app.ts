@@ -11,7 +11,6 @@ import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { CAMPAIGNS } from '../data/campaigns';
 import { DIFFICULTY_LIST } from '../data/difficulty';
-import { MISSIONS } from '../data/missions';
 import { STALINGRAD_MISSIONS } from '../data/missions/stalingrad';
 import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { MusicTrackName } from '../data/music';
@@ -56,10 +55,10 @@ import { BattleSession } from './session';
 import { TipMemory, Tutorial, isTraining } from './tutorial';
 
 /**
- * The British campaign map's track (each campaign's map plays its own, `Campaign.mapMusic`), and the screens a map
- * track plays on (and behind Settings opened from one of them).
+ * The first campaign's map track (each campaign's map plays its own, `Campaign.mapMusic`; Stalingrad is the only one
+ * today), and the screens a map track plays on (and behind Settings opened from one of them).
  */
-export const MAP_MUSIC: MusicTrackName = CAMPAIGNS.british.mapMusic;
+export const MAP_MUSIC: MusicTrackName = CAMPAIGNS.stalingrad.mapMusic;
 const MAP_SCREENS: readonly ScreenId[] = ['campaign', 'briefing', 'quartermaster', 'armoury'];
 /** The menu screens the title storm and the menu theme play behind (and Settings opened from them). */
 const STORM_SCREENS: readonly ScreenId[] = ['title', 'campaigns'];
@@ -71,18 +70,15 @@ export interface CampaignPlay {
 }
 
 /** Every campaign there is, in select-screen order (src/data/campaigns.ts CAMPAIGN_IDS). */
-export const DEFAULT_CAMPAIGNS: readonly CampaignPlay[] = [
-  { id: 'stalingrad', missions: STALINGRAD_MISSIONS },
-  { id: 'british', missions: MISSIONS },
-];
+export const DEFAULT_CAMPAIGNS: readonly CampaignPlay[] = [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }];
 
 export interface AppDeps {
   view: BattleView;
   audio: GameAudio;
   storage: StorageLike | null;
-  /** One campaign's order (played as the British campaign; the tests use it). Ignored when `campaigns` is given. */
+  /** One campaign's order (played as the Stalingrad campaign; the tests use it). Ignored when `campaigns` is given. */
   missions?: readonly MissionDef[];
-  /** The campaigns and their missions. Default: DEFAULT_CAMPAIGNS (or `missions` as the British campaign). */
+  /** The campaigns and their missions. Default: DEFAULT_CAMPAIGNS (or `missions` as the Stalingrad campaign). */
   campaigns?: readonly CampaignPlay[];
   /**
    * Offer the campaigns still being built (`released: false`) on the select screen: the dev server and ?unreleased=1
@@ -161,7 +157,7 @@ export class App implements AppApi {
     this.audio = deps.audio;
     this.storage = deps.storage;
     this.tips = new TipMemory(deps.storage);
-    this.campaigns = deps.campaigns ?? (deps.missions ? [{ id: 'british', missions: deps.missions }] : DEFAULT_CAMPAIGNS);
+    this.campaigns = deps.campaigns ?? (deps.missions ? [{ id: 'stalingrad', missions: deps.missions }] : DEFAULT_CAMPAIGNS);
     this.showUnreleased = deps.showUnreleased ?? false;
     this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
     this.random = deps.random ?? Math.random;

@@ -1,14 +1,14 @@
 /**
  * The campaign select screen and the per-campaign maps (FOUNDATIONS.md section 6, docs/campaigns/STALINGRAD_BUILD.md):
  * the registry's campaigns with their maps and map tracks, the Stalingrad situation map (bounds, the ten mission
- * markers at their real places, the rivers, the front line by date), the select screen's cards, and the app playing
- * several campaigns (which are offered, the map on show, its music, the save keeping each campaign's progress, and
- * unit unlocks counting every offered campaign).
+ * markers at their real places, the rivers, the front line by date), the select screen's cards, and the app with its
+ * one campaign since the British placeholders were removed (what is offered, the map on show, its music, the save
+ * keeping the progress, and the unit types the British missions unlocked still counting).
  */
 import { describe, expect, it } from 'vitest';
 import { App, MAP_MUSIC } from '../../src/app/app';
 import { buildCampaignCards } from '../../src/app/campaignView';
-import { BRITISH_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection } from '../../src/data/campaignMap';
+import { WEST_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection } from '../../src/data/campaignMap';
 import { STALINGRAD_MAP } from '../../src/data/campaignMapStalingrad';
 import { CAMPAIGN_IDS, CAMPAIGNS } from '../../src/data/campaigns';
 import { MISSIONS } from '../../src/data/missions';
@@ -68,16 +68,25 @@ function inside(ring: readonly number[], lon: number, lat: number): boolean {
 }
 
 describe('the campaign registry', () => {
-  it('gives every campaign its own map and map track: Stalingrad plays its own, the British "Between the Lines"', () => {
+  it('gives every campaign its own map and map track: Stalingrad, the only one since the British placeholders went', () => {
     for (const id of CAMPAIGN_IDS) {
       expect(CAMPAIGNS[id].map.bounds.lonMin).toBeLessThan(CAMPAIGNS[id].map.bounds.lonMax);
       expect(CAMPAIGNS[id].mapMusic).toBeTruthy();
     }
+    expect(CAMPAIGN_IDS).toEqual(['stalingrad']);
     expect(CAMPAIGNS.stalingrad.map).toBe(STALINGRAD_MAP);
     expect(CAMPAIGNS.stalingrad.mapMusic).toBe(STALINGRAD_MUSIC.map);
-    expect(CAMPAIGNS.british.map).toBe(BRITISH_MAP);
-    expect(CAMPAIGNS.british.mapMusic).toBe(MAP_MUSIC);
-    expect(CAMPAIGN_IDS[0]).toBe('stalingrad');
+    expect(CAMPAIGNS.stalingrad.mapMusic).toBe(MAP_MUSIC);
+    // Released with the removal of the British missions: the live site has a campaign to play.
+    expect(CAMPAIGNS.stalingrad.released).toBe(true);
+    // The western map is kept for the western campaigns to come, but no campaign uses it.
+    for (const id of CAMPAIGN_IDS) expect(CAMPAIGNS[id].map).not.toBe(WEST_MAP);
+  });
+
+  it('lists the Stalingrad missions as the game\'s campaign missions, and no mission 1 to 10', () => {
+    expect(MISSIONS.map((m) => m.id)).toEqual(STALINGRAD_MISSIONS.map((m) => m.id));
+    expect(MISSIONS.map((m) => m.id)).toEqual(CAMPAIGNS.stalingrad.missionIds);
+    for (const m of MISSIONS) expect(m.id, m.key).toBeGreaterThan(1000);
   });
 });
 
@@ -149,7 +158,7 @@ describe('the Stalingrad situation map', () => {
     expect(inside(pocket, 44.35, 48.78), 'Gumrak').toBe(true);
     expect(inside(pocket, 43.53, 48.69), 'Kalach, outside').toBe(false);
     expect(frontOn(STALINGRAD_MAP, undefined)).toBeNull();
-    expect(frontOn(BRITISH_MAP, '1941-06-22')).toBeNull();
+    expect(frontOn(WEST_MAP, '1941-06-22')).toBeNull();
   });
 
   it('keeps every marker on the map and a full touch apart at phone size, the city cluster included', () => {
@@ -180,25 +189,16 @@ describe('the Stalingrad situation map', () => {
 });
 
 describe('the campaign select cards', () => {
-  it('show each campaign\'s name, dates, pitch, flag and progress, Stalingrad first', () => {
+  it('show the campaign\'s name, dates, pitch, flag and progress (one card: Stalingrad)', () => {
     const save = defaultSave();
     recordClear(save, 1001, 'normal');
     recordClear(save, 1002, 'hard');
-    const cards = buildCampaignCards(
-      save,
-      [
-        { id: 'stalingrad', missions: STALINGRAD_MISSIONS },
-        { id: 'british', missions: MISSIONS },
-      ],
-      'stalingrad',
-    );
-    expect(cards.map((c) => c.id)).toEqual(['stalingrad', 'british']);
-    const [s, b] = cards;
+    const cards = buildCampaignCards(save, [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }], 'stalingrad');
+    expect(cards.map((c) => c.id)).toEqual(['stalingrad']);
+    const [s] = cards;
     expect(s).toMatchObject({ title: 'Stalingrad', subtitle: 'June 1941 to February 1943', nation: 'soviet', flag: 'sovietRed', cleared: 2, total: 10, current: true, locked: false });
     expect(s.pitch).toBe(CAMPAIGNS.stalingrad.card);
     expect(s.next).toEqual({ id: 1003, number: 3, title: 'The Volokolamsk Highway' });
-    expect(b).toMatchObject({ nation: 'british', flag: 'unionJack', cleared: 0, total: 10, current: false });
-    expect(b.next?.id).toBe(1);
   });
 
   it('says when every mission is cleared', () => {
@@ -208,23 +208,22 @@ describe('the campaign select cards', () => {
     expect(s.cleared).toBe(10);
     expect(s.next).toBeNull();
   });
+
+  it('count no archived British progress', () => {
+    const save = defaultSave();
+    save.legacy = { cleared: { '1': ['normal'], '2': ['normal'] }, wins: { '1': { normal: 1 } } };
+    const [s] = buildCampaignCards(save, [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }], 'stalingrad');
+    expect(s.cleared).toBe(0);
+    expect(s.next?.id).toBe(1001);
+  });
 });
 
-describe('the app with several campaigns', () => {
-  it('offers only the released campaigns on the live site (one: the title goes straight to its map)', () => {
+describe('the app with its one campaign', () => {
+  it('offers Stalingrad on the live site, as the only campaign (the title goes straight to its map)', () => {
     const { app } = makeApp();
-    expect(app.offered.map((c) => c.id)).toEqual(['british']);
+    expect(app.offered.map((c) => c.id)).toEqual(['stalingrad']);
     const view = app.campaign();
-    expect(view.campaigns?.map((c) => c.id)).toEqual(['british']);
-    expect(view.campaignId).toBe('british');
-    expect(view.map).toBe(BRITISH_MAP);
-    expect(view.missions[0].id).toBe(1);
-  });
-
-  it('offers Stalingrad first where unreleased campaigns show, opens on it, and switches on a card', () => {
-    const { app } = makeApp({ showUnreleased: true });
-    expect(app.offered.map((c) => c.id)).toEqual(['stalingrad', 'british']);
-    let view = app.campaign();
+    expect(view.campaigns?.map((c) => c.id)).toEqual(['stalingrad']);
     expect(view.campaignId).toBe('stalingrad');
     expect(view.campaignTitle).toBe('Stalingrad');
     expect(view.map).toBe(STALINGRAD_MAP);
@@ -233,21 +232,24 @@ describe('the app with several campaigns', () => {
     // The briefing's intelligence and the date the map's front line follows.
     expect(view.missions[0].intel?.enemy.length).toBeGreaterThan(0);
     expect(view.missions[0].dateIso).toBe('1941-06-22');
-    app.selectCampaign('british');
-    view = app.campaign();
-    expect(view.campaignId).toBe('british');
-    expect(view.campaigns?.find((c) => c.current)?.id).toBe('british');
-    expect(view.missions[0].id).toBe(1);
   });
 
-  it('shows the unreleased campaigns after the admin panel\'s unlock', () => {
+  it('offers the same one campaign where unreleased campaigns show and after the admin panel\'s unlock', () => {
+    expect(makeApp({ showUnreleased: true }).app.offered.map((c) => c.id)).toEqual(['stalingrad']);
     const { app } = makeApp();
     app.adminUnlockMissions();
-    expect(app.offered.map((c) => c.id)).toEqual(['stalingrad', 'british']);
+    expect(app.offered.map((c) => c.id)).toEqual(['stalingrad']);
+    expect(app.campaign().missions.every((m) => m.unlocked)).toBe(true);
   });
 
-  it('plays each campaign\'s own map track, and the menu theme on the select screen', () => {
-    const { app, audio } = makeApp({ showUnreleased: true });
+  it('ignores a campaign that does not exist', () => {
+    const { app } = makeApp();
+    app.selectCampaign('british' as never);
+    expect(app.current.id).toBe('stalingrad');
+  });
+
+  it('plays the campaign\'s own map track, and the menu theme on the select screen', () => {
+    const { app, audio } = makeApp();
     app.onScreen('title');
     app.onScreen('campaigns');
     expect(audio.music).toBe('menu');
@@ -258,60 +260,54 @@ describe('the app with several campaigns', () => {
     expect(audio.music).toBe(STALINGRAD_MUSIC.map);
     app.onScreen('campaigns');
     expect(audio.music).toBe('menu');
-    app.selectCampaign('british');
     app.onScreen('campaign');
     expect(audio.music).toBe(MAP_MUSIC);
   });
 
   it('lets go of the Stalingrad map track when a Stalingrad battle starts, and comes back to that campaign', () => {
-    const { app, audio } = makeApp({ showUnreleased: true });
-    app.selectCampaign('british');
+    const { app, audio } = makeApp();
     app.onScreen('campaign');
     // Started from anywhere (the debug hooks), a mission puts its own campaign on the map.
     expect(app.beginMission(1001, 'normal', 1)).toBe(true);
     expect(app.current.id).toBe('stalingrad');
     expect(audio.releasedMusic).toContain(STALINGRAD_MUSIC.map);
     expect(app.session?.battle.state.sides[0].faction).toBe('soviet');
+    // The British missions are gone: their ids start nothing.
+    expect(app.beginMission(1, 'normal', 1)).toBe(false);
   });
 
-  it('keeps each campaign\'s progress through a reload, and opens on the campaign last played', () => {
+  it('keeps the campaign\'s progress through a reload, and opens on the mission last played', () => {
     const storage = createMemoryStorage();
     {
-      const { app } = makeApp({ showUnreleased: true, storage });
+      const { app } = makeApp({ storage });
       const save = app.save;
       recordClear(save, 1001, 'normal');
       recordClear(save, 1002, 'normal');
-      recordClear(save, 1, 'hard');
-      save.lastMission = 1;
+      save.lastMission = 1002;
       app.giveMedals(0);
     }
-    const { app } = makeApp({ showUnreleased: true, storage });
-    expect(Object.keys(app.save.cleared).sort()).toEqual(['1', '1001', '1002']);
-    expect(app.current.id).toBe('british');
+    const { app } = makeApp({ storage });
+    expect(Object.keys(app.save.cleared).sort()).toEqual(['1001', '1002']);
+    expect(app.current.id).toBe('stalingrad');
+    expect(app.campaign().lastMission).toBe(1002);
     const cards = app.campaign().campaigns ?? [];
-    expect(cards.map((c) => c.cleared)).toEqual([2, 1]);
+    expect(cards.map((c) => c.cleared)).toEqual([2]);
   });
 
-  it('counts unit unlocks across the offered campaigns: Brest\'s DP gunner is no NEW card in the British mission 2', () => {
-    const live = makeApp();
-    recordClear(live.app.save, 1, 'normal');
-    expect(live.app.campaign().missions.find((m) => m.id === 2)?.newUnit?.kind).toBe('lmg');
-    const dev = makeApp({ showUnreleased: true });
-    dev.app.selectCampaign('british');
-    recordClear(dev.app.save, 1, 'normal');
-    expect(dev.app.campaign().missions.find((m) => m.id === 2)?.newUnit).toBeNull();
+  it('counts the unit types the British missions unlocked: no NEW DP gunner at Brest for a player who had the Bren', () => {
+    const fresh = makeApp();
+    expect(fresh.app.campaign().missions[0].newUnit?.kind).toBe('lmg');
+    const veteran = makeApp();
+    // What the step to save version 10 leaves for a player who reached the British mission 2.
+    veteran.app.save.armoury = ['lmg'];
+    expect(veteran.app.campaign().missions[0].newUnit?.kind).toBe('at');
     // And the Quartermaster and the Armoury speak the campaign's nation.
-    dev.app.selectCampaign('stalingrad');
-    expect(dev.app.campaign().armoury?.find((a) => a.id === 'lmg')?.name).toBe('DP Gunner');
+    expect(veteran.app.campaign().armoury?.find((a) => a.id === 'lmg')?.name).toBe('DP Gunner');
   });
 
-  it('plays Basic Training as the nation of the campaign on the map', () => {
-    const { app } = makeApp({ showUnreleased: true });
+  it('plays Basic Training as the nation of the campaign on the map: the Red Army', () => {
+    const { app } = makeApp();
     app.startTraining();
     expect(app.session?.battle.state.sides[0].faction).toBe('soviet');
-    app.endSession();
-    app.selectCampaign('british');
-    app.startTraining();
-    expect(app.session?.battle.state.sides[0].faction).toBe('british');
   });
 });

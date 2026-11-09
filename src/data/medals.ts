@@ -92,15 +92,18 @@ export interface MedalTunables {
   trainingReward: number;
 }
 
-/** The types unlocked before mission 2, and so on: what each mission's design is built around. */
-const CORE_1: UnitKind[] = ['sapper', 'rifle'];
-const CORE_2: UnitKind[] = [...CORE_1, 'lmg'];
-const CORE_3: UnitKind[] = [...CORE_2, 'assault'];
-const CORE_4: UnitKind[] = [...CORE_3, 'mortar'];
-const CORE_5: UnitKind[] = [...CORE_4, 'sniper'];
-const CORE_6: UnitKind[] = [...CORE_5, 'medic'];
-const CORE_7: UnitKind[] = [...CORE_6, 'at'];
-const CORE_8: UnitKind[] = [...CORE_7, 'tank'];
+/**
+ * The Stalingrad army as each mission starts, playing the campaign in order: what that mission and every one before it
+ * unlocks (the unlock table, docs/campaigns/STALINGRAD_BUILD.md). Each mission's design is built around it.
+ */
+const STAL_1001: UnitKind[] = ['sapper', 'rifle', 'lmg', 'at'];
+const STAL_1002: UnitKind[] = [...STAL_1001, 'tank', 'mortar'];
+const STAL_1003: UnitKind[] = [...STAL_1002, 'assault'];
+const STAL_1004: UnitKind[] = [...STAL_1003, 'medic', 'conscript'];
+const STAL_1005: UnitKind[] = [...STAL_1004, 'flame'];
+const STAL_1006: UnitKind[] = [...STAL_1005, 'sniper', 'aa'];
+const STAL_1007: UnitKind[] = [...STAL_1006, 'commander'];
+const STAL_1009: UnitKind[] = [...STAL_1007, 'apc'];
 
 export const MEDALS: MedalTunables = {
   rough: 3,
@@ -135,31 +138,26 @@ export const MEDALS: MedalTunables = {
     { id: 'fighter', type: 'support', price: 300, isNew: true },
     { id: 'bomber', type: 'support', price: 450, isNew: true },
   ],
+  // First-cut Stalingrad targets (DECISIONS 306), from the reasonable-player bot on Normal with the mission's own roster
+  // (seeds 1 to 3, battle seconds including the prep phase): about 0.8 of its median time and 0.6 of its median losses
+  // for full marks, twice its time and three times its losses for none. Survival missions score on losses and HQ health
+  // only; their seconds are the clock plus the prep phase. Tuning them on real play is still open. No mission lends
+  // anything: each unlocks its own types.
   missions: {
-    // The tutorial keeps to riflemen and sappers whatever the player owns.
-    1: { targetSeconds: 150, roughSeconds: 360, targetLost: 1, roughLost: 12, loans: [], expects: CORE_1 },
-    2: { targetSeconds: 240, roughSeconds: 240, targetLost: 3, roughLost: 25, loans: [{ kind: 'lmg', count: 2 }], expects: CORE_2 },
-    3: { targetSeconds: 180, roughSeconds: 420, targetLost: 3, roughLost: 24, loans: [{ kind: 'assault', count: 3 }], expects: CORE_3 },
-    4: { targetSeconds: 330, roughSeconds: 840, targetLost: 10, roughLost: 60, loans: [{ kind: 'mortar', count: 2 }], expects: CORE_4 },
-    5: { targetSeconds: 330, roughSeconds: 840, targetLost: 12, roughLost: 70, loans: [{ kind: 'sniper', count: 2 }], expects: CORE_5 },
-    6: { targetSeconds: 480, roughSeconds: 1100, targetLost: 18, roughLost: 100, loans: [{ kind: 'medic', count: 2 }], expects: CORE_6 },
-    // Enemy tanks from here on.
-    7: { targetSeconds: 540, roughSeconds: 1300, targetLost: 14, roughLost: 90, loans: [{ kind: 'at', count: 3 }, { kind: 'medic', count: 2 }], expects: CORE_7 },
-    8: { targetSeconds: 400, roughSeconds: 1100, targetLost: 12, roughLost: 80, loans: [{ kind: 'at', count: 3 }, { kind: 'tank', count: 2 }], expects: CORE_8 },
-    // Paratroopers at Arnhem: no sappers (no supply economy); unlocked types, vehicles included, can be used here as anywhere.
-    9: {
-      targetSeconds: 360,
-      roughSeconds: 360,
-      targetLost: 8,
-      roughLost: 50,
-      loans: [{ kind: 'at', count: 3 }],
-      expects: CORE_7,
-    },
-    10: { targetSeconds: 660, roughSeconds: 1500, targetLost: 30, roughLost: 180, loans: [{ kind: 'at', count: 3 }, { kind: 'tank', count: 2 }], expects: CORE_8 },
+    1001: { targetSeconds: 780, roughSeconds: 1560, targetLost: 15, roughLost: 75, loans: [], expects: STAL_1001 },
+    1002: { targetSeconds: 630, roughSeconds: 1620, targetLost: 21, roughLost: 105, loans: [], expects: STAL_1002 },
+    1003: { targetSeconds: 870, roughSeconds: 2160, targetLost: 36, roughLost: 180, loans: [], expects: STAL_1003 },
+    1004: { targetSeconds: 630, roughSeconds: 1560, targetLost: 58, roughLost: 290, loans: [], expects: STAL_1004 },
+    1005: { targetSeconds: 510, roughSeconds: 1260, targetLost: 47, roughLost: 235, loans: [], expects: STAL_1005 },
+    1006: { targetSeconds: 870, roughSeconds: 2160, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006 },
+    1007: { targetSeconds: 1380, roughSeconds: 2760, targetLost: 29, roughLost: 145, loans: [], expects: STAL_1007 },
+    1008: { targetSeconds: 1320, roughSeconds: 2640, targetLost: 43, roughLost: 215, loans: [], expects: STAL_1007 },
+    1009: { targetSeconds: 1260, roughSeconds: 3120, targetLost: 56, roughLost: 280, loans: [], expects: STAL_1009 },
+    1010: { targetSeconds: 480, roughSeconds: 1200, targetLost: 31, roughLost: 155, loans: [], expects: STAL_1009 },
   },
-  fallback: { targetSeconds: 300, roughSeconds: 900, targetLost: 10, roughLost: 60, loans: [], expects: CORE_1 },
+  fallback: { targetSeconds: 300, roughSeconds: 900, targetLost: 10, roughLost: 60, loans: [], expects: ['sapper', 'rifle'] },
   maxMedals: 9_999_999,
   maxWins: 99,
-  // The Bren gunner, first in the Armoury, costs 30; the rest goes toward the next purchase.
+  // Enough for a new player's first few upgrade levels (a first level costs 10).
   trainingReward: 40,
 };
