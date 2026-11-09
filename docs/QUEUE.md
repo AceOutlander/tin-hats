@@ -63,7 +63,7 @@ the owner it is ready and **wait for the owner to say when to push it live**. (T
     D-Day (replaces the current British campaign), Soviet Road to Berlin, African. Specs below.
 12. **Trench art pass** (spec below).
 
-Later: a French campaign, and a German campaign as DLC. After all the campaigns: the iPhone rendering bug (spec below). Then publishing on Google Play (spec below). Very last: the Poland 1939 campaign as a paid add-on (spec at
+Later: a French campaign, and a German campaign as DLC. After all the campaigns: the iPhone rendering bug (spec below). Then publishing on Google Play (spec below). Very last: the paid add-ons, the Battle for Poland ($5.99) and the Cavalier unit ($2.99), Google Play app only (specs at
 the end; the store plan comes first, and no payment code or paid content goes into the public repo until the owner
 picks a store).
 
@@ -526,11 +526,36 @@ job. The upload signing key must be created and kept outside every repo, and its
 
 ## Paid add-on: Poland 1939 campaign (very last; after the French and German campaigns)
 
+Price update (owner, 2026-11-08, later): **$5.99** (was $4.99); still unlockable with 2,999 medals instead.
+
 Update (owner, 2026-11-08): it is called "the Battle for Poland" and can be unlocked in the Google Play app either for
-2,999 medals or for $4.99 through Google Play Billing; see "What medals buy, and the Poland unlock" under the medals spec.
+2,999 medals or for $4.99 (now $5.99, see above) through Google Play Billing; see "What medals buy, and the Poland unlock" under the medals spec.
 
 "## Paid add-on: Poland 1939 campaign (do not build the payment part yet)
 - A 10-mission campaign as Poland, September to October 1939. Tragic but heroic: holding out and delaying is the victory, and the war is lost by the end. The Soviets invade from the east in the later missions.
 - Missions to research and choose from: the Polish Post Office in Danzig, Westerplatte, Mokra, Wizna, the Bzura counter-offensive, the defense of Warsaw, Modlin, Grodno, Tomaszów Lubelski and Kock.
 - Polish signature units: cavalry used as fast-moving infantry, the 7TP tank, the wz. 35 anti-tank rifle. Period-accurate Polish uniforms and the white-and-red flag. The Germans only field 1939 equipment (Panzer I, II, III Ausf. E and Czech-built tanks).
 - This will be paid content, and the main game's code is public. Before building it, write a short plan in docs/ for keeping paid content out of the public repo and unlocking it only after a real purchase check, with options for itch.io, Steam, and the Google Play and App Store versions. Don't add any payment code or put paid content in the public repo until I've picked a store."
+
+## Paid add-ons, current list (owner, 2026-11-08; very last, Google Play app only)
+
+Both are sold only in the Google Play app, never in the free website version and never in the public repo (paid content
+lives in the private repo per the Google Play plan). No payment code or paid content goes in before the owner picks the
+store setup.
+
+"## Battle for Poland: $5.99
+- Price changes from $4.99 to $5.99. It can still be unlocked with 2,999 medals instead.
+
+## The Cavalier: $2.99 (paid only, not buyable with medals)
+- A joke unit: a British soldier in full medieval knight's armour on an armoured horse, with a lance or sword.
+- Melee only: he charges in and attacks up close. Fast, thanks to the horse.
+- Bullets barely hurt him, like a tank, but anti-tank weapons, explosives, artillery and bombs damage him like a tank.
+- One per battle, with a fairly high money cost, so it's fun but doesn't break the balance.
+- Text speech bubbles when he charges (for example, "For King and Country!") with a short horn or hoofbeat sound cue.
+- Once bought, it's usable in every campaign as the same British knight, as a fun cameo.
+- In the store and in the game it's sold as a unit; the description can mention that buying it supports the developer.
+- Add it to the balance tests so it's strong but beatable."
+
+Notes: the Cavalier is a paid unit, so like Poland its art, data and unlock code live only in the private Android build;
+the public build may only carry generic hooks that do nothing without the private content. It needs melee combat (no
+unit fights in melee today) and a one-per-battle rule like the commander's (uniquePerSide).
