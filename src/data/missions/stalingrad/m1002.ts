@@ -8,7 +8,7 @@ import type { MissionDef } from '../../schema';
  * two T-26s (the light tanks are the majority, as in the 34th Tank Division).
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1002): a delay. Phase 1 takes the
- * crossroads (the capture point P1, taken by holding it 15 s; trench 3 is a dug-in position in it); phase 2 holds it
+ * crossroads (the capture point P1, taken by holding it 10 s; trench 3 is a dug-in position in it); phase 2 holds it
  * for 600 s and destroys twelve tanks, counted over the whole mission, with the supply road cut (income x0.4), a Stuka
  * raid and artillery on Dubno; if the clock runs out before the twelfth tank the phase goes on with a panzer wave every
  * 60 s. Eight enemies past x 10,000 lose it (past x 5,000 in phase 1, the group's start line, so an idle commander
@@ -128,7 +128,8 @@ export const M1002: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
-  // The brief's sectors (FOUNDATIONS.md 4.1) and the crossroads, a capture point taken by holding it 15 s (4.5).
+  // The brief's sectors (FOUNDATIONS.md 4.1) and the crossroads, a capture point taken by holding it 10 s (4.5); 800 wu wide,
+  // so an army fighting through Dubno takes it instead of rolling past it to the column park (DECISIONS 429).
   sectors: [
     { from: 0, to: 3000, ground: 'field', label: 'Assembly area' },
     { from: 3000, to: 9000, ground: 'field', label: 'Rye fields' },
@@ -136,7 +137,7 @@ export const M1002: MissionDef = {
     { from: 12500, to: 16000, ground: 'cobble', label: 'Dubno' },
     { from: 16000, to: 22000, ground: 'road', label: 'The Ikva road' },
   ],
-  capturePoints: [{ id: 'P1', x: 14500, width: 400, label: 'Dubno crossroads', owner: 1, captureTime: 15, spawn: true, contestRadius: 600 }],
+  capturePoints: [{ id: 'P1', x: 14500, width: 800, label: 'Dubno crossroads', owner: 1, captureTime: 10, spawn: true, contestRadius: 600 }],
   timer: null,
   // The mission director (FOUNDATIONS.md 3): take the crossroads, then the delay at them (STALINGRAD.md, mission 2).
   phases: [
@@ -174,7 +175,16 @@ export const M1002: MissionDef = {
     { id: 'dust', type: 'weather', when: { at: 60 }, to: 'dust', over: 30 },
     { id: 'dusk', type: 'time', when: { phase: 'crossroads', delay: 400 }, to: 'dusk', over: 90 },
     { id: 'stukas', type: 'airRaid', when: { phase: 'crossroads', delay: 120 }, side: 1, support: 'airStrike', x: 14500 },
-    { id: 'dubnoShelled', type: 'barrage', when: { phase: 'crossroads', delay: 250 }, side: 1, x: 13900, spread: 400, rounds: 8, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on Dubno!' },
+    { id: 'dubnoShelled', type: 'barrage', when: { phase: 'crossroads', delay: 250 }, side: 1, x: 13900, spread: 400, rounds: 8, duration: 16, weapon: 'artilleryShell', warning: 'Artillery on Dubno!' },
+    // The brief's loan: three fresh Tank Hunters come up to the crossroads every two minutes of the hold.
+    {
+      id: 'tankHunters',
+      type: 'wave',
+      when: { phaseEvery: 120, phase: 'crossroads', from: 120, until: 600 },
+      side: 0,
+      forces: [{ kind: 'at', count: 3, x: 13600 }],
+      announce: 'Tank Hunters come up to the crossroads.',
+    },
     // The twelfth tank not dead by dusk: the phase goes on, with a panzer wave every minute until it is.
     {
       id: 'overtime',
@@ -323,7 +333,7 @@ export const M1002: MissionDef = {
     ],
     firstAttackAfter: 20,
   },
-  // The design's 20 to 24 minutes include the 600 s hold at the crossroads (STALINGRAD_BUILD.md).
-  expectedMinutes: [12, 24],
+  // A 9 to 10 minute strike, then the 600 s hold at the crossroads: the bot wins in about 19 (DECISIONS 429).
+  expectedMinutes: [15, 22],
   music: STALINGRAD_MUSIC.missions[1002],
 };

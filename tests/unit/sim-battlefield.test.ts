@@ -417,7 +417,7 @@ describe('the campaign missions on the battlefield', () => {
   it('give the Stalingrad missions the brief\'s capture points, the summit\'s reach and the ski troops', () => {
     const ids = (id: number): string[] => (getMission(id)?.capturePoints ?? []).map((p) => p.id);
     expect(ids(1002)).toEqual(['P1']);
-    expect(getMission(1002)!.capturePoints![0].captureTime).toBe(15);
+    expect(getMission(1002)!.capturePoints![0].captureTime).toBe(10);
     expect(ids(1003)).toEqual(['P1', 'P2']);
     expect(ids(1004)).toEqual(['P1', 'P2', 'P3']);
     expect(ids(1005)).toEqual(['P1', 'P2']);

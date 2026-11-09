@@ -284,7 +284,7 @@ export const MEDALS: MedalTunables = {
   // half of them where the bot won with none (1002, 1003, 1007). The player's own charges are the extra (DECISIONS
   // 416; the mission tuning pass should cut these as missions are retuned around bought charges).
   chargeLoans: {
-    1002: [{ kind: 'artillery', count: 6 }],
+    // 1002 lends nothing since its tuning (DECISIONS 429): the bot wins it with no call-in at all.
     1003: [
       { kind: 'artillery', count: 6 },
       { kind: 'katyusha', count: 2 },

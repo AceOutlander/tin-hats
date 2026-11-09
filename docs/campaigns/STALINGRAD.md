@@ -187,7 +187,7 @@ Expected 12 to 13 minutes (fixed).
 ## Mission 2: Dubno
 
 - **Id** 1002, key `dubno`. **Date** 27 June 1941 (`1941-06-27`). **Place** Dubno, Volhynia, 50.42 N, 25.73 E.
-  **Mode** delay. **Length** about 22 minutes. **Map** 22,000 wu. **Theatre** `russiaSummer`.
+  **Mode** delay. **Length** about 19 minutes (a 9 to 10 minute strike, then the 10 minute hold). **Map** 22,000 wu. **Theatre** `russiaSummer`.
 - **History**: the largest tank battle of 1941 (Dubno, Lutsk and Brody, 23 to 30 June). Soviet mechanised corps of
   the Southwestern Front (Kirponos) counter-attacked Panzer Group 1 (Kleist). On 27 June Brigade Commissar Popel's
   group of the 8th Mechanized Corps, built around the remnants of the 34th Tank Division (Colonel Ivan Vasiliev, killed
@@ -227,7 +227,7 @@ Expected 12 to 13 minutes (fixed).
 | 0 to 3,000 | Assembly area | field | HQ (look `dugout`) |
 | 3,000 to 9,000 | Rye fields | field | trench T1 (x 7,500, German, 6 slots); Flak 88 pair at 8,600 (guard) |
 | 9,000 to 12,500 | Oak wood | forest | |
-| 12,500 to 16,000 | Dubno | cobble | buildings B1 to B4 (houses, 1 to 2 floors); capture point P1 "Dubno crossroads" (x 14,500, 15 s, spawn) |
+| 12,500 to 16,000 | Dubno | cobble | buildings B1 to B4 (houses, 1 to 2 floors); capture point P1 "Dubno crossroads" (x 14,500, 800 wu wide, 10 s, spawn) |
 | 16,000 to 22,000 | The Ikva road | road | enemy HQ (supply column park) at 21,850 |
 
 ### Forces
@@ -237,7 +237,8 @@ Expected 12 to 13 minutes (fixed).
   follows Popel's mostly obsolete tank park; balance may tune the counts but should keep the light tanks the
   majority). Supports: artillery (one battery).
   No Soviet air.
-- **Loans**: 3 Tank Hunters (start, resend 120 s in phase 2); 2 mortar teams (start).
+- **Loans**: 3 Tank Hunters (start, resent every 120 s of the hold, 4 times); 2 mortar teams (start). No call-in charges
+  are lent: the battery is the player's starter or bought charges.
 - **Enemy**:
   - HQ with income no higher than the player's.
   - Start: T1 garrison (6 riflemen, 1 MG34, 1 Pak 36 crew as `at` with the look `pak36`).
@@ -259,7 +260,8 @@ Expected 12 to 13 minutes (fixed).
    - Phase start: `income` side 0 x0.4 ("The road behind us is cut. Fuel and shells will be short.").
    - 30 s, 180 s, 330 s and 480 s: panzer counter-attacks, each of 2 Panzer III E, 1 Panzer IV D and 6 riflemen, the
      last one with 2 more Panzer IIIs.
-   - 120 s: Stuka raid; 250 s: artillery on Dubno.
+   - 120 s: Stuka raid; 250 s: artillery on Dubno (8 rounds over 16 s, one by one).
+   - 120 s, 240 s, 360 s and 480 s: 3 Tank Hunters come up to the crossroads.
    - 400 s: time to dusk over 90 s.
    - If 12 tanks are not yet dead when the timer ends, the phase continues until they are, with waves every 60 s.
 
@@ -288,7 +290,7 @@ Fixed scoring (delay). Target casualties 45 (tanks count 5 or 8). Kill bonus abo
    and the T-26s stay behind the houses to finish off damaged panzers.
    Keep Tank Hunters in the buildings.
 
-Expected 20 to 24 minutes.
+Expected 15 to 22 minutes (the bot wins in about 19).
 
 ---
 
