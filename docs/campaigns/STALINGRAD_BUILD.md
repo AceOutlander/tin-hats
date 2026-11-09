@@ -76,34 +76,31 @@ What each part of the campaign has today, and what waits for which foundation fe
   matched Korobeiniki.
 - The cold kit (`src/data/musicTracks/sovietKit.ts`) with two new battle instruments, `choir` and `wind`, and a
   high-pass on the reverb return (`mix.reverbHighpass`).
-- Six battle tracks, each with a prep layer, each PASSing the battle music report (mix against the army of 80) within
-  the memory and render budgets (see MUSIC.md for the numbers): `volokolamsk` ("First Snow on the Highway", the 1941
-  snow), `factories` ("The Cold Furnaces", the Stalingrad ruins), `brest` ("Four in the Morning"), `dubno` ("Iron in
-  the Rye"), `klin` ("Forty Below") and `volga` ("The Far Bank").
+- Ten battle tracks, one for every mission, each with a prep layer, each PASSing the battle music report (mix against
+  the army of 80) within the memory and render budgets (see MUSIC.md for the numbers): `brest` ("Four in the
+  Morning"), `dubno` ("Iron in the Rye"), `volokolamsk` ("First Snow on the Highway"), `klin` ("Forty Below"), `volga`
+  ("The Far Bank"), `kurgan` ("Height 102"), `pavlov` ("The Lamp in the Window"), `factories` ("The Cold Furnaces"),
+  `uranus` ("Fog on the Don") and `ring` ("The Frozen Ring").
 - Map track `stalingradMap` ("Versts of Snow") in `MUSIC_TRACKS`.
 - The table `STALINGRAD_MUSIC` (src/data/musicCampaigns.ts): every mission file sets
-  `music: STALINGRAD_MUSIC.missions[id]` (1001 to 1005 played British stand-ins until now), and
-  `tests/unit/music-soviet.test.ts` fails if two missions on their own tracks share one.
+  `music: STALINGRAD_MUSIC.missions[id]`, and `tests/unit/music-soviet.test.ts` fails if two missions share a track,
+  if any is left on a stand-in, or if a mission's track is not the one named after it.
 
-| Mission | Plays today | Key, tempo | Its own track |
+| Mission | Plays | Key, tempo | Groove and lead |
 | --- | --- | --- | --- |
-| 1001 Brest | `brest` | D minor, 112 | written |
-| 1002 Dubno | `dubno` | A minor, 132 | written |
-| 1003 Volokolamsk | `volokolamsk` | E minor, 120 | written |
-| 1004 Klin | `klin` | F# minor to A major, 126 | written |
-| 1005 Volga crossing | `volga` | C minor, 118 | written |
-| 1006 Mamayev Kurgan | `factories` (stand-in) | G minor, 128 | `kurgan`, to compose |
-| 1007 Pavlov's House | `factories` (stand-in) | B minor, 104 | `pavlov`, to compose |
-| 1008 Tractor Factory | `factories` | D minor, 136 | written |
-| 1009 Uranus | `volokolamsk` (stand-in) | A minor to C minor, 140 | `uranus`, to compose |
-| 1010 Ring | `factories` (stand-in) | E minor to E major, 124 | `ring`, to compose |
+| 1001 Brest | `brest` | D minor, 112 | 3 + 3 + 2 snare and brass stabs; motif on unison brass |
+| 1002 Dubno | `dubno` | A minor, 132 | tread ostinato and anvil every third sixteenth; motif on low brass |
+| 1003 Volokolamsk | `volokolamsk` | E minor, 120 | march snare, unison brass; motif inverted in the horns, bells |
+| 1004 Klin | `klin` | F# minor to A major, 126 | gallop on sleigh bells; the answer climbing on low brass |
+| 1005 Volga crossing | `volga` | C minor, 118 | hand-drum oars, slow tremolo; motif torn between brass and horn |
+| 1006 Mamayev Kurgan | `kurgan` | G minor, 128 | triplet climb over a rising bass, timpani every bar; motif head climbing on the horn, in full on low brass |
+| 1007 Pavlov's House | `pavlov` | B minor, 104 | light running snare and off-beat strings; solo high strings by day, muted horn and a clock by night |
+| 1008 Tractor Factory | `factories` | D minor, 136 | ostinato in fourths, anvil off-beats; motif hammered in diminution |
+| 1009 Uranus | `uranus` | A minor to C minor, 140 | engine ostinato on a 5 + 5 + 6 kick; fanfares on the answer, brass and horn in octaves |
+| 1010 Ring | `ring` | E minor to E major, 124 | pulsing strings, rolls into the phrases, no backbeat; the theme in every form, bells frozen, then full brass and choir |
 
 **Waits for**:
 
-- Four more battle tracks (`kurgan`, `pavlov`, `uranus`, `ring`), so that no two missions share one (QUEUE "Music for
-  the new campaigns"). Each is a plan file on the cold kit like the six above; the brief's music paragraph of each
-  mission says what it should be. Writing one: register it, move its id from `planned` to `missions` in
-  `STALINGRAD_MUSIC`, and the distinct-track test then covers it.
 - The campaign select job: play `STALINGRAD_MUSIC.map` on the Stalingrad map screen (today `MAP_MUSIC` in
   src/app/app.ts is always the British "Between the Lines").
 - The prep phase (FOUNDATIONS): every cold track has a prep layer, heard once `app.setPrepPhase(true)` is called.

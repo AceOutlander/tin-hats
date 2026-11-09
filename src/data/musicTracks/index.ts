@@ -20,6 +20,10 @@ import { BREST } from './brest';
 import { DUBNO } from './dubno';
 import { KLIN } from './klin';
 import { VOLGA } from './volga';
+import { KURGAN } from './kurgan';
+import { PAVLOV } from './pavlov';
+import { URANUS } from './uranus';
+import { RING } from './ring';
 
 export type { BattleTrackName };
 
@@ -40,6 +44,10 @@ export const BATTLE_TRACKS: Record<BattleTrackName, BattleTrackDef> = {
   dubno: DUBNO,
   klin: KLIN,
   volga: VOLGA,
+  kurgan: KURGAN,
+  pavlov: PAVLOV,
+  uranus: URANUS,
+  ring: RING,
 };
 
 export const BATTLE_TRACK_NAMES = Object.keys(BATTLE_TRACKS) as BattleTrackName[];

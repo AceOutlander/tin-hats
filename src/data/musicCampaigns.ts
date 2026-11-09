@@ -2,10 +2,10 @@
  * Which music each campaign plays: its theme (src/data/musicThemes.ts), its map track (src/data/music.ts) and the
  * battle track of every mission (src/data/musicTracks). A mission file sets `music: STALINGRAD_MUSIC.missions[id]`.
  *
- * The Stalingrad brief (docs/campaigns/STALINGRAD.md) gives every mission its own track. Six are written so far:
- * `brest`, `dubno`, `volokolamsk` and `klin` (1941) and `volga` and `factories` (the city); until the others are
- * composed, each of those missions plays the nearer written track in setting, and `planned` names the track it will
- * get (docs/campaigns/STALINGRAD_BUILD.md).
+ * The Stalingrad brief (docs/campaigns/STALINGRAD.md) gives every mission its own track, and all ten are written:
+ * `brest`, `dubno`, `volokolamsk` and `klin` (1941), `volga`, `kurgan`, `pavlov` and `factories` (the city), `uranus`
+ * and `ring` (the encirclement). `planned` is empty now; a mission still waiting for its own track would play the
+ * nearer written one in setting and name its own there (docs/campaigns/STALINGRAD_BUILD.md).
  */
 import type { MusicTrackName } from './music';
 import type { ThemeName } from './musicThemes';
@@ -31,16 +31,11 @@ export const STALINGRAD_MUSIC: CampaignMusic<StalingradMissionId> = {
     1003: 'volokolamsk',
     1004: 'klin',
     1005: 'volga',
-    1006: 'factories',
-    1007: 'factories',
-    1008: 'factories',
-    1009: 'volokolamsk',
-    1010: 'factories',
-  },
-  planned: {
     1006: 'kurgan',
     1007: 'pavlov',
+    1008: 'factories',
     1009: 'uranus',
     1010: 'ring',
   },
+  planned: {},
 };

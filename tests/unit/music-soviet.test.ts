@@ -131,7 +131,7 @@ describe('the cold battle tracks', () => {
   it('are registered, at least one for the 1941 snow and one for the Stalingrad ruins', () => {
     expect(SOVIET).toContain('volokolamsk');
     expect(SOVIET).toContain('factories');
-    for (const name of ['brest', 'dubno', 'klin', 'volga']) expect(SOVIET).toContain(name);
+    for (const name of ['brest', 'dubno', 'klin', 'volga', 'kurgan', 'pavlov', 'uranus', 'ring']) expect(SOVIET).toContain(name);
   });
 
   for (const name of SOVIET) {
@@ -310,7 +310,11 @@ describe('the Stalingrad music table', () => {
     expect(STALINGRAD_MUSIC.missions[1003]).toBe('volokolamsk');
     expect(STALINGRAD_MUSIC.missions[1004]).toBe('klin');
     expect(STALINGRAD_MUSIC.missions[1005]).toBe('volga');
+    expect(STALINGRAD_MUSIC.missions[1006]).toBe('kurgan');
+    expect(STALINGRAD_MUSIC.missions[1007]).toBe('pavlov');
     expect(STALINGRAD_MUSIC.missions[1008]).toBe('factories');
+    expect(STALINGRAD_MUSIC.missions[1009]).toBe('uranus');
+    expect(STALINGRAD_MUSIC.missions[1010]).toBe('ring');
     // A planned track is never one that is already registered (it would be in `missions` instead).
     for (const planned of Object.values(STALINGRAD_MUSIC.planned)) expect(BATTLE_TRACK_NAMES).not.toContain(planned);
   });
@@ -327,7 +331,18 @@ describe('the Stalingrad music table', () => {
     const finalTracks = ids.map((id) => STALINGRAD_MUSIC.planned[id] ?? STALINGRAD_MUSIC.missions[id]);
     expect(new Set(finalTracks).size, finalTracks.join(', ')).toBe(ids.length);
     // Every new track written for a mission is that mission's alone.
-    for (const name of ['brest', 'dubno', 'klin', 'volga'] as const) expect(ids.filter((id) => STALINGRAD_MUSIC.missions[id] === name).length, name).toBe(1);
+    for (const name of ['brest', 'dubno', 'klin', 'volga', 'kurgan', 'pavlov', 'uranus', 'ring'] as const) expect(ids.filter((id) => STALINGRAD_MUSIC.missions[id] === name).length, name).toBe(1);
+  });
+
+  it('now plays ten different tracks, one written for each mission, with nothing left on a stand-in', () => {
+    const ids = CAMPAIGNS.stalingrad.missionIds as readonly StalingradMissionId[];
+    expect(Object.keys(STALINGRAD_MUSIC.planned)).toEqual([]);
+    const tracks = ids.map((id) => STALINGRAD_MUSIC.missions[id]);
+    expect(new Set(tracks).size, tracks.join(', ')).toBe(ids.length);
+    // Each is a cold track of the Soviet theme, written for its mission (named after it in the brief).
+    for (const name of tracks) expect(BATTLE_TRACKS[name].theme, name).toBe('sovietWinter');
+    for (const m of STALINGRAD_MISSIONS) expect(m.music, `${m.id}`).toBe(m.key);
+    expect(new Set(STALINGRAD_MISSIONS.map((m) => m.music)).size).toBe(STALINGRAD_MISSIONS.length);
   });
 
   it('is what every Stalingrad mission file plays', () => {

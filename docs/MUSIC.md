@@ -97,19 +97,64 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
   Its low register falls below a phone speaker, so its layers sit higher (`layerLevel` build 1.7, combat 1.12, tense
   1.5, prep 1.6). 27.0 MB, 358 s distinct, rendered in 14.5 s (longest graph build 19 ms). Mix: build 16.4 / 19.7,
   combat 13.1 / 16.2, tense 16.0 / 18.4 LU.
-- The four later tracks share their small writing helpers (`leads`, `rep`, `spanBeats`, `windBand`) in
+- `kurgan` ("Height 102", G minor, 128 BPM): the climb, in a trudging triplet feel. Every main section is a staircase:
+  the chords climb the key bar by bar (G A B flat C D E flat F), the strings' ostinato climbs a chord tone with every
+  beat in triplet eighths, the horn states the motif's head a scale step higher each time, and a heavy timpani lands on
+  every bar with a triplet pickup into the next (combat; the build layer climbs in quarter notes). The last bar of each
+  section is the arrival: a held tremolo chord while the timpani roll toward the next climb. Under fire a snare roll
+  swells into every bar and the shell lands on the timpani (tense); a muffled snare roll swelling every two bars under
+  string harmonics (prep, as the brief asks); bells high and cold on every layer of "The summit"; the theme in full on
+  unison low brass in octaves, then in the harmonic colour, in "Hold the summit"; choir, wind and one high bell a bar
+  in the quiet section (six bars). A deeper, harder timpani. 26.1 MB, 345 s distinct, rendered in 8.6 s (longest graph
+  build 14 ms). Mix: build 15.7 / 18.9, combat 11.3 / 14.8, tense 13.4 / 18.6 LU.
+- `pavlov` ("The Lamp in the Window", B minor, 104 BPM): the most intimate, chamber-sized in a small room (1.7 s).
+  Its sections follow the mission's days and nights. By day a solo high string line sings the theme over a soft pad
+  and a plucked bass note a bar; by night a clock ticks (a rim on one and three, a dry knock on the hand drum on two and
+  four) under string harmonics and the theme on a single muted horn (build). The fight stays light and driving: a
+  running snare of ghost notes, short string chords on the off-beats over a plucked bass, horn and high strings trading
+  the theme; only "Day two: the tanks" adds low brass and timpani (combat). The clock twice as fast under trembling
+  harmonics (tense); the night's work on mines and wire, harmonics, a pluck and a spade on the fourth beat (prep). The
+  quiet section, "A home again", is the one place the theme turns major (B major) on the horn, over a humming choir
+  and a music-box bell. Chamber strings (two close voices, shorter chords), a darker muted horn. Four sections of six
+  bars and two of eight (an all-eight track at 104 BPM would hold 31 MB). Its layers sit higher to be heard (build 1.7,
+  combat 1.35, tense 1.65, prep 1.6). 27.8 MB, 369 s distinct, rendered in 7.7 s (longest graph build 10 ms). Mix:
+  build 17.9 / 17.3, combat 15.4 / 14.6, tense 17.1 / 14.4 LU.
+- `uranus` ("Fog on the Don", A minor to C minor, 140 BPM): the tank offensive, the fastest cold track. It opens in fog
+  (the pad swelling in slowly, a distant drum, the wind). The engine: low strings in sixteenths on the root, the octave
+  kicked in on a 5 + 5 + 6 grouping of the bar, the timpani on the same kicks, a snare on two and four; over it the
+  brass and horn in octaves blow fanfares on the motif's answer, climbing a third at a time, and the low brass give the
+  motif itself (combat); the engines idling in soft eighths under the fog pad (build); the motor stalling into a
+  timpani pulse in eighths with rims on the kicks under a high tremolo (tense); the radio net, short high pips on the
+  anvil over the fog pad (prep). The first four sections are in A minor (Siren, the barrage, the steppe,
+  Perelazovsky), the last three in C minor (the blizzard, with icy bells on every beat in every layer, the Kalach
+  bridge at night, the quiet night on the Don). The victory sting is the whole theme in C major. A slower pad, a tighter
+  timpani, a 2.2 s room. Seven sections (the opening and the quiet one six bars). 27.4 MB, 357 s distinct, rendered in
+  9.9 s (longest graph build 12 ms). Mix: build 18.4 / 18.7, combat 11.9 / 15.8, tense 12.9 / 17.9 LU.
+- `ring` ("The Frozen Ring", E minor to E major, 124 BPM): the finale, the theme in every form, one form to each
+  section (plain, inverted, backwards, at half and at double speed, harmonic, Phrygian, Dorian, and major in "The
+  Univermag", which is in E major). While calm the theme is frozen: the bells play it at half speed over the pad and
+  string harmonics, a far timpani roll at each phrase end (build). In the fight it is full: low brass in octaves with
+  the strings above, a choir, the strings pulsing in eighths with a run up into every second bar, timpani rolls
+  swelling into the downbeats and a snare roll into every four-bar phrase, no backbeat (combat). The theme's head as
+  the ostinato itself, at double speed in the low strings under a high tremolo (tense); the frozen front before the
+  guns, pad and choir low, a bell every two bars (prep); the silence after the guns (quiet, six bars). The victory sting
+  is the whole theme in E major and an open fifth held into the wind. Fuller low brass, the largest hall (2.7 s,
+  brightHz 5600). 27.1 MB, 356 s distinct, rendered in 12.7 s (longest graph build 13 ms). Mix: build 18.4 / 18.1,
+  combat 11.7 / 15.0, tense 14.1 / 16.7 LU.
+- The eight later tracks share their small writing helpers (`leads`, `rep`, `spanBeats`, `windBand`) in
   `musicTracks/sovietParts.ts`. Render times are from one machine under load (the same track varies by up to 4 s from
   run to run); all are a third of the 45 s budget or less.
 - `stalingradMap` ("Versts of Snow", `src/data/musicMapSoviet.ts`, A minor, 60 BPM, 128 s): the campaign map track,
   the motif on a glassy high piano, then the horn with its answer, once in C major, inverted at the end. 11.9 MB at
   22.05 kHz, rendered in 14.9 s ("Between the Lines": 10.9 MB in 16.3 s). Registered in `MUSIC_TRACKS`; the campaign
   select job plays it on the Stalingrad map.
-- Which mission plays which: `STALINGRAD_MUSIC` in `src/data/musicCampaigns.ts` (`missions[id]` today, `planned[id]`
-  for the brief's own track still to be written; see `docs/campaigns/STALINGRAD_BUILD.md`). A mission file sets
-  `music: STALINGRAD_MUSIC.missions[1003]`.
-- Every Stalingrad mission gets a track of its own: `tests/unit/music-soviet.test.ts` fails if two missions on their
-  own tracks share one, if a mission file plays anything but its row of `STALINGRAD_MUSIC.missions`, or if two cold
-  tracks fight on the same instruments in nearly the same groove (combat onsets per sixteenth, L1 distance under 0.2).
+- Which mission plays which: `STALINGRAD_MUSIC` in `src/data/musicCampaigns.ts` (`missions[id]`; `planned[id]` would
+  name a mission's own track while it is still to be written, and is empty now that all ten are; see
+  `docs/campaigns/STALINGRAD_BUILD.md`). A mission file sets `music: STALINGRAD_MUSIC.missions[1003]`.
+- Every Stalingrad mission has a track of its own: `tests/unit/music-soviet.test.ts` fails if two missions share one,
+  if any mission is left on a stand-in, if a mission's track is not the one named after it (its `key`), if a mission
+  file plays anything but its row of `STALINGRAD_MUSIC.missions`, or if two cold tracks fight on the same instruments
+  in nearly the same groove (combat onsets per sixteenth, L1 distance under 0.2).
 - Checks: `x.cmd npx vitest run tests/unit/music-soviet.test.ts`, the battle report as above, and for a looping track
   `x.cmd npx tsx tools/battle-music-report.ts stalingradMap --loop` (or `dev/music-preview.html?loop=stalingradMap`).
 

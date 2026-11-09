@@ -683,7 +683,11 @@ export type BattleTrackName =
   | 'brest'
   | 'dubno'
   | 'klin'
-  | 'volga';
+  | 'volga'
+  | 'kurgan'
+  | 'pavlov'
+  | 'uranus'
+  | 'ring';
 
 export interface MissionDef {
   id: number;
