@@ -9,7 +9,7 @@ import { FACTIONS } from '../data/factions';
 import type { Side, UnitKind } from '../data/schema';
 import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
-import type { Battle } from '../sim';
+import { orderCost, orderPop, type Battle } from '../sim';
 import type { ControlState, HudState, MinimapState, SupportButtonState, TrainButtonState } from '../ui/contracts';
 
 /** Whose unit health the player may see (the battle view's HpReveal). */
@@ -105,8 +105,9 @@ export class HudModel {
         const btn: TrainButtonState = {
           kind,
           name: faction.unitNames[kind],
-          cost: UNITS[kind].cost,
-          pop: UNITS[kind].pop,
+          // Per training order: a squad kind (Soviet conscripts) costs and takes room for the whole squad.
+          cost: orderCost(kind),
+          pop: orderPop(kind),
           queued: 0,
           progress: 0,
           fielded: 0,

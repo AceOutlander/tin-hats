@@ -91,6 +91,9 @@ export const FX_KEYS = {
     rocket: 'fx/proj/rocket',
     shell: 'fx/proj/shell',
     bomb: 'fx/proj/bomb',
+    /** The Soviet F-1 grenade and the Katyusha's M-13 rocket. */
+    f1Grenade: 'fx/proj/f1Grenade',
+    katyusha: 'fx/proj/katyusha',
   },
   rain: {
     far: 'fx/rain/far',
@@ -120,11 +123,13 @@ export const FX_TRACERS: Record<TracerLook, { sprite: string; speed: number; alp
 
 /** Projectile sprite for each WeaponDef.projectileLook; grenades differ per faction. */
 export const FX_PROJECTILE_SPRITE: Record<ProjectileLook, Record<FactionId, string>> = {
-  grenade: { british: FX_KEYS.projectile.millsBomb, german: FX_KEYS.projectile.stickGrenade },
-  mortar: { british: FX_KEYS.projectile.mortar, german: FX_KEYS.projectile.mortar },
-  rocket: { british: FX_KEYS.projectile.rocket, german: FX_KEYS.projectile.rocket },
-  shell: { british: FX_KEYS.projectile.shell, german: FX_KEYS.projectile.shell },
-  bomb: { british: FX_KEYS.projectile.bomb, german: FX_KEYS.projectile.bomb },
+  grenade: { british: FX_KEYS.projectile.millsBomb, german: FX_KEYS.projectile.stickGrenade, soviet: FX_KEYS.projectile.f1Grenade },
+  mortar: { british: FX_KEYS.projectile.mortar, german: FX_KEYS.projectile.mortar, soviet: FX_KEYS.projectile.mortar },
+  rocket: { british: FX_KEYS.projectile.rocket, german: FX_KEYS.projectile.rocket, soviet: FX_KEYS.projectile.rocket },
+  shell: { british: FX_KEYS.projectile.shell, german: FX_KEYS.projectile.shell, soviet: FX_KEYS.projectile.shell },
+  bomb: { british: FX_KEYS.projectile.bomb, german: FX_KEYS.projectile.bomb, soviet: FX_KEYS.projectile.bomb },
+  // Only the Katyusha salvo fires these (the Soviet signature call-in), so every nation's row is the M-13.
+  katyusha: { british: FX_KEYS.projectile.katyusha, german: FX_KEYS.projectile.katyusha, soviet: FX_KEYS.projectile.katyusha },
 };
 
 /* ------------------------------------------------------------------ */
@@ -318,6 +323,19 @@ export const FX_PRESETS = {
     interval: 0.16,
     emitters: [
       { sprites: S.smokeDark, layer: 'effects', count: [1, 1], life: [0.7, 1.15], aim: 'dir', spread: 0.4, speed: [30, 60], gravity: -50, drag: 1.6, wind: 1, scale: [0.11, 0.17], grow: 3.2, growEase: 1.6, alpha: 0.4, fadeIn: 0.1, fadeOut: 0.3, rotation: 'random', spin: [0.3, 1.2] },
+    ],
+  },
+
+  /**
+   * The Katyusha's M-13 in flight: a thick, long-lived white-grey streak with a hot glow at the motor, so a salvo of
+   * sixteen leaves a sky full of trails. dir = opposite to its flight.
+   */
+  katyushaTrail: {
+    interval: 0.022,
+    emitters: [
+      { sprites: S.smokeLight, layer: 'effects', count: [1, 1], life: [1.2, 1.9], aim: 'dir', spread: 0.35, speed: [6, 26], gravity: -6, drag: 1.6, wind: 0.9, scale: [0.2, 0.28], grow: 3.2, growEase: 1.6, alpha: 0.62, fadeOut: 0.5, rotation: 'random', spin: [0.2, 0.8] },
+      { sprites: S.smoke, layer: 'effects', count: [0, 1], life: [0.5, 0.8], aim: 'dir', spread: 0.6, speed: [10, 36], gravity: -10, drag: 2, wind: 0.6, scale: [0.12, 0.18], grow: 2.4, growEase: 2, alpha: 0.45, fadeOut: 0.3, rotation: 'random', spin: [0.3, 1.2] },
+      { sprites: S.glow, layer: 'glow', count: [1, 1], life: [0.06, 0.1], aim: 'dir', spread: 0, speed: [0, 0], forward: [4, 4], scale: [0.32, 0.42], alpha: 0.6, fadeOut: 0.4 },
     ],
   },
 

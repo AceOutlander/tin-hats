@@ -3,11 +3,13 @@
  * draw a flag as FLAG_LAYOUT.strips vertical strips.
  *
  * The German flag is a plain Balkenkreuz (straight-armed black cross with a
- * white outline) on field grey. No other symbol is drawn anywhere.
+ * white outline) on field grey. The Soviet flag is the red flag with the gold
+ * hammer and sickle and the gold-edged star in the canton. No other symbol is
+ * drawn anywhere.
  */
 import { ART_COLORS as C, FLAG_LAYOUT } from '../../data/artLayout';
 import type { FactionLook } from '../../data/schema';
-import { type Ctx, balkenkreuz, makeSpec, poly } from '../props/kit';
+import { type Ctx, balkenkreuz, makeSpec, poly, redStar } from '../props/kit';
 import type { SpriteSpec } from '../types';
 
 export type FlagId = FactionLook['flag'];
@@ -15,6 +17,7 @@ export type FlagId = FactionLook['flag'];
 export const FLAG_KEYS: Record<FlagId, string> = {
   unionJack: 'st/flag/unionJack',
   balkenkreuz: 'st/flag/balkenkreuz',
+  sovietRed: 'st/flag/sovietRed',
 };
 
 const FLAG_BOX = { w: FLAG_LAYOUT.w, h: FLAG_LAYOUT.h, ox: 0, oy: 0 };
@@ -89,10 +92,48 @@ function paintBalkenkreuzFlag(ctx: Ctx): void {
   balkenkreuz(ctx, w / 2, h / 2, h * 0.6);
 }
 
+/**
+ * The Soviet flag: a red field, and in the upper hoist corner the gold hammer and sickle with the red, gold-edged
+ * five-pointed star above them. The sickle's blade sweeps from its point at the top round the right to the handle at
+ * the lower left; the hammer crosses it, its head at the upper left and its handle down to the lower right.
+ */
+function paintSovietRed(ctx: Ctx): void {
+  const w = FLAG_LAYOUT.w;
+  const h = FLAG_LAYOUT.h;
+  const u = h / 30;
+  ctx.fillStyle = C.flagSovietRed;
+  ctx.fillRect(0, 0, w, h);
+  const cx = 9.4 * u;
+  const cy = 13.2 * u;
+  const R = 4.6 * u;
+  redStar(ctx, cx - 0.4 * u, cy - R - 3.0 * u, 2.3 * u);
+  ctx.fillStyle = C.flagGold;
+  // Sickle blade: the ring between two offset circles, from the point (top) clockwise to the lower left.
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, -0.56 * Math.PI, 0.76 * Math.PI);
+  ctx.arc(cx - 0.12 * R, cy - 0.16 * R, 0.8 * R, 0.8 * Math.PI, -0.6 * Math.PI, true);
+  ctx.closePath();
+  ctx.fill();
+  // Sickle handle, continuing down to the lower left.
+  ctx.save();
+  ctx.translate(cx + Math.cos(0.76 * Math.PI) * 0.86 * R, cy + Math.sin(0.76 * Math.PI) * 0.86 * R);
+  ctx.rotate(0.25 * Math.PI);
+  ctx.fillRect(-0.13 * R, 0, 0.26 * R, 0.62 * R);
+  ctx.restore();
+  // Hammer: handle from the lower right up to the head at the upper left.
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-0.25 * Math.PI);
+  ctx.fillRect(-0.12 * R, -0.62 * R, 0.24 * R, 1.62 * R);
+  ctx.fillRect(-0.42 * R, -0.92 * R, 0.84 * R, 0.34 * R);
+  ctx.restore();
+}
+
 export function flagSpecs(): SpriteSpec[] {
   return [
     makeSpec(FLAG_KEYS.unionJack, FLAG_BOX, paintUnionJack),
     makeSpec(FLAG_KEYS.balkenkreuz, FLAG_BOX, paintBalkenkreuzFlag),
+    makeSpec(FLAG_KEYS.sovietRed, FLAG_BOX, paintSovietRed),
   ];
 }
 

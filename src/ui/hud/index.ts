@@ -58,6 +58,7 @@ const SUPPORT_ICON: Record<SupportKind, IconName> = {
   bomber: 'bomber',
   fighter: 'fighter',
   recon: 'recon',
+  katyusha: 'katyusha',
 };
 const LEVEL: readonly string[] = ['0', '1', '2'];
 

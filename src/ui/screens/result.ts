@@ -47,7 +47,10 @@ export const resultScreen: ScreenFactory = (ctx) => {
   add(banner, helmet, stamp);
 
   const difficultyName = result ? (ctx.view().difficulties.find((d) => d.id === result.difficulty)?.name ?? result.difficulty) : '';
-  const title = el('p', 'th-result-title', result ? `Mission ${result.missionId} · ${result.title} · ${difficultyName}` : '');
+  // Basic Training is no numbered mission and is always played on one difficulty.
+  const training = result?.training === true;
+  const heading = result ? (training ? result.title : `Mission ${result.missionId} · ${result.title} · ${difficultyName}`) : '';
+  const title = el('p', 'th-result-title', heading);
   const reason = el('p', 'th-type th-result-reason', result ? result.reason : 'No report received.');
   reason.dataset.testid = 'result-reason';
   add(main, banner, title, reason);
@@ -101,7 +104,20 @@ export const resultScreen: ScreenFactory = (ctx) => {
   retry.disabled = !result;
   add(actions, map, retry);
   const nextId = result && won ? result.nextMissionId : null;
-  if (nextId !== null) {
+  if (training && won) {
+    // Passed Basic Training: straight on to the Armoury, where the reward buys the first new unit.
+    const armoury = button({
+      testid: 'result-armoury',
+      label: 'Armoury',
+      className: 'th-btn-primary',
+      onTap: () => {
+        ctx.app.uiSound('click');
+        ctx.go('armoury');
+      },
+    });
+    armoury.dataset.primary = '';
+    actions.append(armoury);
+  } else if (nextId !== null) {
     const next = button({
       testid: 'result-next',
       label: 'Next mission',

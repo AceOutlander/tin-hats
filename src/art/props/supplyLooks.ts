@@ -230,7 +230,8 @@ const BED_TOP = -31;
 const BED_FLOOR = -20;
 const TILT_TOP = -50;
 
-/** British: square Bedford cab with an upright screen and a flat-fronted bonnet; German: rounded Blitz cab, sloping nose. */
+/** British: square Bedford cab with an upright screen and a flat-fronted bonnet; German: rounded Blitz cab, sloping nose.
+ * Soviet: the GAZ-AA, a square cab and flat bonnet much like the Bedford (its own shape comes with the art job). */
 const TRUCK_SHAPES: Record<FactionId, TruckShape> = {
   british: {
     cab: [6, -17, 6, -46, 8, -48, 27, -48, 28.5, -46, 30, -33, 47, -32, 49.5, -30, 49.5, -16, 6, -16],
@@ -245,6 +246,13 @@ const TRUCK_SHAPES: Record<FactionId, TruckShape> = {
     guard: [19, -16, 21, -20, 27, -24.5, 36, -25, 43, -22, 48.5, -17.5, 48.5, -16],
     grille: [44.5, -32, 47.5, -29.5, 50, -23, 50, -19, 47, -19],
     lamp: [41, -28],
+  },
+  soviet: {
+    cab: [6, -17, 6, -46, 8, -48, 27, -48, 28.5, -46, 30, -33, 47, -32, 49.5, -30, 49.5, -16, 6, -16],
+    window: [12.5, -45, 26.5, -45, 27.5, -36, 12.5, -36],
+    guard: [20, -16, 21, -21, 26, -24, 37, -24, 42, -21, 49, -19, 49, -16],
+    grille: [46.5, -31, 49.5, -30, 49.5, -19, 46.5, -19],
+    lamp: [44, -27],
   },
 };
 
@@ -297,6 +305,13 @@ function driver(ctx: Ctx, faction: FactionId, x: number, y: number): void {
     ctx.fill();
     ctx.beginPath();
     ctx.ellipse(x, y - 2.4, 3.6, 2.6, 0, Math.PI, 0);
+    ctx.fill();
+  } else if (faction === 'soviet') {
+    // SSh-40: a deep round dome with a short brim all round.
+    ellipse(ctx, x, y - 1.6, 4.4, 0.9);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x, y - 1.8, 3.8, 3.6, 0, Math.PI, 0);
     ctx.fill();
   } else {
     // Stahlhelm: tall dome, short visor and a flared skirt over the neck.

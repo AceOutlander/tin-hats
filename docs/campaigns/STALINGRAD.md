@@ -49,8 +49,8 @@ in `NATIONS.md` (Soviet, German, Romanian); sources and the equipment-by-date ta
 | 1 Brest | 22 Jun 1941 | Kar98k, MG34, MP40, GrW 34, pioneers with FmW 35/41 | none needed | StuG III Ausf. B battery (2) | 10.5 cm guns, 21 cm mortars, Nebelwerfer 41, 60 cm Karl siege mortar (scripted); no air on the first day (the only documented raids were Ju 88s on 29 June) |
 | 2 Dubno | 27 Jun 1941 | same | Pak 36, a few Pak 38, 8.8 cm Flak in the ground role | Panzer III Ausf. E (3.7 cm), Panzer III with 5 cm, Panzer IV Ausf. D/E (short 7.5 cm), Panzer II as scouts | Ju 87, Bf 109F |
 | 3 Volokolamsk | 16 Nov 1941 | same | Pak 36, Pak 38 | Panzer III (5 cm), Panzer III Ausf. E still possible (owner window to Dec 1941), Panzer IV short, StuG III | Ju 87 |
-| 4 Klin | Dec 1941 | same, no winter clothing | Pak 38 | a few Pz 38(t) and Panzer IV (the 7th Panzer Division had no Panzer IIIs), several frozen in place | sparse |
-| 5 to 8 Stalingrad city | Sep to Oct 1942 | Kar98k, MG34 and MG42, MP40, GrW 34, pioneers with FmW 41, snipers | Pak 38, Pak 40, Hafthohlladung magnetic charges | Panzer III Ausf. J and L (5 cm long), Panzer IV Ausf. F2/G (long 7.5 cm), StuG III Ausf. F | Ju 87 (ever present), He 111, Nebelwerfer, 8.8 cm Flak |
+| 4 Klin | Dec 1941 | same, no winter clothing | Pak 38 | a few Panzer III and IV of the 1st Panzer Division (it held Klin open for the Third Panzer Group's retreat), several frozen in place or out of fuel | sparse |
+| 5 to 8 Stalingrad city | Sep to Oct 1942 | Kar98k, MG34 and MG42, MP40, GrW 34, pioneers with FmW 41, snipers | Pak 38, Pak 40, Hafthohlladung magnetic charges (in service from May 1942) | Panzer III Ausf. J and L (5 cm long), Panzer IV Ausf. F2/G (long 7.5 cm), StuG III Ausf. F | Ju 87 (ever present), He 111, Nebelwerfer, 8.8 cm Flak |
 | 9 Uranus | 19 to 23 Nov 1942 | Romanian: Mannlicher and ZB rifles, ZB vz. 30 LMG, 37 mm Pak; German 22nd Panzer | Pak 38/40 | Romanian R-2 (Czech LT vz. 35); German Pz 38(t), Pz III, Pz IV | little air (fog) |
 | 10 Ring | Jan 1943 | the 6th Army in greatcoats and improvised winter wear; MG42, MP40 | Pak 40, Flak 88 | a few Pz III/IV and StuG, mostly out of fuel | no air support; Nebelwerfer |
 
@@ -59,8 +59,8 @@ in `NATIONS.md` (Soviet, German, Romanian); sources and the equipment-by-date ta
 
 ### How "mighty" the Germans are (setup only)
 
-Brest and Dubno: overwhelming fire support (Stukas every 90 to 120 s, the opening barrage, siege guns), more men, the
-initiative. Volokolamsk: more tanks than the player has anti-tank weapons, until the PTRDs and Katukov's tanks arrive.
+Brest and Dubno: overwhelming fire support (at Brest the opening barrage, rocket mortars and siege guns, but no
+aircraft; at Dubno Stukas every 90 to 120 s), more men, the initiative. Volokolamsk: more tanks than the player has anti-tank weapons, until the PTRDs and Katukov's tanks arrive.
 Klin: the Germans are thin and frozen, the first turn of the tide. Stalingrad city: the Germans own the air and bring
 tanks and pioneers; the player owns the ruins and the far bank's guns. Uranus and Ring: the player has the mass.
 Enemy income never exceeds the player's (FOUNDATIONS 9.2).
@@ -84,6 +84,13 @@ Team".
   Divisions were inside, many of them in barracks with their families. Organised resistance ended at the East Fort on
   29 June after heavy bombing; scattered fighting went on into July. The "32 days" and the wall inscription dated
   20 July are post-war traditions: legend, not established fact.
+- **Checked** (2026-11-08): division, commander, strength, the attached StuG battery (from the 34th Division), the
+  15 cm Nebelwerfer 41, the Karl mortars of Heavy Artillery Battalion 833, about 9,000 defenders (6th and 42nd Rifle
+  Divisions, 17th Border Guard Detachment, 132nd NKVD Battalion) and about 300 families, the East Fort surrender on
+  29 June, and 04:15 Moscow time. **Corrected**: the 45th Division had no air support and no air attack on 22 June is
+  documented (the first raids were Ju 88s on 29 June), so the two Stuka raids in phases 2 and 3 are now a Nebelwerfer
+  salvo and a 21 cm mortar barrage. The StuG Ausf. B is the likely model for a 1941 battery, not confirmed. Sources:
+  https://en.wikipedia.org/wiki/Defense_of_Brest_Fortress, https://warfarehistorynetwork.com/?p=103751.
 
 ### Briefing (a captain of the 6th Rifle Division)
 
@@ -131,7 +138,7 @@ Team".
    - Hints: buildings (soldiers inside take a fraction of rifle fire), Money and sappers, Hold, more sappers.
 2. **"Assault parties"** (survive 240 s).
    - Time dawn to day over 60 s; weather `smoke` over 30 s.
-   - 20 s: Stuka raid on B3 (`airRaid`, side 1, airStrike).
+   - 20 s: Nebelwerfer salvo on B3 (`barrage`, side 1, 15 cm rockets; the 45th Division had no air support).
    - 40 s and 140 s: 2 pioneers with flamethrowers plus 4 MP40 troopers plus 1 MG.
    - 90 s: 2 Granatwerfer teams plus 6 riflemen.
    - Hints: flamethrowers burn men out of buildings, so shoot them at range; mortars (loaned) answer mortars.
@@ -139,7 +146,7 @@ Team".
    - 10 s: banner "Assault guns on the bridge!"; 2 StuG III with 6 riflemen.
    - 90 s and 180 s: siege mortar, `barrage` weapon `siegeShell` with 1 round, warning 4 s, banner "Heavy siege
      mortar: get clear!".
-   - 120 s: Ju 87 raid on the HQ.
+   - 120 s: 21 cm mortar barrage on the HQ (`barrage`, side 1), banner "Heavy mortars!".
    - Final waves every 20 s from 150 s.
    - Hints: Tank Hunters must get close, so strike the assault guns from the flanks or rear (job 7 front/rear armour);
      Fall Back shelters everyone while the siege shells land.
@@ -180,19 +187,31 @@ Expected 12 to 13 minutes (fixed).
   **Mode** delay. **Length** about 22 minutes. **Map** 22,000 wu. **Theatre** `russiaSummer`.
 - **History**: the largest tank battle of 1941 (Dubno, Lutsk and Brody, 23 to 30 June). Soviet mechanised corps of
   the Southwestern Front (Kirponos) counter-attacked Panzer Group 1 (Kleist). On 27 June Brigade Commissar Popel's
-  group of the 8th Mechanized Corps, built around the 34th Tank Division, attacked alone at 14:00 and took Dubno,
-  cutting the panzers' supply road. The rest of the corps never arrived, the group was encircled, and Soviet tank
-  losses were catastrophic. Sources disagree widely on tank numbers (about 2,500 to 3,500 Soviet against about 750
-  German). The German 11th and 16th Panzer Divisions fielded Panzer IIIs with both 3.7 cm and 5 cm guns, and Panzer
+  group of the 8th Mechanized Corps, built around the remnants of the 34th Tank Division (Colonel Ivan Vasiliev, killed
+  in the encirclement), attacked alone at 14:00 from the south-west through Verba and broke into Dubno by evening, in
+  the rear of the 11th Panzer Division, cutting the panzers' supply road. The rest of the corps never arrived, the
+  group was encircled from 28 June, and Soviet tank losses were catastrophic. Most of the 34th Tank Division's tanks
+  were old T-26s and BT-7s (plus T-35s and only a handful of KV-1s); the KVs and T-34s with Popel came mostly from the
+  12th Tank Division's regiments. Sources disagree widely on tank numbers (about 2,500 to 3,500 Soviet against about
+  750 German). The German 11th and 16th Panzer Divisions fielded Panzer IIIs with both 3.7 cm and 5 cm guns, and Panzer
   IVs with the short gun. 8.8 cm Flak guns were used against KVs.
+- **Checked** (2026-11-08): the 14:00 attack, the Verba approach from the south-west, the 11th Panzer's rear, the
+  encirclement from 28 June, the 34th Tank Division's make-up and commander. **Corrected**: the briefing said "turn
+  south-west"; Popel struck north-east toward Dubno. The player's tanks now match a mostly obsolete force (T-26s and
+  BT-7s with a few KVs and T-34s). Whether Popel held the town itself or only its edge differs between sources; the
+  mission keeps "take Dubno". Sources: https://en.wikipedia.org/wiki/Battle_of_Brody_(1941),
+  https://en.wikipedia.org/wiki/8th_Mechanized_Corps_(Soviet_Union),
+  https://ru.wikipedia.org/wiki/34-я_танковая_дивизия_(СССР),
+  https://military-review.com/12490346-commissar-popel-and-the-feat-of-soviet-soldiers-near-dubno.
 
 ### Briefing (a tank officer of the 34th Tank Division)
 
-1. The order came at dawn: we turn south-west and strike for Dubno. Half the corps is strung out behind us, broken
-   down or dry of fuel, and the German bombers have had the sky to themselves since Sunday. We go with what is running.
+1. The order came this morning: we strike north-east through Verba for Dubno, this afternoon. Half the corps is
+   strung out behind us, broken down or dry of fuel, and the German bombers have had the sky to themselves since
+   Sunday. We go with what is running.
 2. Their panzers have raced ahead of their infantry and their columns. The Panzer IIIs are quick and well handled,
-   but their small guns bounce off our KVs. The eighty-eights do not, so find them first. Our T-34s are the best
-   tanks on this field; spend them wisely.
+   but their small guns bounce off our KVs. The eighty-eights do not, so find them first. Most of our tanks are old
+   T-26s and BTs; the few KVs and T-34s are the best tanks on this field, so spend them wisely.
 3. One corps cannot throw the enemy back across the border. We can cut his road at Dubno, burn his tanks and hold him
    until dark, so the armies behind us can form a line. Destroy twelve of his tanks and keep him off the crossings.
 
@@ -210,8 +229,10 @@ Expected 12 to 13 minutes (fixed).
 
 ### Forces
 
-- **Player**: 3 sappers; 2 KV-1 and 1 KV-2 (`heavyTank`, looks `kv1` and `kv2`); 4 T-34/76; 3 BT-7 (`lightTank`);
-  8 riflemen; 1 DP gunner; 400 Money. Population at start about 62. Supports: artillery (one battery).
+- **Player**: 3 sappers; 1 KV-1 and 1 KV-2 (`heavyTank`, looks `kv1` and `kv2`); 3 T-34/76; 3 BT-7 and 2 T-26
+  (`lightTank`; NATIONS.md lists both for 1941); 8 riflemen; 1 DP gunner; 400 Money. Population at start about 62 (the mix
+  follows Popel's mostly obsolete tank park; balance may tune the counts but should keep the light tanks the
+  majority). Supports: artillery (one battery).
   No Soviet air.
 - **Loans**: 3 Tank Hunters (start, resend 120 s in phase 2); 2 mortar teams (start).
 - **Enemy**:
@@ -260,7 +281,8 @@ Fixed scoring (delay). Target casualties 45 (tanks count 5 or 8). Kill bonus abo
 1. Mortars and Tank Hunters with the riflemen take T1.
 2. Mortar the Flak 88s from beyond their reach while the KVs hang back.
 3. Use the BT-7s to run down the Panzer IIs. Capture Dubno with infantry in the houses and the tanks behind them.
-4. In phase 2, hold the houses. Park the KVs hull-on at the crossroads; T-34s flank the Panzer III Es from the wood.
+4. In phase 2, hold the houses. Park the KVs hull-on at the crossroads; T-34s flank the Panzer III Es from the wood,
+   and the T-26s stay behind the houses to finish off damaged panzers.
    Keep Tank Hunters in the buildings.
 
 Expected 20 to 24 minutes.
@@ -277,20 +299,31 @@ Expected 20 to 24 minutes.
     41 km front of Rokossovsky's 16th Army from mid-October. Volokolamsk fell on 27 or 28 October.
   - The first snow fell on 7 October; the mud stopped the Germans; by mid-November the ground froze and the panzers
     rolled again.
-  - On 16 November the 2nd Panzer Division attacked the 1075th Regiment at Dubosekovo and overran it.
-  - PTRD anti-tank rifles had just been issued to the division.
+  - On 16 November the 2nd Panzer Division attacked the 1075th Regiment (Colonel Ilya Kaprov) at Dubosekovo and
+    overran it. Two German battle groups took Petelino and Nelidovo on the regiment's weak left flank by 10:00; the
+    4th Company of the 2nd Battalion at the halt lost more than a hundred men. The Germans held Dubosekovo until
+    20 December.
+  - The first PTRD anti-tank rifles had just reached the division, only a handful (one account: eight to the 1075th
+    Regiment); sources agree the 1075th was among the first users, but no primary record was found.
   - Katukov's tank brigade, made the 1st Guards Tank Brigade on 11 November, fought on the same axis.
   - Panfilov was killed on 18 November; the division became the 8th Guards Rifle Division.
   - The story of the "28 Panfilov men" destroying 18 tanks was shown by a 1948 Soviet prosecutor's inquiry to be
     largely invented. The mission depicts the real battle, not the legend, and names no individuals.
+- **Checked** (2026-11-08): the 316th's formation at Alma-Ata (July 1941; about 90% Kazakh and Kyrgyz at formation
+  per Wikipedia), the 1075th and the 4th Company at Dubosekovo, the 2nd Panzer Division, the 1948 inquiry, the
+  renaming to the 8th Guards on 18 November. **Corrected**: Nelidovo fell to the Germans on the morning of
+  16 November, so the player's rear sector is no longer named after it; the PTRD line now says "a handful". Sources:
+  https://en.wikipedia.org/wiki/316th_Rifle_Division,
+  https://en.wikipedia.org/wiki/Panfilov%27s_Twenty-Eight_Guardsmen, https://nationalinterest.org/node/118526,
+  https://en.wikipedia.org/wiki/PTRD-41 (production from 22 September 1941).
 
 ### Briefing (a battalion commander of the 1075th Rifle Regiment)
 
 1. The snow came early this year and the mud with it, and for a month the Germans sat in it. Now the ground has
    frozen hard and the panzers can roll again. Behind us is the highway, and at the end of the highway is Moscow.
 2. Most of you came from Alma-Ata and Frunze, from the steppe and the mountains, and you have held them for a month
-   already. This week the division gave us something new: long anti-tank rifles that can hole a Panzer's side at close
-   range. Fire them from the trenches and let the tanks come near.
+   already. This week the division gave us something new: a few long anti-tank rifles that can hole a Panzer's side
+   at close range. There are not many, so fire them from the trenches and let the tanks come near.
 3. Dig in at the railway halt, wire the approaches and set the steel obstacles across the road. Hold until our tanks
    come up from the rear, then throw the Germans back to the edge of the wood.
 
@@ -300,7 +333,7 @@ Expected 20 to 24 minutes.
 
 | x (wu) | Sector | Ground | Structures |
 | --- | --- | --- | --- |
-| 0 to 3,000 | Nelidovo village | snow | HQ (look `logDugout`); 2 izbas |
+| 0 to 3,000 | The battalion's rear (a hamlet behind the halt; not Nelidovo, which fell that morning) | snow | HQ (look `logDugout`); 2 izbas |
 | 3,000 to 6,500 | Dubosekovo halt | snow | trenches T1 (x 4,200, 8 slots) and T2 (x 5,600, 8 slots), owner 0; building B1 the halt hut; capture point P1 "the halt" (x 5,000, structure T2) |
 | 6,500 to 9,500 | Frozen fields | snow | |
 | 9,500 to 12,000 | Birch wood | forest (snow) | trench T3 (x 9,800, German); capture point P2 "wood's edge" (spawn) |
@@ -378,20 +411,31 @@ Expected 20 to 23 minutes.
 - **History**:
   - The Kalinin Front attacked on 5 December and the Western Front on 6 December.
   - Klin, the anchor of the 3rd and 4th Panzer Groups' salient north-west of Moscow, was encircled on 13 December and
-    liberated on 15 December (371st and 365th Rifle Divisions, 30th Army).
+    liberated on 15 December (371st and 365th Rifle Divisions and the 8th Tank Brigade of the 30th Army, with the
+    1st Shock Army).
+  - The 1st Panzer Division turned back on the night of 6 to 7 December to hold Klin open: the highway through it was
+    the Third Panzer Group's only road west, and the Russians cut it on 10 December. On 7 December alone the group
+    abandoned 15 tanks and dozens of vehicles that would not start in the cold.
   - Temperatures: official lows about -29 °C in December, with unofficial readings far lower.
   - The Germans had no proper winter clothing (more than 130,000 frostbite cases).
   - Several divisions came from the Far East, but the "Siberians saved Moscow" story is overstated: most of the
     December armies were fresh reserves raised in European Russia.
   - Ski battalions fought in the forests.
+- **Checked** (2026-11-08): the start dates, the encirclement and liberation dates, the 371st, 365th and 30th Army,
+  the frostbite figure, the Siberian overstatement; on 15 December the retreating panzer groups marched in about
+  -26 °C (-15 °F). **Corrected**: the German armour in Klin belongs to the 1st Panzer Division (Panzer III and IV),
+  not the 7th Panzer's Pz 38(t)s; the enemy table now says so and the mission's 2 Panzer III and 1 Panzer IV stand.
+  Sources: https://www.ibiblio.org/hyperwar/USA/USA-EF-Decision/USA-EF-Decision-4.html (Ziemke and Bauer, *Moscow to
+  Stalingrad*, ch. 4), https://en.wikipedia.org/wiki/371st_Rifle_Division,
+  https://en.wikipedia.org/wiki/30th_Army_(Soviet_Union), https://en.wikipedia.org/wiki/Battle_of_Moscow.
 
 ### Briefing (a regimental commander of the 371st Rifle Division)
 
 1. For five months we have given ground. Tonight we take some back. The Germans stand thirty kilometres from Moscow
    with frozen engines, and their men are wrapped in blankets and summer boots. They expected to be in the city by now;
    instead they are out in our winter.
-2. The whole front attacks at once. Our road is to Klin, where their panzer groups have their depots and their way
-   home. The ski battalions go first, through the forest in the dark; the frost is thirty below, and every village they
+2. The whole front attacks at once. Our road is to Klin, where their panzer groups have their depots and their only
+   road home. The ski battalions go first, through the forest in the dark; the frost is thirty below, and every village they
    hold is a stove they will not want to leave.
 3. Take the villages one by one and use them as stepping stones; your reinforcements can come up to any you hold.
    Cut the highway and the railway, then take Klin.
@@ -481,6 +525,13 @@ Expected 24 to 28 minutes.
     that it "changed hands 15 times" are not well sourced.
   - The Volga at the city is commonly given as one to two kilometres wide; sources vary.
   - The Luftwaffe owned the daylight; crossings soon went night-only.
+- **Checked** (2026-11-08): the night crossing of 14 to 15 September (the 42nd Guards finished crossing on the 15th),
+  about 10,000 men with about 1,000 unarmed, artillery support from the east bank, the 71st Infantry Division reaching
+  the Volga in places, 400 casualties on 15 September, and Dragan's group (under fifty men) holding the station area
+  room by room for nearly three weeks before a handful broke out. The 1st Battalion of the 42nd Guards as the vanguard
+  comes from secondary sources only. The nail factory is from the earlier research, not re-confirmed. Nothing in the
+  briefing needed changing. Sources: https://en.wikipedia.org/wiki/13th_Guards_Rifle_Division,
+  https://steve-noon.co.uk/photo_17053499.html (artwork caption, secondary).
 
 ### Briefing (a battalion commander, 42nd Guards Rifle Regiment)
 
@@ -560,18 +611,28 @@ Expected 20 to 23 minutes.
 
 ## Mission 6: Mamayev Kurgan
 
-- **Id** 1006, key `kurgan`. **Date** 18 September 1942 (`1942-09-18`). **Place** Height 102.0, Stalingrad,
+- **Id** 1006, key `kurgan`. **Date** 19 September 1942 (`1942-09-19`). **Place** Height 102.0, Stalingrad,
   48.7425 N, 44.5369 E. **Mode** hold (assault, then hold with prep). **Length** about 24 minutes. **Map** 14,000 wu.
   **Theatre** `stalingrad` (autumn).
 - **History**:
   - The German 295th Infantry Division took the hill on 13 to 14 September.
-  - The 13th Guards and the 112th Rifle Division's 416th Regiment retook part of it on 16 September.
-  - Colonel Gorishny's 95th Rifle Division crossed and took the summit on 18 September, then lost more than 5,000 men
-    in a week holding it.
-  - From late September Batyuk's 284th Rifle Division held the slopes. The summit and its water tanks became no-man's
+  - Two battalions of the 13th Guards' 39th Guards Rifle Regiment and two of the 112th Rifle Division's 416th Regiment
+    retook part of it on 16 September; the summit then changed hands several times.
+  - Colonel Gorishny's 95th Rifle Division (its 90th and 161st Regiments first) crossed on the night of 18 to
+    19 September and attacked at once. It took the top but could go no further, and lost 5,186 killed and wounded
+    between 19 and 25 September.
+  - On 28 September the 95th handed the hill to Batyuk's 284th Rifle Division, which held the slopes from then on. The summit and its water tanks became no-man's
     land, then German-held, until January 1943.
   - From the crest you can see the whole city and the river crossings.
   - Vasily Zaitsev, the sniper, served in Batyuk's division here.
+- **Checked** (2026-11-08): Height 102.0, the 295th Infantry Division (its 518th Regiment faced the 13th Guards
+  here), the 16 September fighting, the 95th's crossing and losses, the hand-over to the 284th, the 26 January
+  link-up north of the hill. **Corrected**: the 95th crossed on the night of 18 to 19 September, so the mission date
+  is now 19 September (the briefing's "we crossed last night" now fits); the 16 September retake is credited to the
+  39th Guards Regiment with the 416th. The two water tanks as German blockhouses come from the earlier research and
+  were not re-confirmed this pass. Sources: https://en.wikipedia.org/wiki/95th_Rifle_Division,
+  https://en.wikipedia.org/wiki/Mamayev_Kurgan, https://en.wikipedia.org/wiki/13th_Guards_Rifle_Division,
+  https://en.wikipedia.org/wiki/Operation_Koltso.
 
 ### Briefing (a regimental commander of the 95th Rifle Division)
 
@@ -666,6 +727,17 @@ Expected 22 to 26 minutes.
   - Civilians sheltered in the cellar throughout.
   - The garrison's claims of German losses and Chuikov's famous comparison are memoir hyperbole; German records show
     only limited assaults on the house.
+  - Soviet troops held Gerhardt's Mill, directly across from the house, throughout. That it was the 3rd Battalion of
+    the 42nd Guards from about 20 September, and that a trench and telephone line linked house and mill, comes only
+    from secondary wargame and tourism pages; Wikipedia says a communication trench led to Soviet positions without
+    naming the mill. Barbed wire and minefields covered the approaches.
+- **Checked** (2026-11-08): the 42nd Guards and 13th Guards, four men with Pavlov taking it in late September,
+  Lieutenant Afanasyev in command, a garrison of about 25 after reinforcement, machine guns, a PTRS and other
+  anti-tank rifles, mortars, wire and mines, civilians in the basement, 27 September (some say 26) to 25 November
+  (58 or about 60 days), four storeys, 9 January Square. The briefing stands; its trench "back to the mill" is a
+  plausible reading, flagged above. Sources:
+  https://en.wikipedia.org/wiki/Pavlov%27s_House, https://en.wikipedia.org/wiki/Gerhardt%27s_Mill,
+  https://wargameds.com/blogs/news/pavlovs-house (secondary).
 
 ### Briefing (a company commander, 42nd Guards Rifle Regiment)
 
@@ -761,22 +833,32 @@ Fixed 22 minutes.
     Division, the 305th and 389th Infantry Divisions, heavy air attacks from first light.
   - The 37th Guards Rifle Division (Major General Viktor Zholudev, formed from airborne troops; about 7,000 men when it
     crossed on 2 October) was all but destroyed: about 250 men left by 15 October.
-  - Zholudev's command post was buried by bombs; he survived.
-  - The tractor factory fell that day; the 138th Division (Lyudnikov) relieved the survivors on the night of 16 to
-    17 October.
-  - The factory had built T-34s until the late summer.
-  - The mission does not pretend the factory held. It is a delay: keep the Germans off the Volga bank until dark.
+  - Zholudev's command post was hit by bombs and he was trapped in the collapsed dugout, breathing through a pipe,
+    until dug out; he survived.
+  - The 37th Guards' remnants were surrounded in the factory workshops. By that evening the 14th Panzer Division had
+    broken through to the Volga, and the 62nd Army was split in two. The 138th Division (Lyudnikov) relieved the
+    survivors on the night of 16 to 17 October; they went to the Barrikady.
+  - The factory had built T-34s since 1940, until the fighting reached it in the late summer of 1942.
+  - The mission does not pretend the factory held. It is a delay: hold the halls as long as possible so the rest of
+    the bank holds (in the game, keep the Germans off the river until dark).
+- **Checked** (2026-11-08): the 37th Guards' airborne origin (1st Airborne Corps), 7,000 men on 2 to 3 October,
+  250 left on 15 October, the bombing of the command post, the 14th Panzer reaching the Volga, the relief by the
+  138th. The 305th and 389th Divisions come from the earlier research and the 14 October attack accounts.
+  **Corrected**: the factory made tanks from 1940, not only "this summer"; the Germans did reach the Volga that day,
+  so the briefing no longer promises the bank will be ours in the morning. Sources:
+  https://en.wikipedia.org/wiki/37th_Guards_Rifle_Division, https://en.wikipedia.org/wiki/Stalingrad_Tractor_Factory,
+  https://www.ww2-weapons.com/diary-october-14-1942, https://www.fireandfury.com/scenarios/redhouse.pdf.
 
 ### Briefing (a battalion commander, 37th Guards Rifle Division)
 
-1. Guards, in peacetime this works made tractors and this summer it made tanks. Today it is a fortress, and we are
-   its garrison. The bombers have been overhead since first light and there is a panzer division in the workers'
+1. Guards, in peacetime this works made tractors, and since before the war it has made tanks. Today it is a
+   fortress, and we are its garrison. The bombers have been overhead since first light and there is a panzer division in the workers'
    settlement.
 2. We cannot keep them out of the factory for ever. We can make them take it hall by hall, so that the division and
    the bank behind us hold. Every hall has walls a metre thick and rubble to hide in; every hall they take must cost
    them a day's strength.
 3. Prepare the halls now: wire the gaps, sandbag the windows, mine the yard. When a hall can no longer be held, fall
-   back to the next one. Hold until dark; the Volga bank must be ours in the morning.
+   back to the next one. Hold until dark: every hour they spend here is an hour the rest of the bank holds.
 
 **Objective**: Hold the factory until dark. Do not let the Germans reach the river.
 
@@ -853,28 +935,41 @@ Fixed 21 minutes.
   bridgehead to the Don bridge at Kalach; pin at Kalach-na-Donu, 48.69 N, 43.53 E. **Mode** assault with tanks.
   **Length** about 28 minutes. **Map** 30,000 wu (the longest in the campaign). **Theatre** `steppe` (winter).
 - **History**:
-  - The Southwestern Front (Vatutin) and the Stalingrad Front (Yeremenko) struck the Romanian 3rd and 4th Armies on the
-    flanks.
-  - On 19 November thick fog hid the bombardment, which opened at 07:20 Moscow time (codeword "Siren"); the
-    Katyushas fired at 07:30.
+  - The Southwestern Front (Vatutin) and the Don Front (Rokossovsky) attacked the Romanian 3rd Army on 19 November;
+    the Stalingrad Front (Yeremenko) struck the Romanian 4th Army south of the city on 20 November.
+  - On 19 November thick fog stopped the gunners correcting their fire. The codeword "Siren" reached the artillery at
+    07:20 Moscow time and opened an 80-minute bombardment; the Katyushas fired at 07:30 and the assault went in at
+    08:50.
+  - The 26th Tank Corps took Perelazovsky, with a Romanian corps headquarters, by the end of 20 November.
   - The 26th Tank Corps' forward detachment under Lieutenant Colonel Filippov took the Kalach bridge intact by driving
     up with headlights on and passing as friendly traffic (most accounts give early 22 November; details vary between
     sources).
-  - On 23 November at about 16:00 tanks of the two fronts met near Sovetsky, sealing the ring. Agreed green flares were
-    not fired at first, and the two sides briefly shot at each other.
-  - The German XLVIII Panzer Corps, with the 22nd Panzer and the Romanian 1st Armoured Division (Czech-built R-2
-    tanks), counter-attacked with fewer than a hundred serviceable tanks.
+  - On 23 November at about 16:00 tanks of the two fronts met near Sovetsky, sealing the ring: the 45th Tank Brigade
+    (4th Tank Corps, Southwestern Front) and the 36th Mechanized Brigade (4th Mechanized Corps, Stalingrad Front).
+    Agreed green flares were not fired at first, and the two sides briefly shot at each other. The mission compresses
+    this: the 26th Tank Corps took the bridge and Kalach, and the 4th Tank Corps beside it made the link-up.
+  - The German XLVIII Panzer Corps, with the 22nd Panzer (fewer than thirty working tanks) and the Romanian 1st
+    Armoured Division (about 100 Czech-built R-2 tanks), counter-attacked with fewer than a hundred serviceable modern
+    tanks.
+- **Checked** (2026-11-08): fronts, times, fog, Perelazovsky, the Kalach bridge (Wikipedia: 22 November, using two
+  captured German tanks and a scout car; Filippov's headlights version in other sources), the link-up units and the
+  flares, the XLVIII Panzer Corps' strength. **Corrected**: the Don Front added; the link-up credited to the right
+  brigades; the briefing now sends the player's corps to Sovetsky alongside its neighbour rather than claiming the
+  link-up for itself. The KV-1S (in service from August 1942) is within the era window; its presence at Uranus was not
+  confirmed. Sources: https://en.wikipedia.org/wiki/Operation_Uranus; the earlier research's
+  https://en.wikipedia.org/wiki/22nd_Panzer_Division and https://en.wikipedia.org/wiki/1st_Guards_Tank_Division
+  (Filippov) were not re-fetched.
 
 ### Briefing (a tank brigade commander, 26th Tank Corps)
 
 1. For two months the city has held them. Now it is their turn to be surrounded. At twenty past seven every gun on
-   the front opens fire, and then we go, fog or no fog. Steer by compass if you must.
+   the front opens fire, and when the guns lift we go, fog or no fog. Steer by compass if you must.
 2. In front of us are Romanian divisions, brave men badly armed, with few anti-tank guns. Behind them are open steppe,
    a German panzer division short of fuel, and the Don. We do not stop to finish every trench: break the line, and the
    rifle divisions will mop up.
-3. Our objective is the bridge at Kalach, a hundred kilometres away, before they blow it. Then on to Sovetsky, where
-   the tanks of the Stalingrad Front are coming the other way. When you meet them, fire green flares, and make sure
-   they see them.
+3. Our objective is the bridge at Kalach, a hundred kilometres away, before they blow it. Then on with the corps
+   beside us to Sovetsky, where the tanks of the Stalingrad Front are coming the other way. When you meet them, fire
+   green flares, and make sure they see them.
 
 **Objective**: Break through, take the Kalach bridge and link up at Sovetsky.
 
@@ -957,25 +1052,37 @@ Expected 26 to 30 minutes.
   in surrender. **Length** about 30 minutes. **Map** 28,000 wu. **Theatres** `steppe` (winter) and `stalingrad`
   (winter).
 - **History**:
-  - The Don Front (Rokossovsky) offered terms on 8 January; they were rejected.
-  - On 10 January the attack opened with about 7,000 guns and mortars, the largest bombardment of the war to that
-    date.
-  - Pitomnik airfield fell on 16 January and Gumrak about 22 January (the last He 111 left that day).
-  - The pocket was split at Mamayev Kurgan on 26 January.
+  - The Don Front (Rokossovsky) offered terms on 8 January, to expire at 10:00 on 9 January; Paulus let them lapse.
+  - On 10 January the attack opened with about 7,000 guns, rocket launchers and mortars of seven armies, one of the
+    heaviest bombardments of the war so far.
+  - Pitomnik airfield fell on 16 January and Gumrak about 22 January; its loss ended the flights out with the wounded,
+    and after that supply came only by parachute.
+  - On 26 January the 21st Army met the 13th Guards north of Mamayev Kurgan and split the pocket. The same day the
+    Sixth Army's headquarters moved from Gumrak into the cellar of the Univermag in the city centre.
   - Field Marshal Paulus (promoted on 30 January) was taken in the basement of the Univermag in the southern pocket on
     31 January.
   - The northern pocket around the tractor factory ceased fire on 2 February.
   - The Germans were starving, short of fuel and ammunition; most tanks were immobile. No Tigers were in the pocket.
+- **Checked** (2026-11-08): the ultimatum and its deadline, the 10 January bombardment, Pitomnik and Gumrak, the
+  26 January split, the 31 January capture at the Univermag, Strecker's 07:00 cease-fire on 2 February.
+  **Corrected**: the briefing is given on the eve of 10 January, so the terms were offered "yesterday", not two days
+  before; the Sixth Army's headquarters was at Gumrak until 26 January, so the briefing no longer places it under the
+  department store; "the last He 111 left that day" and "the largest bombardment to that date" were not supported
+  and are gone. Sources: https://en.wikipedia.org/wiki/Operation_Koltso,
+  https://stalingradtours.com/en/tours/articul/museum_memory (HQ move on 26 January),
+  https://lexanteinternet.blogspot.com/2023/01/friday-january-8-1943-ultimatum.html (ultimatum deadline,
+  secondary).
 
 ### Briefing (a rifle corps commander, Don Front)
 
 1. The German Sixth Army is inside a ring, and tomorrow the ring begins to close. They were offered honourable terms
-   two days ago and their commander refused. Very well: at dawn seven thousand guns will give our answer.
+   yesterday and their commander let them lapse. Very well: at dawn seven thousand guns will give our answer.
 2. They are hungry, frozen and short of everything, but they are not finished, and a starving man in a cellar with a
    machine gun is still dangerous. First the steppe and the airfield at Pitomnik, where their transports land, then
    Gumrak, then the ruins. Use every gun we have; we have more than they do now.
-3. Their army headquarters sits under the department store on the central square. When it falls, the Sixth Army
-   falls with it. Take the city back, street by street, to the river.
+3. Their army headquarters is out at Gumrak. Take the airfields and it will have nowhere to go but the ruins, and we
+   will dig it out of whatever cellar it chooses. When it falls, the Sixth Army falls with it. Take the city back,
+   street by street, to the river.
 
 **Objective**: Clear the pocket and take the German headquarters in the Univermag.
 
@@ -1045,7 +1152,7 @@ Timed: target 30 minutes, target casualties 65.
 1. Let the barrages land, clear mines with sappers, and drive the T-34s with tank riders through T1 and T2.
 2. Deploy at Pitomnik. Il-2 on the Gumrak Flak 88s, then tanks and infantry together.
 3. In the ruins, use mortars, flamethrowers and the Pe-2 on strongpoints and snipers on snipers. Keep tanks behind the
-   infantry (Panzerknacker charges and Pak 40s in the rubble).
+   infantry (magnetic charges and Pak 40s in the rubble).
 4. Mass everything on the Univermag.
 
 Expected 28 to 32 minutes.
@@ -1061,7 +1168,7 @@ Expected 28 to 32 minutes.
 | 3 | 1003 | volokolamsk | 16 Nov 1941 | hold | yes | 16,000 | 21 | 21 / 40 | volokolamsk | frost, snow, day to dusk |
 | 4 | 1004 | klin | Dec 1941 | assault | no | 26,000 | 26 | 27 / 55 | klin | blizzard to clear, night to day |
 | 5 | 1005 | volga | 14 to 15 Sep 1942 | special | mid (45 s) | 12,000 | 21 | 22 / 45 | volga | smoke, night to day |
-| 6 | 1006 | kurgan | 18 Sep 1942 | hold | mid (45 s) | 14,000 | 24 | 24 / 55 | kurgan | overcast, smoke, day |
+| 6 | 1006 | kurgan | 19 Sep 1942 | hold | mid (45 s) | 14,000 | 24 | 24 / 55 | kurgan | overcast, smoke, day |
 | 7 | 1007 | pavlov | Sep to Nov 1942 | survival | yes | 7,000 | 22 | fixed / 20 | pavlov | smoke, day-night cycle, snow |
 | 8 | 1008 | factories | 14 Oct 1942 | delay | yes | 14,000 | 21 | fixed / 60 | factories | smoke and dust, day to night |
 | 9 | 1009 | uranus | 19 to 23 Nov 1942 | assault | no | 30,000 | 28 | 28 / 60 | uranus | fog, blizzard, dawn to night |

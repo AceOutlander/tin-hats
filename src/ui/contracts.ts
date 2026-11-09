@@ -261,6 +261,18 @@ export interface CampaignView {
   medals?: number;
   /** The Armoury, in its order: core roles, new units, plane call-ins. */
   armoury?: ArmouryItemView[];
+  /** Basic Training, the standalone tutorial on the title screen. */
+  training?: TrainingView;
+}
+
+/** Basic Training as the title screen shows it. */
+export interface TrainingView {
+  /** Finished at least once (its reward has been paid). */
+  done: boolean;
+  /** Offer it on the title screen: not finished and not turned down. */
+  offer: boolean;
+  /** Medals the first finish pays. */
+  reward: number;
 }
 
 export interface ResultView {
@@ -280,6 +292,8 @@ export interface ResultView {
   nextMissionId: number | null;
   /** The score breakdown of a campaign win; absent for a defeat or a battle outside the campaign. */
   medals?: MedalResultView | null;
+  /** A Basic Training battle (not a campaign mission); `pointsAwarded` is its one-time reward. */
+  training?: boolean;
 }
 
 /** Implemented by src/app, called by the UI. */
@@ -289,6 +303,10 @@ export interface AppApi {
   buyUpgrade(id: string): void;
   /** Buy a unit type or plane call-in in the Armoury (optional so older stand-ins of the app still fit). */
   buyArmoury?(id: string): void;
+  /** Start Basic Training, the standalone tutorial (optional so older stand-ins of the app still fit). */
+  startTraining?(): void;
+  /** The player turned down the Basic Training offer on the title screen. */
+  skipTraining?(): void;
   refundUpgrade(id: string): void;
   refundAll(): void;
   setSetting<K extends keyof SettingsView>(key: K, value: SettingsView[K]): void;

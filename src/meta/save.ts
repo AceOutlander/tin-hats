@@ -72,6 +72,14 @@ export function cleanSetting<K extends keyof SaveSettings>(key: K, value: unknow
   }
 }
 
+/** Basic Training, the standalone tutorial (version 7). */
+export interface TrainingRecord {
+  /** Finished at least once: its one-time medal reward has been paid. */
+  done: boolean;
+  /** The player turned down the offer on the title screen (it is not offered again; the button stays). */
+  skipped: boolean;
+}
+
 export interface SaveData {
   version: number;
   /** Mission id (as text) to the difficulties it has been cleared on. */
@@ -86,6 +94,8 @@ export interface SaveData {
   wins: Record<string, Partial<Record<Difficulty, number>>>;
   /** The mission last started from the campaign, or 0 when none (the map opens on it). */
   lastMission: number;
+  /** Basic Training: finished (reward paid) and offer turned down. */
+  training: TrainingRecord;
   settings: SaveSettings;
 }
 
@@ -121,6 +131,7 @@ export function defaultSave(): SaveData {
     armoury: [],
     wins: {},
     lastMission: 0,
+    training: { done: false, skipped: false },
     settings: defaultSettings(),
   };
 }
@@ -230,6 +241,11 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   },
   // 5 -> 6: medals and the Armoury (see migrateToMedals).
   5: (doc) => migrateToMedals(doc),
+  // 6 -> 7: Basic Training joins the game. Nobody has finished it or turned it down yet, so every player can still
+  // earn its one-time reward and is offered it once on the title screen.
+  6: (doc) => {
+    doc.training = { done: false, skipped: false };
+  },
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -322,6 +338,11 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
   sanitizeCleared(doc.cleared, out, rules.missionIds);
   sanitizeUpgrades(doc.upgrades, out, rules.upgradeDefs);
   sanitizeMedals(doc, out, rules.missionIds);
+
+  if (isRecord(doc.training)) {
+    out.training.done = doc.training.done === true;
+    out.training.skipped = doc.training.skipped === true;
+  }
 
   const last = doc.lastMission;
   if (typeof last === 'number' && Number.isInteger(last) && last >= 1 && last <= MAX_MISSION_ID) {

@@ -217,7 +217,8 @@ test.describe('proving ground (Phase 2)', () => {
     }
 
     // Now call each one for real.
-    const at: Record<SupportKind, number> = { smoke: 1450, artillery: 1900, airStrike: 1650, bomber: 1650, fighter: 1650, recon: 1650 };
+    // The proving ground offers no Katyusha (a Soviet call-in): its target is listed only to keep the table complete.
+    const at: Record<SupportKind, number> = { smoke: 1450, artillery: 1900, airStrike: 1650, bomber: 1650, fighter: 1650, recon: 1650, katyusha: 1900 };
     for (const kind of SUPPORTS) {
       const blasts = (await state(page)).tally.explosion;
       await tap(page, `support-${kind}`);

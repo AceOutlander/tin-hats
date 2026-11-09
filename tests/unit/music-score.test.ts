@@ -1,13 +1,14 @@
 /**
- * The battle scores as music, read from the data: every campaign mission has a track of its own, the British motif
- * ("The Line") and its answer come back in every British track in several transformed forms, and no melodic line in
- * any track runs along a well-known tune (an originality guard: the owner wants nothing recognisable).
+ * The battle scores as music, read from the data: every campaign mission has a track of its own, each track's campaign
+ * motif (the British "The Line", the Soviet "The Long Winter") and its answer come back in it in several transformed
+ * forms, and no melodic line in any track runs along a well-known tune (an originality guard: the owner wants nothing
+ * recognisable).
  */
 import { describe, expect, it } from 'vitest';
 import { MISSIONS } from '../../src/data/missions';
 import type { MusicEvent } from '../../src/data/musicBattle';
 import { MUSIC_LAYERS } from '../../src/data/musicBattle';
-import { BRITISH_ANSWER, BRITISH_MOTIF, motif, SCALES, type Colour, type Motif } from '../../src/data/musicThemes';
+import { motif, SCALES, THEMES, type Colour, type Motif, type ThemeName } from '../../src/data/musicThemes';
 import { BATTLE_TRACK_NAMES, BATTLE_TRACKS } from '../../src/data/musicTracks';
 
 /** A form the motif can take, as found in a part. */
@@ -59,8 +60,13 @@ function shapes(m: Motif, answer: boolean): Map<string, Shape> {
   return out;
 }
 
-const SHAPES = [shapes(BRITISH_MOTIF, false), shapes(BRITISH_ANSWER, true)];
-const MOTIF_GAP = BRITISH_MOTIF.notes[1][0] - BRITISH_MOTIF.notes[0][0];
+/** Each campaign theme's forms (motif and answer), the gap between the motif's first two notes as written, its length. */
+const THEME_SHAPES = new Map(
+  (Object.keys(THEMES) as ThemeName[]).map((t) => {
+    const { motif: m, answer } = THEMES[t];
+    return [t, { shapes: [shapes(m, false), shapes(answer, true)], gap: m.notes[1][0] - m.notes[0][0], longest: Math.max(m.notes.length, answer.notes.length) }] as const;
+  }),
+);
 
 interface Statement {
   section: string;
@@ -68,21 +74,23 @@ interface Statement {
 }
 
 /** The motif statements in a list of parts: runs of consecutive events (as written) shaped like a form, 4 notes or more. */
-function statements(where: string, parts: readonly { events: readonly MusicEvent[] }[]): Statement[] {
+function statements(theme: ThemeName, where: string, parts: readonly { events: readonly MusicEvent[] }[]): Statement[] {
+  const t = THEME_SHAPES.get(theme);
+  if (!t) throw new Error(`no theme ${theme}`);
   const out: Statement[] = [];
   for (const p of parts) {
     const ev = p.events.filter((e) => e.note > 0);
     for (let i = 0; i < ev.length; i++) {
       // The longest form starting here.
-      for (let take = 8; take >= 4; take--) {
+      for (let take = t.longest; take >= 4; take--) {
         if (i + take > ev.length) continue;
         const run = ev.slice(i, i + take);
         const key = `${take}:${fingerprint(run)}`;
-        const shape = SHAPES.map((s) => s.get(key)).find((s) => s !== undefined);
+        const shape = t.shapes.map((s) => s.get(key)).find((s) => s !== undefined);
         if (!shape) continue;
         const kinds = new Set(shape.kinds);
         // Augmented or diminished: its first gap differs from the written motif's (the retrograde's differs anyway).
-        if (!shape.kinds.includes('retrograde') && !shape.kinds.includes('answer') && Math.abs(run[1].at - run[0].at - MOTIF_GAP) > 1e-6) kinds.add('augment');
+        if (!shape.kinds.includes('retrograde') && !shape.kinds.includes('answer') && Math.abs(run[1].at - run[0].at - t.gap) > 1e-6) kinds.add('augment');
         out.push({ section: where, kinds });
         i += take - 1;
         break;
@@ -113,6 +121,7 @@ const WELL_KNOWN: Record<string, readonly number[]> = {
   Kaiserhymne: [60, 62, 64, 62, 65, 64, 62, 59, 60, 69, 67, 65, 64, 62, 64, 60],
   'La Marseillaise': [62, 62, 62, 67, 67, 69, 69, 74, 71, 67],
   'Mission Impossible': [67, 67, 70, 72, 67, 67, 65, 66],
+  Korobeiniki: [76, 71, 72, 74, 72, 71, 69, 69, 72, 76, 74, 72, 71, 72, 74, 76, 72, 69, 69],
 };
 /** Consecutive intervals that would make a line recognisable (7 intervals: 8 notes in a row). */
 const RECOGNISABLE = 7;
@@ -157,11 +166,12 @@ describe('the battle scores', () => {
   });
 
   for (const name of BATTLE_TRACK_NAMES) {
-    it(`${name}: states the British motif in several sections and several transformed forms`, () => {
+    it(`${name}: states its campaign motif in several sections and several transformed forms`, () => {
       const def = BATTLE_TRACKS[name];
+      expect(Object.keys(THEMES), `${name} names theme ${def.theme}`).toContain(def.theme);
       const found: Statement[] = [];
       for (const s of def.sections) {
-        for (const layer of MUSIC_LAYERS) found.push(...statements(s.name, s.layers[layer] ?? []));
+        for (const layer of MUSIC_LAYERS) found.push(...statements(def.theme as ThemeName, s.name, s.layers[layer] ?? []));
       }
       const sections = new Set(found.map((f) => f.section));
       const kinds = new Set(found.flatMap((f) => [...f.kinds]));

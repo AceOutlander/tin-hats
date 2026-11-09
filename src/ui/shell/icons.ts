@@ -122,6 +122,11 @@ const SUPPORT_ICONS: Record<SupportKind, readonly PathSpec[]> = {
   bomber: planeIcon('bomber'),
   fighter: planeIcon('fighter'),
   recon: planeIcon('recon'),
+  // The Katyusha: three rockets climbing away from their rails.
+  katyusha: [
+    { d: 'M6 38l2.8 2.8 18-18 0.7-3.5-3.5 0.7ZM15 38l2.8 2.8 18-18 0.7-3.5-3.5 0.7ZM24 38l2.8 2.8 18-18 0.7-3.5-3.5 0.7Z' },
+    { d: 'M3 43h26v3H3Z' },
+  ],
 };
 
 export function supportIcon(kind: SupportKind, className = 'th-support-icon'): SVGSVGElement {

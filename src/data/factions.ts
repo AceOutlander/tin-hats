@@ -1,4 +1,4 @@
-import type { FactionDef, FactionId } from './schema';
+import type { FactionDef, FactionId, SupportKind, UnitKind } from './schema';
 
 /**
  * Factions are pure data so further nations can be added, or the Germans made
@@ -190,3 +190,25 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
     signature: { units: ['conscript'], supports: ['katyusha'] },
   },
 };
+
+/** Every nation, in FACTIONS order. */
+export const FACTION_IDS: readonly FactionId[] = Object.keys(FACTIONS) as FactionId[];
+
+/** True if `kind` is some nation's signature unit kind (NATIONS.md section 2). */
+function signatureUnit(kind: UnitKind): boolean {
+  return FACTION_IDS.some((f) => FACTIONS[f].signature.units.includes(kind));
+}
+
+function signatureSupport(kind: SupportKind): boolean {
+  return FACTION_IDS.some((f) => FACTIONS[f].signature.supports.includes(kind));
+}
+
+/** True if the nation fields this unit kind: every shared role, and a signature kind only for its own nation. */
+export function nationFields(nation: FactionId, kind: UnitKind): boolean {
+  return !signatureUnit(kind) || FACTIONS[nation].signature.units.includes(kind);
+}
+
+/** True if the nation may call this support: every shared call-in, and a signature one only for its own nation. */
+export function nationCallsIn(nation: FactionId, kind: SupportKind): boolean {
+  return !signatureSupport(kind) || FACTIONS[nation].signature.supports.includes(kind);
+}

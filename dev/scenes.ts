@@ -15,7 +15,7 @@
  *             crushing a third flat
  */
 import { CONFIG } from '../src/data/config';
-import type { MissionDef, UnitAction, UnitKind } from '../src/data/schema';
+import type { FactionId, MissionDef, UnitAction, UnitKind } from '../src/data/schema';
 import { UNITS } from '../src/data/units';
 import type { BattleState, SimEvent, SimEventType, UnitState } from '../src/sim';
 
@@ -35,6 +35,8 @@ export interface Scene {
   trenches?: { x: number; width: number; owner: 0 | 1 | -1 }[];
   pillboxes?: { x: number; side: 0 | 1 }[];
   wire?: { x: number; width: number; owner: 0 | 1 }[];
+  /** The two sides' nations (default: the base mission's). */
+  nations?: readonly [FactionId, FactionId];
   /** One tick: scene time t (s) after the tick, the scene's units in `forces` order. */
   tick(t: number, k: Kit): void;
 }
@@ -48,6 +50,10 @@ export function sceneMission(base: MissionDef, sc: Scene): MissionDef {
   m.trenches = (sc.trenches ?? []).map((t, i) => ({ id: i, x: t.x, width: t.width, slots: 8, owner: t.owner }));
   m.pillboxes = (sc.pillboxes ?? []).map((p, i) => ({ id: i, x: p.x, side: p.side, hpMul: 1 }));
   m.wire = (sc.wire ?? []).map((w, i) => ({ id: i, x: w.x, width: w.width, owner: w.owner }));
+  if (sc.nations) {
+    m.start[0].faction = sc.nations[0];
+    m.start[1].faction = sc.nations[1];
+  }
   return m;
 }
 
@@ -364,6 +370,44 @@ export const SCENES: Record<string, Scene> = {
       if (k.at(9.8)) k.kill(6, 'explosive', 1);
       if (k.at(10.5)) k.emit('airdrop', { side: 0, x: 2600, value: 150 });
       k.stand(2, 'idle');
+    },
+  },
+
+  /** The Red Army's Katyusha salvo: sixteen M-13s rippling in over a wide strip of the German line (?scene=katyusha). */
+  katyusha: {
+    cam: 2950,
+    nations: ['soviet', 'german'],
+    forces: [
+      { side: 0, kind: 'rifle', x: 2440, row: 1 },
+      { side: 0, kind: 'conscript', x: 2490, row: 3 },
+      { side: 0, kind: 'conscript', x: 2520, row: 2 },
+      { side: 0, kind: 'lmg', x: 2560, row: 0 },
+      { side: 0, kind: 'tank', x: 2360, row: 2 },
+      { side: 1, kind: 'rifle', x: 3020, row: 0 },
+      { side: 1, kind: 'rifle', x: 3090, row: 2 },
+      { side: 1, kind: 'lmg', x: 3170, row: 1 },
+      { side: 1, kind: 'rifle', x: 3260, row: 3 },
+      { side: 1, kind: 'mortar', x: 3340, row: 2 },
+    ],
+    tick(_t, k) {
+      for (let i = 5; i < 10; i++) {
+        k.face(i, -1);
+        k.shootCycle(i, 0.3 * i, 2 + 0.2 * i, 2500, 1 + (i % 3), i === 7 ? 'lmg' : 'rifle');
+      }
+      k.shootCycle(0, 0.2, 1.8, 3090, 2);
+      k.shootCycle(1, 0.7, 2.4, 3020, 3);
+      k.shootCycle(2, 1.1, 2.4, 3170, 2);
+      if (k.at(0.6)) k.emit('supportIncoming', { side: 0, support: 'katyusha', x: 3180, value: 3 });
+      // Sixteen rockets over 2.4 s, scattered over +-420 wu of the mark (SUPPORTS.katyusha).
+      const offs = [-380, 120, -60, 300, -220, 400, 20, -320, 220, -140, 360, -10, 180, -260, 80, -400];
+      for (let r = 0; r < offs.length; r++) {
+        const x = 3180 + offs[r];
+        if (k.at(3.0 + r * 0.15)) k.launch(-1, 'katyushaRocket', x, 1.4, 80, 0, x - 1250);
+      }
+      if (k.at(4.6)) k.kill(5, 'explosive', 1);
+      if (k.at(5.0)) k.kill(7, 'explosive', -1);
+      if (k.at(5.3)) k.kill(9, 'explosive', 1);
+      k.stand(4, 'idle');
     },
   },
 

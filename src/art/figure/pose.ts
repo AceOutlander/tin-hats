@@ -21,6 +21,7 @@ import {
 } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
 import type { FigureGearKeys } from './gear';
+import type { HeadgearKeys } from './parts';
 import { hash01 } from './math';
 
 // ---------------------------------------------------------------------------
@@ -301,6 +302,8 @@ export class FigureAnim {
   gear: FigureGearKeys | null = null;
   /** Drawn instead of the nation's crate while a sapper carries (setFigureCrateKey); null = the nation's crate. */
   crateKey: string | null = null;
+  /** A cap worn instead of the helmet (setFigureHeadgear); null = the helmet. */
+  headgear: HeadgearKeys | null = null;
   /** Sapper pushing the handcart (setFigurePushing). */
   pushing = false;
   /** Commander: seconds left of pointing forward with his free arm after an order (setFigurePointing). */
@@ -403,6 +406,7 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.crateVisible = false;
   a.gear = null;
   a.crateKey = null;
+  a.headgear = null;
   a.pushing = false;
   a.dead = false;
   a.deathVariant = DEATH_VARIANTS[0];

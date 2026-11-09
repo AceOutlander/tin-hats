@@ -52,4 +52,25 @@ export const SPEECH: SpeechTable = {
       'Angriff! Move up!',
     ],
   },
+  // docs/campaigns/NATIONS.md section 3 (in English, like the British lines).
+  soviet: {
+    fallBack: [
+      'Back to the dugouts, move!',
+      'Pull back, carry the wounded!',
+      'Fall back and regroup!',
+      'Back! We hit them again tonight.',
+    ],
+    hold: [
+      'Dig in and hold!',
+      'This line is ours. Keep it.',
+      'Let them come close. Fire on my word.',
+      'Nobody moves back from here.',
+    ],
+    advance: [
+      'Forward, comrades!',
+      'Urra! After me!',
+      'Up and at them, keep moving!',
+      'Into them, for the Motherland!',
+    ],
+  },
 };

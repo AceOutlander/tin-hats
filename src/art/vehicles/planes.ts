@@ -1,7 +1,8 @@
 /**
  * Call-in aircraft seen from the side, facing right (the renderer mirrors them): a twin-engine bomber, a
  * single-engine fighter and a high-wing recon plane for each nation, and a ground shadow per type. The British
- * planes carry a roundel and fin flash, the German ones the plain Balkenkreuz; nothing else.
+ * planes carry a roundel and fin flash, the German ones the plain Balkenkreuz, the Soviet ones a red star (on the
+ * British shapes until the art job draws the Soviet types); nothing else.
  *
  * The shapes are readable at phone size: a dark body with a light rim like every unit, the nation's tint on the
  * upper surfaces, a pale belly, glazing and a propeller blur.
@@ -9,7 +10,7 @@
 import { ART_COLORS as C, PLANE_LAYOUT, type PlaneKind } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import type { FactionId } from '../../data/schema';
-import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, inside, makeSpec, mix, rgba, rimmed } from '../props/kit';
+import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, inside, makeSpec, mix, redStar, rgba, rimmed } from '../props/kit';
 import type { SpriteSpec } from '../types';
 
 export const PLANE_KINDS: readonly PlaneKind[] = ['bomber', 'fighter', 'recon'];
@@ -52,12 +53,15 @@ function roundel(ctx: Ctx, x: number, y: number, r: number): void {
 }
 
 function marking(ctx: Ctx, f: FactionId, x: number, y: number, r: number): void {
-  if (FACTIONS[f].look.flag === 'balkenkreuz') balkenkreuz(ctx, x, y, r * 1.7);
+  const flag = FACTIONS[f].look.flag;
+  if (flag === 'balkenkreuz') balkenkreuz(ctx, x, y, r * 1.7);
+  else if (flag === 'sovietRed') redStar(ctx, x, y, r * 1.1);
   else roundel(ctx, x, y, r);
 }
 
 function finFlash(ctx: Ctx, f: FactionId, x: number, y: number, w: number, h: number): void {
-  if (FACTIONS[f].look.flag === 'balkenkreuz') return;
+  // Only the British fin flash; Soviet aircraft wear their star on the fuselage and German ones the cross.
+  if (FACTIONS[f].look.flag !== 'unionJack') return;
   const cols = ['#8c2a22', '#e6dcb0', '#2b3d6b'];
   for (let i = 0; i < 3; i++) {
     ctx.fillStyle = cols[i];

@@ -80,6 +80,7 @@ function supportRecord<T>(value: T): Record<SupportKind, T> {
 class ProgressRecord implements Record<UnitKind, number> {
   sapper = 0.5;
   rifle = 0.5;
+  conscript = 0.5;
   lmg = 0.5;
   assault = 0.5;
   mortar = 0.5;
@@ -102,6 +103,7 @@ class CooldownRecord implements Record<SupportKind, number> {
   bomber = 0.5;
   fighter = 0.5;
   recon = 0.5;
+  katyusha = 0.5;
 }
 
 function progressRecord(): Record<UnitKind, number> {
@@ -279,6 +281,7 @@ class BattleImpl implements Battle, World {
   readonly cells: [Uint8Array, Uint8Array];
   readonly doorTimer = new Float64Array(2);
   readonly trainLeft = new Float64Array(2 * KIND_COUNT);
+  readonly squadLeft = new Int32Array(2 * KIND_COUNT);
   readonly ai: [AiState | null, AiState | null];
   readonly eventFired: Uint8Array;
   readonly eventNext: Float64Array;

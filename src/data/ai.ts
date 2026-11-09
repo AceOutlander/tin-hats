@@ -38,6 +38,7 @@ export const AI: AiDef = {
   artilleryRadius: 140,
   artilleryMinValue: 240,
   airStrikeMinValue: 360,
+  katyushaMinValue: 420,
   smokeMinGap: 220,
   smokeMaxGap: 700,
 };

@@ -14,6 +14,8 @@ import { SWORD } from './sword';
 import { ARNHEM } from './arnhem';
 import { HILL112 } from './hill112';
 import { REICHSWALD } from './reichswald';
+import { VOLOKOLAMSK } from './volokolamsk';
+import { FACTORIES } from './factories';
 
 export type { BattleTrackName };
 
@@ -28,6 +30,8 @@ export const BATTLE_TRACKS: Record<BattleTrackName, BattleTrackDef> = {
   hill112: HILL112,
   arnhem: ARNHEM,
   reichswald: REICHSWALD,
+  volokolamsk: VOLOKOLAMSK,
+  factories: FACTORIES,
 };
 
 export const BATTLE_TRACK_NAMES = Object.keys(BATTLE_TRACKS) as BattleTrackName[];

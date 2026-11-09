@@ -84,6 +84,20 @@ export const titleScreen: ScreenFactory = (ctx) => {
     },
   });
   play.dataset.primary = '';
+  // Basic Training, the standalone tutorial: always here to replay; offered with a line of its own until it has been
+  // finished or turned down (an app without it shows no button).
+  const startTraining = ctx.app.startTraining?.bind(ctx.app);
+  const training = startTraining
+    ? button({
+        testid: 'basic-training',
+        label: 'Basic Training',
+        className: 'th-btn-big th-btn-training',
+        onTap: () => {
+          ctx.app.uiSound('confirm');
+          startTraining();
+        },
+      })
+    : null;
   const settings = button({
     testid: 'settings',
     label: 'Settings',
@@ -94,7 +108,33 @@ export const titleScreen: ScreenFactory = (ctx) => {
       ctx.go('settings');
     },
   });
-  add(actions, play, settings);
+  add(actions, play);
+  if (training) actions.append(training);
+  actions.append(settings);
+
+  // The first-launch offer: one line under the buttons, never in the way of Play.
+  const offer = el('div', 'th-title-offer');
+  offer.dataset.testid = 'training-offer';
+  const offerText = el('p', 'th-type th-title-offer-text');
+  const skip = button({
+    testid: 'training-skip',
+    label: 'No thanks',
+    className: 'th-btn-small th-title-offer-skip',
+    onTap: () => {
+      ctx.app.uiSound('click');
+      ctx.app.skipTraining?.();
+    },
+  });
+  add(offer, offerText, skip);
+
+  function showOffer(): void {
+    const t = ctx.view().training;
+    const on = training !== null && t !== undefined && t.offer;
+    offer.hidden = !on;
+    if (training) training.classList.toggle('is-offered', on);
+    if (on && t) offerText.textContent = `New to Tin Hats? Basic Training shows you the ropes in five minutes and pays ${t.reward} medals.`;
+  }
+  showOffer();
 
   // Raindrops running down the front of the plate.
   const rain = el('canvas', 'th-title-rain');
@@ -139,10 +179,15 @@ export const titleScreen: ScreenFactory = (ctx) => {
     pen.globalAlpha = 1;
   }
 
-  add(plate, logo, actions, rain);
+  add(plate, logo, actions, offer, rain);
   const version = el('div', 'th-type th-version', ctx.opts.version ?? '');
   version.dataset.testid = 'version';
   add(root, plate, version);
 
-  return { el: root, mounted: measure, resize: measure, drops: drawDrops };
+  function refresh(): void {
+    showOffer();
+    measure();
+  }
+
+  return { el: root, mounted: measure, resize: measure, drops: drawDrops, refresh };
 };

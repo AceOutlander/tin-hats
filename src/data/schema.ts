@@ -113,7 +113,7 @@ export interface WeaponDef {
   moveAndFire: boolean;
   /** View hints. */
   tracer: 'rifle' | 'mg' | 'smg' | 'sniper' | 'none';
-  projectileLook: 'none' | 'grenade' | 'mortar' | 'rocket' | 'shell' | 'bomb';
+  projectileLook: 'none' | 'grenade' | 'mortar' | 'rocket' | 'shell' | 'bomb' | 'katyusha';
   /** Sound played when the weapon fires: a one-shot name from src/data/sounds.ts, or 'none' for silence. */
   sound: string;
   /*
@@ -529,6 +529,8 @@ export interface AiDef {
   artilleryMinValue: number;
   /** Supports: value within artilleryRadius worth an air strike when no enemy tank is on the field. */
   airStrikeMinValue: number;
+  /** Supports: value within artilleryRadius worth a Katyusha salvo (the long cooldown makes the AI wait for a big target). */
+  katyushaMinValue: number;
   /** Supports: smoke is laid while advancing when the enemy line is between these distances ahead of the leading unit. */
   smokeMinGap: number;
   smokeMaxGap: number;
@@ -654,7 +656,20 @@ export interface MissionAiPlan {
  * The battle music tracks (src/data/musicTracks/index.ts registers one definition for each name). A new mission
  * track adds its name here and its file there.
  */
-export type BattleTrackName = 'arras' | 'dunkirk' | 'crusader' | 'alamein' | 'hill112' | 'arnhem' | 'reichswald' | 'primosole' | 'cassino' | 'sword';
+export type BattleTrackName =
+  | 'arras'
+  | 'dunkirk'
+  | 'crusader'
+  | 'alamein'
+  | 'hill112'
+  | 'arnhem'
+  | 'reichswald'
+  | 'primosole'
+  | 'cassino'
+  | 'sword'
+  // The Soviet campaign (src/data/musicCampaigns.ts says which Stalingrad mission plays which).
+  | 'volokolamsk'
+  | 'factories';
 
 export interface MissionDef {
   id: number;

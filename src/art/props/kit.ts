@@ -428,6 +428,30 @@ export function balkenkreuz(ctx: Ctx, x: number, y: number, size: number): void 
   ctx.fillRect(x - bar / 2, y - arm, bar, size);
 }
 
+/** The path of a five-pointed star of outer radius r centred on (x, y), one point straight up. */
+export function starPath(ctx: Ctx, x: number, y: number, r: number): void {
+  const inner = r * 0.4;
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 === 0 ? r : inner;
+    if (i === 0) ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    else ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+}
+
+/** Soviet vehicle and aircraft mark: a plain red five-pointed star with a thin gold edge. */
+export function redStar(ctx: Ctx, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  starPath(ctx, x, y, r);
+  ctx.lineJoin = 'miter';
+  ctx.lineWidth = r * 0.16;
+  ctx.strokeStyle = C.flagGold;
+  ctx.stroke();
+  ctx.fillStyle = C.flagSovietRed;
+  ctx.fill();
+}
+
 /** British armour recognition flash: three plain vertical bands, white, red, white. */
 export function recognitionFlash(ctx: Ctx, x: number, y: number, w: number, h: number): void {
   const band = w / 3;

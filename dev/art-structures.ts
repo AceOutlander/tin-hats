@@ -481,7 +481,9 @@ function tanksScene(ctx: Ctx, t: number): void {
     { gy: 225, facing: 1, speed: 34 },
     { gy: STAGE_H + 225, facing: -1, speed: 0 },
   ];
-  const xs: Record<Look, number> = { churchill: 215, panzer4: 565, kingTiger: 905 };
+  // ?soviet=1 shows the Soviet T-34 and KV-1 (stand-ins on the Panzer IV and Churchill rigs) in their places.
+  const xs: Partial<Record<Look, number>> =
+    params.get('soviet') === '1' ? { kv1: 215, t34: 565, kingTiger: 905 } : { churchill: 215, panzer4: 565, kingTiger: 905 };
   rows.forEach((row, r) => {
     stage(ctx, r * STAGE_H, (r + 1) * STAGE_H, row.gy);
     // Ground marks sliding backwards so the track speed can be judged against the ground.
@@ -491,7 +493,9 @@ function tanksScene(ctx: Ctx, t: number): void {
       ctx.fillRect(x, row.gy + 40 + (i % 3) * 9, 8, 2);
     }
     for (const look of TANK_LOOKS) {
-      const x = row.facing === 1 ? xs[look] : SCENE_W - xs[look] + 40;
+      const at = xs[look];
+      if (at === undefined) continue;
+      const x = row.facing === 1 ? at : SCENE_W - at + 40;
       drawTank(ctx, { look, x, gy: row.gy, facing: row.facing, speed: row.speed, firePhase: look.length * 0.37 }, t);
       rowFigure(ctx, x + row.facing * (TANK_LAYOUT[look].length / 2 + 26), row.gy, 3, false, -row.facing, 'stand');
       label(ctx, look + (row.facing === -1 ? ' (mirrored)' : ''), x, row.gy + 48);
@@ -536,21 +540,21 @@ function airScene(ctx: Ctx, t: number): void {
 }
 
 // ---------------------------------------------------------------------------
-// Scene: flags at 4x
+// Scene: flags at 3x
 // ---------------------------------------------------------------------------
 
 function flagsScene(ctx: Ctx, t: number): void {
   stage(ctx, 0, 340, 300);
-  const k = 4;
-  const keys = [FLAG_KEYS.unionJack, FLAG_KEYS.balkenkreuz];
+  const k = 3;
+  const keys = [FLAG_KEYS.unionJack, FLAG_KEYS.balkenkreuz, FLAG_KEYS.sovietRed];
   keys.forEach((key, i) => {
-    const x = 40 + i * 290;
+    const x = 20 + i * 190;
     const r = sprite(key);
     ctx.drawImage(r.canvas, x, 20, FLAG_LAYOUT.w * k, FLAG_LAYOUT.h * k);
     waveFlag(ctx, key, x + 600, 20, t, k);
   });
-  label(ctx, 'flat (4x)', 160, 190);
-  label(ctx, 'waving, 12 strips (4x)', 760, 190);
+  label(ctx, 'flat (3x)', 300, 150);
+  label(ctx, 'waving, 12 strips (3x)', 900, 150);
   // Actual size, on poles.
   keys.forEach((key, i) => {
     const x = 120 + i * 120;

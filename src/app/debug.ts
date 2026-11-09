@@ -183,6 +183,13 @@ export interface DebugApi {
    * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
    */
   startSandbox(seed?: number, mirror?: boolean): boolean;
+  /** Start Basic Training, as the title screen's button does. */
+  startTraining(): boolean;
+  /**
+   * The guided tip on screen (null when none), and how far the battle's steps have got: `done` of `total` steps have
+   * ended, `finished` once all have. Null outside a battle with guided tips.
+   */
+  tutorial(): { tip: { id: string; text: string; target: string } | null; done: number; total: number; finished: boolean } | null;
   state(): DebugState;
   setTimeScale(n: number): void;
   getTimeScale(): number;
@@ -437,6 +444,20 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     startSandbox(seed, mirror) {
       app.beginUnlisted(mirror === true ? SANDBOX_MIRROR : SANDBOX, 'normal', seed);
       return true;
+    },
+
+    startTraining() {
+      app.startTraining();
+      return app.session !== null;
+    },
+
+    tutorial() {
+      const tutorial = app.tutorial;
+      if (tutorial === null) return null;
+      const tip = tutorial.tip;
+      const id = tutorial.activeId;
+      const { done, total } = tutorial.progress;
+      return { tip: tip !== null && id !== null ? { id, text: tip.text, target: tip.target } : null, done, total, finished: tutorial.finished };
     },
 
     state() {

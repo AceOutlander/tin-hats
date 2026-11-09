@@ -119,6 +119,22 @@ export function recordWin(save: SaveData, mission: MissionDef, difficulty: Diffi
   return result;
 }
 
+/**
+ * Basic Training was finished: the first time, it is recorded and pays MEDALS.trainingReward; after that it pays
+ * nothing. Returns the medals paid.
+ */
+export function completeTraining(save: SaveData): number {
+  if (save.training.done) return 0;
+  save.training.done = true;
+  const before = save.medals;
+  return addMedals(save, MEDALS.trainingReward) - before;
+}
+
+/** Basic Training is offered on the title screen until it has been finished or the player turned it down. */
+export function trainingOffered(save: SaveData): boolean {
+  return !save.training.done && !save.training.skipped;
+}
+
 /** Give medals (negative takes them, never below zero). Returns the new balance. */
 export function addMedals(save: SaveData, n: number): number {
   const delta = Number.isFinite(n) ? Math.trunc(n) : 0;

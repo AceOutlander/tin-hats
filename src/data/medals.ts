@@ -73,6 +73,11 @@ export interface MedalTunables {
   maxMedals: number;
   /** Most wins counted per mission and difficulty (the replay factor is long since zero by then). */
   maxWins: number;
+  /**
+   * Medals paid once, the first time Basic Training is finished (src/data/missions/training.ts): enough for a new
+   * player to buy the first unit in the Armoury.
+   */
+  trainingReward: number;
 }
 
 /** Everything that came before mission 2 in the old campaign, and so on: the types each mission's design is built around. */
@@ -139,4 +144,6 @@ export const MEDALS: MedalTunables = {
   fallback: { targetSeconds: 300, roughSeconds: 900, targetLost: 10, roughLost: 60, loans: [], expects: CORE_1 },
   maxMedals: 9_999_999,
   maxWins: 99,
+  // The Bren gunner, first in the Armoury, costs 30; the rest goes toward the next purchase.
+  trainingReward: 40,
 };

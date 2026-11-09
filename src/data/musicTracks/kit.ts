@@ -2,8 +2,8 @@
  * The battle orchestra's default settings: every battle track starts from these and overrides what its setting needs
  * (a drier desert, a bigger hall, a harder snare). Tuned for mono at MUSIC_BATTLE.render.sampleRate, under gunfire.
  */
-import type { MixSend, ReverbSettings } from '../music';
-import type { BattleInstrument, BattleInstruments } from '../musicBattle';
+import type { ReverbSettings } from '../music';
+import type { BattleInstruments, BattleMix } from '../musicBattle';
 
 export const BATTLE_KIT: BattleInstruments = {
   strings: { voices: 3, detuneCents: 11, cutoff: 900, brightness: 2300, q: 0.8, attack: 0.012, short: 0.17, release: 0.12, tremRate: 13, tremDepth: 0.55, bowNoise: 0.05, level: 0.2, range: [36, 88] },
@@ -89,9 +89,29 @@ export const BATTLE_KIT: BattleInstruments = {
     noiseHz: 3000,
     level: 0.25,
   },
+  // A low male choir on an open 'oh' (formants near 450, 800 and 2,800 Hz over a wide band for body).
+  choir: {
+    voices: 3,
+    detuneCents: 7,
+    formants: [
+      [260, 0.5, 1.2],
+      [450, 1, 5],
+      [800, 0.55, 8],
+      [2800, 0.12, 12],
+    ],
+    attack: 0.9,
+    release: 1.4,
+    rest: 0.7,
+    vibratoRate: 4.6,
+    vibratoCents: 7,
+    breath: 0.04,
+    level: 0.32,
+    range: [40, 72],
+  },
+  wind: { color: 'pink', q: 5, driftCents: 500, gust: 2.4, gustDepth: 0.6, attack: 1.5, release: 2, level: 0.5, range: [64, 100] },
 };
 
-export const BATTLE_MIX: Record<BattleInstrument, MixSend> & { reverb: number; lowpass: number } = {
+export const BATTLE_MIX: BattleMix = {
   strings: { dry: 0.8, send: 0.35 },
   brass: { dry: 0.8, send: 0.4 },
   horn: { dry: 0.6, send: 0.6 },
@@ -101,6 +121,8 @@ export const BATTLE_MIX: Record<BattleInstrument, MixSend> & { reverb: number; l
   hand: { dry: 0.85, send: 0.25 },
   bell: { dry: 0.5, send: 0.7 },
   anvil: { dry: 0.8, send: 0.35 },
+  choir: { dry: 0.55, send: 0.6 },
+  wind: { dry: 0.75, send: 0.3 },
   reverb: 0.45,
   lowpass: 6500,
 };

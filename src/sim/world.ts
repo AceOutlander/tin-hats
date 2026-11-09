@@ -321,6 +321,11 @@ export interface World {
   doorTimer: Float64Array;
   /** Seconds left on the unit in training, indexed [side * KIND_COUNT + kindIndex]. */
   trainLeft: Float64Array;
+  /**
+   * Men of a finished squad order (UnitDef.squad) still to leave the HQ, indexed like trainLeft: 0 while the order
+   * trains. The order leaves the queue once its last man is out.
+   */
+  squadLeft: Int32Array;
   ai: [AiState | null, AiState | null];
   /** Per mission event: 1 once a one-shot event has fired. */
   eventFired: Uint8Array;

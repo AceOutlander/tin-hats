@@ -148,7 +148,8 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_RIM_NEAR_BOOT], R.boot, j, J_NANKLE, p[P_NFP]);
   // The helmet wobbles on the head a moment behind the body (secondary motion).
   const helmRot = p[P_NECK] + HALF_PI + a.helm;
-  putJ(out[S_RIM_HELMET], G.helmetRim, j, J_HEAD, helmRot);
+  const cap = a.headgear;
+  putJ(out[S_RIM_HELMET], cap ? cap.rim : G.helmetRim, j, J_HEAD, helmRot);
   putJ(out[S_RIM_NEAR_UA], R.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_RIM_NEAR_FA], R.forearm, j, J_NELBOW, p[P_NFA]);
 
@@ -178,7 +179,7 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const sy = j[J_HIP * 2 + 1] + Math.sin(sp) * 1.6 + Math.cos(sp) * 1.2;
   put(out[S_SATCHEL], G.satchel, sx, sy, p[P_SATCHEL], G.satchelShow);
   putJ(out[S_HEAD], B.head, j, J_NECK, p[P_NECK]);
-  putJ(out[S_HELMET], G.helmet, j, J_HEAD, helmRot);
+  putJ(out[S_HELMET], cap ? cap.helmet : G.helmet, j, J_HEAD, helmRot);
 
   // Weapon (or crate), its bipod and baseplate, hand items.
   const wa = p[P_WA];

@@ -89,6 +89,11 @@ export const ICONS = {
   bomber: planeSvg('bomber'),
   fighter: planeSvg('fighter'),
   recon: planeSvg('recon'),
+  /** The Katyusha: a salvo of rockets climbing away from their rails. */
+  katyusha: svg(
+    '<path d="M3 19l1.4 1.4 9-9 0.35-1.75-1.75 0.35zM7.5 19l1.4 1.4 9-9 0.35-1.75-1.75 0.35zM12 19l1.4 1.4 9-9 0.35-1.75-1.75 0.35z"/>' +
+      '<path d="M1.5 21.5h11v1.8h-11z"/>',
+  ),
   /** Direct control. */
   fire: svg(
     `<circle ${STROKE} stroke-width="2.2" cx="12" cy="12" r="6.5"/>` +

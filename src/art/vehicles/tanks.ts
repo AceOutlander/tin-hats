@@ -5,7 +5,9 @@
  * (src/data/artLayout.ts); ./tankLayout turns a state into part transforms.
  *
  * Dark silhouette bodies, faction-tint panels and a lighter rim. German
- * turrets carry a small Balkenkreuz, British ones a plain white-red-white flash.
+ * turrets carry a small Balkenkreuz, British ones a plain white-red-white flash,
+ * Soviet ones a red star. The T-34 has its own rig (./t34); the KV-1 is still a
+ * stand-in (the Churchill hull with a turret of its own).
  */
 import { ART_COLORS as C, ELITE_TANK_LOOK, TANK_LAYOUT, VEHICLE_LOOKS, type ArtBox, type VehicleLook, type TankWheelKind } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
@@ -21,6 +23,7 @@ import {
   mix,
   poly,
   recognitionFlash,
+  redStar,
   rgba,
   rimPoly,
   rimRect,
@@ -48,8 +51,10 @@ import {
   smallTankBarrel,
   smallTankHull,
   smallTankSide,
+  t60Turret,
   tacticalNumber,
 } from './lightVehicles';
+import { t34Barrel, t34Hull, t34Side, t34Turret, t34Wheel } from './t34';
 import { TANK_KEYS, TANK_TRACK_PITCH } from './tankLayout';
 
 export interface TankPalette {
@@ -150,6 +155,15 @@ function paintWheel(ctx: Ctx, r: number, kind: TankWheelKind, P: TankPalette): v
   ctx.fill();
 }
 
+/** Looks whose road wheels have a painter of their own. */
+const ROAD_WHEEL: Partial<Record<VehicleLook, (ctx: Ctx, r: number, P: TankPalette) => void>> = { t34: t34Wheel };
+
+function paintLookWheel(ctx: Ctx, look: VehicleLook, r: number, kind: TankWheelKind, P: TankPalette): void {
+  const own = kind === 'road' ? ROAD_WHEEL[look] : undefined;
+  if (own) own(ctx, r, P);
+  else paintWheel(ctx, r, kind, P);
+}
+
 function wheelBox(r: number): ArtBox {
   const half = Math.ceil(r) + 1;
   return { w: half * 2, h: half * 2, ox: half, oy: half };
@@ -201,6 +215,10 @@ const SIDE_DETAIL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   cruiser: smallTankSide,
   carrier: carrierSide,
   halftrack: halftrackSide,
+  t34: t34Side,
+  kv1: churchillSide,
+  t60: smallTankSide,
+  carrierSoviet: carrierSide,
 };
 
 function paintTrack(ctx: Ctx, look: VehicleLook, frame: number): void {
@@ -340,6 +358,10 @@ export const HULL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   cruiser: smallTankHull,
   carrier: carrierHull,
   halftrack: halftrackHull,
+  t34: t34Hull,
+  kv1: churchillHull,
+  t60: smallTankHull,
+  carrierSoviet: (ctx, P) => carrierHull(ctx, P, 'soviet'),
 };
 
 // ---------------------------------------------------------------------------
@@ -423,6 +445,17 @@ function kingTigerTurret(ctx: Ctx, P: TankPalette): void {
   );
 }
 
+/** Stand-in KV-1 turret: a tall slab-sided box with a red star (fits the Churchill rig's box). */
+function kv1Turret(ctx: Ctx, P: TankPalette): void {
+  rimPoly(ctx, [-36, 0, -38, -6, -36, -25, -30, -28.5, 24, -28.5, 32, -22, 34, -6, 32, 0], P.body, P.rim, 1.4);
+  fillPoly(ctx, [-33, -3.5, -34.5, -7, -32.5, -23, -28, -25.5, 22, -25.5, 29, -20.5, 30.5, -6, 29, -3.5], P.panel);
+  rimRect(ctx, -14, -32, 16, 4.5, 1.4, P.bodyDark, P.rim, 1);
+  rimRect(ctx, 30, -17, 9, 12, 2, P.body, P.rim, 1);
+  ctx.fillStyle = rgba(P.rim, 0.6);
+  for (const x of [-30, 20]) ctx.fillRect(x, -8, 1.3, 1.3);
+  redStar(ctx, -4, -14, 6);
+}
+
 export const TURRET: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillTurret,
   panzer4: panzer4Turret,
@@ -431,6 +464,10 @@ export const TURRET: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   cruiser: cruiserTurret,
   carrier: (ctx) => carrierGunner(ctx),
   halftrack: halftrackGunner,
+  t34: t34Turret,
+  kv1: kv1Turret,
+  t60: t60Turret,
+  carrierSoviet: (ctx) => carrierGunner(ctx, 'soviet'),
 };
 
 // ---------------------------------------------------------------------------
@@ -449,13 +486,15 @@ export function tube(ctx: Ctx, sections: readonly number[], P: TankPalette): voi
 
 /** The gun tube; `len` defaults to the look's barrel (the long-gun upgrade passes a longer one). */
 export function paintBarrel(ctx: Ctx, look: VehicleLook, P: TankPalette, len = TANK_LAYOUT[look].barrelLength): void {
-  if (look === 'churchill') {
+  if (look === 'churchill' || look === 'kv1') {
     tube(ctx, [-7, len, 2.4, -2, 12, 3.3, len - 8, len, 3.3], P);
+  } else if (look === 't34') {
+    t34Barrel(ctx, P, len);
   } else if (look === 'panzer4') {
     tube(ctx, [-9, len, 3.2, -3, 13, 4.3, len - 3.5, len, 3.9], P);
-  } else if (look === 'panzer3' || look === 'cruiser') {
+  } else if (look === 'panzer3' || look === 'cruiser' || look === 't60') {
     smallTankBarrel(ctx, P, len);
-  } else if (look === 'carrier') {
+  } else if (look === 'carrier' || look === 'carrierSoviet') {
     brenOnMount(ctx, P, len);
     return;
   } else if (look === 'halftrack') {
@@ -495,7 +534,7 @@ function paintHusk(ctx: Ctx, look: VehicleLook): void {
     ctx.save();
     ctx.translate(w.x, w.y);
     ctx.rotate(i * 0.9);
-    paintWheel(ctx, w.r, w.kind, P);
+    paintLookWheel(ctx, look, w.r, w.kind, P);
     ctx.restore();
   }
   HULL[look](ctx, P);
@@ -552,7 +591,7 @@ function tankPartSpecs(look: VehicleLook): SpriteSpec[] {
     if (seen.has(key)) continue;
     seen.add(key);
     const wheel = L.wheels[i];
-    specs.push(makeSpec(key, wheelBox(wheel.r), (ctx) => paintWheel(ctx, wheel.r, wheel.kind, P)));
+    specs.push(makeSpec(key, wheelBox(wheel.r), (ctx) => paintLookWheel(ctx, look, wheel.r, wheel.kind, P)));
   }
   specs.push(
     makeSpec(K.hull, L.hullBox, (ctx) => {

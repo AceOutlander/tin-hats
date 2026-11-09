@@ -4,6 +4,7 @@ import type { UnitDef, UnitKind } from './schema';
 export const UNIT_KINDS: readonly UnitKind[] = [
   'sapper',
   'rifle',
+  'conscript',
   'lmg',
   'assault',
   'mortar',
@@ -366,6 +367,31 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     width: 100,
     followsLine: false,
     enemyOnly: true,
+  },
+  // Soviet signature infantry (docs/campaigns/NATIONS.md section 2): cheap, frail, poor shots, five men per training
+  // order. Their counter is the machine gun and the mortar (tests/balance/nations.test.ts). Only Soviet sides field them.
+  conscript: {
+    kind: 'conscript',
+    class: 'infantry',
+    armed: true,
+    cost: 24,
+    pop: 1,
+    trainTime: 10,
+    hp: 75,
+    speed: 82,
+    weapon: 'conscriptRifle',
+    secondary: null,
+    trainable: true,
+    usesTrench: true,
+    formationDepth: 0,
+    engageFrac: 0.85,
+    crushesWire: false,
+    controllable: true,
+    healRate: 0,
+    healRange: 0,
+    width: 18,
+    followsLine: false,
+    squad: 5,
   },
 };
 

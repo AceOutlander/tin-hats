@@ -7,7 +7,7 @@
  */
 import type { TankLook } from './artLayout';
 import { FIGURE_GAIT_CARRY, FIGURE_STANCES, FIGURE_UPPERS, type FigureKind, type GaitProfile, type StanceDef, type UpperDef } from './figure';
-import type { FactionId } from './schema';
+import type { FactionId, HelmetShape } from './schema';
 import { GEAR_STEPS, SAPPER_CART_HANDLE, type GearLevels, type GearPiece, type GearStep, type TankGearPiece } from './upgradeLooks';
 
 /** Gear level 0 on both tracks: the unit's normal look. */
@@ -62,11 +62,60 @@ export const FIGURE_GEAR_STEPS: Partial<Record<FigureKind, readonly GearStep<Fig
 /** A kind that wears no pack gets this style instead of the full pack (a haversack on the back). */
 export const GEAR_NO_PACK_STYLE: FigureGearStyle = 'haversack';
 
-/** Per nation: the grenades hung on the belt (they follow the nation's hand grenade). */
-export const FIGURE_GEAR_NATION: Record<FactionId, { grenades: 'mills' | 'stick' }> = {
-  british: { grenades: 'mills' },
-  german: { grenades: 'stick' },
+/** Which belt and back kit a nation's figures wear: the shared pack and pouches, or the Red Army's own. */
+export type FigureKitStyle = 'standard' | 'soviet';
+
+export interface FigureGearNation {
+  /** The grenades hung on the belt (they follow the nation's hand grenade). */
+  grenades: 'mills' | 'stick' | 'f1';
+  kit: FigureKitStyle;
+  /** Kinds that wear the rolled greatcoat over one shoulder (the Red Army's skatka) in the bandolier slot at gear 0; a
+   * bandolier or aid strap upgrade replaces it. */
+  coatRoll: readonly FigureKind[];
+}
+
+export const FIGURE_GEAR_NATION: Record<FactionId, FigureGearNation> = {
+  british: { grenades: 'mills', kit: 'standard', coatRoll: [] },
+  german: { grenades: 'stick', kit: 'standard', coatRoll: [] },
+  // NATIONS.md section 3, 1941 to 1942: the greatcoat roll over the shoulder, the duffel bag (veshchmeshok) on the back,
+  // two-cell ammunition pouches, the bread bag and the MPL-50 spade on the belt, the F-1 grenade.
+  soviet: { grenades: 'f1', kit: 'soviet', coatRoll: ['rifle', 'conscript', 'lmg', 'mortar', 'at', 'sapper'] },
 };
+
+/**
+ * Headgear a figure can wear in place of its nation's helmet (setFigureHeadgear in src/art/figure): the Red Army's
+ * pilotka side cap, the ushanka fur cap, and the SSh-40 worn over the ushanka in winter (NATIONS.md section 3, eras).
+ * Which one a unit wears is the era and weather's call (FOUNDATIONS.md 5.1, not built yet); the art is ready.
+ */
+export type FigureHeadgear = 'pilotka' | 'ushanka' | 'helmetUshanka';
+export const FIGURE_HEADGEAR_LIST: readonly FigureHeadgear[] = ['pilotka', 'ushanka', 'helmetUshanka'];
+
+/** The headgear each nation can wear (anything else falls back to its helmet). */
+export const FIGURE_HEADGEAR: Record<FactionId, readonly FigureHeadgear[]> = {
+  british: [],
+  german: [],
+  soviet: FIGURE_HEADGEAR_LIST,
+};
+
+/** Colours of the Red Army's own kit and caps (the canvas pieces take the nation tint). */
+export const SOVIET_KIT_COLORS = {
+  /** Greatcoat cloth: grey-brown, darker than the tunic. */
+  coat: '#6a6252',
+  coatDark: '#47402f',
+  coatLight: '#8a8170',
+  /** Ushanka fur (artificial fur for the ranks) and its lighter tips. */
+  fur: '#6c6249',
+  furLight: '#8e8466',
+  furDark: '#463f2c',
+  /** Leather of belts and pouches. */
+  leather: '#4b3a26',
+  leatherLight: '#6a5236',
+  /** Enamel of the red star cap badge. */
+  star: '#c0302a',
+  /** Birch stocks with a reddish shellac. */
+  wood: '#5a3622',
+  woodLight: '#7c4d2e',
+} as const;
 
 /**
  * Sizes and colours of the figure gear sprites, in wu (a standing figure is 58 wu, about 55 CSS px on a phone, so
@@ -96,7 +145,8 @@ export const FIGURE_GEAR_ART = {
   scrim: {
     brodie: [-6.0, -4.0, 1.3, -2.8, -6.8, 1.6, 1.0, -7.8, 1.6, 4.4, -5.8, 1.4],
     stahlhelm: [-5.0, -5.0, 1.4, -2.0, -8.6, 1.6, 2.0, -8.8, 1.5, -6.4, -1.4, 1.2],
-  } as Record<'brodie' | 'stahlhelm', readonly number[]>,
+    ssh40: [-5.0, -4.6, 1.3, -2.0, -8.0, 1.6, 2.2, -8.0, 1.5, 5.0, -4.8, 1.3],
+  } as Record<HelmetShape, readonly number[]>,
   /** Full pack: body (x, y, w, h) and the blanket roll on top (x, y, length, radius). */
   fullPack: { x: -9.6, y: -7.8, w: 7.0, h: 9.6, rollX: -10.4, rollY: -9.4, rollW: 8.6, rollR: 1.7 },
   /** Haversack worn by kinds without a pack. */
@@ -170,7 +220,19 @@ export interface TankGearArt {
   longGun: { extra: number; brakeLen: number; brakeHalf: number };
 }
 
-export const TANK_GEAR_ART: Record<TankLook, TankGearArt> = {
+const DRAWN_TANK_GEAR_ART: Record<Exclude<TankLook, 'kv1'>, TankGearArt> = {
+  // T-34: spare links on the glacis, plates on the sloped hull side, sandbags on the engine deck, a box on the turret
+  // overhang; the long gun is the 76 mm ZiS-5 length, with no muzzle brake.
+  t34: {
+    hullPad: [6, 12, 0],
+    turretPad: [0, 9, 10],
+    links: { x: 66, y: -55, dx: 6.2, dy: 3.0, n: 4, w: 4.6, h: 6.4 },
+    applique: [-60, -52, 34, 14, -20, -52, 34, 14, 20, -52, 30, 14],
+    sandbags: { x: -76, y: -59, dx: 10, dy: 0, n: 4, w: 10, h: 5.4 },
+    stowage: [-54, -20, 12, 13],
+    cupolaMg: { x: -14, y: -30, len: 15 },
+    longGun: { extra: 18, brakeLen: 0, brakeHalf: 0 },
+  },
   churchill: {
     hullPad: [6, 12, 0],
     turretPad: [0, 9, 12],
@@ -201,6 +263,12 @@ export const TANK_GEAR_ART: Record<TankLook, TankGearArt> = {
     cupolaMg: { x: -21, y: -41, len: 17 },
     longGun: { extra: 12, brakeLen: 7, brakeHalf: 5.6 },
   },
+};
+
+/** The Soviet KV-1 wears the gear of the rig it borrows (TANK_LAYOUT) until its own is drawn. */
+export const TANK_GEAR_ART: Record<TankLook, TankGearArt> = {
+  ...DRAWN_TANK_GEAR_ART,
+  kv1: DRAWN_TANK_GEAR_ART.churchill,
 };
 
 /** Which tank piece each step adds, as a sprite: health pieces build up on the hull, stowage and the MG on the turret, the long gun is a new barrel. */

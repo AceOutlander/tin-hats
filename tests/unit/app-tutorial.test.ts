@@ -1,9 +1,17 @@
+/**
+ * The guided-tip engine (src/app/tutorial.ts): its memory, the steps each mission offers, how a step starts, ends,
+ * gives up, is cut in on or closed, and the tips in the app. Mission 1's guided steps moved to Basic Training, the
+ * standalone tutorial (tests/unit/basic-training.test.ts walks its whole course); the engine is tested here on its
+ * first lessons and on the campaign's new-unit and new-support tips.
+ */
 import { describe, expect, it } from 'vitest';
 import { App } from '../../src/app/app';
 import { BattleSession } from '../../src/app/session';
-import { TipMemory, Tutorial, stepsFor } from '../../src/app/tutorial';
+import { TipMemory, Tutorial, stepsFor, trainingSteps } from '../../src/app/tutorial';
+import { MEDALS } from '../../src/data/medals';
 import { M01 } from '../../src/data/missions/m01';
 import { MISSIONS } from '../../src/data/missions';
+import { BASIC_TRAINING } from '../../src/data/missions/training';
 import type { MissionDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
 import { UNITS } from '../../src/data/units';
@@ -61,20 +69,18 @@ function rig(m: MissionDef, memory = new TipMemory(createMemoryStorage())): Rig 
   };
 }
 
-/** Mission 1 with the Germans' machine guns dug in a stone's throw from our HQ and no scripted events. */
+/** Basic Training with the enemy's machine guns dug in a stone's throw from our HQ. */
 function besieged(): MissionDef {
-  const m: MissionDef = structuredClone(M01);
-  m.events = [];
+  const m: MissionDef = structuredClone(BASIC_TRAINING);
   m.start[1].forces = [{ kind: 'lmg', count: 4, x: 360, behaviour: 'guard' }];
+  m.units[1] = ['sapper', 'rifle', 'lmg'];
   return m;
 }
 
-/** Mission 1 with plenty of supplies, so every order the test gives can be paid for, and a quiet enemy. */
+/** Basic Training with plenty of supplies, so every order the test gives can be paid for. */
 function rich(): MissionDef {
-  const m: MissionDef = structuredClone(M01);
-  m.events = [];
+  const m: MissionDef = structuredClone(BASIC_TRAINING);
   m.start[0].supplies = 3000;
-  m.ai.firstAttackAfter = 9999;
   return m;
 }
 
@@ -85,6 +91,13 @@ function runUntil(r: Rig, target: string, limit: number): boolean {
     r.run(1);
   }
   return r.tip()?.target === target;
+}
+
+/** Do the first lessons of Basic Training at once: a sapper, three riflemen and Hold. */
+function firstLessons(r: Rig): void {
+  r.session.dispatch({ type: 'train', kind: 'sapper' });
+  for (let i = 0; i < 3; i++) r.session.dispatch({ type: 'train', kind: 'rifle' });
+  r.session.dispatch({ type: 'order', order: 'hold' });
 }
 
 describe('TipMemory', () => {
@@ -140,11 +153,14 @@ describe('TipMemory', () => {
 });
 
 describe('the steps of a mission', () => {
-  it('teaches supplies, training, the three orders, panning and taking control in mission 1', () => {
-    const steps = stepsFor(M01);
-    expect(steps.map((s) => s.id)).toEqual(['supplies', 'trainSapper', 'trainRifle', 'hold', 'look', 'advance', 'control', 'fallBack']);
+  it('teaches supplies, training, the three orders, panning and taking control in Basic Training, not in mission 1', () => {
+    const steps = stepsFor(BASIC_TRAINING);
+    expect(steps.map((s) => s.id)).toEqual(trainingSteps().map((s) => s.id));
     const targets = steps.map((s) => s.target);
     for (const t of ['supplies', 'train-sapper', 'train-rifle', 'order-hold', 'minimap', 'order-advance', 'order-fallBack']) expect(targets).toContain(t);
+    expect(steps.some((s) => s.text.includes('take control'))).toBe(true);
+    // Mission 1 brings riflemen, a free type the course teaches: no guided steps and no new-unit tip there now.
+    expect(stepsFor(M01)).toEqual([]);
   });
 
   it('has unique ids, steps that follow real steps, and sane times', () => {
@@ -158,8 +174,8 @@ describe('the steps of a mission', () => {
       // Short enough for a phone: two lines of a narrow bubble.
       expect(s.text.length, s.id).toBeLessThanOrEqual(100);
     }
-    // Every unit button the first mission points at is one the player has in mission 1.
-    for (const s of steps) if (s.target.startsWith('train-')) expect(M01.units[0]).toContain(s.target.slice(6));
+    // Every unit button the course points at is one the player has on the training ground.
+    for (const s of steps) if (s.target.startsWith('train-')) expect(BASIC_TRAINING.units[0]).toContain(s.target.slice(6));
   });
 
   it('gives a mission that introduces a unit and a support one tip each, the support after the unit', () => {
@@ -170,7 +186,7 @@ describe('the steps of a mission', () => {
     expect(steps[1].after).toEqual(['new-unit-mortar']);
   });
 
-  it('gives no first-mission steps and no tip for what a mission does not offer', () => {
+  it('gives no guided steps in campaign missions and no tip for what a mission does not offer', () => {
     expect(stepsFor(mission(2)).every((s) => s.id.startsWith('new-'))).toBe(true);
     const odd: MissionDef = structuredClone(mission(4));
     odd.units = [['sapper', 'rifle'], ['sapper', 'rifle']];
@@ -178,44 +194,40 @@ describe('the steps of a mission', () => {
     expect(stepsFor(odd)).toEqual([]);
   });
 
-  it('has a tip for every unit and support a mission introduces', () => {
+  it('has a tip for every unit and support a mission introduces (the free types are Basic Training\'s)', () => {
     for (const m of MISSIONS) {
-      if (m.id === TUTORIAL.firstMission) continue;
-      if (m.newUnit !== null && UNITS[m.newUnit].trainable) expect(TUTORIAL.newUnit.tips[m.newUnit], `mission ${m.id} unit`).toBeDefined();
-      expect(stepsFor(m).length, `mission ${m.id}`).toBe((m.newUnit !== null ? 1 : 0) + (m.newSupport !== null ? 1 : 0));
+      const unit = m.newUnit;
+      const taught = unit !== null && UNITS[unit].trainable && !MEDALS.free.includes(unit);
+      if (taught) expect(TUTORIAL.newUnit.tips[unit], `mission ${m.id} unit`).toBeDefined();
+      expect(stepsFor(m).length, `mission ${m.id}`).toBe((taught ? 1 : 0) + (m.newSupport !== null ? 1 : 0));
     }
   });
 });
 
-describe('the guided tutorial in mission 1', () => {
-  it('starts with supplies and sappers, pointing at the supplies readout', () => {
-    const r = rig(M01);
+describe('the guided steps in Basic Training', () => {
+  it('starts with a welcome, then supplies and sappers, pointing at the supplies readout', () => {
+    const r = rig(BASIC_TRAINING);
     r.run(0.5);
     expect(r.tip()).toBeNull();
     r.run(1);
+    expect(r.tutorial.activeId).toBe('welcome');
+    expect(r.tip()?.target).toBe('field');
+    r.session.dispatch({ type: 'dismissTip' });
+    r.run(TUTORIAL.gapSeconds + 0.5);
     expect(r.tip()?.target).toBe('supplies');
     expect(r.tip()?.text).toMatch(/Supplies/);
     expect(r.tutorial.activeId).toBe('supplies');
   });
 
   it('moves on when the player does the thing, and never blocks play', () => {
-    const r = rig(M01);
-    r.run(2);
-    expect(r.tip()?.target).toBe('supplies');
-    // Training a sapper ends the supplies tip and skips the "train a sapper" step, which is already done.
+    const r = rig(BASIC_TRAINING);
+    // A sapper trained before its lesson comes up: that lesson is skipped as done.
     r.session.dispatch({ type: 'train', kind: 'sapper' });
-    r.run(0.5);
-    expect(r.tip()).toBeNull();
-    r.run(TUTORIAL.gapSeconds + 0.5);
-    expect(r.tip()?.target).toBe('train-rifle');
+    expect(runUntil(r, 'train-rifle', 40)).toBe(true);
+    expect(r.session.battle.state.sides[0].queue.sapper + r.session.battle.state.sides[0].alive.sapper).toBeGreaterThanOrEqual(3);
     // The battle went on all the while.
-    expect(r.session.battle.state.time).toBeGreaterThan(4);
-    expect(r.session.battle.state.sides[0].queue.sapper).toBe(1);
-    // Two riflemen end the rifle tip; the Hold tip follows.
-    r.session.dispatch({ type: 'train', kind: 'rifle' });
-    r.run(0.5);
-    expect(r.tip()?.target).toBe('train-rifle');
-    r.session.dispatch({ type: 'train', kind: 'rifle' });
+    expect(r.session.battle.state.time).toBeGreaterThan(10);
+    for (let i = 0; i < 3; i++) r.session.dispatch({ type: 'train', kind: 'rifle' });
     r.run(0.5);
     expect(r.tip()).toBeNull();
     r.run(TUTORIAL.gapSeconds + 0.5);
@@ -226,132 +238,85 @@ describe('the guided tutorial in mission 1', () => {
   });
 
   it('gives up on a tip the player ignores after its time, and goes on to the next', () => {
-    const r = rig(M01);
+    const r = rig(BASIC_TRAINING);
     const seen: string[] = [];
     for (let i = 0; i < 90; i++) {
       r.run(1);
       const target = r.tip()?.target;
       if (target && seen[seen.length - 1] !== target) seen.push(target);
     }
-    expect(seen.slice(0, 4)).toEqual(['supplies', 'train-sapper', 'train-rifle', 'order-hold']);
+    expect(seen.slice(0, 5)).toEqual(['field', 'supplies', 'train-sapper', 'train-rifle', 'order-hold']);
   });
 
-  it('points at the map strip after thirty seconds, and a look around ends the tip', () => {
+  it('points at the map strip after the trench lesson, and a look around ends the tip', () => {
     const r = rig(rich());
-    r.session.dispatch({ type: 'train', kind: 'sapper' });
-    r.session.dispatch({ type: 'train', kind: 'rifle' });
-    r.session.dispatch({ type: 'train', kind: 'rifle' });
-    r.session.dispatch({ type: 'order', order: 'hold' });
-    r.run(20);
-    expect(r.tip()).toBeNull();
-    expect(runUntil(r, 'minimap', 30)).toBe(true);
-    expect(r.session.battle.state.time).toBeGreaterThanOrEqual(30);
+    firstLessons(r);
+    expect(runUntil(r, 'minimap', 90)).toBe(true);
     r.session.dispatch({ type: 'minimap', frac: 0.4 });
     r.run(0.5);
     expect(r.tip()).toBeNull();
-    expect(r.memory.has('look')).toBe(true);
+    expect(r.tutorial.activeId).toBeNull();
   });
 
   it('counts a finger dragging the battlefield as looking around', () => {
     const r = rig(rich());
-    r.session.dispatch({ type: 'train', kind: 'sapper' });
-    r.session.dispatch({ type: 'train', kind: 'rifle' });
-    r.session.dispatch({ type: 'train', kind: 'rifle' });
-    r.session.dispatch({ type: 'order', order: 'hold' });
-    expect(runUntil(r, 'minimap', 60)).toBe(true);
+    firstLessons(r);
+    expect(runUntil(r, 'minimap', 90)).toBe(true);
     r.view.camera.dragging = true;
     r.run(0.5);
     r.view.camera.dragging = false;
     expect(r.tip()).toBeNull();
-    expect(r.memory.has('look')).toBe(true);
   });
 
-  it('points at Advance once six men are armed, and at taking control after that', () => {
+  it('points at Advance once five men are armed, and at holding the trench taken after that', () => {
     const r = rig(rich());
-    r.session.dispatch({ type: 'train', kind: 'sapper' });
-    for (let i = 0; i < 4; i++) r.session.dispatch({ type: 'train', kind: 'rifle' });
-    r.session.dispatch({ type: 'order', order: 'hold' });
+    firstLessons(r);
     r.session.dispatch({ type: 'minimap', frac: 0.2 });
     expect(runUntil(r, 'order-advance', 120)).toBe(true);
-    expect(r.session.battle.state.sides[0].alive.rifle).toBeGreaterThanOrEqual(6);
     r.session.dispatch({ type: 'order', order: 'advance' });
     r.run(0.5);
     expect(r.tip()).toBeNull();
-    expect(runUntil(r, 'field', 60)).toBe(true);
-    expect(r.tip()?.text).toMatch(/take control/);
+    expect(runUntil(r, 'order-hold', 60)).toBe(true);
+    expect(r.tutorial.activeId).toBe('holdForward');
+    expect(r.session.battle.state.trenches.filter((t) => t.owner === 0).length).toBeGreaterThanOrEqual(2);
   });
 
   it('drops in the Fall Back tip when the HQ is under threat, even before the lesson has got that far', () => {
     const r = rig(besieged());
     r.run(24);
     expect(r.tip()?.target).toBe('order-fallBack');
-    expect(r.tutorial.activeId).toBe('fallBack');
+    expect(r.tutorial.activeId).toBe('fallBackNow');
     // Doing it ends the tip.
     r.session.dispatch({ type: 'order', order: 'fallBack' });
     r.run(0.5);
-    expect(r.tip()).toBeNull();
+    expect(r.tutorial.activeId).not.toBe('fallBackNow');
   });
 
-  it('shows nothing and uses nothing up while hints are switched off', () => {
-    const r = rig(M01);
-    r.hintsOn.value = false;
-    r.run(60);
-    expect(r.tip()).toBeNull();
-    expect(r.memory.has('supplies')).toBe(false);
-    r.hintsOn.value = true;
-    r.run(1);
-    expect(r.tip()?.target).toBe('supplies');
-  });
-
-  it('remembers every tip that ended and never shows one again, in this battle or the next', () => {
-    const storage = createMemoryStorage();
-    const first = rig(M01, new TipMemory(storage));
-    r_finishAll(first);
-    // A new battle with the same memory: nothing to say, however long it runs.
-    const second = rig(M01, new TipMemory(storage));
-    second.run(240);
-    expect(second.tip()).toBeNull();
-    // Replaying the tutorial brings them back.
-    const again = new TipMemory(storage);
-    again.clear();
-    const third = rig(M01, new TipMemory(storage));
-    third.run(2);
-    expect(third.tip()?.target).toBe('supplies');
-  });
-
-  it('resumes where an earlier battle left off', () => {
-    const storage = createMemoryStorage();
-    const first = rig(M01, new TipMemory(storage));
-    first.session.dispatch({ type: 'train', kind: 'sapper' });
-    first.run(6);
-    expect(first.memory.has('supplies')).toBe(true);
-    expect(first.memory.has('trainSapper')).toBe(true);
-    const second = rig(M01, new TipMemory(storage));
-    second.run(2);
-    expect(second.tip()?.target).toBe('train-rifle');
-  });
-
-  it('lets the player close a tip, which counts as seen', () => {
-    const r = rig(M01);
+  it('lets the player close a tip', () => {
+    const r = rig(BASIC_TRAINING);
     r.run(2);
-    expect(r.tip()?.target).toBe('supplies');
+    expect(r.tutorial.activeId).toBe('welcome');
     expect(r.session.dispatch({ type: 'dismissTip' })).toBe(true);
     r.session.fill(false, false);
     expect(r.tip()).toBeNull();
-    expect(r.memory.has('supplies')).toBe(true);
   });
 
-  it('replaces the scripted hints of mission 1, and leaves those of other missions alone', () => {
-    const r = rig(M01);
-    r.run(20);
+  it('replaces the scripted hints of the training ground, and leaves those of the campaign missions alone', () => {
+    const quiet: MissionDef = { ...structuredClone(BASIC_TRAINING), events: [{ type: 'hint', when: { at: 1 }, text: 'A scripted hint.' }] };
+    const r = rig(quiet);
+    r.run(5);
     expect(r.session.hud.state.hint).toBeNull();
+    // Mission 1 lost its guided steps, so its own hints are back.
+    const m1 = rig(M01);
+    m1.run(3);
+    expect(m1.session.hud.state.hint).not.toBeNull();
     const m2 = rig(mission(2));
     m2.run(3);
     expect(m2.session.hud.state.hint).not.toBeNull();
   });
 
   it('gives a tip a fresh counter each time one starts', () => {
-    const r = rig(M01);
+    const r = rig(BASIC_TRAINING);
     r.run(2);
     const first = r.session.hud.state.tip?.seq ?? 0;
     r.session.dispatch({ type: 'dismissTip' });
@@ -360,31 +325,6 @@ describe('the guided tutorial in mission 1', () => {
     expect(second).toBeGreaterThan(first);
   });
 });
-
-/** Play mission 1's lesson through by doing everything it asks, until no tip is left. */
-function r_finishAll(r: Rig): void {
-  const asked: Record<string, () => void> = {
-    supplies: () => undefined,
-    'train-sapper': () => r.session.dispatch({ type: 'train', kind: 'sapper' }),
-    'train-rifle': () => {
-      r.session.dispatch({ type: 'train', kind: 'rifle' });
-      r.session.dispatch({ type: 'train', kind: 'rifle' });
-    },
-    'order-hold': () => r.session.dispatch({ type: 'order', order: 'hold' }),
-    minimap: () => r.session.dispatch({ type: 'minimap', frac: 0.3 }),
-    'order-advance': () => r.session.dispatch({ type: 'order', order: 'advance' }),
-    field: () => undefined,
-    'order-fallBack': () => r.session.dispatch({ type: 'order', order: 'fallBack' }),
-  };
-  for (let i = 0; i < 400; i++) {
-    r.run(1);
-    const target = r.tip()?.target;
-    if (target) asked[target]();
-    if (target === undefined && r.memory.has('control') && r.memory.has('advance') && r.memory.has('look')) break;
-  }
-  expect(r.memory.has('supplies')).toBe(true);
-  expect(r.memory.has('trainRifle')).toBe(true);
-}
 
 describe('new units and supports in later missions', () => {
   it('points at the new unit button the first time, with the faction name, and is done when one is trained', () => {
@@ -401,14 +341,40 @@ describe('new units and supports in later missions', () => {
     expect(r.tip()?.target).toBe('support-artillery');
   });
 
-  it('never repeats a new-unit tip once it has been seen', () => {
-    const memory = new TipMemory(createMemoryStorage());
+  it('never repeats a new-unit tip once it has been seen, in this battle or the next, until the tips are replayed', () => {
+    const storage = createMemoryStorage();
+    const memory = new TipMemory(storage);
     const a = rig(mission(4), memory);
     a.run(TUTORIAL.newUnit.seconds + 3);
     expect(memory.has('new-unit-mortar')).toBe(true);
-    const b = rig(mission(4), memory);
+    const b = rig(mission(4), new TipMemory(storage));
     b.run(2);
     expect(b.tip()?.target).not.toBe('train-mortar');
+    new TipMemory(storage).clear();
+    const c = rig(mission(4), new TipMemory(storage));
+    c.run(2);
+    expect(c.tip()?.target).toBe('train-mortar');
+  });
+
+  it('lets the player close a tip, which counts as seen', () => {
+    const r = rig(mission(4));
+    r.run(2);
+    expect(r.tip()?.target).toBe('train-mortar');
+    expect(r.session.dispatch({ type: 'dismissTip' })).toBe(true);
+    r.session.fill(false, false);
+    expect(r.tip()).toBeNull();
+    expect(r.memory.has('new-unit-mortar')).toBe(true);
+  });
+
+  it('shows nothing and uses nothing up while hints are switched off', () => {
+    const r = rig(mission(4));
+    r.hintsOn.value = false;
+    r.run(60);
+    expect(r.tip()).toBeNull();
+    expect(r.memory.has('new-unit-mortar')).toBe(false);
+    r.hintsOn.value = true;
+    r.run(1);
+    expect(r.tip()?.target).toBe('train-mortar');
   });
 });
 
@@ -421,51 +387,59 @@ describe('the tutorial in the app', () => {
     return { app, view, storage };
   }
 
-  it('runs in campaign missions and not on the proving ground or under a bot', () => {
+  it('runs in Basic Training and campaign missions, and not on the proving ground or under a bot', () => {
     const { app } = makeApp();
-    app.startMission(1, 'normal');
-    expect(app.session?.hud.state.tip).toBeNull();
-    for (let i = 0; i < 120; i++) app.session?.step();
+    app.startTraining();
+    for (let i = 0; i < 60; i++) app.session?.step();
     app.session?.fill(false, false);
-    expect(app.session?.hud.state.tip?.target).toBe('supplies');
+    expect(app.tutorial?.activeId).toBe('welcome');
 
-    const ground: MissionDef = { ...structuredClone(M01), id: 99, key: 'ground' };
+    app.beginMission(4, 'normal');
+    for (let i = 0; i < 60; i++) app.session?.step();
+    app.session?.fill(false, false);
+    expect(app.session?.hud.state.tip?.target).toBe('train-mortar');
+
+    const ground: MissionDef = { ...structuredClone(mission(4)), id: 99, key: 'ground' };
     app.beginUnlisted(ground, 'normal');
-    for (let i = 0; i < 120; i++) app.session?.step();
+    for (let i = 0; i < 60; i++) app.session?.step();
     app.session?.fill(false, false);
     expect(app.session?.hud.state.tip).toBeNull();
 
     app.autopilot = true;
-    app.startMission(1, 'normal');
-    for (let i = 0; i < 120; i++) app.session?.step();
+    app.startTraining();
+    for (let i = 0; i < 60; i++) app.session?.step();
     app.session?.fill(false, false);
     expect(app.session?.hud.state.tip).toBeNull();
   });
 
-  it('keeps the tips it has shown in storage, apart from the save, and clears them with a reset or a replay', () => {
+  it('keeps the campaign tips it has shown in storage, apart from the save, and clears them with a reset or a replay', () => {
     const { app, storage } = makeApp();
-    app.startMission(1, 'normal');
-    for (let i = 0; i < 120; i++) app.session?.step();
+    app.beginMission(4, 'normal');
+    for (let i = 0; i < 60; i++) app.session?.step();
     app.session?.fill(false, false);
     app.dispatch({ type: 'dismissTip' });
-    expect(app.tips.has('supplies')).toBe(true);
-    expect(storage.getItem(TUTORIAL.storageKey)).toContain('supplies');
+    expect(app.tips.has('new-unit-mortar')).toBe(true);
+    expect(storage.getItem(TUTORIAL.storageKey)).toContain('new-unit-mortar');
     expect(JSON.parse(storage.getItem('tinhats.save') ?? '{}')).not.toHaveProperty('tips');
     app.replayHints();
-    expect(app.tips.has('supplies')).toBe(false);
+    expect(app.tips.has('new-unit-mortar')).toBe(false);
     expect(storage.getItem(TUTORIAL.storageKey)).toBeNull();
     app.tips.add('hold');
     app.resetSave();
     expect(app.tips.has('hold')).toBe(false);
   });
 
-  it('respects the hints setting', () => {
+  it('respects the hints setting in the campaign, and runs Basic Training whatever it says', () => {
     const { app } = makeApp();
     app.setSetting('hints', false);
-    app.startMission(1, 'normal');
+    app.beginMission(4, 'normal');
     for (let i = 0; i < 300; i++) app.session?.step();
     app.session?.fill(false, false);
     expect(app.session?.hud.state.tip).toBeNull();
-    expect(app.tips.has('supplies')).toBe(false);
+    expect(app.tips.has('new-unit-mortar')).toBe(false);
+    app.startTraining();
+    for (let i = 0; i < 60; i++) app.session?.step();
+    app.session?.fill(false, false);
+    expect(app.session?.hud.state.tip?.target).toBe('field');
   });
 });

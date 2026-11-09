@@ -15,7 +15,7 @@ import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { canTrain } from './commands';
 import { canCallSupport } from './supports';
-import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
+import { KIND_COUNT, KIND_INDEX, KIND_LIST, KIND_SQUAD } from './tables';
 import type { CommanderKind, SideState } from './types';
 import { CMD_ORDER, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
 
@@ -201,7 +201,8 @@ function build(w: World, si: number, ai: AiState): void {
     const kind = KIND_LIST[k];
     if (side.available[kind] !== true) continue;
     // The King Tiger's veteran escort stays with its tank: it is not part of the army the plan asks for.
-    const short = (desired[k] - (side.alive[kind] - w.escorts[si * KIND_COUNT + k]) - side.queue[kind]) / desired[k];
+    // A queued order of a squad kind is several men (UnitDef.squad).
+    const short = (desired[k] - (side.alive[kind] - w.escorts[si * KIND_COUNT + k]) - side.queue[kind] * KIND_SQUAD[k]) / desired[k];
     if (short > worst) {
       worst = short;
       pick = k;
@@ -217,7 +218,7 @@ function build(w: World, si: number, ai: AiState): void {
       if (desired[k] <= 0) continue;
       const kind = KIND_LIST[k];
       if (side.available[kind] !== true) continue;
-      const ratio = (side.alive[kind] - w.escorts[si * KIND_COUNT + k] + side.queue[kind]) / desired[k];
+      const ratio = (side.alive[kind] - w.escorts[si * KIND_COUNT + k] + side.queue[kind] * KIND_SQUAD[k]) / desired[k];
       if (ratio < lowest) {
         lowest = ratio;
         pick = k;
@@ -377,6 +378,7 @@ function smokeHelps(w: World, si: number): boolean {
  * Supports, under the same cooldowns and availability as the player: artillery on the densest
  * enemy cluster or an occupied trench, an air strike on a tank (the one nearest its own HQ) or a
  * big cluster, smoke between its leading unit and the enemy line while it advances on dug-in troops.
+ * A Soviet side's Katyusha salvo goes on the densest cluster once it is worth the long cooldown.
  */
 function callSupports(w: World, si: number, ai: AiState): void {
   const s = w.state;
@@ -385,9 +387,12 @@ function callSupports(w: World, si: number, ai: AiState): void {
   const dir = si === 0 ? 1 : -1;
   const artillery = canCallSupport(w, si, 'artillery');
   const air = canCallSupport(w, si, 'airStrike');
-  if (artillery || air) {
+  const katyusha = canCallSupport(w, si, 'katyusha');
+  if (artillery || air || katyusha) {
     bestCluster(w, si);
-    if (artillery && BEST[1] >= AI.artilleryMinValue) {
+    if (katyusha && BEST[1] >= AI.katyushaMinValue) {
+      issueSupport(w, si, ai, 'katyusha', BEST[0]);
+    } else if (artillery && BEST[1] >= AI.artilleryMinValue) {
       issueSupport(w, si, ai, 'artillery', BEST[0]);
     } else if (air) {
       // A tank first (the one closest to this side's HQ), else a big cluster.

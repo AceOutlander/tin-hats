@@ -10,7 +10,7 @@ import { MUSIC_BATTLE } from '../../data/musicBattle';
 import { seededRandom } from '../dsp';
 import { startRendering, type OfflineContextCtor } from '../render';
 import { createNoiseBank, type NoiseBank } from '../synth';
-import { makeImpulse, playAnvil, playBell, playBrass, playHand, playHorn, playPad, playSnare, playStrings, playTimpani } from './instruments';
+import { makeImpulse, playAnvil, playBell, playBrass, playChoir, playHand, playHorn, playPad, playSnare, playStrings, playTimpani, playWind } from './instruments';
 
 export type StingName = 'victory' | 'defeat';
 
@@ -150,7 +150,17 @@ export function battleGraph(ctx: BaseAudioContext, out: AudioNode, def: BattleTr
   reverb.buffer = impulseFor(ctx, def);
   const wet = ctx.createGain();
   wet.gain.value = def.mix.reverb;
-  reverb.connect(wet);
+  if (def.mix.reverbHighpass !== undefined) {
+    // A thinner room: the tail keeps its shine and loses its boom.
+    const thin = ctx.createBiquadFilter();
+    thin.type = 'highpass';
+    thin.frequency.value = def.mix.reverbHighpass;
+    thin.Q.value = 0.6;
+    reverb.connect(thin);
+    thin.connect(wet);
+  } else {
+    reverb.connect(wet);
+  }
   wet.connect(top);
   const buses = new Map<BattleInstrument, AudioNode>();
   const bus = (name: BattleInstrument): AudioNode => {
@@ -207,6 +217,13 @@ export function battleGraph(ctx: BaseAudioContext, out: AudioNode, def: BattleTr
         break;
       case 'anvil':
         playAnvil(ctx, dest, at, e.note, vel, I.anvil, bank, rng);
+        break;
+      case 'choir':
+        // Held voices keep their written time, like the pad.
+        playChoir(ctx, dest, e.at * spb, len, e.note, vel, I.choir, bank, rng);
+        break;
+      case 'wind':
+        playWind(ctx, dest, e.at * spb, len, e.note, vel, I.wind, bank, rng);
         break;
     }
   };

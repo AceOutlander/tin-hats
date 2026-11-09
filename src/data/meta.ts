@@ -48,7 +48,7 @@ export interface MetaTunables {
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 6,
+  saveVersion: 7,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
   firstClearPoints: 2,

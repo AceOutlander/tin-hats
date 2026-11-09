@@ -32,6 +32,7 @@ export {
   type MissionSeries,
 } from './balanceRuns';
 export { SIM_FEATURES } from './features';
+export { orderCost, orderPop } from './tables';
 export { Rng } from './rng';
 export { TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';
 export type {

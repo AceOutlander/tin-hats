@@ -5,7 +5,7 @@
  */
 import { CONFIG } from '../data/config';
 import type { Side, UnitKind } from '../data/schema';
-import { KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER } from './tables';
+import { KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, KIND_SQUAD } from './tables';
 import { spawnUnit } from './units';
 import { orderFor, type World } from './world';
 
@@ -24,6 +24,9 @@ function setProgress(p: Record<UnitKind, number>, k: number): void {
       break;
     case 'rifle':
       p.rifle = v;
+      break;
+    case 'conscript':
+      p.conscript = v;
       break;
     case 'lmg':
       p.lmg = v;
@@ -92,20 +95,27 @@ export function updateEconomy(w: World): void {
       const slot = si * KIND_COUNT + k;
       let left = w.trainLeft[slot] - dt;
       if (left <= 0) {
-        // Under Fall Back (army-wide or for its kind) the new unit stays inside with the garrison.
-        const u = spawnUnit(w, si as Side, k, hq.doorX, 'army', orderFor(side, kind) === 'fallBack', true);
-        if (u) {
-          side.queue[kind]--;
+        // A finished order sends out its whole squad (one man for most kinds; UnitDef.squad for conscripts).
+        if (w.squadLeft[slot] <= 0) w.squadLeft[slot] = KIND_SQUAD[k];
+        // Under Fall Back (army-wide or for its kind) the new men stay inside with the garrison.
+        const inside = orderFor(side, kind) === 'fallBack';
+        while (w.squadLeft[slot] > 0) {
+          const u = spawnUnit(w, si as Side, k, hq.doorX, 'army', inside, true);
+          if (!u) break;
+          w.squadLeft[slot]--;
           side.stats.trained++;
           const e = w.events.emit('trainDone');
           e.side = si;
           e.kind = kind;
           e.unit = u.index;
           e.unitId = u.id;
-          // The next unit starts where this one finished, so the leftover fraction of a tick is not lost.
+        }
+        if (w.squadLeft[slot] === 0) {
+          side.queue[kind]--;
+          // The next order starts where this one finished, so the leftover fraction of a tick is not lost.
           left = side.queue[kind] > 0 ? trainTime + left : 0;
         } else {
-          // Unit pool full: keep the finished unit waiting and try again next tick.
+          // Unit pool full: keep the rest of the finished order waiting and try again next tick.
           left = 0;
         }
       }

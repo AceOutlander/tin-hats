@@ -97,6 +97,7 @@ export const APP: AppTunables = {
     bomber: 'A bomber flies over and carpets a wide stretch of the battlefield with bombs.',
     fighter: 'A fighter dives in and strafes the spot you choose with its guns.',
     recon: 'A recon plane circles overhead and shows enemy health in a wide area for a while.',
+    katyusha: 'A rocket battery fires a huge salvo over a wide area. Inaccurate and slow to reload: hurts most where men bunch up.',
   },
   statLabels: {
     // Short: each level line sits in a narrow column beside the card's buttons, and the card's own name

@@ -9,7 +9,7 @@ import { UNITS } from '../data/units';
 import { releaseControl, setControlInput, takeControl } from './control';
 import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
-import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
+import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
 import {
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
@@ -34,18 +34,20 @@ export function canTrain(w: World, si: number, kind: UnitKind): boolean {
   const def = UNITS[kind];
   // One commander per side: none while one is alive or queued.
   if (def.uniquePerSide === true && side.alive[kind] + side.queue[kind] > 0) return false;
-  const room = side.pop + side.reservePop + def.pop <= side.popCap;
-  return side.queue[kind] < CONFIG.maxQueue && side.supplies >= def.cost && room;
+  // A squad kind (conscripts) pays for and needs room for the whole squad.
+  const room = side.pop + side.reservePop + orderPop(kind) <= side.popCap;
+  return side.queue[kind] < CONFIG.maxQueue && side.supplies >= orderCost(kind) && room;
 }
 
 function applyTrain(w: World, si: number, kind: UnitKind): void {
   if (!canTrain(w, si, kind)) return;
   const side = w.state.sides[si];
   const def = UNITS[kind];
+  const cost = orderCost(kind);
   // Cost and population are paid now, so the cap can never be exceeded later.
-  side.supplies -= def.cost;
-  side.stats.suppliesSpent += def.cost;
-  side.pop += def.pop;
+  side.supplies -= cost;
+  side.stats.suppliesSpent += cost;
+  side.pop += orderPop(kind);
   if (side.queue[kind] === 0) {
     w.trainLeft[si * KIND_COUNT + KIND_INDEX[kind]] = def.trainTime;
     side.progress[kind] = 0;

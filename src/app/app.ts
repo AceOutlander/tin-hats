@@ -11,6 +11,7 @@ import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MISSIONS } from '../data/missions';
+import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { MusicTrackName } from '../data/music';
 import type { MusicLayer } from '../data/musicBattle';
 import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
@@ -23,6 +24,7 @@ import {
   buyUpgrade,
   cleanSetting,
   clearSave,
+  completeTraining,
   defaultSave,
   loadSave,
   maxLevel,
@@ -45,7 +47,7 @@ import { GameLoop } from './loop';
 import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
 import { MusicIntensity } from './musicIntensity';
 import { BattleSession } from './session';
-import { TipMemory, Tutorial } from './tutorial';
+import { TipMemory, Tutorial, isTraining } from './tutorial';
 
 /** The campaign map track, and the screens it plays on (and behind Settings opened from one of them). */
 export const MAP_MUSIC: MusicTrackName = 'map';
@@ -88,6 +90,8 @@ export class App implements AppApi {
   private launched: { mission: MissionDef; armoury: boolean } | null = null;
   /** The medals of the last campaign win (for the result screen and the debug hooks). */
   lastMedals: MedalBreakdown | null = null;
+  /** The guided tips of the current battle (null outside a battle, on the proving ground and under the bot). */
+  tutorial: Tutorial | null = null;
   /** Debug only: battles started from now on are played for the player by the sim's test bot. */
   autopilot = false;
   private pendingResult: ResultView | null = null;
@@ -237,12 +241,13 @@ export class App implements AppApi {
     this.view.setAudio(this.audio);
     this.view.setDarkness(0);
     this.darkness = 0;
+    // Guided tips belong to the campaign and to Basic Training: the proving ground and a bot at the controls need none.
+    this.tutorial = (campaign || isTraining(mission)) && !this.autopilot ? new Tutorial(mission, this.tips) : null;
     this.session = new BattleSession(battle, difficulty, seed, this.view, this.audio, {
       hints: () => this.save.settings.hints,
       sound: () => this.loop.timeScale <= APP.soundMaxTimeScale,
       onEnded: () => this.battleEnded(),
-      // Guided tips belong to the campaign: the proving ground and a bot at the controls need none.
-      tutorial: campaign && !this.autopilot ? new Tutorial(mission, this.tips) : null,
+      tutorial: this.tutorial,
     });
     this.pendingResult = null;
     this.lastResult = null;
@@ -267,6 +272,7 @@ export class App implements AppApi {
       this.session.stopInputs();
       this.view.detach();
       this.session = null;
+      this.tutorial = null;
       this.musicIntensity = null;
       if (!keepMusic) this.audio.releaseBattleMusic();
     }
@@ -288,6 +294,12 @@ export class App implements AppApi {
     const mission = session.mission;
     let points = 0;
     let medals: MedalBreakdown | null = null;
+    const training = isTraining(mission);
+    if (training && session.battle.state.winner === 0) {
+      // Basic Training is no campaign mission: its first finish is recorded and pays its one-time reward.
+      points = completeTraining(this.save);
+      this.persist();
+    }
     // Only campaign missions count: a win on the sandbox grounds must leave the save alone.
     if (session.battle.state.winner === 0 && this.missions.some((m) => m.id === mission.id)) {
       recordClear(this.save, mission.id, session.difficulty);
@@ -305,8 +317,10 @@ export class App implements AppApi {
     // The sting was played with the battleEnded event if sound was on; either way the layers fade out now.
     this.audio.endBattleMusic(session.battle.state.winner === 0, false);
     const ids = this.missions.map((m) => m.id);
-    this.pendingResult = buildResult(session.battle, session.difficulty, points, nextMissionId(ids, mission.id), medals);
-    this.lastResult = this.pendingResult;
+    const result = buildResult(session.battle, session.difficulty, points, training ? null : nextMissionId(ids, mission.id), medals);
+    if (training) result.training = true;
+    this.pendingResult = result;
+    this.lastResult = result;
   }
 
   private showResult(): void {
@@ -413,6 +427,11 @@ export class App implements AppApi {
 
   /** Start a campaign mission on a difficulty. The difficulty is remembered as the one the briefing starts on. */
   startMission(id: number, difficulty: Difficulty): void {
+    // Replaying Basic Training from its result screen.
+    if (id === BASIC_TRAINING_ID) {
+      this.startTraining();
+      return;
+    }
     const chosen = DIFFICULTY_LIST.includes(difficulty) ? difficulty : this.save.settings.difficulty;
     if (!this.missions.some((m) => m.id === id)) return;
     if (this.save.settings.difficulty !== chosen) {
@@ -420,6 +439,22 @@ export class App implements AppApi {
       this.persist();
     }
     this.beginMission(id, chosen, this.newSeed(), true);
+  }
+
+  /**
+   * Start Basic Training, the standalone tutorial: its own training ground, outside every campaign, played as the
+   * nation of the campaign on show (the British until the campaign select screen exists), always on Normal.
+   */
+  startTraining(): void {
+    this.launch(trainingMission(), BASIC_TRAINING_DIFFICULTY, this.newSeed());
+  }
+
+  /** The player turned down the Basic Training offer on the title screen: it is not offered again (the button stays). */
+  skipTraining(): void {
+    if (this.save.training.skipped) return;
+    this.save.training.skipped = true;
+    this.persist();
+    this.ui?.refresh();
   }
 
   // --- debug hooks (src/app/debug.ts) -----------------------------------------
@@ -531,10 +566,13 @@ export class App implements AppApi {
           this.launch(again.mission, this.session.difficulty, this.newSeed(), again.armoury);
         }
         return;
-      case 'quit':
+      case 'quit': {
+        // Basic Training is started from the title screen, so quitting it goes back there.
+        const training = this.session !== null && isTraining(this.session.mission);
         this.endSession();
-        this.ui?.show('campaign');
+        this.ui?.show(training ? 'title' : 'campaign');
         return;
+      }
       case 'toggleMute':
         this.setSetting('muted', !this.save.settings.muted);
         return;

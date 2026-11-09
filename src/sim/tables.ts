@@ -142,6 +142,21 @@ export const KIND_ANTI_AIR: Uint8Array = Uint8Array.from(KIND_DEFS, (d) => (d.an
 /** Per kind: radius of its damage aura (commander), 0 for none, and the multiplier it gives. */
 export const KIND_AURA_RADIUS: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.radius : 0));
 export const KIND_AURA_MUL: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.damageMul : 1));
+/** Per kind: men sent out per training order (UnitDef.squad, 1 for most kinds). */
+export const KIND_SQUAD: Int32Array = Int32Array.from(KIND_DEFS, (d) => d.squad ?? 1);
+
+/** Supplies one training order of this kind costs: the per-man cost times the squad. */
+export function orderCost(kind: UnitKind): number {
+  const k = KIND_INDEX[kind];
+  return KIND_DEFS[k].cost * KIND_SQUAD[k];
+}
+
+/** Population one training order of this kind takes: the per-man population times the squad. */
+export function orderPop(kind: UnitKind): number {
+  const k = KIND_INDEX[kind];
+  return KIND_DEFS[k].pop * KIND_SQUAD[k];
+}
+
 /** Per kind: 1 if its arrival on the field is announced like a boss (bossArrived). */
 export const KIND_BOSS: Uint8Array = Uint8Array.from(KIND_LIST, (kind) => (BOSS_KINDS.includes(kind) ? 1 : 0));
 /** Per kind: 1 if it may ride in an APC (trench infantry: not sappers, medics, crews that cannot use a trench). */

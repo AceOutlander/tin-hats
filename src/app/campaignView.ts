@@ -20,6 +20,7 @@ import {
   pointsAvailable,
   pointsSpent,
   replayPercent,
+  trainingOffered,
   upgradeLevel,
   winsOn,
   type MedalBreakdown,
@@ -107,6 +108,7 @@ export function buildCampaignView(save: SaveData, missions: readonly MissionDef[
     difficulties: DIFFICULTY_LIST.map((id) => ({ id, name: DIFFICULTIES[id].name })),
     medals: save.medals,
     armoury: buildArmoury(save),
+    training: { done: save.training.done, offer: trainingOffered(save), reward: MEDALS.trainingReward },
   };
 }
 

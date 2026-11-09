@@ -23,6 +23,7 @@ export {
   armouryItem,
   buyItem,
   canBuyItem,
+  completeTraining,
   isFree,
   missionAllows,
   missionMedals,
@@ -32,6 +33,7 @@ export {
   replayFactor,
   replayPercent,
   scoreWin,
+  trainingOffered,
   winsOn,
   type MedalBreakdown,
   type Roster,
@@ -57,5 +59,6 @@ export {
   type SaveRules,
   type SaveSettings,
   type StorageLike,
+  type TrainingRecord,
   type VolumeKey,
 } from './save';

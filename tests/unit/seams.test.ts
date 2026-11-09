@@ -35,6 +35,7 @@ import type { createHud } from '../../src/ui/hud';
 const ALL_KINDS: UnitKind[] = [
   'sapper',
   'rifle',
+  'conscript',
   'lmg',
   'assault',
   'mortar',
@@ -50,7 +51,7 @@ const ALL_KINDS: UnitKind[] = [
   'lightTank',
 ];
 const ALL_ACTIONS: UnitAction[] = ['idle', 'move', 'aim', 'fire', 'reload', 'throw', 'load', 'heal', 'deploy', 'inside'];
-const ALL_FACTIONS: FactionId[] = ['british', 'german'];
+const ALL_FACTIONS: FactionId[] = ['british', 'german', 'soviet'];
 
 /** Every string leaf of a nested key table. */
 function leaves(value: unknown, out: string[] = []): string[] {

@@ -3,14 +3,17 @@
  * and from what the player has done. The steps are data (src/data/tutorial.ts).
  *
  * One tip at a time. A step starts once the steps it follows have ended and its
- * conditions hold, ends when the player does the thing or its time runs out
- * (or the player closes it), and is then remembered for good, so it never
- * comes back. Nothing here pauses or blocks the battle.
+ * conditions hold, and ends when the player does the thing or its time runs out
+ * (or the player closes it). In a campaign mission an ended tip is remembered for
+ * good, so it never comes back. Basic Training (its own mission) runs its whole
+ * course every time it is played, whatever the hints setting, and remembers
+ * nothing. Nothing here pauses or blocks the battle.
  *
  * Plain TypeScript with no DOM: runs in unit tests with a real battle.
  */
 import type { MissionDef, Order, SupportKind, UnitKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
+import { MEDALS } from '../data/medals';
 import { TUTORIAL, type TutorialCond, type TutorialStep } from '../data/tutorial';
 import { UNIT_KINDS, UNITS } from '../data/units';
 import type { StorageLike } from '../meta';
@@ -79,12 +82,27 @@ function countRecord<K extends string>(keys: readonly K[]): Record<K, number> {
   return out;
 }
 
-/** The steps a mission offers: the guided ones of the first mission, then a tip for each new unit and support. */
+/**
+ * Basic Training's course as it can be taught today: steps that need an engine feature not built yet are left out,
+ * and a step that follows one of those follows the steps before it instead.
+ */
+export function trainingSteps(): TutorialStep[] {
+  const offered = TUTORIAL.steps.filter((s) => s.needs === undefined || TUTORIAL.features[s.needs]);
+  const ids = new Set(offered.map((s) => s.id));
+  return offered.map((s) => (s.after === undefined ? s : { ...s, after: s.after.filter((id) => ids.has(id)) }));
+}
+
+/** True for the Basic Training mission. */
+export function isTraining(mission: MissionDef): boolean {
+  return mission.id === TUTORIAL.trainingMission;
+}
+
+/** The steps a mission offers: Basic Training's course, or a tip for each new unit and support of a campaign mission. */
 export function stepsFor(mission: MissionDef): TutorialStep[] {
+  if (isTraining(mission)) return trainingSteps();
   const out: TutorialStep[] = [];
-  if (mission.id === TUTORIAL.firstMission) out.push(...TUTORIAL.steps);
   const unit = mission.newUnit;
-  const unitTip = unit !== null && mission.id !== TUTORIAL.firstMission ? TUTORIAL.newUnit.tips[unit] : undefined;
+  const unitTip = unit !== null ? TUTORIAL.newUnit.tips[unit] : undefined;
   if (unit !== null && unitTip !== undefined && mission.units[0].includes(unit)) {
     out.push({
       id: `new-unit-${unit}`,
@@ -129,6 +147,8 @@ export class Tutorial {
   tip: TipState | null = null;
   /** True when the mission's own scripted `hint` events are replaced by the guided steps. */
   readonly replacesScriptedHints: boolean;
+  /** Basic Training: every step runs every time, whatever the hints setting, and nothing is remembered. */
+  readonly course: boolean;
 
   private readonly steps: Compiled[];
   private readonly shown: TipState = { seq: 0, text: '', target: 'field' };
@@ -142,6 +162,7 @@ export class Tutorial {
   private readonly trained = countRecord<UnitKind>(UNIT_KINDS);
   private readonly ordered = countRecord<Order>(ORDERS);
   private readonly called = countRecord<SupportKind>(SUPPORT_KINDS);
+  private kindOrders = 0;
   private pans = 0;
   private controls = 0;
   private wasDragging = false;
@@ -153,14 +174,34 @@ export class Tutorial {
   private threat = false;
   private time = 0;
   private supplies = 0;
+  private armyOrder: Order = 'hold';
+  private entrenched = 0;
+  private trenches = 0;
 
   constructor(
     mission: MissionDef,
     private readonly memory: TipMemory,
   ) {
     this.replacesScriptedHints = TUTORIAL.replacesScriptedHints.includes(mission.id);
+    this.course = isTraining(mission);
     this.steps = stepsFor(mission).map(compile);
-    for (const step of this.steps) if (memory.has(step.def.id)) this.seen.add(step.def.id);
+    if (!this.course) for (const step of this.steps) if (memory.has(step.def.id)) this.seen.add(step.def.id);
+  }
+
+  /**
+   * True once the last step of this battle has ended and no tip is up (Basic Training: the course is through). Steps
+   * that come up only on condition (the urgent Fall Back, steering a unit the player never took) may never have shown.
+   */
+  get finished(): boolean {
+    const last = this.steps.length > 0 ? this.steps[this.steps.length - 1] : null;
+    return this.active === null && (last === null || this.seen.has(last.def.id));
+  }
+
+  /** How many steps this battle offers, and how many have ended (for the debug hooks). */
+  get progress(): { done: number; total: number } {
+    let done = 0;
+    for (let i = 0; i < this.steps.length; i++) if (this.seen.has(this.steps[i].def.id)) done++;
+    return { done, total: this.steps.length };
   }
 
   /** The id of the step on screen, or null. */
@@ -177,7 +218,10 @@ export class Tutorial {
 
   /** The player did something on the HUD. */
   noteAction(action: HudAction): void {
-    if (action.type === 'order') this.ordered[action.order]++;
+    if (action.type === 'order') {
+      if (action.kind === undefined) this.ordered[action.order]++;
+      else this.kindOrders++;
+    }
     else if (action.type === 'minimap') this.pans++;
     else if (action.type === 'dismissTip') this.dismiss();
   }
@@ -200,7 +244,7 @@ export class Tutorial {
     if (controlling && !this.wasControlling) this.controls++;
     this.wasControlling = controlling;
 
-    if (!hintsOn) {
+    if (!hintsOn && !this.course) {
       // Switched off: nothing is shown, and nothing is used up.
       this.active = null;
       this.tip = null;
@@ -222,6 +266,7 @@ export class Tutorial {
     const state = battle.state;
     const me = state.sides[0];
     this.supplies = me.supplies;
+    this.armyOrder = me.order;
     let army = 0;
     for (let i = 0; i < UNIT_KINDS.length; i++) {
       const kind = UNIT_KINDS[i];
@@ -229,6 +274,16 @@ export class Tutorial {
     }
     this.army = army;
     if (army > this.armyPeak) this.armyPeak = army;
+
+    let entrenched = 0;
+    for (let i = 0; i < state.unitCount; i++) {
+      const u = state.units[i];
+      if (u.alive && u.side === 0 && u.trenchId >= 0) entrenched++;
+    }
+    this.entrenched = entrenched;
+    let trenches = 0;
+    for (let i = 0; i < state.trenches.length; i++) if (state.trenches[i].owner === 0) trenches++;
+    this.trenches = trenches;
 
     const hq = me.hq;
     let threat = false;
@@ -311,9 +366,10 @@ export class Tutorial {
     this.tip = shown;
   }
 
-  /** Put the faction's own name for the unit or support into the text. */
+  /** Put the faction's own name for the unit or support, and Basic Training's reward, into the text. */
   private fill(step: Compiled, hud: HudState): string {
-    const text = step.def.text;
+    let text = step.def.text;
+    if (text.includes('{reward}')) text = text.replace('{reward}', String(MEDALS.trainingReward));
     if (!text.includes('{name}')) return text;
     const name = step.unit !== null ? this.trainButton(hud, step.unit) : step.support !== null ? this.supportButton(hud, step.support) : null;
     return text.replace('{name}', name ?? '');
@@ -330,7 +386,7 @@ export class Tutorial {
 
   private markSeen(id: string): void {
     this.seen.add(id);
-    this.memory.add(id);
+    if (!this.course) this.memory.add(id);
   }
 
   private holdsAll(conds: readonly TutorialCond[]): boolean {
@@ -342,6 +398,8 @@ export class Tutorial {
     switch (c.t) {
       case 'time':
         return this.time >= c.min;
+      case 'idle':
+        return this.time - this.lastEnd >= c.min;
       case 'supplies':
         return this.supplies >= c.min;
       case 'trained':
@@ -350,6 +408,14 @@ export class Tutorial {
         return this.army >= c.min;
       case 'ordered':
         return this.ordered[c.order] >= c.min;
+      case 'armyOrder':
+        return this.armyOrder === c.order;
+      case 'kindOrdered':
+        return this.kindOrders >= c.min;
+      case 'entrenched':
+        return this.entrenched >= c.min;
+      case 'trenches':
+        return this.trenches >= c.min;
       case 'called':
         return this.called[c.support] >= c.min;
       case 'threat':
@@ -360,6 +426,10 @@ export class Tutorial {
         return this.pans > 0;
       case 'controlled':
         return this.controls > 0;
+      case 'controlling':
+        return this.wasControlling;
+      case 'released':
+        return this.controls > 0 && !this.wasControlling;
       case 'any':
         for (let i = 0; i < c.of.length; i++) if (this.holds(c.of[i])) return true;
         return false;

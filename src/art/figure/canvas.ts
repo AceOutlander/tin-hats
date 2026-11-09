@@ -74,6 +74,7 @@ export function figureBounds(parts: readonly FigurePart[], out: Float64Array): v
 const ICON_POSE: Record<FigureKind, { action: UnitAction; carrying: boolean; time: number }> = {
   sapper: { action: 'idle', carrying: true, time: 1.6 },
   rifle: { action: 'aim', carrying: false, time: 1.4 },
+  conscript: { action: 'aim', carrying: false, time: 1.4 },
   lmg: { action: 'idle', carrying: false, time: 1.4 },
   assault: { action: 'aim', carrying: false, time: 1.4 },
   mortar: { action: 'aim', carrying: false, time: 2.0 },

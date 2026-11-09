@@ -103,10 +103,30 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     vehicleDamageMul: 1,
     pattern: 'scatter',
   },
+
+  // The Soviet signature call-in (docs/campaigns/NATIONS.md): a BM-13 battery's salvo. Many light rockets scattered at
+  // random over a strip far wider than an artillery barrage, with a long cooldown. About the same damage per minute as
+  // the barrage, all at once and spread thin: men spread out or under cover come through it (tests/unit/nations.test.ts).
+  katyusha: {
+    kind: 'katyusha',
+    cooldown: 150,
+    delay: 4,
+    rounds: 16,
+    duration: 2.4,
+    spread: 420,
+    weapon: 'katyushaRocket',
+    smokeRadius: 0,
+    smokeTime: 0,
+    warning: 2.5,
+    launchOffset: 520,
+    hqDamageMul: 0.2,
+    vehicleDamageMul: 0.8,
+    pattern: 'scatter',
+  },
 };
 
 /** In HUD order. */
-export const SUPPORT_KINDS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon'];
+export const SUPPORT_KINDS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon', 'katyusha'];
 
 /** Money each call-in costs on top of its cooldown. Paid when the call is accepted. */
 export const SUPPORT_COST: Record<SupportKind, number> = {
@@ -116,6 +136,7 @@ export const SUPPORT_COST: Record<SupportKind, number> = {
   bomber: 300,
   fighter: 180,
   recon: 100,
+  katyusha: 0,
 };
 
 /**

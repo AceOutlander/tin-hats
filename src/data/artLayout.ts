@@ -51,6 +51,8 @@ export const ART_COLORS = {
   earth: '#40352a',
   earthDark: '#261f18',
   earthRim: '#665543',
+  // Dry grass on the sod banks over Soviet dugouts and the DOT.
+  grass: '#5f6338',
   steel: '#343730',
   steelRim: '#7b8073',
   canvas: '#5a6046',
@@ -73,6 +75,9 @@ export const ART_COLORS = {
   flagWhite: '#d8d2bd',
   flagBlack: '#141414',
   flagFieldGrey: '#6b7670',
+  // The Soviet flag: its red field and the gold of the hammer, sickle and star edge.
+  flagSovietRed: '#b3241c',
+  flagGold: '#e2b53a',
   trackBand: '#1c1d19',
   trackLug: '#5b5c50',
 } as const;
@@ -130,6 +135,23 @@ export const HQ_LAYOUT: Record<FactionId, HqLayout> = {
       { x: -84, y: -50 },
       { x: -6, y: -36 },
       { x: 96, y: -38 },
+    ],
+  },
+  // The Soviet DOT: a concrete pillbox earthed over, its embrasure facing the enemy, the entrance cut into the bank.
+  soviet: {
+    box: { w: 356, h: 240, ox: 176, oy: 226 },
+    bodyW: 300,
+    bodyH: 100,
+    doorX: -30,
+    doorW: 32,
+    doorH: 62,
+    gunSlit: { x: 166, y: -46 },
+    flagBase: { x: -96, y: -112 },
+    flagTop: { x: -96, y: -214 },
+    fires: [
+      { x: -80, y: -44 },
+      { x: 10, y: -66 },
+      { x: 106, y: -44 },
     ],
   },
 };
@@ -238,7 +260,7 @@ export const TRENCH_LAYOUT = {
   pennantW: 12,
   pennantH: 7,
   stakeColor: 0x4a3a28,
-  pennant: { british: 0xb5a46e, german: 0x7c8475 } as Readonly<Record<FactionId, number>>,
+  pennant: { british: 0xb5a46e, german: 0x7c8475, soviet: 0xb3261e } as Readonly<Record<FactionId, number>>,
   /** Seconds the pennant takes to fade in after a capture. */
   pennantFade: 0.6,
 } as const;
@@ -396,20 +418,23 @@ export const PLANE_LAYOUT: Record<PlaneKind, { box: ArtBox; shadowBox: ArtBox; b
 
 /** The tank looks that carry Quartermaster upgrade gear (src/data/looksGear.ts). */
 export type TankLook = FactionLook['tank'] | FactionLook['heavyTank'];
-export const TANK_LOOKS: readonly TankLook[] = ['churchill', 'panzer4', 'kingTiger'];
+export const TANK_LOOKS: readonly TankLook[] = ['churchill', 'panzer4', 'kingTiger', 't34', 'kv1'];
 
 /**
  * Every vehicle rig: the gear-carrying tanks plus the light tanks (Panzer III Ausf. E, and a British cruiser on the
- * same small hull) and the APCs (Universal Carrier, SdKfz 251 half-track). An APC's "turret" is its gunner behind the
+ * same small hull) and the APCs (Universal Carrier, SdKfz 251 half-track), with Soviet stand-ins on borrowed rigs
+ * (t34, kv1, t60, carrierSoviet: TANK_LAYOUT) until the art job draws them. An APC's "turret" is its gunner behind the
  * machine gun and its "barrel" is that gun, so every vehicle draws with the same rig.
  */
-export type VehicleLook = TankLook | 'panzer3' | 'cruiser' | 'carrier' | 'halftrack';
-export const VEHICLE_LOOKS: readonly VehicleLook[] = [...TANK_LOOKS, 'panzer3', 'cruiser', 'carrier', 'halftrack'];
+export type VehicleLook = TankLook | 'panzer3' | 'cruiser' | 'carrier' | 'halftrack' | 't60' | 'carrierSoviet';
+export const VEHICLE_LOOKS: readonly VehicleLook[] = [...TANK_LOOKS, 'panzer3', 'cruiser', 'carrier', 'halftrack', 't60', 'carrierSoviet'];
 
 /** Looks of the vehicle kinds a FactionLook does not name (tank and heavyTank come from FACTIONS[f].look). */
 export const VEHICLE_LOOK_EXTRA: Record<FactionId, Record<'apc' | 'lightTank', VehicleLook>> = {
   british: { apc: 'carrier', lightTank: 'cruiser' },
   german: { apc: 'halftrack', lightTank: 'panzer3' },
+  // The Red Army drove Lend-Lease Universal Carriers from 1942 (NATIONS.md); the T-60 borrows the small rig until drawn.
+  soviet: { apc: 'carrierSoviet', lightTank: 't60' },
 };
 
 /**
@@ -514,7 +539,47 @@ function interleaved(wheels: TankWheelDef[]): TankWheelDef[] {
 
 const DEG = Math.PI / 180;
 
-export const TANK_LAYOUT: Record<VehicleLook, TankLayoutDef> = {
+/** The vehicles drawn so far; the Soviet KV-1, T-60 and carrier borrow a rig below until their own are drawn. */
+const DRAWN_TANK_LAYOUT: Record<Exclude<VehicleLook, 'kv1' | 't60' | 'carrierSoviet'>, TankLayoutDef> = {
+  /**
+   * T-34/76, 1942 (src/art/vehicles/t34.ts): about the Panzer IV's size, five big Christie road wheels a side and no
+   * return rollers (the top run lies on the wheels), the drive sprocket at the rear, the turret well forward, and the
+   * 76.2 mm F-34 overhanging the nose.
+   */
+  t34: {
+    faction: 'soviet',
+    length: 196,
+    height: 82,
+    trackBox: { w: 210, h: 40, ox: 105, oy: 36 },
+    hullBox: { w: 216, h: 40, ox: 108, oy: 26 },
+    turretBox: { w: 86, h: 36, ox: 45, oy: 33 },
+    barrelBox: { w: 86, h: 10, ox: 10, oy: 5 },
+    huskBox: { w: 250, h: 110, ox: 122, oy: 100 },
+    rockPivot: { x: 0, y: -34 },
+    turretRing: { x: 12, y: -54.5 },
+    trunnion: { x: 44, y: -67 },
+    exhaust: { x: -102, y: -40 },
+    hullMg: { x: 90, y: -42 },
+    barrelLength: 74,
+    recoilDist: 6,
+    elevMin: -5 * DEG,
+    elevMax: 25 * DEG,
+    rockMax: 1.9 * DEG,
+    wheels: [
+      ...roadWheels(5, -66, 66, -13.5, 13.5),
+      { kind: 'idler', x: 88, y: -17, r: 10.5 },
+      { kind: 'sprocket', x: -88, y: -17, r: 11 },
+    ],
+    belt: [
+      { x: -88, y: -17, r: 11 },
+      { x: 88, y: -17, r: 10.5 },
+      { x: 66, y: -13.5, r: 13.5 },
+      { x: -66, y: -13.5, r: 13.5 },
+    ],
+    trackThickness: 4.5,
+    trackPitch: 6.4,
+    trackFrames: 4,
+  },
   churchill: {
     faction: 'british',
     length: 216,
@@ -766,6 +831,15 @@ export const TANK_LAYOUT: Record<VehicleLook, TankLayoutDef> = {
     trackFrames: 4,
     passengers: { box: { w: 76, h: 14, ox: 38, oy: 10 }, at: { x: -34, y: -52 }, heads: [-27, -10, 7, 24], headY: 0 },
   },
+};
+
+export const TANK_LAYOUT: Record<VehicleLook, TankLayoutDef> = {
+  ...DRAWN_TANK_LAYOUT,
+  // Stand-ins in Soviet colours: the KV-1 on the Churchill (a heavy, slab-sided tank), the T-60 on the small rig, the
+  // Lend-Lease carrier on the British one (STALINGRAD_BUILD.md, Soviet art).
+  kv1: { ...DRAWN_TANK_LAYOUT.churchill, faction: 'soviet' },
+  t60: { ...DRAWN_TANK_LAYOUT.cruiser, faction: 'soviet' },
+  carrierSoviet: { ...DRAWN_TANK_LAYOUT.carrier, faction: 'soviet' },
 };
 
 /** Most wheels on any tank: size of the preallocated wheel array in a TankPose. */

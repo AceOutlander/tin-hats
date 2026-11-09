@@ -140,6 +140,8 @@ describe('migration', () => {
       armoury: ['lmg'],
       wins: { '1': { normal: 1, hard: 1 }, '2': { normal: 1 } },
       lastMission: 0,
+      // Basic Training (version 7): not finished and not turned down, so its reward is still to be earned.
+      training: { done: false, skipped: false },
       settings: { ...defaultSettings(), ...v1.settings },
     });
   });
@@ -181,9 +183,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     settings: { muted: true, difficulty: 'hard', hints: false },
   };
 
-  it('is behind the current version, 6 (medals and the Armoury joined the save in version 6)', () => {
-    expect(META.saveVersion).toBe(6);
-    expect(defaultSave().version).toBe(6);
+  it('is behind the current version, 7 (medals and the Armoury joined the save in version 6, Basic Training in 7)', () => {
+    expect(META.saveVersion).toBe(7);
+    expect(defaultSave().version).toBe(7);
   });
 
   it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
@@ -569,7 +571,10 @@ function expectUsable(data: SaveData, rules: { missionIds: readonly number[]; up
     }
   }
   expect(Object.getPrototypeOf(data.wins)).toBe(Object.prototype);
-  expect(Object.keys(data).sort()).toEqual(['armoury', 'cleared', 'lastMission', 'medals', 'settings', 'upgrades', 'version', 'wins']);
+  expect(Object.keys(data.training).sort()).toEqual(['done', 'skipped']);
+  expect(typeof data.training.done).toBe('boolean');
+  expect(typeof data.training.skipped).toBe('boolean');
+  expect(Object.keys(data).sort()).toEqual(['armoury', 'cleared', 'lastMission', 'medals', 'settings', 'training', 'upgrades', 'version', 'wins']);
 }
 
 describe('random garbage in storage', () => {

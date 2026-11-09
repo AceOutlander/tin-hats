@@ -13,12 +13,16 @@ import {
   type ArtBox,
   type ArtPoint,
 } from '../../src/data/artLayout';
+import { FACTIONS } from '../../src/data/factions';
+import type { FactionId } from '../../src/data/schema';
 import { VIEW } from '../../src/data/view';
 import { DECAL_KEYS, RUBBLE_KEYS, SUPPLY_KEYS, propSpecs } from '../../src/art/props';
 import { FLAG_KEYS, TRENCH_KEYS, WIRE_KEYS, hqKey, pillboxKey, structureSpecs, trenchSpec } from '../../src/art/structures';
 import { AIR_KEYS, PLANE_KINDS, TANK_KEYS, VEHICLE_LOOKS, planeKey, planeShadowKey, vehicleSpecs } from '../../src/art/vehicles';
 import type { SpriteSpec } from '../../src/art/types';
 
+/** Every nation the art draws (FACTIONS). */
+const NATIONS = Object.keys(FACTIONS) as FactionId[];
 const structures = structureSpecs();
 const vehicles = vehicleSpecs();
 const props = propSpecs();
@@ -138,7 +142,7 @@ describe('structure, vehicle and prop sprite specs', () => {
 
   it('cover exactly the keys the key tables name', () => {
     const named = new Set<string>();
-    for (const faction of ['british', 'german'] as const) for (const state of DAMAGE_STATES) named.add(hqKey(faction, state));
+    for (const faction of NATIONS) for (const state of DAMAGE_STATES) named.add(hqKey(faction, state));
     for (const state of DAMAGE_STATES) named.add(pillboxKey(state));
     Object.values(FLAG_KEYS).forEach((k) => named.add(k));
     Object.values(TRENCH_KEYS).forEach((k) => named.add(k));
@@ -146,7 +150,7 @@ describe('structure, vehicle and prop sprite specs', () => {
     Object.values(AIR_KEYS).forEach((k) => named.add(k));
     for (const kind of PLANE_KINDS) {
       named.add(planeShadowKey(kind));
-      for (const faction of ['british', 'german'] as const) named.add(planeKey(kind, faction));
+      for (const faction of NATIONS) named.add(planeKey(kind, faction));
     }
     for (const look of VEHICLE_LOOKS) {
       const t = TANK_KEYS[look];
@@ -185,7 +189,7 @@ describe('structure, vehicle and prop sprite specs', () => {
       expect(s.ax * s.w, `${key} origin x`).toBeCloseTo(box.ox, 9);
       expect(s.ay * s.h, `${key} origin y`).toBeCloseTo(box.oy, 9);
     };
-    for (const faction of ['british', 'german'] as const) for (const state of DAMAGE_STATES) expectBox(hqKey(faction, state), HQ_LAYOUT[faction].box);
+    for (const faction of NATIONS) for (const state of DAMAGE_STATES) expectBox(hqKey(faction, state), HQ_LAYOUT[faction].box);
     for (const state of DAMAGE_STATES) expectBox(pillboxKey(state), PILLBOX_LAYOUT.box);
     expectBox(WIRE_KEYS.back, WIRE_LAYOUT.backBox);
     expectBox(WIRE_KEYS.front, WIRE_LAYOUT.frontBox);
@@ -248,7 +252,7 @@ describe('structure, vehicle and prop sprite specs', () => {
 
 describe('anchor points', () => {
   it('lie inside their sprite bounds for the HQ bunkers', () => {
-    for (const faction of ['british', 'german'] as const) {
+    for (const faction of NATIONS) {
       const L = HQ_LAYOUT[faction];
       expectInside(L.box, { x: L.doorX - L.doorW / 2, y: 0 }, `${faction} door left foot`);
       expectInside(L.box, { x: L.doorX + L.doorW / 2, y: -L.doorH }, `${faction} door right top`);
@@ -300,13 +304,14 @@ describe('anchor points', () => {
       const L = TANK_LAYOUT[look];
       expect(L.height).toBeGreaterThan(VIEW.figureHeight);
       expect(L.height).toBeLessThan(VIEW.figureHeight * 2.2);
-      // The light early-war tanks (Panzer III, cruiser) are a little under three men long; every other tank is longer.
-      const light = look === 'panzer3' || look === 'cruiser';
+      // The light early-war tanks (Panzer III, cruiser, and the T-60 on the cruiser's rig) are a little under three men
+      // long; every other tank is longer.
+      const light = look === 'panzer3' || look === 'cruiser' || look === 't60';
       expect(L.length).toBeGreaterThan(VIEW.figureHeight * (light ? 2.6 : 3));
       if (light) expect(L.length).toBeLessThan(TANK_LAYOUT.panzer4.length);
     }
     // The APCs are lower and shorter than the tanks, and still taller than half a man.
-    for (const look of ['carrier', 'halftrack'] as const) {
+    for (const look of ['carrier', 'halftrack', 'carrierSoviet'] as const) {
       expect(TANK_LAYOUT[look].height).toBeLessThan(TANK_LAYOUT.panzer4.height);
       expect(TANK_LAYOUT[look].height).toBeGreaterThan(VIEW.figureHeight / 2);
     }

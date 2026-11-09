@@ -315,10 +315,10 @@ export const RENDER = {
       /** Air-dropped ordnance starts this high above the ground (wu) at the launch x (just under the aircraft). */
       airAltitude: 195,
       /** Sprite size multiplier and spin (rad/s) by look. */
-      scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5 } as Readonly<Record<string, number>>,
-      spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0 } as Readonly<Record<string, number>>,
+      scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5, katyusha: 1.3 } as Readonly<Record<string, number>>,
+      spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0, katyusha: 0 } as Readonly<Record<string, number>>,
       /** Smoke trail preset by look ('' for none); it puffs at the preset's own interval. */
-      trail: { grenade: '', mortar: 'projTrailThin', rocket: 'rocketTrail', shell: 'projTrailThin', bomb: 'projTrailThin' } as Readonly<Record<string, string>>,
+      trail: { grenade: '', mortar: 'projTrailThin', rocket: 'rocketTrail', shell: 'projTrailThin', bomb: 'projTrailThin', katyusha: 'katyushaTrail' } as Readonly<Record<string, string>>,
       /** Shots at weapons that are not hitscan, with no projectile event the same step, are drawn as a fast flight of at least this length (s). */
       provisionalMin: 0.12,
       provisionalMax: 0.9,

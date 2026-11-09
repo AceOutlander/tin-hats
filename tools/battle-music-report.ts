@@ -4,8 +4,9 @@
  * memory, levels and the mix against the army of 80.
  *
  *   x.cmd npx tsx tools/battle-music-report.ts [track] [--pieces]
+ *   x.cmd npx tsx tools/battle-music-report.ts <menu|map|stalingradMap> --loop    (a looping track: render time, size)
  */
-import { chromium } from '@playwright/test';
+import { chromium, type Page } from '@playwright/test';
 import { createServer as createNetServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +57,7 @@ async function main(): Promise<number> {
     const page = await browser.newPage();
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
+    if (process.argv.includes('--loop')) return await loopReport(page, port, track, errors);
     await page.goto(`http://127.0.0.1:${port}/dev/music-preview.html?battle=${encodeURIComponent(track)}`);
     await page.waitForFunction(() => (window as unknown as { __battleReady?: boolean }).__battleReady === true, null, { timeout: 300_000 });
     const out = await page.evaluate(() => (window as unknown as { __battle?: Report }).__battle ?? null);
@@ -84,6 +86,22 @@ async function main(): Promise<number> {
     await browser.close();
     await server.close();
   }
+}
+
+/** A looping track (menu or campaign map): rendered once as the game does, its length, size and render time. */
+async function loopReport(page: Page, port: number, track: string, errors: string[]): Promise<number> {
+  await page.goto(`http://127.0.0.1:${port}/dev/music-preview.html?loop=${encodeURIComponent(track)}`);
+  await page.waitForFunction(() => (window as unknown as { __loopReady?: boolean }).__loopReady === true, null, { timeout: 300_000 });
+  const out = await page.evaluate(
+    () => (window as unknown as { __loop?: { track: string; seconds: number; bytes: number; renderMs: number; buildMs: number; rawPeak: number } }).__loop ?? null,
+  );
+  if (!out) {
+    console.log(`no measurements: ${errors.join('; ')}`);
+    return 1;
+  }
+  console.log(`${out.track}: ${out.seconds.toFixed(1)} s loop, ${(out.bytes / 1e6).toFixed(2)} MB, rendered in ${out.renderMs.toFixed(0)} ms (graph ${out.buildMs.toFixed(0)} ms), peak before levelling ${out.rawPeak.toFixed(2)}`);
+  if (errors.length > 0) console.log(`page errors: ${errors.join('; ')}`);
+  return errors.length === 0 ? 0 : 1;
 }
 
 main().then(

@@ -1,6 +1,7 @@
 /**
- * Support call-ins: artillery barrages, smoke screens, air strikes and aircraft (bomber, fighter,
- * recon), and the anti-aircraft fire against them. Each side has its own
+ * Support call-ins: artillery barrages, smoke screens, air strikes, aircraft (bomber, fighter,
+ * recon) and the Soviet Katyusha salvo (a scatter barrage like artillery, much wider and longer to
+ * reload), and the anti-aircraft fire against them. Each side has its own
  * cooldown per kind. A call (validated in commands.ts) starts the cooldown and a strike: the first
  * round leaves SUPPORTS[kind].delay seconds later and the rest follow evenly over `duration`.
  * Rounds are ordinary projectiles (splash through the deferred damage queue, friendly units
@@ -224,6 +225,7 @@ export function updateSupports(w: World): void {
     if (cd.bomber > 0) cd.bomber = cd.bomber > dt ? cd.bomber - dt : 0;
     if (cd.fighter > 0) cd.fighter = cd.fighter > dt ? cd.fighter - dt : 0;
     if (cd.recon > 0) cd.recon = cd.recon > dt ? cd.recon - dt : 0;
+    if (cd.katyusha > 0) cd.katyusha = cd.katyusha > dt ? cd.katyusha - dt : 0;
     for (let k = 0; k < SUPPORT_COUNT; k++) {
       const slot = si * SUPPORT_COUNT + k;
       if (w.strikeTime[slot] < 0) continue;

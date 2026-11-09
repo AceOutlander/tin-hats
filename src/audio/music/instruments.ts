@@ -4,7 +4,7 @@
  * seconds and a velocity 0..1; `dest` is the instrument's bus.
  */
 import type { DrumSettings, HornSettings, PadSettings, PianoSettings, ReverbSettings } from '../../data/music';
-import type { AnvilSettings, BellSettings, BrassSettings, HandSettings, SnareSettings, StringSettings, TimpaniSettings } from '../../data/musicBattle';
+import type { AnvilSettings, BellSettings, BrassSettings, ChoirSettings, HandSettings, SnareSettings, StringSettings, TimpaniSettings, WindSettings } from '../../data/musicBattle';
 import { AUDIO } from '../../data/sounds';
 import { seededRandom } from '../dsp';
 import type { NoiseBank } from '../synth';
@@ -581,4 +581,99 @@ export function playAnvil(ctx: BaseAudioContext, dest: AudioNode, at: number, no
   noiseAt(ctx, bank, 'white', at, at + 0.08, rng).connect(band);
   band.connect(g);
   g.connect(dest);
+}
+
+/**
+ * A wordless choir: detuned sawtooths sharing one slow vibrato, through formant band-passes (the vowel) and a little
+ * breath, swelling in slowly to full in the note's middle and dying away over the release.
+ */
+export function playChoir(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, s: ChoirSettings, bank: NoiseBank, rng: () => number): void {
+  const f = midiHz(note);
+  const end = at + Math.max(length, 0.05);
+  const stop = end + s.release;
+  const peak = s.level * vel;
+  const nyquist = ctx.sampleRate / 2;
+  const env = ctx.createGain();
+  const g = env.gain;
+  g.value = 0;
+  g.setValueAtTime(0, at);
+  g.linearRampToValueAtTime(peak * s.rest, at + Math.min(s.attack, (end - at) * 0.45));
+  g.linearRampToValueAtTime(peak, at + (end - at) * 0.5);
+  g.linearRampToValueAtTime(peak * s.rest, end);
+  g.linearRampToValueAtTime(0, stop);
+  // The vowel: parallel band-passes summed into the envelope.
+  const vowel = ctx.createGain();
+  vowel.gain.value = 1;
+  for (const [hz, level, q] of s.formants) {
+    if (hz > nyquist * 0.9) continue;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = hz;
+    band.Q.value = q;
+    const lv = ctx.createGain();
+    lv.gain.value = level;
+    vowel.connect(band);
+    band.connect(lv);
+    lv.connect(env);
+  }
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = s.vibratoRate * (0.9 + 0.2 * rng());
+  const depth = ctx.createGain();
+  depth.gain.value = s.vibratoCents;
+  lfo.connect(depth);
+  lfo.start(at);
+  stopAt(lfo, stop);
+  const voice = ctx.createGain();
+  voice.gain.value = 1 / Math.max(1, s.voices);
+  for (let v = 0; v < s.voices; v++) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = f;
+    osc.detune.value = s.voices > 1 ? -s.detuneCents + (2 * s.detuneCents * v) / (s.voices - 1) : 0;
+    depth.connect(osc.detune);
+    osc.connect(voice);
+    osc.start(at);
+    stopAt(osc, stop);
+  }
+  voice.connect(vowel);
+  if (s.breath > 0) {
+    const breath = ctx.createGain();
+    breath.gain.value = s.breath;
+    noiseAt(ctx, bank, 'pink', at, stop, rng).connect(breath);
+    breath.connect(vowel);
+  }
+  env.connect(dest);
+}
+
+/**
+ * Wind: looping noise through a resonant band-pass on the note. The band wanders up and down by up to driftCents and
+ * the level gusts, each reaching a new target every 0.6 to 1.4 `gust` seconds, after a slow fade in.
+ */
+export function playWind(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, note: number, vel: number, s: WindSettings, bank: NoiseBank, rng: () => number): void {
+  const top = ctx.sampleRate * 0.45;
+  const f = Math.min(top, midiHz(note));
+  const end = at + Math.max(length, s.attack);
+  const stop = end + s.release;
+  const peak = s.level * vel;
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.Q.value = s.q;
+  const fq = band.frequency;
+  fq.value = f;
+  fq.setValueAtTime(f, at);
+  const env = ctx.createGain();
+  const g = env.gain;
+  g.value = 0;
+  g.setValueAtTime(0, at);
+  g.linearRampToValueAtTime(peak * (1 - s.gustDepth * 0.5), at + s.attack);
+  for (let t = at + s.attack + s.gust * (0.6 + 0.8 * rng()); t < end; t += s.gust * (0.6 + 0.8 * rng())) {
+    fq.linearRampToValueAtTime(Math.min(top, f * Math.pow(2, ((rng() * 2 - 1) * s.driftCents) / 1200)), t);
+    g.linearRampToValueAtTime(peak * (1 - s.gustDepth * rng()), t);
+  }
+  g.linearRampToValueAtTime(peak * (1 - s.gustDepth * 0.5), end);
+  g.linearRampToValueAtTime(0, stop);
+  noiseAt(ctx, bank, s.color, at, stop, rng).connect(band);
+  band.connect(env);
+  env.connect(dest);
 }
