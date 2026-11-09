@@ -1652,6 +1652,27 @@ svg.th-group-icon {
   justify-self: start;
 }
 
+/* About: version, build and what's new, small and quiet at the end of Settings. */
+.th-set-about {
+  grid-column: 1 / -1;
+  padding: 8px 2px 4px;
+  border-top: 1px solid rgba(233, 223, 195, 0.18);
+  font-size: 11px;
+  color: rgba(233, 223, 195, 0.72);
+}
+
+.th-set-build {
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: rgba(233, 223, 195, 0.62);
+}
+
+.th-whats-new {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  line-height: 1.45;
+}
+
 .th-set-grid > .th-toggle {
   min-height: 48px;
 }

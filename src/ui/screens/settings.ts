@@ -4,6 +4,7 @@
  * so on the smallest phones the last row scrolls into view instead of being cut off.
  */
 import type { Difficulty } from '../../data/schema';
+import { WHATS_NEW } from '../../data/version';
 import type { SettingsView } from '../contracts';
 import { add, button, clear, el, stencil } from '../shell/dom';
 import { glyph } from '../shell/icons';
@@ -12,6 +13,9 @@ import { slider, type Slider } from '../shell/slider';
 import type { ScreenFactory } from '../shell/types';
 
 type VolumeSetting = 'musicVolume' | 'ambienceVolume' | 'sfxVolume';
+
+/** The short git commit of this build (vite.config.ts); "dev" where no build set it, as in unit tests. */
+const BUILD_ID = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev';
 
 export const settingsScreen: ScreenFactory = (ctx) => {
   const root = el('section', 'th-screen th-settings');
@@ -173,9 +177,19 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     },
   });
 
+  // About: the version, the build it came from (so a bug report matches an exact build) and what is new in it.
+  const notes = WHATS_NEW[0];
+  const about = el('div', 'th-set-about');
+  about.dataset.testid = 'settings-about';
+  const build = el('div', 'th-type th-set-build', `${ctx.opts.version ?? ''} · build ${BUILD_ID}`);
+  build.dataset.testid = 'settings-version';
+  const list = el('ul', 'th-whats-new');
+  for (const item of notes.items) list.append(el('li', '', item));
+  add(about, build, el('div', 'th-label', `What's new in v${notes.version}`), list);
+
   const grid = el('div', 'th-set-grid th-scroll');
   grid.dataset.scroll = '';
-  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, blood, hints, fps, diffRow, replay, reset);
+  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, blood, hints, fps, diffRow, replay, reset, about);
   const cue = withScrollCue(grid, 'dark');
   add(plate, head, cue.el);
   root.append(plate);

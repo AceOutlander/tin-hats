@@ -33,6 +33,11 @@ The shell is Windows PowerShell 5.1 (no `&&`). Never install anything globally a
 "Push to live" means publishing the current game to https://hunteracedev.com/tin-hats/. Do it only when the owner says
 so, and follow every step:
 
+0. **Bump the version** (the game is in beta, numbered 0.X.Y; owner, 2026-11-08): in `package.json` (and the top of
+   `package-lock.json`) raise the middle number for an update with any new feature, or the last number for a
+   bug-fix-only update, and put a new entry first in `WHATS_NEW` in `src/data/version.ts` listing the changes in plain
+   words. `tests/unit/version.test.ts` fails if the two do not match. Docs-only pushes keep the version. When you tell
+   the owner something is live, always say the version number (for example "live as Beta v0.10.0").
 1. **Check.** `.\x.cmd npm run check` (type-check, lint, build, unit tests) must pass. For anything that touches the menus,
    audio or saving, also run the related browser specs (`.\x.cmd npx playwright test tests/e2e/<spec>`).
 2. **Preview locally at the real address.** The site repo sits next to this one (`..\hunteracedev`). Start its preview
