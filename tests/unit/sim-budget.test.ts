@@ -171,4 +171,29 @@ describe('sim time budget, the longest campaign map with the mission director', 
     expect(best.length).toBe(9000);
     expect(mean).toBeLessThan(BUDGET_MEAN_MS);
   });
+
+  // Ring (1010) has the most buildings: twelve (floors, walls, rubble) and two cover props, all slot records.
+  it(`keeps 1010 (its twelve buildings) played by the bot against the AI under ${BUDGET_MEAN_MS} ms mean per tick`, () => {
+    const m = getMission(1010);
+    if (!m) throw new Error('mission 1010 missing');
+    expect((m.buildings ?? []).length).toBeGreaterThanOrEqual(12);
+    const play = (): number[] => {
+      const b = createBattle({ mission: m, difficulty: 'normal', seed: 2, upgrades: {}, commanders: ['bot', 'ai'] });
+      const out: number[] = [];
+      for (let i = 0; i < 9000 && !b.state.over; i++) {
+        const t0 = performance.now();
+        b.step();
+        out.push(performance.now() - t0);
+      }
+      return out;
+    };
+    play(); // warm the JIT up
+    const best = play();
+    const again = play();
+    for (let i = 0; i < Math.min(best.length, again.length); i++) best[i] = Math.min(best[i], again[i]);
+    const mean = best.reduce((x, y) => x + y, 0) / best.length;
+    console.log(`sim budget 1010: ${best.length} ticks, mean ${mean.toFixed(3)} ms`);
+    expect(best.length).toBeGreaterThan(1000);
+    expect(mean).toBeLessThan(BUDGET_MEAN_MS);
+  });
 });
