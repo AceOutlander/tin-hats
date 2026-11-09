@@ -4,15 +4,16 @@ import type { MissionDef } from '../../schema';
 /**
  * Stalingrad mission 8 (1008): the Tractor Factory, 14 October 1942 (docs/campaigns/STALINGRAD.md, mission 8).
  * A delay: the 37th Guards Rifle Division holds the Dzerzhinsky Tractor Factory against the 14th Panzer Division and
- * two infantry divisions from first light until dark. The yard (trench 1), the machine shops (trench 2), the foundry
- * (trench 3) and the assembly hall (trench 4) are held in turn, the T-34s straight off the line dug in among the
+ * two infantry divisions from first light until dark. The yard (trench 1), the machine shops (B3), the foundry (B2)
+ * and the assembly hall (B1) are held in turn, the T-34s straight off the line dug in among the
  * halls, while panzers and infantry come through the workers' settlement wave after wave.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the brief's delay, in three 420 s
  * phases under the one clock to dark (the bombers, hall by hall, until dark), lost if six Germans get past the cliffs
- * (x 2,000) at once. The halls are trenches (no buildings, floors or rubble yet), a 60 s prep phase comes first (the
- * bot wires the gate); the barrage, the Stukas (scripted raids: the attackers have no HQ), the heavy bomb on the
- * machine shops and the Nebelwerfer are scripted; the loans are scripted waves. The mode stays `survival` (no enemy HQ,
+ * (x 2,000) at once. The halls are two-floor buildings (FOUNDATIONS.md 4.3), goods wagons in the yard are cover props
+ * (the snipers' post), the HQ a log dugout in the bank; a 60 s prep phase comes first (the bot wires the gate); the
+ * barrage, the Stukas (scripted raids: the attackers have no HQ), the heavy bomb that brings down a floor of the machine
+ * shops and the Nebelwerfer are scripted; the loans are scripted waves. The mode stays `survival` (no enemy HQ,
  * a winning clock) and the medals score it as a delay, with a kill bonus. StuG III Ausf. F, Panzer III J and L and
  * Panzer IV Ausf. G are the `tank` kind (the era's Panzer III Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40
  * crew the `at` kind.
@@ -63,14 +64,17 @@ export const M1008: MissionDef = {
       hasHq: true,
       supplies: 450,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 3,
       forces: [
         { kind: 'rifle', count: 8, trenchId: 1 },
-        { kind: 'assault', count: 8, trenchId: 2 },
-        { kind: 'at', count: 2, trenchId: 2 },
-        { kind: 'lmg', count: 3, trenchId: 3 },
-        { kind: 'sniper', count: 2, x: 6200 },
+        // The machine shops (B3) and the foundry (B2).
+        { kind: 'assault', count: 8, buildingId: 3 },
+        { kind: 'at', count: 2, buildingId: 3 },
+        { kind: 'lmg', count: 3, buildingId: 2 },
+        // The snipers among the goods wagons on the sidings.
+        { kind: 'sniper', count: 2, buildingId: 4, behaviour: 'garrison' },
         // The last two T-34s off the factory line, dug in among the halls.
         { kind: 'tank', count: 2, x: 6600, behaviour: 'guard' },
         // Loan from the start: two mortar teams.
@@ -90,13 +94,15 @@ export const M1008: MissionDef = {
   trenches: [
     // The factory yard and its sidings.
     { id: 1, x: 8000, width: 170, slots: 7, owner: 0 },
-    // The machine shops.
-    { id: 2, x: 6300, width: 210, slots: 8, owner: 0 },
-    // The foundry.
-    { id: 3, x: 5200, width: 210, slots: 8, owner: 0 },
-    // The assembly hall.
-    { id: 4, x: 3200, width: 260, slots: 10, owner: 0 },
   ],
+  buildings: [
+    // The assembly hall, the foundry and the machine shops (whose roof the heavy bomb brings in).
+    { id: 1, x: 3200, width: 260, floors: 2, slotsPerFloor: 10, hpMul: 2, owner: 0, look: 'factoryHall', spawn: true },
+    { id: 2, x: 5200, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 1.6, owner: 0, look: 'factoryHall' },
+    { id: 3, x: 6300, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 0.7, owner: 0, look: 'factoryHall' },
+  ],
+  // Goods wagons on the sidings behind the yard trench.
+  props: [{ id: 4, x: 7450, width: 150, slots: 4, look: 'wagons', owner: 0 }],
   pillboxes: [],
   wire: [],
   // A minute to wire the yard gate and the gap in front of the machine shops; the line is past half the field, so the
@@ -118,7 +124,7 @@ export const M1008: MissionDef = {
       objectives: [{ id: 'bombers', type: 'survive', seconds: 420, text: 'Hold the factory' }],
       lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
       sideObjectives: [
-        { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { trench: 2 } }, atEnd: true, bonus: 0.2 },
+        { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { building: 3 } }, atEnd: true, bonus: 0.2 },
         { id: 'tanks25', text: 'Twenty-five tanks', objective: { id: 'tanks25Dead', type: 'kill', side: 1, kinds: ['tank'], count: 25 }, bonus: 0.1 },
       ],
       next: 'halls',
@@ -197,7 +203,7 @@ export const M1008: MissionDef = {
     {
       type: 'hint',
       when: { at: 422 },
-      text: 'When a hall cannot be held, Fall Back and let the next hall fight. A trench lost is not the factory lost.',
+      text: 'When a hall cannot be held, Fall Back and let the next hall fight. A hall lost is not the factory lost.',
     },
     {
       type: 'wave',

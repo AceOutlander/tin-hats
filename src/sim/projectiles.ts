@@ -186,7 +186,7 @@ function explode(w: World, pi: number): void {
   }
 
   // The walls of the buildings it lands among (not the flamethrower's: fire burns the men, not the brick).
-  if (!flush && s.buildings.length > 0) splashWalls(w, side, x, r, weapon.damage * p.damageMul, dtype, x >= p.fromX ? 1 : -1);
+  if (!flush && s.buildings.length > 0) splashWalls(w, side, wi, x, r, weapon.damage * p.damageMul, x >= p.fromX ? 1 : -1);
 
   if (dtype === EXPLOSIVE) {
     const wires = s.wires;

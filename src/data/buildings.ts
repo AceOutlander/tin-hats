@@ -13,6 +13,8 @@ export interface BuildingsDef {
    * bring floors down, bullets do nothing. The flamethrower never harms the walls.
    */
   wallDamage: Record<DamageType, number>;
+  /** Weapons made to bring buildings down (a heavy bomb, a siege shell): a further multiplier on their wall damage. */
+  wallWeaponMul: Partial<Record<string, number>>;
   /** Men on floor 2 and up (0-based floor 1 and up) see further: range x this. */
   upperFloorRange: number;
   /** Anti-tank weapons fired from the top floor of a building standing this many floors or more... */
@@ -33,8 +35,9 @@ export interface BuildingsDef {
 }
 
 export const BUILDINGS: BuildingsDef = {
-  hp: 1200,
-  wallDamage: { bullet: 0, explosive: 0.5, antiTank: 0.4 },
+  hp: 1500,
+  wallDamage: { bullet: 0, explosive: 0.35, antiTank: 0.25 },
+  wallWeaponMul: { heavyBomb: 6, siegeShell: 3 },
   upperFloorRange: 1.08,
   topFloorMinFloors: 3,
   topFloorVsVehicles: 1.3,

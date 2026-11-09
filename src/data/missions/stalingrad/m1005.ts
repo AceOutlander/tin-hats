@@ -6,9 +6,10 @@ import type { MissionDef } from '../../schema';
  * takes the central railway station against the 71st Infantry Division.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1005): a special mission of four phases.
- * Hold the landing (trench 1 for P1) for 180 s, lost if it falls; take the high bank (the riverside blocks, trench 3
- * for P2, with a Nebelwerfer salvo on them); take the station (trench 4 for B5; the Stukas come with daylight); then a
- * 45 s prep phase and hold the station for 240 s against three counter-attacks. The river has no water yet, so trained
+ * Hold the landing (trench 1 for P1) for 180 s, lost if it falls; take the high bank (the riverside apartment blocks
+ * B1 to B4, FOUNDATIONS.md 4.3; B2 for P2, with a Nebelwerfer salvo on it); take the station (B5; the Stukas come with
+ * daylight); then a 45 s prep phase and hold the station for 240 s against three counter-attacks. B6 is the nail
+ * factory hall, the HQ a log dugout (`hqLook`). The river has no water yet, so trained
  * units walk across from the east bank; the boats are free reinforcement waves landing at the landing stage, one load
  * at a time, and the barrage on the river is a smaller load. Flares, the ferry's batching of trained units and the
  * night to day changes wait for their features.
@@ -66,6 +67,7 @@ export const M1005: MissionDef = {
       hasHq: true,
       supplies: 120,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 3,
       forces: [
@@ -84,15 +86,15 @@ export const M1005: MissionDef = {
       sappers: 2,
       forces: [
         // B1 and B2, the riverside apartment blocks.
-        { kind: 'rifle', count: 6, trenchId: 2 },
-        { kind: 'lmg', count: 2, trenchId: 2 },
-        { kind: 'rifle', count: 6, trenchId: 3, behaviour: 'garrison' },
-        { kind: 'lmg', count: 2, trenchId: 3, behaviour: 'garrison' },
+        { kind: 'rifle', count: 6, buildingId: 1 },
+        { kind: 'lmg', count: 2, buildingId: 1 },
+        { kind: 'rifle', count: 6, buildingId: 2, behaviour: 'garrison' },
+        { kind: 'lmg', count: 2, buildingId: 2, behaviour: 'garrison' },
         // B5, the central station.
-        { kind: 'rifle', count: 8, trenchId: 4, behaviour: 'garrison' },
-        { kind: 'lmg', count: 2, trenchId: 4, behaviour: 'garrison' },
+        { kind: 'rifle', count: 8, buildingId: 5, behaviour: 'garrison' },
+        { kind: 'lmg', count: 2, buildingId: 5, behaviour: 'garrison' },
         // B6, the nail factory hall.
-        { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
+        { kind: 'rifle', count: 4, buildingId: 6, behaviour: 'garrison' },
         { kind: 'mortar', count: 1, x: 11250, behaviour: 'guard' },
       ],
     },
@@ -100,11 +102,17 @@ export const M1005: MissionDef = {
   trenches: [
     // P1, the central landing.
     { id: 1, x: 4700, width: 230, slots: 10, owner: 0 },
-    // Buildings until FOUNDATIONS 4.3: B1 and B2 (P2) on the high bank, B5 the station, B6 the nail factory.
-    { id: 2, x: 6500, width: 180, slots: 8, owner: 1 },
-    { id: 3, x: 7400, width: 180, slots: 8, owner: 1 },
-    { id: 4, x: 10200, width: 230, slots: 10, owner: 1 },
-    { id: 5, x: 11000, width: 170, slots: 6, owner: 1 },
+  ],
+  buildings: [
+    // The riverside blocks on the high bank: B1 and B2 (P2) German-held, B3 an empty shell between them, B4 over the
+    // landing stage, ours.
+    { id: 1, x: 6500, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.2, owner: 1, look: 'apartment' },
+    { id: 2, x: 7400, width: 180, floors: 4, slotsPerFloor: 2, hpMul: 1.2, owner: 1, look: 'apartment' },
+    { id: 3, x: 6950, width: 150, floors: 3, slotsPerFloor: 3, hpMul: 1, owner: -1, look: 'apartment' },
+    { id: 4, x: 5600, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1, owner: 0, look: 'apartment' },
+    // B5 the central station, B6 the nail factory hall.
+    { id: 5, x: 10200, width: 230, floors: 2, slotsPerFloor: 6, hpMul: 1.5, owner: 1, look: 'station' },
+    { id: 6, x: 11000, width: 170, floors: 1, slotsPerFloor: 6, hpMul: 1.2, owner: 1, look: 'factoryHall' },
   ],
   pillboxes: [],
   wire: [],
@@ -119,27 +127,27 @@ export const M1005: MissionDef = {
       sideObjectives: [
         // Two boat loads are about ten men: the battalion ashore with fewer lost than that on the way.
         { id: 'ashore', text: 'The whole battalion ashore', failIf: { type: 'lost', count: 10 }, until: 'bank', bonus: 0.1 },
-        { id: 'nails', text: 'The nail factory', objective: { id: 'nailFactory', type: 'capture', point: { trench: 5 } }, bonus: 0.1 },
+        { id: 'nails', text: 'The nail factory', objective: { id: 'nailFactory', type: 'capture', point: { building: 6 } }, bonus: 0.1 },
       ],
       next: 'bank',
     },
     {
       id: 'bank',
       title: 'The high bank',
-      objectives: [{ id: 'bank', type: 'capture', point: { trench: 3 }, text: 'Take the riverside blocks' }],
+      objectives: [{ id: 'bank', type: 'capture', point: { building: 2 }, text: 'Take the riverside blocks' }],
       next: 'station',
     },
     {
       id: 'station',
       title: 'The station',
-      objectives: [{ id: 'station', type: 'capture', point: { trench: 4 }, text: 'Take the station' }],
+      objectives: [{ id: 'station', type: 'capture', point: { building: 5 }, text: 'Take the station' }],
       next: 'holdStation',
     },
     {
       id: 'holdStation',
       title: 'Hold the station',
       prep: { seconds: 45, buildables: ['wire', 'foxhole'] },
-      objectives: [{ id: 'stationHeld', type: 'hold', point: { trench: 4 }, seconds: 240, text: 'Hold the station' }],
+      objectives: [{ id: 'stationHeld', type: 'hold', point: { building: 5 }, seconds: 240, text: 'Hold the station' }],
       next: null,
     },
   ],
@@ -235,13 +243,13 @@ export const M1005: MissionDef = {
       ],
       announce: 'Another regiment\'s boats are getting across.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The riverside blocks are ours. The station lies ahead.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { building: 2 } }, text: 'The riverside blocks are ours. The station lies ahead.' },
     // Phase 3, "The station".
     {
       type: 'wave',
       when: { phase: 'station', delay: 6 },
       side: 0,
-      forces: [{ kind: 'at', count: 3, trenchId: 3, behaviour: 'garrison' }],
+      forces: [{ kind: 'at', count: 3, buildingId: 2, behaviour: 'garrison' }],
       announce: 'Three PTRD teams have come up to the high bank.',
     },
     {
@@ -270,7 +278,7 @@ export const M1005: MissionDef = {
       announce: 'An assault gun with sub-machine gunners.',
     },
     // Phase 4, "Hold the station".
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 4 }, text: 'The station is ours. Hold it.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { building: 5 } }, text: 'The station is ours. Hold it.' },
     {
       type: 'wave',
       when: { phase: 'holdStation', delay: 30 },

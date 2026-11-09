@@ -5,7 +5,8 @@ import type { MissionDef } from '../../schema';
  * through the first day against the 45th Infantry Division's waves, which cross from the South Island on the right.
  *
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1001): the ring barracks (B1), the garrison
- * club (B2) and the Kholm Gate (B3) are trenches standing in for buildings, a 60 s prep phase comes first (the test bot
+ * club (B2, a former church) and the Kholm Gate (B3) are buildings of two floors (FOUNDATIONS.md 4.3), the HQ is a
+ * casemate of the ring barracks (`hqLook`), a 60 s prep phase comes first (the test bot
  * wires the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
  * clock to nightfall). The opening barrage, the Nebelwerfer salvo, the Karl siege mortar and the 21 cm mortars are
  * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The two StuG III Ausf. B are the `tank` kind with the
@@ -36,7 +37,7 @@ export const M1001: MissionDef = {
     ],
     friendly: [
       '10 riflemen and a DP gunner in the barracks and the gate',
-      '2 sappers and 200 Money: the walls shelter like trenches',
+      '2 sappers and 200 Money: the walls stop most rifle fire',
       'Later, from the stores: 2 mortar crews, 5 Tank Hunters',
     ],
   },
@@ -61,14 +62,15 @@ export const M1001: MissionDef = {
       hasHq: true,
       supplies: 200,
       hqHpMul: 1,
+      hqLook: 'casemate',
       incomeMul: 1.25,
       sappers: 2,
       forces: [
         // B1, the ring barracks: 6 riflemen.
-        { kind: 'rifle', count: 6, trenchId: 1 },
+        { kind: 'rifle', count: 6, buildingId: 1 },
         // B3, the Kholm Gate: 4 riflemen and the loaned DP gunner.
-        { kind: 'rifle', count: 4, trenchId: 3 },
-        { kind: 'lmg', count: 1, trenchId: 3 },
+        { kind: 'rifle', count: 4, buildingId: 3 },
+        { kind: 'lmg', count: 1, buildingId: 3 },
       ],
     },
     {
@@ -81,11 +83,12 @@ export const M1001: MissionDef = {
       forces: [],
     },
   ],
-  trenches: [
-    // Buildings until FOUNDATIONS 4.3 lands: B1 ring barracks, B2 the garrison club (a former church), B3 Kholm Gate.
-    { id: 1, x: 1500, width: 160, slots: 6, owner: 0 },
-    { id: 2, x: 2250, width: 140, slots: 5, owner: 0 },
-    { id: 3, x: 3100, width: 160, slots: 6, owner: 0 },
+  trenches: [],
+  // B1 the ring barracks, B2 the garrison club (a former church), B3 the Kholm Gate: two floors each.
+  buildings: [
+    { id: 1, x: 1500, width: 160, floors: 2, slotsPerFloor: 6, hpMul: 1.4, owner: 0, look: 'casemate' },
+    { id: 2, x: 2250, width: 140, floors: 2, slotsPerFloor: 5, hpMul: 1, owner: 0, look: 'church' },
+    { id: 3, x: 3100, width: 160, floors: 2, slotsPerFloor: 6, hpMul: 1.4, owner: 0, look: 'casemate' },
   ],
   pillboxes: [],
   wire: [],
@@ -99,7 +102,7 @@ export const M1001: MissionDef = {
       title: 'The first morning',
       objectives: [{ id: 'morning', type: 'survive', seconds: 240, text: 'Hold the citadel' }],
       sideObjectives: [
-        { id: 'gate', text: 'The Kholm Gate holds', failIf: { type: 'pointLost', point: { trench: 3 } }, bonus: 0.15 },
+        { id: 'gate', text: 'The Kholm Gate holds', failIf: { type: 'pointLost', point: { building: 3 } }, bonus: 0.15 },
         { id: 'stugs', text: 'Knock out both assault guns', objective: { id: 'stugsDead', type: 'kill', side: 1, kinds: ['tank'], count: 2 }, bonus: 0.1 },
       ],
       next: 'parties',
@@ -131,7 +134,7 @@ export const M1001: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
-      text: 'The ring barracks and the Kholm Gate shelter your men like trenches. Keep them full; a wall is worth ten men in the open.',
+      text: 'The ring barracks and the Kholm Gate stop most rifle fire, and men upstairs see further. Keep them full; a wall is worth ten men in the open.',
     },
     {
       type: 'wave',
@@ -240,14 +243,14 @@ export const M1001: MissionDef = {
       type: 'wave',
       when: { at: 482 },
       side: 0,
-      forces: [{ kind: 'at', count: 3, trenchId: 3 }],
+      forces: [{ kind: 'at', count: 3, buildingId: 3 }],
       announce: 'Tank Hunters with grenade bundles have come up from the stores.',
     },
     {
       type: 'wave',
       when: { at: 565 },
       side: 0,
-      forces: [{ kind: 'at', count: 2, trenchId: 3 }],
+      forces: [{ kind: 'at', count: 2, buildingId: 3 }],
       announce: 'Two more Tank Hunters have made it across the courtyard.',
     },
     {

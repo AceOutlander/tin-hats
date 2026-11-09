@@ -195,16 +195,19 @@ describe('taking a building', () => {
 
 describe('a building\'s walls', () => {
   it('lose their top floor to shells; its men drop to a floor below and the floor\'s slots are gone', () => {
-    // 600 hp: below 400 the third floor falls (two heavy bombs: 2 x 220 x 0.5).
+    // 900 hp: below 600 the third floor falls, below 300 the second; one heavy bomb takes 462 (220 x 0.35 x 6).
+    const bomb = 220 * BUILDINGS.wallDamage.explosive * (BUILDINGS.wallWeaponMul.heavyBomb ?? 1);
+    expect(bomb).toBeGreaterThan(300);
+    expect(bomb).toBeLessThan(600);
     const mission = testMission({
-      buildings: [house({ hpMul: 0.5 })],
+      buildings: [house({ hpMul: 900 / BUILDINGS.hp })],
       a: {
         forces: [
           { kind: 'rifle', count: 4, buildingId: 1 },
           { kind: 'at', count: 1, buildingId: 1 },
         ],
       },
-      events: [bombs(1, 1500, 2)],
+      events: [bombs(1, 1500, 1)],
     });
     const b = makeBattle({ mission, ...tough('rifle', 'at') });
     const at = unitsOf(b, 0, 'at')[0];
@@ -212,7 +215,7 @@ describe('a building\'s walls', () => {
     const seen = collect(b, 4, 'floorCollapsed', 'structureHit', 'unitHit');
     const bl = b.state.buildings[0];
     expect(bl.floorsLeft).toBe(2);
-    expect(bl.hp).toBeCloseTo(600 - 2 * 220 * BUILDINGS.wallDamage.explosive, 6);
+    expect(bl.hp).toBeCloseTo(900 - bomb, 6);
     expect(seen.filter((e) => e.type === 'floorCollapsed')).toHaveLength(1);
     expect(seen.some((e) => e.type === 'structureHit' && e.target === 'building')).toBe(true);
     // The anti-tank team was hurt by the fall and now holds the highest floor left, without the roof shot (2 floors).

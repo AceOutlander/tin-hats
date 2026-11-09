@@ -4,15 +4,17 @@ import type { MissionDef } from '../../schema';
 /**
  * Stalingrad mission 9 (1009): Operation Uranus, 19 to 23 November 1942 (docs/campaigns/STALINGRAD.md, mission 9).
  * An armoured breakthrough: a brigade of the 26th Tank Corps breaks the Romanian line out of the Serafimovich
- * bridgehead in fog (trenches 2 and 3), races across the steppe to Perelazovsky (trench 4), beats off the 22nd
+ * bridgehead in fog (trenches 2 and 3), races across the steppe to Perelazovsky (buildings B1 to B3), beats off the 22nd
  * Panzer Division and the Romanian armour in the Don hills (trench 5), rushes the Kalach bridge (its guard post is
  * pillbox 2) and drives on to Sovetsky (trench 6) and the German supply depot (the enemy HQ).
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu in four phases.
  * Siren: the free opening barrage and a Katyusha salvo on the Romanian line, which is taken (trench 3 for P1); the
- * steppe: Perelazovsky (trench 4 for P2) and the Don hills (trench 5 for P3), with the Il-2 and the Po-2 offered from
+ * steppe: Perelazovsky (B2 for P2; B3 is the Romanian corps headquarters; FOUNDATIONS.md 4.3) and the Don hills
+ * (trench 5 for P3), with the Il-2 and the Po-2 offered from
  * here; the Kalach bridge: its guard post (pillbox 2) is destroyed while the column drives in disguised for 40 s;
- * Sovetsky (trench 6 for P4), whose capture closes the ring with the green flares. Reinforcements come up at the
+ * Sovetsky (trench 6 for P4, past the houses of Kalach, B4 and B5), whose capture closes the ring with the green
+ * flares. The HQ is a log dugout (`hqLook`). Reinforcements come up at the
  * positions taken (ForceDef.at). The Romanians field as German troops in the `romanian` look (khaki-brown greatcoat,
  * Adrian helmet; no Romanian nation yet); every German and Romanian tank (Pz 38(t), Panzer III, Panzer IV, R-2) is the
  * `tank` kind (the era's Panzer III Ausf. L, the Panzer IV Ausf. G by look, the R-2s as the short-gun Panzer III
@@ -74,6 +76,7 @@ export const M1009: MissionDef = {
       hasHq: true,
       supplies: 800,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 4,
       forces: [
@@ -105,10 +108,12 @@ export const M1009: MissionDef = {
         { kind: 'at', count: 1, trenchId: 3, look: 'romanian' },
         // A Romanian R-2 light tank behind the second trench.
         { kind: 'tank', count: 1, x: 5900, behaviour: 'guard', look: 'panzer3h' },
-        // Perelazovsky, with a Romanian corps headquarters.
-        { kind: 'rifle', count: 4, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
-        { kind: 'lmg', count: 1, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
-        { kind: 'assault', count: 2, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
+        // Perelazovsky, with a Romanian corps headquarters (B3).
+        { kind: 'rifle', count: 4, buildingId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'lmg', count: 1, buildingId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'assault', count: 2, buildingId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'rifle', count: 2, buildingId: 3, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'lmg', count: 1, buildingId: 3, behaviour: 'garrison', look: 'romanian' },
         // The 22nd Panzer Division's screen in the Don hills: tank-hunting grenadiers with magnetic charges.
         { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 5, behaviour: 'garrison' },
@@ -127,16 +132,21 @@ export const M1009: MissionDef = {
     // The Romanian line.
     { id: 2, x: 4200, width: 200, slots: 8, owner: 1 },
     { id: 3, x: 5600, width: 200, slots: 8, owner: 1 },
-    // Perelazovsky.
-    { id: 4, x: 13000, width: 220, slots: 8, owner: 1 },
     // The Don hills.
     { id: 5, x: 21000, width: 180, slots: 6, owner: 1 },
     // Sovetsky.
     { id: 6, x: 28800, width: 200, slots: 8, owner: 1 },
   ],
+  buildings: [
+    // Perelazovsky: an izba, the village houses (P2) and the Romanian corps headquarters.
+    { id: 1, x: 12550, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.6, owner: -1, look: 'izba' },
+    { id: 2, x: 13000, width: 200, floors: 2, slotsPerFloor: 4, hpMul: 1, owner: 1, look: 'house' },
+    { id: 3, x: 13400, width: 160, floors: 2, slotsPerFloor: 3, hpMul: 1, owner: 1, look: 'house' },
+    // Kalach, on the road to Sovetsky.
+    { id: 4, x: 27900, width: 150, floors: 2, slotsPerFloor: 3, hpMul: 0.8, owner: -1, look: 'house' },
+    { id: 5, x: 28350, width: 130, floors: 1, slotsPerFloor: 4, hpMul: 0.6, owner: -1, look: 'izba' },
+  ],
   pillboxes: [
-    // The Romanian corps headquarters in Perelazovsky.
-    { id: 1, x: 13250, side: 1, hpMul: 1 },
     // The guard post at the Kalach bridge.
     { id: 2, x: 24300, side: 1, hpMul: 1.2 },
   ],
@@ -162,7 +172,7 @@ export const M1009: MissionDef = {
       id: 'steppe',
       title: 'The steppe',
       objectives: [
-        { id: 'perelazovsky', type: 'capture', point: { trench: 4 }, text: 'Take Perelazovsky' },
+        { id: 'perelazovsky', type: 'capture', point: { building: 2 }, text: 'Take Perelazovsky' },
         { id: 'donHills', type: 'capture', point: { trench: 5 }, text: 'Take the Don hills' },
       ],
       next: 'bridge',
@@ -258,20 +268,20 @@ export const M1009: MissionDef = {
       announce: 'Romanian armour on the steppe: their R-2 light tanks.',
     },
     { type: 'announce', when: { phase: 'steppe', delay: 500 }, text: 'A blizzard is blowing up over the steppe.' },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 4 }, text: 'Perelazovsky is ours, and a Romanian corps headquarters with it.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { building: 2 } }, text: 'Perelazovsky is ours, and a Romanian corps headquarters with it.' },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 5 },
+      when: { pointCapturedBy: 0, point: { building: 2 }, delay: 5 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 4, at: { trench: 4 } },
-        { kind: 'assault', count: 2, at: { trench: 4 } },
+        { kind: 'rifle', count: 4, at: { building: 2 } },
+        { kind: 'assault', count: 2, at: { building: 2 } },
       ],
       announce: 'A motor-rifle battalion has caught up at Perelazovsky.',
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 5 },
+      when: { pointCapturedBy: 0, point: { building: 2 }, delay: 5 },
       side: 1,
       forces: [
         { kind: 'tank', count: 4, x: 21700, behaviour: 'guard', look: 'panzer4g' },

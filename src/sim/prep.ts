@@ -33,6 +33,7 @@ function prepState(mission: MissionDef, def: MissionPrepDef, hq0X: number | null
     if (x - PREP.frontGap < to) to = x - PREP.frontGap;
   };
   for (const t of mission.trenches) if (t.owner === 1) enemy(t.x - t.width / 2);
+  for (const b of mission.buildings ?? []) if (b.owner === 1) enemy(b.x - b.width / 2);
   for (const p of mission.pillboxes) if (p.side === 1) enemy(p.x - CONFIG.pillboxWidth / 2);
   for (const w of mission.wire) if (w.owner === 1) enemy(w.x - w.width / 2);
   for (const f of mission.start[1].forces) if (f.x !== undefined) enemy(f.x);

@@ -4,9 +4,10 @@ import type { MissionDef } from '../../schema';
 /**
  * Stalingrad mission 10 (1010): Operation Ring, 10 January to 2 February 1943 (docs/campaigns/STALINGRAD.md,
  * mission 10). The campaign's finale: the Don Front clears the pocket from the western steppe (trenches 2 and 3)
- * through Pitomnik airfield (trench 4, the hangar is pillbox 1) and Gumrak (trench 5, the station is pillbox 2, a
- * Flak pair and a StuG without fuel) into the city's western ruins (trenches 6 and 7, strongpoints as pillboxes) and
- * the central square (trench 8) to the German headquarters in the Univermag (the enemy HQ). The Sixth Army is
+ * through Pitomnik airfield (trench 4, the hangar B1, the wrecked transports) and Gumrak (trench 5, the station B2 and
+ * the sheds B3, a Flak pair and a StuG without fuel) into the city's western ruins (trenches 6 and 7, apartment blocks
+ * B4 to B9) and the central square (trench 8, B10 to B12) to the German headquarters in the Univermag (the enemy HQ,
+ * `hqLook` store). The Sixth Army is
  * starving and short of fuel: its tanks are on guard where they ran dry, its income is low, and it has no aircraft.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): four phases on one backdrop, no
@@ -67,6 +68,7 @@ export const M1010: MissionDef = {
       hasHq: true,
       supplies: 900,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 5,
       forces: [
@@ -88,6 +90,7 @@ export const M1010: MissionDef = {
       supplies: 200,
       // The Univermag's cellars: the last headquarters is dug deep.
       hqHpMul: 3,
+      hqLook: 'store',
       // Starving and short of everything, shells too.
       supportCooldown: { artillery: 180 },
       incomeMul: 0.5,
@@ -103,22 +106,39 @@ export const M1010: MissionDef = {
         { kind: 'rifle', count: 4, trenchId: 4, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 4, behaviour: 'garrison' },
         { kind: 'tank', count: 1, x: 11500, behaviour: 'guard', leash: 0 },
+        // The hangar's machine gun, and riflemen behind a wrecked transport.
+        { kind: 'lmg', count: 1, buildingId: 1, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 1, behaviour: 'garrison' },
+        { kind: 'rifle', count: 2, buildingId: 13, behaviour: 'garrison' },
         // Gumrak: the station and two assault guns without fuel.
         { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 5, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 2, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 2, behaviour: 'garrison' },
         { kind: 'tank', count: 2, x: 16800, behaviour: 'guard', look: 'stug3f', leash: 0 },
         // The city's western ruins.
         { kind: 'rifle', count: 2, trenchId: 6, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 6, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 4, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 4, behaviour: 'garrison' },
         { kind: 'tank', count: 1, x: 20300, behaviour: 'guard', leash: 0 },
         { kind: 'rifle', count: 2, trenchId: 7, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 7, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 7, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 6, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 6, behaviour: 'garrison' },
         { kind: 'tank', count: 1, x: 22300, behaviour: 'guard', look: 'panzer4g', leash: 0 },
+        { kind: 'lmg', count: 1, buildingId: 8, behaviour: 'garrison' },
+        { kind: 'sniper', count: 1, buildingId: 9, behaviour: 'garrison' },
         // The central square.
         { kind: 'rifle', count: 2, trenchId: 8, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 8, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 8, behaviour: 'garrison' },
+        { kind: 'sniper', count: 1, buildingId: 10, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 11, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 11, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 12, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 12, behaviour: 'garrison' },
         { kind: 'tank', count: 2, x: 26300, behaviour: 'guard', leash: 0 },
       ],
     },
@@ -139,19 +159,30 @@ export const M1010: MissionDef = {
     // The central square.
     { id: 8, x: 25500, width: 200, slots: 8, owner: 1 },
   ],
-  pillboxes: [
-    // The hangar at Pitomnik.
-    { id: 1, x: 10700, side: 1, hpMul: 1 },
-    // Gumrak station.
-    { id: 2, x: 16200, side: 1, hpMul: 1.2 },
-    // Strongpoints in the ruins and on the square.
-    { id: 3, x: 19700, side: 1, hpMul: 1.6 },
-    { id: 4, x: 21700, side: 1, hpMul: 1.6 },
-    { id: 5, x: 23200, side: 1, hpMul: 1.6 },
-    { id: 6, x: 24700, side: 1, hpMul: 1.6 },
-    { id: 7, x: 26500, side: 1, hpMul: 1.8 },
-    { id: 8, x: 27200, side: 1, hpMul: 1.8 },
+  buildings: [
+    // Pitomnik: the hangar.
+    { id: 1, x: 10650, width: 220, floors: 1, slotsPerFloor: 6, hpMul: 1.2, owner: 1, look: 'hangar' },
+    // Gumrak: the station and the goods sheds.
+    { id: 2, x: 16150, width: 200, floors: 2, slotsPerFloor: 4, hpMul: 1.2, owner: 1, look: 'station' },
+    { id: 3, x: 15600, width: 180, floors: 1, slotsPerFloor: 5, hpMul: 0.8, owner: -1, look: 'sheds' },
+    // The city's western ruins: apartment blocks, the strongpoints held, the rest empty shells.
+    { id: 4, x: 19700, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 5, x: 20500, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1.2, owner: -1, look: 'apartment' },
+    { id: 6, x: 21650, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 7, x: 22450, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1.2, owner: -1, look: 'apartment' },
+    { id: 8, x: 23200, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 9, x: 23800, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1.6, owner: 1, look: 'apartment' },
+    // The central square.
+    { id: 10, x: 24700, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 11, x: 26500, width: 200, floors: 4, slotsPerFloor: 3, hpMul: 1.8, owner: 1, look: 'apartment' },
+    { id: 12, x: 27150, width: 160, floors: 3, slotsPerFloor: 3, hpMul: 1.8, owner: 1, look: 'house' },
   ],
+  // The wrecked transports on Pitomnik's field: a Ju 52 (riflemen behind it) and an He 111.
+  props: [
+    { id: 13, x: 9750, width: 190, slots: 4, look: 'ju52Wreck', owner: 1 },
+    { id: 14, x: 10250, width: 170, slots: 3, look: 'he111Wreck' },
+  ],
+  pillboxes: [],
   wire: [
     // The minefield and wire on the western steppe.
     { id: 1, x: 4200, width: 140, owner: 1 },

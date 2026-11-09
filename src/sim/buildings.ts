@@ -14,13 +14,16 @@
 import { BUILDINGS } from '../data/buildings';
 import { DAMAGE } from '../data/damage';
 import type { BuildingDef, CoverPropDef, MissionDef, PointRef } from '../data/schema';
-import { CLASS_BUILDING, CLASS_RUBBLE, DAMAGE_TYPES, WEAPON_DTYPE } from './tables';
+import { CLASS_BUILDING, CLASS_RUBBLE, DAMAGE_TYPES, WEAPON_DTYPE, WEAPON_LIST } from './tables';
 import { claimSlot, enterSlot, releaseSlot } from './trenches';
 import { TARGET_BUILDING, TARGET_UNIT, type BattleState, type BuildingState, type TrenchState, type UnitState } from './types';
 import type { World } from './world';
 
 /** slotUnit value of a slot that is gone (on a fallen floor, or beyond the rubble's room). */
 export const SLOT_SEALED = -2;
+
+/** Per weapon: BUILDINGS.wallWeaponMul (1 for most). */
+const WALL_MUL: Float64Array = Float64Array.from(WEAPON_LIST, (weapon) => BUILDINGS.wallWeaponMul[weapon.id] ?? 1);
 
 const ANTI_TANK = DAMAGE_TYPES.indexOf('antiTank');
 const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
@@ -192,9 +195,10 @@ export function updateBuildings(w: World): void {
  * Splash on the walls (projectiles.ts explode): every standing, breakable building within `r` of x that `side` does
  * not own takes `base` x falloff x BUILDINGS.wallDamage of its damage type, through the damage queue.
  */
-export function splashWalls(w: World, side: number, x: number, r: number, base: number, dtype: number, dir: number): void {
+export function splashWalls(w: World, side: number, wi: number, x: number, r: number, base: number, dir: number): void {
   const buildings = w.state.buildings;
-  const share = BUILDINGS.wallDamage[DAMAGE_TYPES[dtype]];
+  const dtype = WEAPON_DTYPE[wi];
+  const share = BUILDINGS.wallDamage[DAMAGE_TYPES[dtype]] * WALL_MUL[wi];
   if (share <= 0) return;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];

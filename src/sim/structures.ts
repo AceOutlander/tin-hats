@@ -8,8 +8,8 @@ import { TARGET_NONE, type EntityKind, type MountState } from './types';
 import type { World } from './world';
 
 /**
- * The line a side's army holds under Hold: the forward-most trench it owns,
- * or holdLineOffset in front of its HQ, or its map edge if it has neither.
+ * The line a side's army holds under Hold: the forward-most trench (or building) it owns,
+ * or holdLineOffset in front of its HQ, or its map edge if it has neither. A cover prop is no line.
  * Also sets the side's hold trench, the base its formation forms up behind
  * (behind the trench's rear edge when the line is a trench) and the line's forward edge.
  */
@@ -20,6 +20,7 @@ function holdLineOf(w: World, side: number): void {
   for (let i = 0; i < s.trenches.length; i++) {
     const t = s.trenches[i];
     if (t.owner !== side) continue;
+    if (t.building >= 0 && s.buildings[t.building].prop) continue;
     if (best < 0 || (t.x - s.trenches[best].x) * dir > 0) best = i;
   }
   w.holdTrench[side] = best;
