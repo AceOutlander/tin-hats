@@ -8,6 +8,7 @@
  * trained units may deploy (SideState.deploy) and where Fall Back rallies. Both sides are counted before any point
  * changes hands, so the order of the unit pool never favours a side.
  */
+import { CONFIG } from '../data/config';
 import { POINT_RULES } from '../data/ground';
 import type { MissionDef } from '../data/schema';
 import { KIND_SAPPER } from './tables';
@@ -115,10 +116,15 @@ export function updatePoints(w: World, dt: number): void {
   s.sides[1].deployPoint = resolveDeploy(w, 1);
 }
 
-/** Whether side `si` may deploy at (or rally to) point `k` now: its spawn point, owned and uncontested. */
+/**
+ * Whether side `si` may deploy at (or rally to) point `k` now: its spawn point, owned and uncontested, with the other
+ * side's front still ahead of its zone (nobody of theirs has slipped past it), so the two lines never cross.
+ */
 export function pointAvailable(w: World, si: number, k: number): boolean {
   const p = w.state.points[k];
-  return p.spawn && p.owner === si && !p.contested;
+  if (!p.spawn || p.owner !== si || p.contested) return false;
+  const dir = si === 0 ? 1 : -1;
+  return (w.front[1 - si] - p.x) * dir > p.width / 2 + CONFIG.spacing * 2;
 }
 
 /** The forward-most available spawn point of a side, or -1. */

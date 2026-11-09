@@ -273,6 +273,17 @@ export function checkInvariants(b: Battle): void {
     }
     if (!(p.flightTime > 0) || p.age < 0 || p.age > p.flightTime) throw new Error(`${where}: projectile ${p.id} age ${p.age}/${p.flightTime}`);
   }
+  for (const p of s.points) {
+    if (p.owner !== -1 && p.owner !== 0 && p.owner !== 1) throw new Error(`${where}: point ${p.id} owner ${p.owner}`);
+    if (!(p.progress >= 0 && p.progress <= 1)) throw new Error(`${where}: point ${p.id} progress ${p.progress}`);
+    if (p.trench >= 0 && p.owner !== s.trenches[p.trench].owner) throw new Error(`${where}: point ${p.id} out of step with its trench`);
+  }
+  for (let si = 0; si < 2; si++) {
+    const k = s.sides[si].deployPoint;
+    if (k >= 0 && (k >= s.points.length || s.points[k].owner !== si || !s.points[k].spawn)) {
+      throw new Error(`${where}: side ${si} deploys at point ${k} it cannot use`);
+    }
+  }
   const smokes = s.smokes.filter((smoke) => smoke.alive).length;
   if (smokes !== (b as unknown as { smokeCount: number }).smokeCount) throw new Error(`${where}: smokeCount out of step`);
 }
