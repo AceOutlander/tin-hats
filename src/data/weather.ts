@@ -1,8 +1,34 @@
 /**
- * Weather numbers. Weather is visual only: it never touches the simulation or
- * its RNG. The logic that reads this file is in src/fx (weather.ts, rain.ts,
- * lightning.ts).
+ * Weather numbers. Two kinds of weather:
+ * - the random rain and its thunder (WEATHER) are visual only: they never touch the simulation or its RNG. The logic
+ *   that reads them is in src/fx (weather.ts, rain.ts, lightning.ts);
+ * - scripted weather and time of day (WEATHER_SIM, FOUNDATIONS.md 4.7) are sim state set by the mission
+ *   (MissionDef.weather, timeOfDay and the weather, time and flare events, src/sim/sky.ts); the view draws them with
+ *   WEATHER_LOOKS (src/render/weather/sky.ts).
  */
+import type { FactionId, SupportKind, TimeOfDay, WeatherKind } from './schema';
+
+export const WEATHER_KINDS: readonly WeatherKind[] = ['clear', 'overcast', 'rain', 'snow', 'blizzard', 'fog', 'dust', 'smoke'];
+
+/** The sim's rules for scripted weather and time of day (src/sim/sky.ts). */
+export const WEATHER_SIM = {
+  /**
+   * Visibility by weather: the share of a weapon's range at which direct-fire and hitscan weapons may pick a target
+   * (lobbed weapons are not limited). Both sides alike. With the time of day the lower of the two applies.
+   */
+  visibility: { clear: 1, overcast: 1, rain: 1, snow: 1, blizzard: 0.7, fog: 0.6, dust: 0.8, smoke: 0.85 } as Record<WeatherKind, number>,
+  /** Visibility by time of day (night: MissionDef.nightVisibility overrides it). */
+  time: { dawn: 1, day: 1, overcast: 1, dusk: 1, night: 0.65 } as Record<TimeOfDay, number>,
+  /** A flare: visibility 1 over `width` wu centred on it, for `seconds`. */
+  flare: { seconds: 20, width: 1500 },
+  /** Call-ins flown by aircraft: none in these weathers, and none at night (but for nightAir). */
+  air: ['airStrike', 'bomber', 'fighter', 'recon'] as readonly SupportKind[],
+  groundedBy: ['fog', 'blizzard'] as readonly WeatherKind[],
+  /** Aircraft that fly at night, by nation (the Soviet recon plane is the Po-2, the night bomber). */
+  nightAir: { soviet: ['recon'] } as Partial<Record<FactionId, readonly SupportKind[]>>,
+  /** The blizzard: men on foot (not sappers on the supply road, nor vehicles) move at x0.9; accuracyFar x0.85. */
+  blizzard: { infantrySpeed: 0.9, accuracyFar: 0.85 },
+};
 
 /** The three numbers that drive the weather controller. */
 export interface WeatherConfig {

@@ -13,6 +13,9 @@ import type { MissionDef } from '../../schema';
  * spawn once ours), where the Germans counter-attack 90 s after it falls; it is held for 150 s. The ground is snow, the
  * birch wood forest. The halt hut (B1) and two izbas of the hamlet are buildings (FOUNDATIONS.md 4.3) and the HQ is a
  * log dugout (`hqLook`). The tank traps wait for their feature.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the russiaSummer theatre's winter look; overcast and frosty, snow from phase 2,
+ * dusk as Katukov's tanks come up.
  */
 export const M1003: MissionDef = {
   id: 1003,
@@ -44,9 +47,9 @@ export const M1003: MissionDef = {
       'Artillery, smoke and the first Katyusha salvoes',
     ],
   },
-  // Stand-ins until the russiaSummer winter variant exists (STALINGRAD_BUILD.md).
-  theatre: 'germany',
+  theatre: 'russiaSummer',
   timeOfDay: 'overcast',
+  weather: 'overcast',
   mode: 'hold',
   length: 16000,
   // The unlock order (DECISIONS 295): the PPD submachine gunners. The anti-tank kind came with Brest (the Tank Hunters);
@@ -170,6 +173,8 @@ export const M1003: MissionDef = {
     // The director's events: the barrage on the halt, the Stuka, the rocket battery, the German posture.
     { id: 'openingBarrage', type: 'barrage', when: { phase: 'morning' }, side: 1, x: 5600, spread: 400, rounds: 5, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on the halt!' },
     // The Stuka goes for the rear trench and the road behind the halt (on the halt itself it broke the hold, DECISIONS 318).
+    { id: 'firstSnow', type: 'weather', when: { phase: 'again' }, to: 'snow', over: 60 },
+    { id: 'dusk', type: 'time', when: { phase: 'katukov' }, to: 'dusk', over: 120 },
     { id: 'stuka', type: 'airRaid', when: { phase: 'morning', delay: 60 }, side: 1, support: 'airStrike', x: 4200 },
     { id: 'katyusha', type: 'support', when: { phase: 'again' }, side: 0, kind: 'katyusha', enabled: true },
     { id: 'pakHold', type: 'posture', when: { phase: 'again', delay: 160 }, side: 1, posture: 'hold' },

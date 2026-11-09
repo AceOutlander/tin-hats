@@ -247,6 +247,9 @@ function walk(w: World, u: UnitState, dir: number): boolean {
     const mode = u.def.class === 'vehicle' ? 2 : u.skis ? 4 : 0;
     step *= g.speed[c * GROUND_MODES + mode + (dx < 0 ? 1 : 0)];
   }
+  // The blizzard slows men on foot (src/sim/sky.ts; 1 in any other weather). Sappers on the supply road are spared.
+  const wading = s.sky.infantrySpeed;
+  if (wading !== 1 && u.def.class !== 'vehicle' && u.kindIndex !== KIND_SAPPER) step *= wading;
   let nx = dx > step ? u.x + step : dx < -step ? u.x - step : goalX;
   if ((nx - u.x) * dir > 0) {
     const limit = w.limit[u.side];

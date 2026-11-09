@@ -8,9 +8,10 @@
  * unharmed); smoke is an ordinary cloud.
  */
 import { CONFIG } from '../data/config';
-import type { SupportDef, SupportKind } from '../data/schema';
+import type { Side, SupportDef, SupportKind } from '../data/schema';
 import { ANTI_AIR, PLANES, SUPPORTS, SUPPORT_COST, SUPPORT_KINDS, TOP_ATTACK_SUPPORTS, type PlaneDef } from '../data/supports';
 import { LAUNCH, launch, spawnSmoke } from './projectiles';
+import { airGrounded } from './sky';
 import { KIND_ANTI_AIR, weaponIndex } from './tables';
 import type { UnitState } from './types';
 import type { World } from './world';
@@ -40,7 +41,9 @@ export function canCallSupport(w: World, si: number, kind: SupportKind): boolean
     side.supportCooldown[kind] <= 0 &&
     side.supplies >= SUPPORT_COST[kind] &&
     // One aircraft of a kind per side at a time (its run may outlast a short cooldown).
-    w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE
+    w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE &&
+    // No aircraft in fog or a blizzard, nor at night but for the nation's night flyers (FOUNDATIONS.md 4.7).
+    airGrounded(w.state, si as Side, kind) === null
   );
 }
 

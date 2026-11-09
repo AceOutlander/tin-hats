@@ -13,6 +13,9 @@ import type { MissionDef } from '../../schema';
  * is the brief's sectors (FOUNDATIONS.md 4.1): cobbles, the Kholm Gate's rubble, the Mukhavets bridge as road (until
  * rivers and bridges exist) and the South Island's wood. The two StuG III Ausf. B are the `tank` kind with the `stug3b`
  * look (src/data/eras.ts).
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the russiaSummer theatre; dawn turns to day over the first minute of phase 2,
+ * when the smoke of the burning fortress settles (visibility 0.85 for both sides).
  */
 export const M1001: MissionDef = {
   id: 1001,
@@ -43,9 +46,9 @@ export const M1001: MissionDef = {
       'Later, from the stores: 2 mortar crews, 5 Tank Hunters',
     ],
   },
-  // Stand-ins until the russiaSummer theatre exists (STALINGRAD_BUILD.md).
-  theatre: 'france',
+  theatre: 'russiaSummer',
   timeOfDay: 'dawn',
+  weather: 'clear',
   mode: 'survival',
   length: 7000,
   // The campaign's unlock order (DECISIONS 295): Brest brings the rifle company's two basics, the DP gunner and the
@@ -135,6 +138,9 @@ export const M1001: MissionDef = {
     // mortar and the 21 cm mortars, free and on the phase clocks.
     { id: 'openingBarrage', type: 'banner', when: { phase: 'morning' }, text: 'Artillery!', sound: 'alarm' },
     { type: 'barrage', when: { phase: 'morning' }, side: 1, x: 2500, spread: 900, rounds: 14, duration: 8, weapon: 'artilleryShell' },
+    // Dawn to day, then the smoke haze (FOUNDATIONS.md 4.7).
+    { id: 'daybreak', type: 'time', when: { phase: 'parties' }, to: 'day', over: 60 },
+    { id: 'smokeHaze', type: 'weather', when: { phase: 'parties' }, to: 'smoke', over: 30 },
     { id: 'nebelwerfer', type: 'barrage', when: { phase: 'parties', delay: 20 }, side: 1, x: 3100, spread: 220, rounds: 12, duration: 3, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
     { id: 'karl1', type: 'barrage', when: { phase: 'guns', delay: 90 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },
     { id: 'karl2', type: 'barrage', when: { phase: 'guns', delay: 180 }, side: 1, x: 2900, spread: 260, rounds: 1, duration: 0, weapon: 'siegeShell', warning: 'Heavy siege mortar: get clear!', delay: 4 },

@@ -23,6 +23,11 @@ import type { MissionDef } from '../../schema';
  * `lightTank` is the 1939 to 1941 Panzer III Ausf. E; the 37 mm and Pak 38/40 crews are the `at` kind; the KV-1S stands
  * in as a T-34 (`tank`). The fog, the blizzard and the bridge's demolition (bridges, FOUNDATIONS.md 4.4) wait for their
  * features.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the steppe theatre's winter look; the attack goes in at dawn in fog
+ * (visibility 0.6, no air); it lifts over 120 s into a clear day, the short window for the Il-2s, until the blizzard
+ * (0.7, no air) 500 s into the steppe; night falls at the bridge (only the Po-2 flies by night), and green flares
+ * go up over Sovetsky at the end.
  */
 export const M1009: MissionDef = {
   id: 1009,
@@ -55,8 +60,9 @@ export const M1009: MissionDef = {
       'Artillery, smoke, Katyusha, the Il-2 and the Po-2',
     ],
   },
-  theatre: 'france',
+  theatre: 'steppe',
   timeOfDay: 'dawn',
+  weather: 'fog',
   mode: 'assault',
   length: 30000,
   // The unlock order (DECISIONS 295): the Lend-Lease Universal Carrier.
@@ -228,6 +234,12 @@ export const M1009: MissionDef = {
     { id: 'sirenKatyusha', type: 'airRaid', when: { phase: 'siren', delay: 10 }, side: 0, support: 'katyusha', x: 5000 },
     { id: 'il2', type: 'support', when: { phase: 'steppe' }, side: 0, kind: 'airStrike', enabled: true },
     { id: 'po2', type: 'support', when: { phase: 'steppe' }, side: 0, kind: 'recon', enabled: true },
+    // Fog, then clear, then the blizzard; night at the bridge; the green flares (FOUNDATIONS.md 4.7).
+    { id: 'fogLifts', type: 'weather', when: { phase: 'steppe' }, to: 'clear', over: 120 },
+    { id: 'day', type: 'time', when: { phase: 'steppe' }, to: 'day', over: 120 },
+    { id: 'blizzard', type: 'weather', when: { phase: 'steppe', delay: 500 }, to: 'blizzard', over: 60 },
+    { id: 'night', type: 'time', when: { phase: 'bridge' }, to: 'night', over: 60 },
+    { id: 'greenFlares', type: 'flare', when: { objective: 'sovetsky' }, side: 0, x: 28800 },
     // Headlights on: the column is not engaged on the road to the bridge for 40 s unless it opens fire.
     { id: 'headlights', type: 'disguise', when: { phase: 'bridge' }, side: 0, seconds: 40, x0: 21000, x1: 24600 },
     { type: 'announce', when: { at: 2 }, text: 'Siren! Every gun on the front has opened fire.' },

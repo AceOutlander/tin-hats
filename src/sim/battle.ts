@@ -15,6 +15,7 @@ import { createAi, runCommanders } from './commander';
 import { updateEconomy } from './economy';
 import { EventQueue } from './events';
 import { createDirector, directorEvents, normalPhases, resetTriggerClocks, startDirector } from './director';
+import { createSky, updateSky } from './sky';
 import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
 import { createPrep, updateBuilds, updatePrep } from './prep';
@@ -302,6 +303,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
         }
       : null,
     director: createDirector(normalPhases(mission).length, [mods[0].income, mods[1].income]),
+    sky: createSky(mission),
   };
 }
 
@@ -441,6 +443,7 @@ class BattleImpl implements Battle, World {
     runCommanders(this); // their commands apply at the start of the next tick, like the player's
     updatePrep(this); // the countdown; the mission clock and events wait while it runs
     updateMission(this);
+    updateSky(this); // a weather or time change past its midpoint takes effect; flares burn out
     cheatTraining(this); // admin panel: instant training
     updateEconomy(this);
     updateBuilds(this); // sappers on build sites; a finished site becomes its structure

@@ -34,6 +34,7 @@ export {
 export { SIM_FEATURES } from './features';
 export { buildProblem, inPrep, missionTime } from './prep';
 export { directorScore, normalPhases, pointOwner, structureHealth, type DirectorScore } from './director';
+export { airGrounded, flareLit, scriptsWeather, timeBlend, visibilityOf, weatherBlend } from './sky';
 export { orderCost, orderPop } from './tables';
 export { Rng } from './rng';
 export { DEPLOY_AUTO, DEPLOY_HQ, TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';
@@ -56,6 +57,7 @@ export type {
   EndReason,
   EntityKind,
   EventBuffer,
+  FlareState,
   HqState,
   MountState,
   ObjectiveState,
@@ -69,6 +71,7 @@ export type {
   SimEvent,
   SimEventType,
   SimFeatures,
+  SkyState,
   SmokeState,
   TimerState,
   TrenchState,

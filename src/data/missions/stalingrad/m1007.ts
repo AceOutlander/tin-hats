@@ -19,6 +19,9 @@ import type { MissionDef } from '../../schema';
  * floor fire down on the tanks (BUILDINGS.topFloorVsVehicles); the side objective "no German sets foot inside" is the
  * `contested` loss; the HQ is the Gerhardt mill (`hqLook`), and the blocks across the square (B2 to B4) are German
  * cover, their snipers in B2.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the stalingrad theatre under smoke; the house is taken by night, day one,
+ * night one (flares over the square), day two, and the last night in the first snow of November.
  */
 export const M1007: MissionDef = {
   id: 1007,
@@ -49,8 +52,9 @@ export const M1007: MissionDef = {
       'Later a sniper and 2 PTRS teams; guns from the far bank',
     ],
   },
-  theatre: 'holland',
-  timeOfDay: 'dusk',
+  theatre: 'stalingrad',
+  timeOfDay: 'night',
+  weather: 'smoke',
   mode: 'survival',
   length: 7000,
   // The unlock order (DECISIONS 295): the Lieutenant, after Afanasyev, who came up with his section and took command.
@@ -162,6 +166,14 @@ export const M1007: MissionDef = {
     // The brief's Stuka on the house: its walls and floors take the bombs now (DECISIONS 318, 337).
     { id: 'stuka', type: 'airRaid', when: { phase: 'dayOne', delay: 120 }, side: 1, support: 'airStrike', x: 2450 },
     { id: 'katyusha', type: 'support', when: { phase: 'lastNight' }, side: 0, kind: 'katyusha', enabled: true },
+    // Days and nights (FOUNDATIONS.md 4.7): flares over the square by night, the first snow on the last night.
+    { id: 'dayOneLight', type: 'time', when: { phase: 'dayOne' }, to: 'day', over: 30 },
+    { id: 'nightOneFalls', type: 'time', when: { phase: 'nightOne' }, to: 'night', over: 40 },
+    { id: 'nightOneFlares', type: 'flare', when: { phaseEvery: 45, phase: 'nightOne', from: 30 }, side: 0, x: 3400 },
+    { id: 'dayTwoLight', type: 'time', when: { phase: 'dayTwo' }, to: 'day', over: 40 },
+    { id: 'lastNightFalls', type: 'time', when: { phase: 'lastNight' }, to: 'night', over: 40 },
+    { id: 'lastNightFlares', type: 'flare', when: { phaseEvery: 45, phase: 'lastNight', from: 30 }, side: 0, x: 3400 },
+    { id: 'firstSnow', type: 'weather', when: { phase: 'lastNight' }, to: 'snow', over: 60 },
     {
       type: 'wave',
       when: { pointCapturedBy: 0, point: { building: 1 } },

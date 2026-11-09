@@ -32,6 +32,7 @@ import { releaseAll } from './control';
 import { fireEvent } from './mission';
 import { inPrep, missionTime, startPhasePrep } from './prep';
 import { LAUNCH, launch } from './projectiles';
+import { airGrounded, changeTime, changeWeather, fireFlare } from './sky';
 import { PLANE_NONE, SUPPORT_COUNT, callSupport } from './supports';
 import { KIND_DEFS, weaponIndex } from './tables';
 import type { BattleState, DirectorState, EndReason, ObjectiveState, SideObjectiveState, TimerState, UnitState } from './types';
@@ -725,6 +726,8 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
       const slot = ev.side * SUPPORT_COUNT + k;
       // The side's own strike of that kind is still in progress: the raid does not cut it short.
       if (k < 0 || w.planeState[slot] !== PLANE_NONE || w.strikeTime[slot] >= 0) break;
+      // Grounded by fog, blizzard or night (FOUNDATIONS.md 4.7): the scripted raid does not fly either.
+      if (airGrounded(s, ev.side, ev.support) !== null) break;
       const side = s.sides[ev.side];
       const cooldown = side.supportCooldown[ev.support];
       callSupport(w, ev.side, ev.support, ev.x);
@@ -759,6 +762,15 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
     }
     case 'setOwner':
       setOwner(w, ev.ref, ev.owner);
+      break;
+    case 'weather':
+      changeWeather(w, ev.to, ev.over);
+      break;
+    case 'time':
+      changeTime(w, ev.to, ev.over);
+      break;
+    case 'flare':
+      fireFlare(w, ev.x, ev.side ?? 1, ev.seconds, ev.width);
       break;
     case 'endMission': {
       d.endText = ev.text;

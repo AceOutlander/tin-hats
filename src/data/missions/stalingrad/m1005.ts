@@ -12,8 +12,11 @@ import type { MissionDef } from '../../schema';
  * a 45 s prep phase and hold the station for 240 s against three counter-attacks. B6 is the nail factory hall, the HQ a
  * log dugout (`hqLook`). The Volga is water, waded at a crawl; the boats are free reinforcement waves landing at the
  * landing stage, one load at a time, and the barrage on the river is a smaller load. The ground is the brief's sectors
- * (sand, water, the high bank's slope, rubble). Flares, the ferry's batching of trained units and the night to day
- * changes wait for their features.
+ * (sand, water, the high bank's slope, rubble). The ferry's batching of trained units waits for its feature.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the stalingrad theatre; night under the smoke of the burning city (visibility
+ * 0.65), the Germans' flares over the landing every 40 s, dawn at the station (no Stukas fly before it), day for the
+ * hold.
  */
 export const M1005: MissionDef = {
   id: 1005,
@@ -45,9 +48,9 @@ export const M1005: MissionDef = {
       'Artillery and Katyusha from the east bank',
     ],
   },
-  // Stand-ins until the stalingrad theatre (autumn ruins) exists (STALINGRAD_BUILD.md).
-  theatre: 'holland',
+  theatre: 'stalingrad',
   timeOfDay: 'night',
+  weather: 'smoke',
   mode: 'special',
   length: 12000,
   // The unlock order (DECISIONS 295): the ROKS-3, for the houses on the bank. The sniper comes with Mamayev Kurgan.
@@ -172,6 +175,10 @@ export const M1005: MissionDef = {
   events: [
     // The director's events: the Nebelwerfer on the high bank, the Stukas once it is light.
     { id: 'nebelwerfer', type: 'barrage', when: { phase: 'bank', delay: 120 }, side: 1, x: 7400, spread: 220, rounds: 10, duration: 3, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
+    // Flares over the landing while it is held, dawn at the station, then day (FOUNDATIONS.md 4.7).
+    { id: 'landingFlares', type: 'flare', when: { phaseEvery: 40, phase: 'landing', from: 10 }, side: 1, x: 4800 },
+    { id: 'dawn', type: 'time', when: { phase: 'station' }, to: 'dawn', over: 120 },
+    { id: 'day', type: 'time', when: { phase: 'holdStation' }, to: 'day', over: 90 },
     { id: 'stukasDawn', type: 'airRaid', when: { phase: 'station', delay: 130 }, side: 1, support: 'airStrike', x: 7400 },
     { id: 'stukasStation', type: 'airRaid', when: { phase: 'holdStation', delay: 90 }, side: 1, support: 'airStrike', x: 10000 },
     // Phase 1, "The landing".

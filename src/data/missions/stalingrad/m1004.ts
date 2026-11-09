@@ -12,8 +12,12 @@ import type { MissionDef } from '../../schema';
  * offered from then on), then Klin, where the Germans wait in the houses for 240 s before their own judgement takes
  * over. The village's izbas and Klin's houses, church and station are buildings (B1 to B8, 4.3). Trained units deploy
  * at the positions taken (the points are forward spawns), the PTRD loan comes up at the village; the two frozen panzers
- * in Klin cannot move (leash 0). Deep snow slows everyone but the ski troops (the `skis` tag); the blizzard, the flare
- * and the night-to-day changes wait for their features.
+ * in Klin cannot move (leash 0). Deep snow slows everyone but the ski troops (the `skis` tag).
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the night approach in a blizzard (visibility 0.65, men on foot slowed, no air),
+ * a German flare over the village at 200 s; snow and dawn through the forest; clear and day for the highway, when the
+ * Il-2s fly. The backdrop is the russiaSummer winter forest, crossfading into the stalingrad theatre's winter ruins
+ * (Klin's streets) at the town.
  */
 export const M1004: MissionDef = {
   id: 1004,
@@ -45,9 +49,9 @@ export const M1004: MissionDef = {
       'Artillery, smoke, Katyusha, and the Il-2 when it clears',
     ],
   },
-  // Stand-ins until the russiaSummer winter variant and the stalingrad winter ruins exist (STALINGRAD_BUILD.md).
-  theatre: 'germany',
-  timeOfDay: 'dawn',
+  theatre: 'russiaSummer',
+  timeOfDay: 'night',
+  weather: 'blizzard',
   mode: 'assault',
   length: 26000,
   // The unlock order (DECISIONS 295): the sanitarka for the long winter attack, and the militia battalions (the
@@ -149,8 +153,8 @@ export const M1004: MissionDef = {
     { from: 3000, to: 8000, ground: 'deepSnow', label: 'Snowfields' },
     { from: 8000, to: 14000, ground: 'forest', label: 'Fir forest' },
     { from: 14000, to: 19000, ground: 'road', label: 'Highway and railway' },
-    { from: 19000, to: 22500, ground: 'rubble', label: 'Klin' },
-    { from: 22500, to: 26000, ground: 'cobble', label: 'Klin' },
+    { from: 19000, to: 22500, ground: 'rubble', label: 'Klin', backdrop: 'stalingrad' },
+    { from: 22500, to: 26000, ground: 'cobble', label: 'Klin', backdrop: 'stalingrad' },
   ],
   // The capture points and forward spawns (4.5): the village is held through its izba B2, the forest edge and the
   // highway are open ground taken by holding it.
@@ -198,6 +202,12 @@ export const M1004: MissionDef = {
     // The director's events: the counter-attack from the forest, the Il-2s, the Germans waiting in Klin, the guns.
     { id: 'forestCounter', type: 'posture', when: { phase: 'forest', delay: 120 }, side: 1, posture: 'counterattack', point: { point: 'P1' }, seconds: 60 },
     { id: 'il2', type: 'support', when: { phase: 'highway' }, side: 0, kind: 'airStrike', enabled: true },
+    // Night in the blizzard, a flare over the village, then snow at dawn and a clear day (FOUNDATIONS.md 4.7).
+    { id: 'villageFlare', type: 'flare', when: { phase: 'night', delay: 200 }, side: 1, x: 7000 },
+    { id: 'snowAtDawn', type: 'weather', when: { phase: 'forest' }, to: 'snow', over: 120 },
+    { id: 'dawn', type: 'time', when: { phase: 'forest' }, to: 'dawn', over: 180 },
+    { id: 'clears', type: 'weather', when: { phase: 'highway' }, to: 'clear', over: 60 },
+    { id: 'day', type: 'time', when: { phase: 'highway' }, to: 'day', over: 60 },
     { id: 'klinWaits', type: 'posture', when: { phase: 'klin' }, side: 1, posture: 'hold' },
     { id: 'klinFree', type: 'posture', when: { phase: 'klin', delay: 240 }, side: 1, posture: 'free' },
     { id: 'klinGuns', type: 'barrage', when: { phase: 'klin', delay: 200 }, side: 1, x: 18500, spread: 600, rounds: 8, duration: 6, weapon: 'artilleryShell', warning: 'Artillery on our line!' },
