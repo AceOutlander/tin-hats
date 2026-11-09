@@ -97,6 +97,11 @@ own" now checks the Stalingrad missions and fails here (7 distinct tracks for 10
 British tracks, 1006 to 1010 share `factories` and `volokolamsk`). The Stalingrad battle tracks being composed on the
 `stalingrad` branch (`STALINGRAD_MUSIC.planned`) give every mission its own; it should pass after the merge.
 
+**Browser specs run** (port 4183, the other job holds 4173): campaign-select, tutorial, campaign, armoury and sandbox pass,
+but for the proving ground's "wins ground" test, which failed twice in different places under load (it plays the
+unchanged sandbox mission). Not run: missions, smoke, polish, the music specs, admin-panel, phase1-shots, pwa, perf,
+upgrade-looks, menu-music. The keen player of `playToEnd` holds the line in a survival mission (Brest is the first).
+
 **At push to live** (not before): update the Tin Hats card text on hunteracedev.com so it describes the game as a
 whole instead of the old British campaign (owner, docs/QUEUE.md). The live site's save players migrate to version 10
 on their first load.
