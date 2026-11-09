@@ -301,8 +301,8 @@ export const M1002: MissionDef = {
       { kind: 'rifle', count: 12, after: 200 },
       { kind: 'at', count: 6, after: 300 },
       // The crossroads held, the money left buys more tanks and riflemen for the hold (the houses make it a longer fight).
-      { kind: 'tank', count: 4, after: 480 },
-      { kind: 'rifle', count: 16, after: 480 },
+      { kind: 'tank', count: 5, after: 480 },
+      { kind: 'rifle', count: 20, after: 480 },
     ],
     firstAttackAfter: 20,
   },
