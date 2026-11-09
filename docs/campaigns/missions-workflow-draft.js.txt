@@ -1,0 +1,61 @@
+export const meta = {
+  name: 'stalingrad-missions',
+  description: 'Stalingrad missions: finish, playtest headless and tune each mission (two at a time), Basic Training, a campaign critic, final checks, screenshots and the morning report',
+  phases: [
+    { title: 'Missions', detail: 'one agent per mission, two at a time' },
+    { title: 'Training', detail: 'Basic Training finished and reliable' },
+    { title: 'Critic', detail: 'whole campaign in order: fun, fairness, pacing, history' },
+    { title: 'Final', detail: 'all checks, browser specs, screenshots, MORNING_REPORT' },
+  ],
+}
+
+const WT = 'C:\\dev\\tin-hats-stalingrad'
+const COMMON = `You work ONLY in the git worktree ${WT} (branch stalingrad) of Tin Hats, an original 2D side-view WW2 mobile-browser RTS (TypeScript, Vite, Phaser 4, deterministic 30 Hz sim, all art drawn and audio synthesised in code). Run tools through ${WT}\\x.cmd from PowerShell (e.g. ".\\x.cmd npm run typecheck"); PowerShell 5.1 has no &&. The branch now has everything for the Stalingrad campaign: the Soviet nation and art, all 10 cold battle tracks rendered at mission load, Money, the prep phase, the era table (names and looks by date, the later Panzer III), the campaign select screen and Stalingrad map with briefings and per-mission unlocks, the British placeholder missions removed (save version 10), and the engine features: the mission director (phases, objectives, side objectives, triggers, scripted events, medal scoring), long-map ground sectors and capture points, buildings and rubble, weather and time of day in the sim with the Soviet theatres, and obstacles and water (tank traps, sandbags, minefields, rivers, bridges, ferries). Key docs: docs/campaigns/STALINGRAD.md (the owner's per-mission brief), docs/campaigns/STALINGRAD_BUILD.md, docs/campaigns/FOUNDATIONS.md, docs/campaigns/HISTORY.md, docs/DECISIONS.md. Headless play: tools/sim-cli.ts, tools/qa.ts, tools/balance-table.ts and the balance tests in tests/balance (helpers.ts has the bots: idle commander, test bot, keen player).
+The owner's goals for tonight: "Make it feel great to play: playtest each mission headless with the bots, tune pacing to 15-30 minutes without dragging, and fix anything unfair or boring."
+Rules: commit on branch stalingrad only, with author email 333948243+AceOutlander@users.noreply.github.com and the trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"; never push, never merge into main, Stalingrad must NOT go live. NEVER weaken, skip or delete a test to get a green run (re-setting a mission's expected minutes or win-rate targets to the owner's 15-30 minute goal is allowed when you say why in DECISIONS; lowering a fairness bar is not). No swastikas, SS runes or other Nazi party symbols anywhere (German marking: plain Balkenkreuz). Don't change anything under /bulwark/. No payment code. The owner's machine gets laggy: at most one heavy command at a time from you, close any browser or dev server you start, kill leftover node/vite/playwright processes you started. Work without asking. Log judgement calls as new numbered DECISIONS entries; another agent may be working at the same time, so number yours with the prefix given below (e.g. "M1003-1.") and the final stage renumbers them.`
+
+const SHARED = `Another agent is working on a different mission in this same worktree at the same time. So: commit ONLY your own paths with "git commit -- <paths>" (never "git add -A", never stash, reset, checkout or clean anything you did not change). Your own paths are your mission's files (src/data/missions/stalingrad/m{ID}.ts, its balance test file or test cases, its briefing text) and docs entries. If the mission needs an engine or shared-data fix, keep it small and targeted, run the full test:unit afterwards, commit just those paths with a clear message, and say so in your report. If a shared file shows changes you did not make, leave them alone.`
+
+const MISSIONS = ['1001', '1002', '1003', '1004', '1005', '1006', '1007', '1008', '1009', '1010']
+const missionTask = id => `${COMMON}
+
+${SHARED}
+
+TASK: make Stalingrad mission ${id} complete and great to play. DECISIONS prefix: M${id}.
+1) Complete: read its brief in STALINGRAD.md and its data file; make sure every phase, objective, side objective, event, force (era-correct names and looks for its date, the later Panzer III where the date calls for it), building, capture point, ground sector, weather and time change, obstacle, music track (STALINGRAD_MUSIC.missions[${id}]), prep phase (if defensive), briefing with intel and the units it unlocks match the brief, using the engine features that now exist rather than stand-ins. List anything in the brief you could not do and why.
+2) Playtest headless with the bots on Normal, Hard and the hardest difficulty, many seeds (at least 16 on Normal): record win rate, battle minutes (median and spread), how the idle commander does (must lose, and not too slowly), when and where fighting happens over time (look for long stretches with nothing happening, stalemates, the front not moving, units piling up, spawn kills, a loss in the first minutes the player cannot prevent, an objective the bot never meets, a phase that drags). Use the event log and timeline from tools/sim-cli.ts or write a small temporary tool (delete it afterwards).
+3) Tune: a player who plays reasonably should finish in 15 to 30 minutes on Normal without dragging; it must be winnable on Normal by the test bot at the rate the balance tests ask, possible on Hard, and the idle commander must lose. Change mission data first (forces, waves, timers, income, positions); engine changes only if really needed. Fix anything unfair (unwinnable rushes, unseen instant losses, punishing randomness) or boring (dead time, a phase that is just waiting, nothing new happening). Keep it faithful to the brief and history.
+4) Update its expected minutes and balance tests to the tuned result (tests must still check the real goals), run its balance tests and test:unit.
+5) Screenshot: start a dev server on a free port (not 4173, another agent may use it; e.g. 41${id.slice(2)} ), take one battle screenshot mid-mission at 844x390 with tools/shot.ts (the ?debug=1 helpers in src/app/debug.ts can start a mission and advance time), save docs/screenshots/stalingrad-mission-${id}.png, stop the server.
+Return a short plain report: what was missing and what you completed, playtest numbers before and after tuning (Normal win rate, minutes median and range, Hard result, idle result), what you changed and why, what is still weak, the screenshot path.`
+
+phase('Missions')
+const reports = []
+for (let i = 0; i < MISSIONS.length; i += 2) {
+  const pair = MISSIONS.slice(i, i + 2)
+  const r = await parallel(pair.map(id => () => agent(missionTask(id), { label: `mission:${id}`, phase: 'Missions' }).then(rep => ({ id, rep }))))
+  reports.push(...r.filter(Boolean))
+  log(`Missions done: ${reports.map(r => r.id).join(', ')}`)
+}
+
+phase('Training')
+const training = await agent(`${COMMON}
+
+TASK: Basic Training (src/data/missions/training.ts, src/data/tutorial.ts, tests/e2e/basic-training.spec.ts, tests/unit/basic-training.test.ts). DECISIONS prefix: BT. It is the standalone tutorial that ships with Stalingrad (owner spec in docs/QUEUE.md "Separate tutorial: Basic Training"). Make sure it follows that spec, teaches the features the Stalingrad missions now use (prep phase and building, orders, direct control, call-ins, capture points, buildings, Money, medals and the Armoury), plays as the Soviet side if the spec or the campaign suggests it (log the call), and reliably finishes in under 10 battle minutes for a player following it (the spec keeps that check strict). A previous job made fixes (WIP checkpoints 6333431 and 18a2b28: the practice pillbox nearly a ruin, spec waits, music load) and found the walkthrough's end flaky (11.6 and 33 battle minutes) and the "quits back to the title ... paying nothing" spec unable to find the training offer; finish that. Run basic-training.spec.ts, tutorial.spec.ts and the Basic Training unit tests (one at a time). Delete leftover scratch files from earlier jobs (tests/e2e/zz-*.tmp.spec.ts, tools/*.tmp.ts, tests/unit/zz-*.tmp.test.ts) if nothing needs them. Take a screenshot docs/screenshots/stalingrad-basic-training.png. Return a short plain report.`, { label: 'basic-training', phase: 'Training' })
+
+phase('Critic')
+const critic = await agent(`${COMMON}
+
+TASK: you are the campaign critic. DECISIONS prefix: CC. Play the whole Stalingrad campaign in order headless with the test bot and the keen player on Normal (several seeds), as a fresh save: check the unlock order and that each mission has what it needs, the difficulty curve across the ten missions (no spike or lull), medals earned per mission and what they buy, total campaign length, variety (does each mission feel different: objectives, ground, weather, music, enemy), and that every mission sits in 15 to 30 minutes on Normal without dragging. Read the ten mission reports below and check their claims by re-running a few. Look for anything unfair or boring that the per-mission passes missed, and for history mistakes (dates, units, equipment, places) against HISTORY.md and STALINGRAD.md. Fix what you find (mission data first), re-run the affected balance tests, commit. Return a short plain report: the campaign table (mission, minutes median, Normal win rate, Hard, medals), what you fixed, what is still weak, the three missions the owner should playtest first and why.
+Mission reports: ${JSON.stringify(reports)}
+Basic Training report: ${training}`, { label: 'campaign-critic', phase: 'Critic' })
+
+phase('Final')
+const final = await agent(`${COMMON}
+
+TASK: final checks and the morning report. 1) Renumber all prefixed DECISIONS entries (M1001-1., BT-1., CC-1., E1-..., and so on) into the main numbering, continuing from the highest plain number, and fix cross references. 2) Run, one at a time: typecheck, eslint (whole project), the build, test:unit, test:balance, and every browser spec in tests/e2e one file at a time (fix failures properly; never weaken tests). 3) Screenshots at 844x390 via tools/shot.ts (one dev server, stop it after): the campaign select screen if it shows, the Stalingrad campaign map, the briefing for 1001, and make sure docs/screenshots/stalingrad-mission-1001.png to -1010.png and stalingrad-basic-training.png all exist and look right (retake any that are blank or wrong). Note: docs/screenshots is gitignored; the report must reference them by path. 4) Update docs/campaigns/STALINGRAD_BUILD.md to the final state and docs/PROGRESS.md (on this branch) with where things stand. 5) Write docs/MORNING_REPORT.md for the owner, in plain, short, friendly words (the owner is not deep in the code): what's built (the campaign, the ten missions one line each, Basic Training, Money, prep phase, Soviet units and uniforms, era-correct Germans incl. the later Panzer III, briefings with intel, unlocks per mission with the table, the campaign map, music for every mission), the screenshots (a list of paths, each with one line on what it shows; embed them with relative markdown image links), the check results with numbers, the important decisions made (pick the 10 to 15 that matter most, with their DECISIONS numbers), known issues and weak spots (honest, short), what to playtest first (from the critic), and that Stalingrad is NOT live and waits for the owner to say "push to live" (and that pushing it also means updating the Tin Hats card text on hunteracedev.com, per the owner's spec). Commit everything (git add the report; screenshots stay local). Return the report's text.
+Critic report: ${critic}
+Training report: ${training}
+Mission reports: ${JSON.stringify(reports)}`, { label: 'final-report', phase: 'Final' })
+
+return { reports, training, critic, final }

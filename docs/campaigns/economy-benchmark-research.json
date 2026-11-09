@@ -1,0 +1,229 @@
+{
+  "summary": "Research Stick War: Legacy gem economy (gems per level, purchase costs, levels per purchase, upgrade points, spells) as a benchmark",
+  "agentCount": 2,
+  "logs": [],
+  "result": {
+    "summary": "Fact-check result: the core of the earlier research holds up, and I fixed several details. Last time the Fandom pages only came back as search-result summaries. This time I opened them directly in a browser, both the Stick War Legacy wiki and the larger Stick War wiki, and read the raw wiki text, and I also read three NamuWiki pages (main, Shop, Tips). Neither is an official developer source.\n\n**Confirmed from at least two independent sources:**\n- First win of a level pays 20 gems on Normal, 30 on Hard and 40 on Insane. The second win pays 10 and every later win pays 5 (Legacy Fandom Gems table, plus haxgm's measured ~5 per replay).\n- Finishing the whole campaign the first time pays 500, 1,000 and 1,500 gems by difficulty.\n- The campaign has 12 main stages plus 6 bonus stages.\n- The full spell price list matches across the Fandom Shop page, NamuWiki Shop and stickwar.online.\n- Unit skins cost 100 to 3,000 gems for each unit type.\n- Spells are single-use charges bought with gems.\n- The campaign pays 2 upgrade points per stage, and a fan stage-by-stage walkthrough shows each upgrade level costing 1 point.\n\n**Corrections and gaps filled:**\n- The list called \"older per-unit skin prices\" (Archidon 300 … Giant 1,250) was wrong. Those are **statue model** prices.\n- Salvage costs 2,000 gems and Pyroblaze 3,000.\n- The claim that some early stages give 1 upgrade point is refuted. The fan guide shows 2 points per stage.\n- A NamuWiki figure of \"7/8/10/11 points\" is a mistranslation. It is the number of pickaxe swings needed to fill the miner's bag.\n- Real-money gem packs are now known: 530 gems for $2.99, 2,100 for $11.99, 7,000 for $21.99, 17,500 for $49.99.\n- The daily-login table is now known: 750 gems plus 4 chests per 28-day cycle.\n- Chest timers and instant-open prices are filled in.\n- Watching a shop ad pays 10 gems and 1 star.\n- Each clear gives 1 star, and every 2 stars give a chest.\n- Bonus stages give one-time skin or spell rewards.\n\nThe economy shape is unchanged. Cheap spells cost about 1 first-clear level. Skins cost 5 to 150 first-clear levels per unit type. A full army in a 3,000-gem skin costs about 18,000 gems, roughly 4 times everything the three campaigns pay.",
+    "gemsPerLevel": "**Campaign payouts by win (confirmed):**\n\n| Win | Normal | Hard | Insane |\n|---|---|---|---|\n| First win of a level | 20 | 30 | 40 |\n| Second win | 10 | 10 | 10 |\n| Third and later wins | 5 | 5 | 5 |\n\n- Source: Legacy Fandom \"Gems\" page, read directly as a table.\n- haxgm separately measured about 5 gems per Normal replay, at about 45 seconds per run, or roughly 300–350 gems per hour of constant farming.\n- Earlier I noted a disagreement with sites quoting a flat 20/30/40. Those sites only describe the first-win rate, so the disagreement is resolved.\n\n**One-time full-campaign bonus (confirmed by 4 sources: Legacy Fandom, Fandom Achievements, NamuWiki, haxgm/stickwar.online):**\n- 500 gems on Normal, 1,000 on Hard, 1,500 on Insane.\n- These are the \"Finish Campaign\" achievements.\n\n**Bonus-stage rewards (first clear, from NamuWiki and Fandom stage pages):**\n\n| Bonus stage | Reward |\n|---|---|\n| Storm the Rebel Mage Camp | a Meric spell |\n| The Glacial Uprising | Ice Archidon skin |\n| United Savage Tribes | Savage Magikill skin |\n| Borderland Flame Feeders | Lava Spearton skin |\n| Gold Rush | a chest |\n| Deal with the Dead | a Vamp skin (NamuWiki lists Vamp Swordwrath) |\n\n- If you already own the skin, you get 1/4 of its price in gems instead: Ice 125, Savage 250, Lava 375, Vamp 750.\n- Whether bonus stages also pay the normal 20/30/40 win rate is not stated anywhere.\n\n**Other gem sources:**\n\n| Source | Payout | Evidence |\n|---|---|---|\n| Weekly Missions | 20 / 30 / 40 per mission completed | Fandom; stickwar.online |\n| Crown of Inamorta | 20 / 30 / 40 per opponent defeated, plus 300 / 400 / 500 for the first time you finish the final round | Fandom; stickwar.online |\n| Endless Deads | 10 per night survived | Fandom; stickwar.online; haxgm |\n| Shop ads | 10 gems + 1 star per ad | Fandom (\"typically 10\"), NamuWiki, haxgm |\n| Daily login | about 750 gems per 28-day cycle, plus 2 wooden, 1 silver and 1 golden chest | Stick War Fandom \"Login Reward\" table, single source |\n| Chests | 10 gems (19% drop), 20 gems (10%), 100 gems (2%) per item slot; duplicate skins convert to 1/4 of their price in gems | Fandom Chest page; NamuWiki |\n\n- **Ads:** haxgm says about 4 ads per cycle, then a 30–35 minute cooldown. NamuWiki lists ads as \"unlimited\". The cap is uncertain.\n- **Daily login detail:** it starts at 10 gems on day 1 and climbs to 100 gems plus a golden chest on day 28. Wooden chests come on days 7 and 14, a silver chest on day 21. It was added in update 2026.1.753.\n\n**Doubling:**\n- The Infinity Fan Pack (real money, about $13.99) doubles gems and stars from games (Fandom Gem Packages page; APKMirror changelog).\n- The claim that watching an ad after each win doubles the gems comes only from LevelWinner, a 2017 guide. It is not confirmed for current versions.\n\n**Effective rate (my arithmetic, main stages only):**\n\n| Difficulty | First clears | Bonus | Total | Per level |\n|---|---|---|---|---|\n| Normal | 12 × 20 | 500 | 740 | about 62 |\n| Hard | 12 × 30 | 1,000 | 1,360 | about 113 |\n| Insane | 12 × 40 | 1,500 | 1,980 | about 165 |\n\n- After the campaigns, a non-payer earns 5 gems per replay plus ads, dailies (about 27 gems a day), Endless Deads and Weekly Missions.",
+    "purchases": [
+      {
+        "item": "Spell: Miner Hustle (2x mining; shop text says 30 s, NamuWiki notes the real effect is 20 s) / Raise Gold (spawns gold mine)",
+        "gemCost": "20",
+        "kind": "spell"
+      },
+      {
+        "item": "Spell: Swordwrath Rage (2x attack speed 20 s) / Pouncer Dead summon (one stale wiki infobox says 20 for Rage; shop list, NamuWiki and stickwar.online agree on 30)",
+        "gemCost": "30",
+        "kind": "spell"
+      },
+      {
+        "item": "Spell: Archidon Rain (5 s volley) / Toxic Dead summon",
+        "gemCost": "40",
+        "kind": "spell"
+      },
+      {
+        "item": "Spell: Spearton Madness (20 s) / Training Haste (20 s) (one stale infobox says 80 for Madness; shop list, NamuWiki and stickwar.online say 50)",
+        "gemCost": "50",
+        "kind": "spell"
+      },
+      {
+        "item": "Spell: Statue Turret (heals statue + lasers 20 s)",
+        "gemCost": "100",
+        "kind": "spell"
+      },
+      {
+        "item": "Spell: Heal All / Golden Archidon summon",
+        "gemCost": "150",
+        "kind": "spell"
+      },
+      {
+        "item": "Summon: Meric (healer)",
+        "gemCost": "250",
+        "kind": "spell"
+      },
+      {
+        "item": "Summon: Golden Spearton / Stone Giant",
+        "gemCost": "300",
+        "kind": "spell"
+      },
+      {
+        "item": "Spell: Lightning Storm (halves all enemy HP)",
+        "gemCost": "400",
+        "kind": "spell"
+      },
+      {
+        "item": "Summon: The Elite (4 Speartons + 4 Archidons)",
+        "gemCost": "500",
+        "kind": "spell"
+      },
+      {
+        "item": "Summon: Kai Rider",
+        "gemCost": "750",
+        "kind": "spell"
+      },
+      {
+        "item": "Summon: Griffon the Great (most expensive spell)",
+        "gemCost": "1000",
+        "kind": "spell"
+      },
+      {
+        "item": "Unit skin: Leaf (-10% cost, -30 to 50% build time) — per unit type",
+        "gemCost": "100 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Ice (slows enemies)",
+        "gemCost": "500 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Savage (stun reduction, x1.3 vs Deads)",
+        "gemCost": "1000 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Lava (25% damage reflect)",
+        "gemCost": "1500 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Salvage (-15% cost, less HP, drops scrap) — NamuWiki only",
+        "gemCost": "2000 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Undead (respawn as Dead)",
+        "gemCost": "2000 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Voltaic (lightning proc)",
+        "gemCost": "2500 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Vamp (20% lifesteal)",
+        "gemCost": "3000 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Unit skin: Pyroblaze (explodes on death) — NamuWiki: same price as Vamp",
+        "gemCost": "3000 per unit",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Statue models: Swordwrath 250, Archidon 300, Spearton 350, Swords 650, Meric 725, Magikill 750, King 850, Giant 1250, Kai 1500, Golden King 3000 (each doubles a spell's duration or count; Giant gives +20% to Giants). These are the numbers previously mislabelled 'older per-unit skin prices'.",
+        "gemCost": "250-3000",
+        "kind": "cosmetic"
+      },
+      {
+        "item": "Chest instant-open (NamuWiki, current): Wooden 30 min / Silver 3 h / Golden 8 h / Crystal 24 h timers",
+        "gemCost": "20 / 120 / 320 / 960",
+        "kind": "boost"
+      },
+      {
+        "item": "Skip Crown of Inamorta round wait timer",
+        "gemCost": "100",
+        "kind": "boost"
+      },
+      {
+        "item": "Unlock a locked/missed Weekly Mission",
+        "gemCost": "100",
+        "kind": "unlock"
+      },
+      {
+        "item": "Real-money gem packs: Sack 530 gems $2.99; Bag 2,100 $11.99; Barrel 7,000 $21.99; Mountain 17,500 $49.99; Ultra 35,000 + 40 golden chests about $103. Also an Infinity Fan Pack about $13.99 (2x gems and stars, no ads), spell bundles about $18 each ('3,500 gems' worth) and chest bundles.",
+        "gemCost": "real money (about 177 gems per $1 in the Sack, about 350 per $1 in the Mountain)",
+        "kind": "other"
+      }
+    ],
+    "levelsPerPurchase": "These are my calculations from the confirmed prices and payouts above, not taken from any source.\n\n| Purchase | Normal first clears (20 each) | Insane first clears (40 each) | Replays (5 each) |\n|---|---|---|---|\n| Cheap spell, 20–50 gems | 1–2.5 | 0.5–1.25 | 4–10 |\n| Statue Turret (100) or Leaf skin (100 per unit) | 5 | 2.5 | 20 |\n| Heal All (150) | 7.5 | about 4 | 30 |\n| Lightning Storm (400) | 20 | 10 | 80 |\n| Griffon the Great (1,000) or Savage skin (1,000 per unit) | 50 | 25 | 200 |\n| Undead or Salvage skin (2,000) | 100 | 50 | 400 |\n| Vamp or Pyroblaze skin (3,000 per unit) | 150 | 75 | 600 |\n| Statue model (250–3,000) | 12.5–150 | about 6–75 | 50–600 |\n\n- **Farming time for a top skin:** 600 replays is about 9–10 hours at haxgm's measured 300–350 gems per hour.\n- **Counting the completion bonuses:** All three difficulties together pay 4,080 gems over 36 main-stage first clears, about 113 gems per level. At that rate:\n  - a cheap spell is 0.2–0.4 of a level\n  - Leaf is about 1 level\n  - Griffon is about 9 levels\n  - Vamp is about 27 levels\n- **Full army in one top skin:** Miner, Swordwrath, Archidon, Spearton, Magikill and Giant are 6 unit types. At 3,000 gems each that is 18,000 gems, about 4.4 times what all three campaigns pay.\n- **Daily login:** about 27 gems a day, so a Vamp skin for one unit takes about 112 days of logins alone.\n- **Shape of the curve:** consumables cost about 1 first-clear level, mid items 5–20, and premium skins and statues 50–150+ per unit type.",
+    "upgradePoints": "**Currency and where it's spent:**\n- Upgrade points are a separate currency, spent in the Armory between battles. Gems cannot buy them.\n- Each click upgrades one box by one level, and you can only upgrade as far as your points allow (Stick War Fandom Armory page).\n\n**Earning (Stick War Fandom \"Upgrade Point\" page, read directly):**\n\n| Mode | Points |\n|---|---|\n| Campaign | 2 per stage completed |\n| Endless Deads | 2 per wave (night) survived; the Endless Deads page agrees |\n| Crown of Inamorta, Classic / Gold Rush / Barricades | 15 per match |\n| Crown of Inamorta, Deathmatch / Super Deathmatch | 25 per match; NamuWiki independently says Super Deathmatch gives 25 points |\n| Weekly Missions | 5–12 per mission, varies by mission (Weekly Missions page) |\n\n- **Correction:** The earlier claim that some early levels give 1 point is refuted. Boinga's fan walkthrough on Fandom spends exactly 2 points after stage 1 (Helmet +1, Pickaxe +1) and 2 after stage 2 (Helmet +2, which maxes it).\n\n**Cost per upgrade level:**\n- 1 point per level. This is shown by Boinga's walkthrough and the Fandom Armory page, and it matches the original Flash game.\n- The NamuWiki \"7/8/10/11 points\" figures for the miner bag are a translation error. They are the number of pickaxe swings needed to fill the bag.\n\n**Upgrade tracks (NamuWiki Basic Units, Fandom Statue page, Fandom Achievements):**\n\n| Unit | Upgrades (levels each) |\n|---|---|\n| Miner | Bag (+20% size, 3), Pickaxe (+20% speed, 3) |\n| Swordwrath | Helmet (+20% HP / +10% speed, 3), Sword (+20% damage, 3–4) |\n| Archidon | Quiver (+20% damage, 3) |\n| Spearton | Spear (+25% damage, 3), Shield (+10% HP / block, 3), Helm (+20% HP, 3) |\n| Magikill | Staff (+15% stun damage, 3), Hat (+1 minion, 3) |\n| Giant | Growth (HP 1,000 → 1,900, 3) |\n| Statue | Size (3), Crown / passive income (3), Castle Archer (3, from an earlier snippet) |\n\n- Each of 7 tracks has a \"Max ___\" achievement for unlocking every upgrade.\n- **Total:** about 14 upgrades and about 42–43 levels, so about 42–43 points to max everything. This is my count; there is no official total.\n\n**Points per campaign:**\n- 12 × 2 = 24 points on main stages. Bonus stages probably add up to 12 more, if they pay the same 2 points (unconfirmed).\n- So one run cannot max everything; it covers roughly 55–85%.\n- This fits the \"Don't Need No Upgrades\" achievement (finish the campaign without spending a point) and guides that tell you to focus your points.\n\n**Carry-over:**\n- PocketGamer says upgrades do not carry over to different campaigns or modes.\n- Whether the Normal, Hard and Insane campaigns each reset is still not confirmed.\n\n**Unit unlocks:** New unit types and the Swordwrath sword upgrade unlock through campaign progress, not points.",
+    "spells": "**Buying:**\n- Spells are bought with gems in the Shop's Spell section, at 20 to 1,000 gems each.\n- They also drop from chests, come in real-money bundles, and are rewarded by some Weekly Missions and the Rebel Mage Camp bonus stage, which gives a Meric.\n- Sources: Legacy Fandom Spells page, Stick War Fandom Shop page, NamuWiki Shop.\n\n**Using:**\n- They are single-use. Each activation uses one charge.\n- In battle you tap the lightning-bolt button and pick the spell from the list (Legacy Fandom, read directly). PocketGamer agrees (\"one-and-done\").\n- The Order / Chaos / Elemental labels have no effect on use.\n\n**Limits:**\n- No cooldown or per-battle cap is documented anywhere.\n- NamuWiki says multiple Merics can be summoned, even past the 50 population cap.\n- The one documented restriction: spells cannot be used on the first stage, \"The War Begins\" (Fandom).\n- Cooldowns and mana costs on the wiki belong to Stick War: Saga, a different game.\n\n**Effects:**\n- **Timed buffs, 20–30 seconds:** Miner Hustle (in-game text says 30 s, NamuWiki says 20 s in practice), Swordwrath Rage, Spearton Madness, Training Haste and Statue Turret (each 20 s).\n- **Instant:** Heal All (full heal, cures poison), Lightning Storm (halves enemy HP plus burn), Archidon Rain (5-second volley), Raise Gold (spawns a gold mine with about 5,000 gold).\n- **Summons:** Golden Archidon, Meric, Golden Spearton, The Elite, Toxic or Pouncer Dead, Stone Giant, Kai Rider, Griffon the Great. Summoned units cannot wear skins.\n\n**Statue models change spells (Fandom Skins page, NamuWiki):**\n\n| Statue model | Effect on spells |\n|---|---|\n| Swordwrath | Rage lasts twice as long and spawns a free unit |\n| Archidon | Rain lasts twice as long and spawns a free unit |\n| Spearton | Madness lasts twice as long and spawns a free unit |\n| Swords | Miner Hustle and Training Haste last twice as long |\n| Magikill | Statue Turret and Heal All last twice as long |\n| Meric | the Meric spell summons 2 |\n| King | Golden Archidon and Golden Spearton summon 2 |\n| Kai | Pouncer Dead, Toxic Dead and Stone Giant summon 2 (not Kai Rider) |\n\n**Conversion:** Spells cannot be turned back into gems.",
+    "campaignLength": "- **Main stages (12), confirmed by the Fandom stage category, NamuWiki Classic Stage page and stickwar.online:**\n  1. The War Begins\n  2. You Have Been Ambushed\n  3. Attack the Swordwrath\n  4. Attack the Spearton\n  5. Swordwrath Counter\n  6. Attack the Magikill\n  7. Free Pertland\n  8. Free Westwind\n  9. No Man's Land\n  10. Ambush\n  11. Ice Hills\n  12. Last Stand\n- **Bonus stages (6), from the Fandom \"Bonus Levels\" category, which unlock along the main path:**\n  - Storm the Rebel Mage Camp, after Pertland\n  - United Savage Tribes, after Westwind\n  - The Glacial Uprising, after the second ambush\n  - Gold Rush, after Ice Hills\n  - Borderland Flame Feeders, after Ice Hills\n  - Deal with the Dead, after Ice Hills\n- **Difficulties:** Normal, Hard and Insane replay the same maps.\n\n**Gems per campaign (main stages, first clears plus completion bonus):**\n\n| Difficulty | Level wins | Bonus | Total |\n|---|---|---|---|\n| Normal | 12 × 20 | 500 | 740 |\n| Hard | 12 × 30 | 1,000 | 1,360 |\n| Insane | 12 × 40 | 1,500 | 1,980 |\n| All three | — | — | 4,080 |\n\n- **Bonus stages:** if they pay the win rate, add 120 / 180 / 240 gems by difficulty (unconfirmed). Their one-time skin rewards are worth about 6,000 gems at shop prices (Ice 500 + Savage 1,000 + Lava 1,500 + Vamp 3,000), or 1,500 gems if they are duplicates.\n- **Upgrade points per campaign:** 24 on main stages, about 36 if bonus stages also pay 2.\n- **Stars:** 1 per clear (NamuWiki), and every 2 stars give a chest (Fandom Chest page, NamuWiki). That is about 6 chests from a 12-stage campaign, plus more from replays and ads.\n- **Outside the campaign:** Weekly Missions are released every Friday and pay 20/30/40 gems plus 5–12 upgrade points per mission. Endless Deads and Crown of Inamorta are separate modes.",
+    "sources": [
+      "https://stick-war-legacy.fandom.com/wiki/Gems (read directly via browser: 20/30/40 first, 10 second, 5 later; 500/1000/1500; Weekly 20/30/40; Crown 20/30/40 per contestant + 300/400/500; Endless 10/night; ads ~10; packs 530/$2.99, 2100/$11.99, 7000/$21.99, 17500/$49.99; 100-gem Crown skip and mission unlock)",
+      "https://stick-war-legacy.fandom.com/wiki/Spells (read directly: single-use charges, lightning-bolt button, no spells on The War Begins, Meric from Rebel Mage Camp)",
+      "https://stick-war.fandom.com/wiki/Shop (raw wikitext: full spell price list 20…1000)",
+      "https://stick-war.fandom.com/wiki/Skins/Stick_War:_Legacy (raw: skin prices 100/500/1000/1500/2000/2500/3000; statue model prices 250…3000 and spell effects)",
+      "https://stick-war.fandom.com/wiki/Upgrade_Point (raw: 2/stage, 2/wave, 15/25 Crown, Weekly varies)",
+      "https://stick-war.fandom.com/wiki/Armory (raw: 1 click per point)",
+      "https://stick-war.fandom.com/wiki/Fanon:_Boinga's_level_guide_to_stick_wars_legacy! (2 points per stage, 1 point per upgrade level)",
+      "https://stick-war.fandom.com/wiki/Weekly_Missions (5-12 upgrade points per mission)",
+      "https://stick-war.fandom.com/wiki/Login_Reward (28-day table, about 750 gems + 4 chests; added 2026.1.753)",
+      "https://stick-war.fandom.com/wiki/Gem_Packages (packs, Infinity Fan Pack 2x gems/stars, bundles)",
+      "https://stick-war.fandom.com/wiki/Chest (2 stars = chest, 4 items, drop rates 10/20/100 gems)",
+      "https://stick-war.fandom.com/wiki/Achievements/Stick_War:_Legacy (500/1000/1500, Max-unit achievements, Don't Need No Upgrades)",
+      "https://stick-war.fandom.com/wiki/Category:Stages and Category:Bonus_Levels (12 main + 6 bonus)",
+      "https://stick-war.fandom.com/wiki/Statue (Statue Size and Crown upgrades, 3 levels each)",
+      "https://en.namu.wiki/w/Stick%20War:%20Legacy (stars 1 per clear, 2 = box; bonus-stage duplicate-skin gems; completion 500/1000/1500)",
+      "https://en.namu.wiki/w/Stick%20War:%20Legacy/%EC%83%81%EC%A0%90 (Shop: all spell and skin prices incl. Salvage 2000 and Pyroblaze 3000, statue prices, chest timers and instant-open 20/120/320/960, duplicate = 1/4 price, ad = 10 gems + 1 star)",
+      "https://en.namu.wiki/w/Stick%20War:%20Legacy/%EA%B8%B0%EB%B3%B8%20%EC%9C%A0%EB%8B%9B (Basic Units: upgrade tracks and levels)",
+      "https://en.namu.wiki/w/Stick%20War:%20Legacy/%ED%8C%81 (Tips: Super Deathmatch 25 points; '7/8/10/11' are swing counts)",
+      "https://en.namu.wiki/w/Stick%20War:%20Legacy/%ED%81%B4%EB%9E%98%EC%8B%9D%20%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%A7%80 (Classic Stage list)",
+      "https://stickwar.online/guides/gems-fast.html and https://stickwar.online/guides/spells-tier-list.html (2026 community guide; matches Fandom)",
+      "https://haxgm.com/stick-war-legacy-gem-farming-guide/ (measured ~5 gems/replay, ~300-350/hr, ads 10 x ~4 then 30-35 min cooldown)",
+      "https://www.pocketgamer.com/stick-war-legacy/beginners-guide/ (spells one-and-done; upgrades don't carry across campaigns/modes)",
+      "https://www.levelwinner.com/stick-war-legacy-tips-tricks-strategy-guide-7-hints-every-player-know/ (2017 claim that the end-of-level ad doubles gems)"
+    ],
+    "confidence": "Overall: high for gem payouts, prices and campaign length; medium for upgrade points; low for a few gaps. All sources are fan wikis or guides, none from the developer, Max Games Studios. Fandom and NamuWiki were read directly in a browser this time, not through search-result summaries.\n\n**Confirmed by two or more independent sources:**\n- **First-win gems of 20 / 30 / 40:** Legacy Fandom, stickwar.online, pitycalculator (search summary only).\n- **Replays pay 10 for the second win, then 5:** the Legacy Fandom table, plus haxgm's measured 5.\n- **Completion bonuses of 500 / 1,000 / 1,500:** Legacy Fandom, Stick War Fandom achievements, NamuWiki, haxgm, stickwar.online.\n- **Endless Deads 10 gems per night:** Fandom, stickwar.online, haxgm.\n- **Shop ads at 10 gems each:** Fandom, NamuWiki, haxgm.\n- **Every spell price:** the Fandom Shop list, NamuWiki Shop and stickwar.online. Two stale single-page Fandom infoboxes (Rage 20, Madness 80) disagree and were outvoted.\n- **Skin prices** for Leaf 100, Ice 500, Savage 1,000, Lava 1,500, Undead 2,000, Voltaic 2,500 and Vamp 3,000: Fandom, NamuWiki, stickwar.online.\n- **Statue model prices of 250 to 3,000:** Fandom, NamuWiki, stickwar.online.\n- **Spells are single-use charges bought with gems:** Fandom, PocketGamer, NamuWiki.\n- **12 main plus 6 bonus stages:** Fandom categories, NamuWiki.\n- **Upgrade points of 2 per stage and 2 per Endless wave:** the Fandom Upgrade Point page plus Boinga's walkthrough. Crown 25 is also backed by NamuWiki.\n- **1 point per upgrade level:** Boinga's walkthrough plus the Fandom Armory page.\n- **2 stars per chest, 1 star per clear:** Fandom Chest page, NamuWiki.\n- **Duplicate skins pay 1/4 of their price in gems:** NamuWiki, consistent with the Fandom description.\n\n**Single-source:**\n- Salvage 2,000 and Pyroblaze 3,000 (NamuWiki).\n- Chest instant-open prices and timers of 20 / 120 / 320 / 960 (NamuWiki, whose translated note about a price change is garbled).\n- The 28-day login table, about 750 gems per cycle (Stick War Fandom; pitycalculator agrees on the day-1 and day-28 values from a search summary only).\n- Gem-pack sizes (the two Fandom wikis give slightly different USD prices, probably regional).\n- Weekly Missions paying 5–12 points.\n- Upgrades not carrying over (PocketGamer).\n- The 4-ads-then-cooldown cap (haxgm; NamuWiki says unlimited).\n- Miner Hustle's real duration of 20 s versus the 30 s in its description.\n\n**Estimated or unknown:**\n- The total upgrade count: about 14 upgrades and about 42–43 levels is my count.\n- Whether bonus stages pay the 20/30/40 win rate and 2 upgrade points.\n- Whether upgrade points reset between Normal, Hard and Insane.\n- Whether watching an ad doubles the gems from a win in the current version: only a 2017 source claims it; the confirmed doubler is the paid Infinity Fan Pack.\n- Spell cooldowns and per-battle caps: none documented, and multiple casts appear to be allowed.\n- All the levels-per-purchase figures are my arithmetic."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Research"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Verify"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "research",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a3a61d0cdae8f38b7",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1794240540048,
+      "queuedAt": 1794240540023,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Stick War: Legacy has a two-currency meta. Gems are the pre…",
+      "promptPreview": "Research the in-game economy of the mobile game \"Stick War: Legacy\" (Max Games Studios). The goal is a fairness benchmark for an unrelated original game: we copy proportions (how many levels of play a purchase takes), not numbers or its grind. Use WebSearch and WebFetch (wikis such as the Stick War fandom wiki, guides, Reddit, YouTube descriptions, app store pages). Find: (1) how many gems a typic…",
+      "promptFramed": true,
+      "lastProgressAt": 1794240837131,
+      "tokens": 90066,
+      "toolCalls": 49,
+      "durationMs": 297082,
+      "resultPreview": "{\"summary\":\"Stick War: Legacy has a two-currency meta. Gems are the premium currency, bought with real money or earned in play, and they buy cosmetic-plus-buff skins, statue models and single-use spells or summons. Upgrade points are a separate currency earned per battle and spent in the Armory on permanent unit upgrades; gems do not buy them. A first-time campaign win pays a small flat amount: 20…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "verify",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "ad6e4521463419e10",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1794240839424,
+      "queuedAt": 1794240839421,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Fact-check result: the core of the earlier research holds u…",
+      "promptPreview": "You are a skeptical fact-checker. Here is research on the Stick War: Legacy economy: {\"summary\":\"Stick War: Legacy has a two-currency meta. Gems are the premium currency, bought with real money or earned in play, and they buy cosmetic-plus-buff skins, statue models and single-use spells or summons. Upgrade points are a separate currency earned per battle and spent in the Armory on permanent unit u…",
+      "promptFramed": true,
+      "lastProgressAt": 1794241288451,
+      "tokens": 149591,
+      "toolCalls": 59,
+      "durationMs": 449026,
+      "resultPreview": "{\"summary\":\"Fact-check result: the core of the earlier research holds up, and I fixed several details. Last time the Fandom pages only came back as search-result summaries. This time I opened them directly in a browser, both the Stick War Legacy wiki and the larger Stick War wiki, and read the raw wiki text, and I also read three NamuWiki pages (main, Shop, Tips). Neither is an official developer …"
+    }
+  ],
+  "totalTokens": 239657,
+  "totalToolCalls": 108
+}
