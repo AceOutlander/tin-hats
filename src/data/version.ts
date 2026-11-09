@@ -20,6 +20,12 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.11.0',
+    items: [
+      'A hidden admin panel for testing (behind a passcode; players never see it).',
+    ],
+  },
+  {
     version: '0.10.0',
     items: [
       'Quartermaster upgrades for every unit you can buy, new ones included: health and damage, 3 levels each.',
