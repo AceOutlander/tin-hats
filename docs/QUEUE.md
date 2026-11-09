@@ -5,7 +5,22 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
-## Build order (owner, 2026-11-08; replaces every earlier order)
+## Current order (owner, 2026-11-08, latest; overrides the build order below where they differ)
+
+"1. Finish the lag fixes and the playtest fixes, and push them live.
+2. Then the admin panel.
+3. Then Stalingrad fully, including what its missions depend on: the switch to Money and the prep phase for its
+   defensive missions. Build those as part of Stalingrad. It still stays off the live site until it's 100% done and I
+   say push.
+The campaign map theme is nearly done, so let it finish alongside. Passives, the difficulty overhaul and everything
+else come after Stalingrad."
+
+Done and live since the build order below was written: barbed wire end-on, job 7 new units, job 10 medals and the
+Armoury (Armoury prices raised: old types x2, new types x3). Notes: the Money rename (job 3) and the prep phase (job 6)
+are now built on the `stalingrad` branch and go live with Stalingrad. Queued for later (specs below): smarter medics;
+the later Panzer III and the Maus; deeper performance work (low priority, the lag was mostly the owner's computer).
+
+## Build order (owner, 2026-11-08; superseded in part by the current order above)
 
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
 
