@@ -399,6 +399,9 @@ test.describe('whole battles at high speed', () => {
 
     const saved = await savedGame(page);
     expect(saved?.cleared[String(MISSIONS[0].id)]).toEqual(['normal']);
+    // The medals of the win, which the map shows to spend after a reload.
+    const award = (await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).result()))?.pointsAwarded ?? 0;
+    expect(award).toBeGreaterThan(0);
 
     // Back to the map, then replay from the briefing.
     await tap(page, 'result-map');
@@ -412,7 +415,7 @@ test.describe('whole battles at high speed', () => {
     await page.waitForFunction(() => (window as unknown as Hooked).__TH?.ready === true, null, { timeout: 60_000 });
     expect((await savedGame(page))?.cleared[String(MISSIONS[0].id)]).toEqual(['normal']);
     await tap(page, 'play');
-    await expect(page.getByTestId('points-available')).toHaveText(/2/);
+    await expect(page.getByTestId('points-available')).toHaveText(String(award));
     if (MISSIONS.length > 1) {
       await page.getByTestId(`mission-pin-${MISSIONS[1].id}`).tap();
       await expect(page.getByTestId('mission-start')).toBeEnabled();
