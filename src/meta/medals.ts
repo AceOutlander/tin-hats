@@ -197,7 +197,8 @@ export function missionUnlocks(mission: MissionDef): UnitKind[] {
 }
 
 /**
- * The unit types a save has unlocked, in the Armoury's order: the free ones, those bought before version 8, and those
+ * The unit types a save has unlocked, in the Armoury's order: the free ones, those its armoury list keeps (bought before
+ * version 8, or unlocked by the removed British missions: save version 10), and those
  * every reached mission unlocks, in any campaign (owner, 2026-11-09: once unlocked, a type fields in every mission,
  * replays and other campaigns included, as the player's own nation's version). `except` leaves one mission's own
  * unlocks out (what the player had before it); `free` false leaves the free types out unless a mission lists them.
@@ -302,7 +303,7 @@ export interface MissionNews {
 /**
  * What this mission really unlocks for this player: its newUnit and unlocks the player did not have before it, and
  * its newSupport unless the player already had it. `hadUnits` is unitsUnlocked with this mission left out and the free
- * types only where another mission lists them (so mission 1 still introduces riflemen on a first play).
+ * types only where another mission lists them (so a first mission that lists them still introduces them on a first play).
  */
 export function missionNews(mission: MissionDef, hadUnits: readonly UnitKind[], hadSupports: readonly SupportKind[]): MissionNews {
   const units: UnitKind[] = [];

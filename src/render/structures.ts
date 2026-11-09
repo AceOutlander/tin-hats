@@ -287,7 +287,7 @@ export class StructureViews {
     for (const t of state.trenches) this.addTrench(t);
     for (let side = 0; side < 2; side++) {
       const d = state.dumps[side];
-      // A side that can never have sappers (mission 9 lives on airdrops) has no use for a dump.
+      // A side that can never have sappers (a mission that lives on airdrops, as the old Arnhem did) has no use for a dump.
       if (!d || state.sides[side].available.sapper !== true) continue;
       const dumpKey = dumpStyleKey(lookStyle(looks[side], 'dump'), state.sides[side].faction);
       const img = addImage(this.scene, this.layers.byName.structures, reg.get(dumpKey).frame);

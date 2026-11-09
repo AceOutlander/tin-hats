@@ -118,7 +118,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
 
 /**
  * Place each side's starting sappers and forces. Called once, with the hold lines already known.
- * A side whose mission unit list has no sapper (mission 9) starts with none, whatever `sappers` says.
+ * A side whose mission unit list has no sapper (a mission that lives on airdrops) starts with none, whatever `sappers` says.
  */
 export function placeStartingForces(w: World): void {
   const s = w.state;

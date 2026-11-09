@@ -132,7 +132,7 @@ export const ADMIN: AdminTunables = {
     {
       id: 'kingTigerSquad',
       label: 'King Tiger squad',
-      // As mission 10 fields it: the tank and its veteran escort.
+      // As the old British mission 10 fielded it: the tank and its veteran escort.
       members: [
         { kind: 'heavyTank', count: 1 },
         { kind: 'rifle', count: 3, veteran: true, behind: 140 },
