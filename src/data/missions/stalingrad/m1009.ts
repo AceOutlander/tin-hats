@@ -8,14 +8,17 @@ import type { MissionDef } from '../../schema';
  * Panzer Division and the Romanian armour in the Don hills (trench 5), rushes the Kalach bridge (its guard post is
  * pillbox 2) and drives on to Sovetsky (trench 6) and the German supply depot (the enemy HQ).
  *
- * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu, but with no
- * forward spawn points or sectors yet, so every reinforcement walks from the bridgehead; the Romanians field as
- * German troops in the `romanian` look (khaki-brown greatcoat, Adrian helmet; no Romanian nation yet); every German and
- * Romanian tank (Pz 38(t), Panzer III, Panzer IV, R-2) is
- * the `tank` kind (the era's Panzer III Ausf. L, the Panzer IV Ausf. G by look, the R-2s as the short-gun Panzer III
- * stand-in `panzer3h`; no Pz 38(t) or R-2 is drawn), since `lightTank` is the 1939 to 1941 Panzer III Ausf. E; the 37 mm and Pak 38/40 crews are the
- * `at` kind; the KV-1S stands in as a T-34 (`tank`); the opening barrage, the fog, the blizzard, the disguise and the
- * bridge demolition wait for the mission director.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu in four phases.
+ * Siren: the free opening barrage and a Katyusha salvo on the Romanian line, which is taken (trench 3 for P1); the
+ * steppe: Perelazovsky (trench 4 for P2) and the Don hills (trench 5 for P3), with the Il-2 and the Po-2 offered from
+ * here; the Kalach bridge: its guard post (pillbox 2) is destroyed while the column drives in disguised for 40 s;
+ * Sovetsky (trench 6 for P4), whose capture closes the ring with the green flares. Reinforcements come up at the
+ * positions taken (ForceDef.at). The Romanians field as German troops in the `romanian` look (khaki-brown greatcoat,
+ * Adrian helmet; no Romanian nation yet); every German and Romanian tank (Pz 38(t), Panzer III, Panzer IV, R-2) is the
+ * `tank` kind (the era's Panzer III Ausf. L, the Panzer IV Ausf. G by look, the R-2s as the short-gun Panzer III
+ * stand-in `panzer3h`; no Pz 38(t) or R-2 is drawn), since `lightTank` is the 1939 to 1941 Panzer III Ausf. E; the
+ * 37 mm and Pak 38/40 crews are the `at` kind; the KV-1S stands in as a T-34 (`tank`). The fog, the blizzard and the
+ * bridge's demolition (bridges, FOUNDATIONS.md 4.4) wait for their features.
  */
 export const M1009: MissionDef = {
   id: 1009,
@@ -66,6 +69,8 @@ export const M1009: MissionDef = {
   start: [
     {
       faction: 'soviet',
+      // The Il-2s and the Po-2 come up once the line is broken (phase 2).
+      supportsOff: ['airStrike', 'recon'],
       hasHq: true,
       supplies: 800,
       hqHpMul: 1,
@@ -142,7 +147,54 @@ export const M1009: MissionDef = {
     { id: 3, x: 23800, width: 140, owner: 1 },
   ],
   timer: null,
+  // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 9).
+  phases: [
+    {
+      id: 'siren',
+      title: 'Siren',
+      objectives: [{ id: 'romanianLine', type: 'capture', point: { trench: 3 }, text: 'Break the Romanian line' }],
+      sideObjectives: [
+        { id: 'tanks15', text: 'Fifteen tanks', objective: { id: 'tanks15Dead', type: 'kill', side: 1, kinds: ['tank'], count: 15 }, bonus: 0.1 },
+      ],
+      next: 'steppe',
+    },
+    {
+      id: 'steppe',
+      title: 'The steppe',
+      objectives: [
+        { id: 'perelazovsky', type: 'capture', point: { trench: 4 }, text: 'Take Perelazovsky' },
+        { id: 'donHills', type: 'capture', point: { trench: 5 }, text: 'Take the Don hills' },
+      ],
+      next: 'bridge',
+    },
+    {
+      id: 'bridge',
+      title: 'The Kalach bridge',
+      objectives: [{ id: 'bridgePost', type: 'destroy', structures: [{ pillbox: 2 }], text: 'Take the bridge' }],
+      sideObjectives: [
+        // Before they can blow it: 180 s from the start of the phase (the demolition itself waits for bridges).
+        { id: 'bridgeIntact', text: 'The bridge intact', objective: { id: 'bridgeFast', type: 'destroy', structures: [{ pillbox: 2 }] }, withinPhase: 180, bonus: 0.2 },
+      ],
+      next: 'sovetsky',
+    },
+    {
+      id: 'sovetsky',
+      title: 'Sovetsky',
+      objectives: [{ id: 'sovetsky', type: 'capture', point: { trench: 6 }, text: 'Take Sovetsky' }],
+      next: null,
+    },
+  ],
   events: [
+    // Siren: three free strikes of twelve rounds on the Romanian trenches, then a Katyusha salvo (FOUNDATIONS.md 3.3).
+    { id: 'siren', type: 'banner', when: { phase: 'siren' }, text: 'Siren!', sound: 'horn' },
+    { id: 'strike1', type: 'barrage', when: { phase: 'siren' }, side: 0, x: 4200, spread: 160, rounds: 12, duration: 4, weapon: 'artilleryShell' },
+    { id: 'strike2', type: 'barrage', when: { phase: 'siren', delay: 3 }, side: 0, x: 5600, spread: 160, rounds: 12, duration: 4, weapon: 'artilleryShell' },
+    { id: 'strike3', type: 'barrage', when: { phase: 'siren', delay: 6 }, side: 0, x: 4900, spread: 600, rounds: 12, duration: 4, weapon: 'artilleryShell' },
+    { id: 'sirenKatyusha', type: 'airRaid', when: { phase: 'siren', delay: 10 }, side: 0, support: 'katyusha', x: 5000 },
+    { id: 'il2', type: 'support', when: { phase: 'steppe' }, side: 0, kind: 'airStrike', enabled: true },
+    { id: 'po2', type: 'support', when: { phase: 'steppe' }, side: 0, kind: 'recon', enabled: true },
+    // Headlights on: the column is not engaged on the road to the bridge for 40 s unless it opens fire.
+    { id: 'headlights', type: 'disguise', when: { phase: 'bridge' }, side: 0, seconds: 40, x0: 21000, x1: 24600 },
     { type: 'announce', when: { at: 2 }, text: 'Siren! Every gun on the front has opened fire.' },
     {
       type: 'hint',
@@ -166,9 +218,9 @@ export const M1009: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 3, delay: 5 },
       side: 0,
       forces: [
-        { kind: 'apc', count: 2, x: 5400 },
-        { kind: 'at', count: 4, x: 5300 },
-        { kind: 'mortar', count: 2, x: 5100 },
+        { kind: 'apc', count: 2, at: { trench: 3 } },
+        { kind: 'at', count: 4, at: { trench: 3 } },
+        { kind: 'mortar', count: 2, at: { trench: 3 } },
       ],
       announce: 'Lend-Lease Universal Carriers, PTRD teams and mortars are up.',
     },
@@ -189,7 +241,7 @@ export const M1009: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 200 },
+      when: { phase: 'steppe', delay: 200 },
       side: 1,
       forces: [
         { kind: 'tank', count: 4, behaviour: 'assault' },
@@ -200,20 +252,20 @@ export const M1009: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 400 },
+      when: { phase: 'steppe', delay: 400 },
       side: 1,
       forces: [{ kind: 'tank', count: 3, behaviour: 'assault', look: 'panzer3h' }],
       announce: 'Romanian armour on the steppe: their R-2 light tanks.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3, delay: 500 }, text: 'A blizzard is blowing up over the steppe.' },
+    { type: 'announce', when: { phase: 'steppe', delay: 500 }, text: 'A blizzard is blowing up over the steppe.' },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 4 }, text: 'Perelazovsky is ours, and a Romanian corps headquarters with it.' },
     {
       type: 'wave',
       when: { trenchCapturedBy: 0, trenchId: 4, delay: 5 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 4, x: 12800 },
-        { kind: 'assault', count: 2, x: 12700 },
+        { kind: 'rifle', count: 4, at: { trench: 4 } },
+        { kind: 'assault', count: 2, at: { trench: 4 } },
       ],
       announce: 'A motor-rifle battalion has caught up at Perelazovsky.',
     },
@@ -249,7 +301,7 @@ export const M1009: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 60 },
+      when: { phase: 'sovetsky', delay: 60 },
       side: 1,
       forces: [
         { kind: 'tank', count: 3, behaviour: 'assault' },
@@ -259,7 +311,7 @@ export const M1009: MissionDef = {
       announce: 'A last-ditch German counter-attack from Kalach!',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 6 }, text: 'Sovetsky! The tanks of the Stalingrad Front are close.' },
-    { type: 'announce', when: { hqHpBelow: 0.25, side: 1 }, text: 'Green flares over Sovetsky. The ring is closing.' },
+    { type: 'announce', when: { objective: 'sovetsky' }, text: 'Green flares over Sovetsky. The ring is closed.' },
     {
       type: 'hint',
       when: { hqHpBelow: 0.5, side: 0 },

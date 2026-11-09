@@ -824,6 +824,8 @@ export interface SideObjectiveDef {
   objective?: ObjectiveDef;
   failIf?: LossDef;
   within?: number;
+  /** The same, counted from the start of the side objective's own phase (1009: the bridge within 180 s of phase 3). */
+  withinPhase?: number;
   /** The objective must still hold when the battle ends (1008: the machine shops still ours at dark). */
   atEnd?: boolean;
   until?: string;

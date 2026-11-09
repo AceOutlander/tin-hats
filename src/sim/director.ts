@@ -432,7 +432,7 @@ function updateSideObjectives(w: World, time: number): void {
     }
     if (def.objective && so.progress && !so.met) {
       if (evalObjective(s, def.objective, so.progress, time - (d.phaseStarts[sidePhase(w, so.id)] ?? 0))) {
-        if (def.within !== undefined && time > def.within) {
+        if (time > deadline(w, def)) {
           so.status = 'failed';
           continue;
         }
@@ -447,7 +447,7 @@ function updateSideObjectives(w: World, time: number): void {
           so.status = 'done';
           emitDone(w, so.text, true);
         }
-      } else if (def.within !== undefined && time > def.within) {
+      } else if (time > deadline(w, def)) {
         so.status = 'failed';
       }
     }
@@ -460,6 +460,16 @@ const SIDE_BASE: number[] = [0];
 function sideDef(w: World, id: string): SideObjectiveDef | undefined {
   for (const p of w.phases) for (const so of p.sideObjectives ?? []) if (so.id === id) return so;
   return undefined;
+}
+
+/** Mission time a side objective must be met by: `within`, or `withinPhase` after its phase began; Infinity for none. */
+function deadline(w: World, def: SideObjectiveDef): number {
+  if (def.within !== undefined) return def.within;
+  if (def.withinPhase !== undefined) {
+    const start = w.state.director.phaseStarts[sidePhase(w, def.id)];
+    return start === undefined ? Infinity : start + def.withinPhase;
+  }
+  return Infinity;
 }
 
 function sidePhase(w: World, id: string): string {
@@ -479,7 +489,7 @@ function closeSideObjectives(w: World, won: boolean, time: number): void {
     let ok = def.objective ? so.met : true;
     // Still true at the end (a point still held), if asked.
     if (ok && def.atEnd && def.objective && so.progress) ok = evalObjective(w.state, def.objective, so.progress, time);
-    if (!def.objective && def.within !== undefined && time > def.within) ok = false;
+    if (!def.objective && time > deadline(w, def)) ok = false;
     so.status = ok ? 'done' : 'failed';
   }
 }
