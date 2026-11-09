@@ -23,6 +23,7 @@ import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts'
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
+import type { AdminController } from './admin';
 import type { App } from './app';
 import { MENU_MUSIC, type MenuStormStats } from './menuStorm';
 import type { LayerChange } from './musicIntensity';
@@ -211,6 +212,15 @@ export interface DebugApi {
   music: MusicHooks;
   /** The battle music. */
   battleMusic: BattleMusicHooks;
+  /** The hidden admin panel (null when the page has none). */
+  admin: AdminHooks | null;
+}
+
+/** Test hooks of the admin panel. The real code is never needed: a test compares against a hash of its own code. */
+export interface AdminHooks {
+  /** From now on the prompt accepts the code whose salted hash (adminLock.codeHash) this is. */
+  useHash(hex: string): void;
+  unlocked(): boolean;
 }
 
 /** The rendered menu theme, measured. */
@@ -323,7 +333,7 @@ export function debugEnabled(search: string): boolean {
 }
 
 /** Create the hooks and put them on window.__TH. */
-export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: GameAudio): DebugApi {
+export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: GameAudio, admin: AdminController | null = null): DebugApi {
   const api: DebugApi = {
     ready: false,
 
@@ -653,6 +663,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         return measureMix(Offline, track);
       },
     },
+
+    admin: admin
+      ? {
+          useHash: (hex) => admin.lockState.useHash(String(hex)),
+          unlocked: () => admin.isUnlocked(),
+        }
+      : null,
 
     battleMusic: {
       stats: () => JSON.parse(JSON.stringify(audio.battleMusicStats())) as BattleMusicStats,

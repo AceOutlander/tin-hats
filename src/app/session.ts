@@ -8,7 +8,7 @@
 import { APP } from '../data/app';
 import type { Difficulty, MissionDef, SupportKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
-import type { Battle, UnitState } from '../sim';
+import type { AdminAction, Battle, UnitState } from '../sim';
 import type { BattleCamera } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel, type HpShownQuery } from './hudModel';
@@ -124,6 +124,17 @@ export class BattleSession {
     if (state.timer !== null && !state.over && this.opts.sound()) {
       this.lastTick = playClockTick(this.audio, state.timer.secondsLeft, this.lastTick);
     }
+  }
+
+  /**
+   * An admin panel action, applied now (paused or not): the view and the app then react to its events (spawns,
+   * deaths, a King Tiger's warning, the end of the battle) as they do after a step. Returns what battle.admin returned.
+   */
+  admin(action: AdminAction): number {
+    const n = this.battle.admin(action);
+    this.view.afterStep();
+    this.handleEvents();
+    return n;
   }
 
   private handleEvents(): void {

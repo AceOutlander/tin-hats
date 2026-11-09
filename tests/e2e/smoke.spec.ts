@@ -47,6 +47,7 @@ test.describe('debug hooks', () => {
     expect(s.inBattle).toBe(false);
     expect(await page.evaluate(() => Object.keys((window as unknown as Hooked).__TH as object).sort())).toEqual(
       [
+        'admin',
         'audio',
         'autopilot',
         'battleMusic',

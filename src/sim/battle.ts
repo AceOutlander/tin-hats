@@ -7,6 +7,7 @@ import type { MissionDef, Order, Side, SupportKind, UnitKind } from '../data/sch
 import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
+import { applyAdmin, cheatSupplies, cheatTraining, inspectAi } from './admin';
 import { applyDamage } from './combat';
 import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
@@ -22,6 +23,8 @@ import { SUPPORT_COUNT, fireAntiAir, updateSupports } from './supports';
 import { KIND_COUNT, KIND_LIST } from './tables';
 import { layoutTrenches, slotCount, updateTrenches } from './trenches';
 import type {
+  AdminAction,
+  AiReport,
   Battle,
   BattleConfig,
   BattleState,
@@ -175,6 +178,7 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     holdLineX: 0,
     controlled: -1,
     stats: { trained: 0, lost: 0, kills: 0, suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
+    cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false },
   };
 }
 
@@ -390,6 +394,7 @@ class BattleImpl implements Battle, World {
     applyCommands(this);
     runCommanders(this); // their commands apply at the start of the next tick, like the player's
     updateMission(this);
+    cheatTraining(this); // admin panel: instant training
     updateEconomy(this);
     updateSupports(this); // cooldowns; strikes launch their rounds and lay their smoke
 
@@ -408,6 +413,16 @@ class BattleImpl implements Battle, World {
 
     applyDamage(this);
     checkEnd(this);
+    cheatSupplies(this); // admin panel: frozen or infinite supplies
+  }
+
+  admin(action: AdminAction): number {
+    this.events.clear();
+    return applyAdmin(this, action);
+  }
+
+  inspectAi(side: Side): AiReport | null {
+    return inspectAi(this, side);
   }
 
   command(side: Side, cmd: Command): void {

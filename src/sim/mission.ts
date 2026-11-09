@@ -114,7 +114,8 @@ export function placeStartingForces(w: World): void {
   }
 }
 
-function fireEvent(w: World, ev: MissionEventDef): void {
+/** Carry out one scripted event now (also used by the admin panel to fire an event by hand). */
+export function fireEvent(w: World, ev: MissionEventDef): void {
   const s = w.state;
   switch (ev.type) {
     case 'hint': {
@@ -245,7 +246,8 @@ export function updateMission(w: World): void {
   }
 }
 
-function endBattle(w: World, winner: number, reason: EndReason): void {
+/** The battle is over: winner (-1 for a draw) and why. Releases direct control and emits battleEnded. */
+export function endBattle(w: World, winner: number, reason: EndReason): void {
   const s = w.state;
   s.over = true;
   s.winner = winner;

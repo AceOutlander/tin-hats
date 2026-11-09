@@ -24,6 +24,7 @@ import {
   cleanSetting,
   clearSave,
   defaultSave,
+  isUnlocked,
   loadSave,
   maxLevel,
   missionRoster,
@@ -80,8 +81,17 @@ export class App implements AppApi {
   private ui: UiApi | null = null;
   /** How far the sky has been pushed toward night for a deadline mission (0..1); what the view was last told. */
   darkness = 0;
-  /** Set by the debug hook: every mission is open on the map. Never saved. */
+  /** Set by the debug hook or the admin panel: every mission is open on the map. Never saved. */
   private unlockedAll = false;
+  /**
+   * Set by the admin panel's unlock: a win on a mission the real progress has not opened yet is not recorded, so the
+   * unlock stays for this session only and the save never gets a clear with a gap before it.
+   */
+  private adminUnlocked = false;
+  /** The admin panel's time of day: a night tint that replaces the mission's own (null = the mission decides). */
+  adminDarkness: number | null = null;
+  /** The admin panel's spawn and pick modes take battlefield taps first while armed (true = the tap was used). */
+  adminTaps: { ground(x: number): boolean; unit(id: number): boolean } | null = null;
   /**
    * The mission of the current battle as the data defines it (the battle itself plays a copy cut to the player's
    * Armoury, with loans), and whether the Armoury applied: a restart starts the same mission the same way.
@@ -135,9 +145,11 @@ export class App implements AppApi {
     );
 
     this.view.onTapGround = (x) => {
+      if (this.adminTaps && this.session && this.adminTaps.ground(x)) return;
       if (this.session && !this.loop.paused) this.session.tapGround(x);
     };
     this.view.onTapUnit = (id) => {
+      if (this.adminTaps && this.session && this.adminTaps.unit(id)) return;
       if (this.session && !this.loop.paused) this.session.tapUnit(id);
     };
     this.view.setFrameHandler((dtMs) => {
@@ -296,8 +308,11 @@ export class App implements AppApi {
     const mission = session.mission;
     let points = 0;
     let medals: MedalBreakdown | null = null;
-    // Only campaign missions count: a win on the sandbox grounds must leave the save alone.
-    if (session.battle.state.winner === 0 && this.missions.some((m) => m.id === mission.id)) {
+    // Only campaign missions count: a win on the sandbox grounds must leave the save alone. So does a battle the admin
+    // panel ended, and a win on a mission only the admin panel's unlock had opened.
+    const ids = this.missions.map((m) => m.id);
+    const admin = session.battle.state.endReason === 'admin' || (this.adminUnlocked && !isUnlocked(this.save, ids, mission.id));
+    if (session.battle.state.winner === 0 && ids.includes(mission.id) && !admin) {
       recordClear(this.save, mission.id, session.difficulty);
       const s = session.battle.state;
       const hq = s.sides[0].hq;
@@ -312,7 +327,6 @@ export class App implements AppApi {
     }
     // The sting was played with the battleEnded event if sound was on; either way the layers fade out now.
     this.audio.endBattleMusic(session.battle.state.winner === 0, false);
-    const ids = this.missions.map((m) => m.id);
     this.pendingResult = buildResult(session.battle, session.difficulty, points, nextMissionId(ids, mission.id), medals);
     this.lastResult = this.pendingResult;
   }
@@ -328,7 +342,7 @@ export class App implements AppApi {
     if (!this.session) return;
     const timer = this.session.battle.state.timer;
     // A deadline mission slides from its own light into night as the time runs out.
-    const darkness = timer && timer.onExpire === 'lose' ? Math.min(1, Math.max(0, timer.progress)) : 0;
+    const darkness = this.adminDarkness ?? (timer && timer.onExpire === 'lose' ? Math.min(1, Math.max(0, timer.progress)) : 0);
     if (darkness !== this.darkness) {
       this.darkness = darkness;
       this.view.setDarkness(darkness);
@@ -436,6 +450,33 @@ export class App implements AppApi {
   /** Open every mission on the map. Records nothing: clears, points and the save stay as they are. */
   unlockAll(): void {
     this.unlockedAll = true;
+    this.ui?.refresh();
+  }
+
+  /** The admin panel's unlock: every mission open for this session, and nothing about it written to the save. */
+  adminUnlockMissions(): void {
+    this.adminUnlocked = true;
+    this.unlockAll();
+  }
+
+  /** True while every mission is open (the admin panel or the debug hook unlocked them). */
+  get missionsUnlocked(): boolean {
+    return this.unlockedAll;
+  }
+
+  /** Start the current battle again from the top on another difficulty (the admin panel). */
+  restartOn(difficulty: Difficulty): void {
+    const session = this.session;
+    if (!session) return;
+    const again = this.launched ?? { mission: session.mission, armoury: false };
+    this.launch(again.mission, difficulty, this.newSeed(), again.armoury);
+  }
+
+  /** Take in a save that sanitizeSave has already checked (the admin panel's import): stored, applied and shown. */
+  replaceSave(data: SaveData): void {
+    this.save = data;
+    this.persist();
+    this.applySettings();
     this.ui?.refresh();
   }
 
