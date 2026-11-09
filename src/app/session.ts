@@ -12,7 +12,7 @@ import { SUPPORT_KINDS } from '../data/supports';
 import { buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
 import type { BattleCamera, PlacingGhost } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
-import { HudModel, type HpShownQuery } from './hudModel';
+import { HudModel, nextDeploy, type HpShownQuery } from './hudModel';
 import { playBossWarning, playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
 import type { Tutorial } from './tutorial';
 
@@ -435,6 +435,9 @@ export class BattleSession {
       case 'ready':
         this.endPlacing();
         this.battle.command(0, { type: 'ready' });
+        return true;
+      case 'deploy':
+        this.battle.command(0, { type: 'deploy', at: nextDeploy(this.battle.state) });
         return true;
       case 'dismissTip':
         return true;

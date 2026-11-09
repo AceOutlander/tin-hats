@@ -80,6 +80,17 @@ export interface MinimapState {
   unitCount: number;
   /** Faction colours for side 0 and side 1. */
   colors: [string, string];
+  /**
+   * The ground's sectors (MissionDef.sectors, FOUNDATIONS.md 4.1): wu ranges and their shading, set when the battle
+   * begins; absent or empty = one plain ground colour.
+   */
+  sectorFrom?: Float32Array;
+  sectorTo?: Float32Array;
+  sectorColor?: string[];
+  /** Capture points (FOUNDATIONS.md 4.5): x and owner (-1 nobody) of the first pointCount entries. */
+  pointX?: Float32Array;
+  pointOwner?: Int8Array;
+  pointCount?: number;
 }
 
 /** A guided tutorial tip: a bubble that points at one control, which pulses while the tip is up. */
@@ -129,6 +140,11 @@ export interface HudState {
   phaseLine?: string | null;
   /** The side objectives begun so far, for the pause screen (not the battle HUD: phone space). */
   sideObjectives?: { text: string; status: 'open' | 'done' | 'failed' }[];
+  /**
+   * The training bar's "Deploy at" chip (FOUNDATIONS.md 4.5): where trained units walk out, or null when the mission
+   * offers no spawn point to the player. The object is reused; `label` changes when the choice or its place does.
+   */
+  deploy?: { label: string; closed: boolean } | null;
 }
 
 /** One build the prep phase offers. */
@@ -190,7 +206,9 @@ export type HudAction =
   /** Prep phase: take back the build placed last (its money comes back). */
   | { type: 'undoBuild' }
   /** Prep phase: start the attack now. */
-  | { type: 'ready' };
+  | { type: 'ready' }
+  /** The "Deploy at" chip: on to the next choice (the front, the HQ, each spawn point). */
+  | { type: 'deploy' };
 
 export interface MissionCard {
   id: number;

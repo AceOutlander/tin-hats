@@ -12,7 +12,7 @@
  * and always top edge at layer.y.
  */
 import type { TheatreId, TimeOfDay } from '../../data/schema';
-import { BACKDROP, THEATRES, TIME_GRADES, type BackdropStripDef, type RainGrade } from '../../data/theatres';
+import { BACKDROP, THEATRES, TIME_GRADES, type BackdropStripDef, type GroundStyle, type RainGrade } from '../../data/theatres';
 import { DEPTH, PARALLAX, VIEW } from '../../data/view';
 import type { BackdropLayerSpec } from '../types';
 import { rgbToHex, rgbToInt } from './color';
@@ -203,3 +203,16 @@ export function backdropLayerX(l: BackdropLayer, camX: number): number {
 
 export { rasteriseBackdropLayer } from './raster';
 export { franceSpireTileX } from './theatres/france';
+
+/**
+ * The ground strip painted in another ground style (a mission's sectors, FOUNDATIONS.md 4.1): the same slot, size
+ * rules and placement as getBackdrop's ground layer, on a tile of `tileW` wu (narrower tiles keep the extra textures
+ * small on phones). Deterministic like getBackdrop.
+ */
+export function getGroundLayer(theatre: TheatreId, timeOfDay: TimeOfDay, seed: number, style: GroundStyle, tileW: number = BACKDROP.tileW.ground): BackdropLayer {
+  const sc = makeScene(theatre, timeOfDay, seed);
+  const l = layer(theatre, timeOfDay, 'ground', tileW, VIEW.heightWu - BACKDROP.groundTop, 0, BACKDROP.groundTop, true, (ctx) => {
+    paintGround(ctx, sc, mulberry32(subSeed(seed, `${theatre}/ground/${style}`)), tileW, style);
+  });
+  return { ...l, key: `${l.key}/${style}` };
+}

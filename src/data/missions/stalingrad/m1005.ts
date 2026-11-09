@@ -2,16 +2,17 @@ import type { MissionDef } from '../../schema';
 
 /**
  * Stalingrad 5: Crossing the Volga, night of 14 to 15 September 1942 (docs/campaigns/STALINGRAD.md, mission 5). The
- * 13th Guards Rifle Division crosses to the central landing under fire, clears the houses along the high bank and
- * takes the central railway station against the 71st Infantry Division.
+ * 13th Guards Rifle Division crosses to the central landing under fire, clears the houses along the high bank and takes
+ * the central railway station against the 71st Infantry Division.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1005): a special mission of four phases.
- * Hold the landing (trench 1 for P1) for 180 s, lost if it falls; take the high bank (the riverside blocks, trench 3
- * for P2, with a Nebelwerfer salvo on them); take the station (trench 4 for B5; the Stukas come with daylight); then a
- * 45 s prep phase and hold the station for 240 s against three counter-attacks. The river has no water yet, so trained
- * units walk across from the east bank; the boats are free reinforcement waves landing at the landing stage, one load
- * at a time, and the barrage on the river is a smaller load. Flares, the ferry's batching of trained units and the
- * night to day changes wait for their features.
+ * Hold the landing (P1, held through trench 1, the forward spawn: trained units cross on the ferry) for 180 s, lost if
+ * it falls; take the high bank (the riverside blocks, P2, through trench 3 until buildings exist, a forward spawn once
+ * ours, with a Nebelwerfer salvo on them); take the station (trench 4 for B5; the Stukas come with daylight); then a 45
+ * s prep phase and hold the station for 240 s against three counter-attacks. The Volga is water, waded at a crawl; the
+ * boats are free reinforcement waves landing at the landing stage, one load at a time, and the barrage on the river is
+ * a smaller load. The ground is the brief's sectors (sand, water, the high bank's slope, rubble). Flares, the ferry's
+ * batching of trained units and the night to day changes wait for their features.
  */
 export const M1005: MissionDef = {
   id: 1005,
@@ -108,14 +109,31 @@ export const M1005: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
+  // The brief's sectors (FOUNDATIONS.md 4.1): the east bank, the Volga (waded at a crawl: trained units cross on the
+  // ferry to the landing, its forward spawn point), the landing stage and the climb up the high bank, then rubble.
+  sectors: [
+    { from: 0, to: 2500, ground: 'sand', label: 'East bank' },
+    { from: 2500, to: 4500, ground: 'water', label: 'The Volga' },
+    { from: 4500, to: 5200, ground: 'sand', label: 'Landing stage' },
+    { from: 5200, to: 6000, ground: 'slopeUp', label: 'The high bank' },
+    { from: 6000, to: 9000, ground: 'rubble', label: 'Riverside blocks' },
+    { from: 9000, to: 10600, ground: 'rubble', label: 'Central station' },
+    { from: 10600, to: 12000, ground: 'cobble', label: 'Central station' },
+  ],
+  // The capture points (4.5): the landing (held through trench 1) and the riverside blocks (trench 3 stands in for the
+  // building B2 until buildings exist), both forward spawn points. The ferry's batches (batchEvery) wait for 4.4.
+  capturePoints: [
+    { id: 'P1', x: 4700, width: 300, label: 'Central landing', owner: 0, captureTime: 0, spawn: true, contestRadius: 500, structure: { trench: 1 } },
+    { id: 'P2', x: 7400, width: 300, label: 'Riverside blocks', owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 3 } },
+  ],
   timer: null,
   // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 5).
   phases: [
     {
       id: 'landing',
       title: 'The landing',
-      objectives: [{ id: 'landing', type: 'hold', point: { trench: 1 }, seconds: 180, text: 'Hold the landing' }],
-      lose: [{ type: 'pointLost', point: { trench: 1 } }],
+      objectives: [{ id: 'landing', type: 'hold', point: { point: 'P1' }, seconds: 180, text: 'Hold the landing' }],
+      lose: [{ type: 'pointLost', point: { point: 'P1' } }],
       sideObjectives: [
         // Two boat loads are about ten men: the battalion ashore with fewer lost than that on the way.
         { id: 'ashore', text: 'The whole battalion ashore', failIf: { type: 'lost', count: 10 }, until: 'bank', bonus: 0.1 },
@@ -126,7 +144,7 @@ export const M1005: MissionDef = {
     {
       id: 'bank',
       title: 'The high bank',
-      objectives: [{ id: 'bank', type: 'capture', point: { trench: 3 }, text: 'Take the riverside blocks' }],
+      objectives: [{ id: 'bank', type: 'capture', point: { point: 'P2' }, text: 'Take the riverside blocks' }],
       next: 'station',
     },
     {
@@ -235,7 +253,7 @@ export const M1005: MissionDef = {
       ],
       announce: 'Another regiment\'s boats are getting across.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The riverside blocks are ours. The station lies ahead.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' } }, text: 'The riverside blocks are ours. The station lies ahead.' },
     // Phase 3, "The station".
     {
       type: 'wave',

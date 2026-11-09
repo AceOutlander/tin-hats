@@ -7,10 +7,11 @@ import type { MissionDef } from '../../schema';
  * wood's edge. The mission depicts the real battle, not the "28 Panfilov men" legend, and names no individuals.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1003): a hold. A 60 s prep phase comes
- * first (the bot wires the halt); phases 1 and 2 hold the halt (trench 2 stands in for P1) for 360 s each and are lost
+ * first (the bot wires the halt); phases 1 and 2 hold the halt (P1, held through trench 2) for 360 s each and are lost
  * if it falls; the German barrage on the halt, the Stuka and the Pak 38 and mortar posture are scripted; the Katyusha
- * is offered from phase 2; phase 3 brings Katukov's tanks and takes the wood's edge (trench 3 for P2), where the
- * Germans counter-attack 90 s after it falls; it is held for 150 s. The tank traps and the snow wait for their features.
+ * is offered from phase 2; phase 3 brings Katukov's tanks and takes the wood's edge (P2, through trench 3, a forward
+ * spawn once ours), where the Germans counter-attack 90 s after it falls; it is held for 150 s. The ground is snow, the
+ * birch wood forest; the tank traps wait for their feature.
  */
 export const M1003: MissionDef = {
   id: 1003,
@@ -26,7 +27,7 @@ export const M1003: MissionDef = {
     'Most of you came from Alma-Ata and Frunze, from the steppe and the mountains, and you have held them for a month already. This week the division gave us something new: a few long anti-tank rifles that can hole a Panzer\'s side at close range. There are not many, so fire them from the trenches and let the tanks come near.',
     'Dig in at the railway halt, wire the approaches and set the steel obstacles across the road. Hold until our tanks come up from the rear, then throw the Germans back to the edge of the wood.',
   ],
-  // Today's win rule: the German HQ beyond the wood (the wood's-edge capture point waits for the director).
+  // The win: the last phase takes the wood's edge (capture point P2) and holds it.
   objective: 'Hold the railway halt, then retake the wood\'s edge and destroy the German HQ.',
   intel: {
     enemy: [
@@ -104,6 +105,19 @@ export const M1003: MissionDef = {
   pillboxes: [],
   // The prep phase's wire in front of the halt, laid before the battle until the prep phase exists.
   wire: [],
+  // The brief's sectors (FOUNDATIONS.md 4.1): snow everywhere, the birch wood's trunks for cover; the halt and the
+  // wood's edge are capture points held through their trenches (4.5), the wood's edge a spawn point once it is ours.
+  sectors: [
+    { from: 0, to: 3000, ground: 'snow', label: "The battalion's rear" },
+    { from: 3000, to: 6500, ground: 'snow', label: 'Dubosekovo halt' },
+    { from: 6500, to: 9500, ground: 'snow', label: 'Frozen fields' },
+    { from: 9500, to: 12000, ground: 'forest', label: 'Birch wood' },
+    { from: 12000, to: 16000, ground: 'snow', label: 'German start' },
+  ],
+  capturePoints: [
+    { id: 'P1', x: 5600, width: 300, label: 'The halt', owner: 0, captureTime: 0, spawn: false, contestRadius: 600, structure: { trench: 2 } },
+    { id: 'P2', x: 9800, width: 300, label: "Wood's edge", owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 3 } },
+  ],
   // A minute to wire the halt before the first attack (the bot builds what used to be laid before the battle).
   prep: { seconds: 60, bot: [{ kind: 'wire', x: 5900 }] },
   timer: null,
@@ -113,7 +127,7 @@ export const M1003: MissionDef = {
       id: 'morning',
       title: 'The morning attack',
       objectives: [{ id: 'morning', type: 'survive', seconds: 360, text: 'Hold the halt' }],
-      lose: [{ type: 'pointLost', point: { trench: 2 } }],
+      lose: [{ type: 'pointLost', point: { point: 'P1' } }],
       sideObjectives: [
         {
           id: 'noTank',
@@ -130,7 +144,7 @@ export const M1003: MissionDef = {
       id: 'again',
       title: 'They come again',
       objectives: [{ id: 'again', type: 'survive', seconds: 360, text: 'Hold the halt' }],
-      lose: [{ type: 'pointLost', point: { trench: 2 } }],
+      lose: [{ type: 'pointLost', point: { point: 'P1' } }],
       next: 'katukov',
     },
     {
@@ -138,8 +152,8 @@ export const M1003: MissionDef = {
       title: "Katukov's tanks",
       // Take the wood's edge, then hold it through the counter-attack that comes 90 s after it falls.
       objectives: [
-        { id: 'woodEdge', type: 'capture', point: { trench: 3 }, text: "Take the wood's edge" },
-        { id: 'woodHeld', type: 'hold', point: { trench: 3 }, seconds: 150, text: 'Hold the edge' },
+        { id: 'woodEdge', type: 'capture', point: { point: 'P2' }, text: "Take the wood's edge" },
+        { id: 'woodHeld', type: 'hold', point: { point: 'P2' }, seconds: 150, text: 'Hold the edge' },
       ],
       next: null,
     },
@@ -152,7 +166,7 @@ export const M1003: MissionDef = {
     { id: 'katyusha', type: 'support', when: { phase: 'again' }, side: 0, kind: 'katyusha', enabled: true },
     { id: 'pakHold', type: 'posture', when: { phase: 'again', delay: 160 }, side: 1, posture: 'hold' },
     { id: 'katukovFree', type: 'posture', when: { phase: 'katukov' }, side: 1, posture: 'free' },
-    { id: 'woodCounter', type: 'posture', when: { pointCapturedBy: 0, point: { trench: 3 }, delay: 90 }, side: 1, posture: 'counterattack', point: { trench: 3 }, seconds: 120 },
+    { id: 'woodCounter', type: 'posture', when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 90 }, side: 1, posture: 'counterattack', point: { point: 'P2' }, seconds: 120 },
     // Phase 1, "The morning attack" (0 to 360 s).
     { type: 'announce', when: { at: 1 }, text: 'The morning attack: the ground is frozen and the panzers are moving.' },
     {
@@ -266,10 +280,10 @@ export const M1003: MissionDef = {
       when: { phase: 'katukov', delay: 4 },
       text: 'Advance behind the tanks with the PTRD Teams and take the wood\'s edge, then hold it: they will counter-attack.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The wood\'s edge is ours again.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' } }, text: 'The wood\'s edge is ours again.' },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 90 },
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 90 },
       side: 1,
       forces: [
         { kind: 'tank', count: 2, x: 13500, behaviour: 'assault' },

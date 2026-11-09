@@ -120,6 +120,8 @@ export function createUnit(index: number): UnitState {
     flushedUntil: -LONG_AGO,
     aaCooldown: 0,
     invincible: false,
+    skis: false,
+    rally: -1,
   };
 }
 
@@ -263,6 +265,8 @@ export function spawnUnit(
   u.flushedUntil = -LONG_AGO;
   u.aaCooldown = 0;
   u.invincible = false;
+  u.skis = false;
+  u.rally = -1;
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = def.formationDepth;

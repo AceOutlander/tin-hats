@@ -7,11 +7,13 @@ import { APP } from '../data/app';
 import { CONFIG } from '../data/config';
 import { missionEra, resolveEra, unitDisplayName, type ResolvedEra } from '../data/eras';
 import { FACTIONS } from '../data/factions';
+import { GROUND_MINIMAP, groundArt } from '../data/ground';
 import { PREP } from '../data/prep';
 import type { Side } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
+import { THEATRES } from '../data/theatres';
 import { UNITS, UNIT_KINDS } from '../data/units';
-import { orderCost, orderPop, type Battle, type BattleState, type ObjectiveState } from '../sim';
+import { DEPLOY_AUTO, DEPLOY_HQ, orderCost, orderPop, type Battle, type BattleState, type ObjectiveState } from '../sim';
 import type { ControlState, HudState, MinimapState, PrepHudState, SupportButtonState, TrainButtonState } from '../ui/contracts';
 
 /** Whose unit health the player may see (the battle view's HpReveal). */
@@ -105,6 +107,9 @@ export class HudModel {
   /** What the phase line was made from (phase, objective, shown progress), so it is rebuilt only when that changes. */
   private phaseKey = -1;
   private sideKey = '';
+  /** The "Deploy at" chip (reused) and what it was last made from. */
+  private readonly deployChip = { label: '', closed: false };
+  private deployKey = -9;
 
   private makePrepPanel(prep: BattleState['prep']): void {
     this.prepSource = prep;
@@ -198,6 +203,18 @@ export class HudModel {
     m.pillboxX = new Float32Array(s.pillboxes.length);
     m.pillboxSide = new Int8Array(s.pillboxes.length);
     m.colors = [FACTIONS[s.sides[0].faction].look.tint, FACTIONS[s.sides[1].faction].look.tint];
+    // The ground by sector, shaded as it is drawn (FOUNDATIONS.md 4.1), and the capture points.
+    const mission = battle.config.mission;
+    const sectors = mission.sectors ?? [];
+    const theatreStyle = THEATRES[mission.theatre].groundStyle;
+    m.sectorFrom = new Float32Array(sectors.map((sec) => sec.from));
+    m.sectorTo = new Float32Array(sectors.map((sec) => sec.to));
+    m.sectorColor = sectors.map((sec) => GROUND_MINIMAP[groundArt(sec.ground, theatreStyle, mission.climate === 'winter')]);
+    m.pointX = new Float32Array(s.points.map((p) => p.x));
+    m.pointOwner = new Int8Array(s.points.length);
+    m.pointCount = s.points.length;
+    this.deployKey = -9;
+    st.deploy = deployOptions(s).length > 2 ? this.deployChip : null;
     m.hq = [null, null];
     if (m.unitX.length < s.units.length) {
       m.unitX = new Float32Array(s.units.length);
@@ -276,6 +293,22 @@ export class HudModel {
 
     this.refreshControl(battle, hp);
     this.refreshMinimap(battle, camCenterX, camViewW);
+    if (st.deploy) this.refreshDeploy(s);
+  }
+
+  /** The "Deploy at" chip: rebuilt only when the choice or where it resolves to changes. */
+  private refreshDeploy(s: BattleState): void {
+    const me = s.sides[0];
+    const key = (me.deploy + 2) * 1000 + me.deployPoint + 1;
+    if (key === this.deployKey) return;
+    this.deployKey = key;
+    const chip = this.deployChip;
+    const at = me.deployPoint >= 0 ? s.points[me.deployPoint].label : 'HQ';
+    if (me.deploy === DEPLOY_AUTO) chip.label = `Deploy: ${at} (front)`;
+    else if (me.deploy === DEPLOY_HQ) chip.label = 'Deploy: HQ';
+    else chip.label = `Deploy: ${s.points[me.deploy].label}`;
+    // A chosen point the player does not hold now (lost or contested): they walk out of the front-most one meanwhile.
+    chip.closed = me.deploy >= 0 && me.deployPoint !== me.deploy;
   }
 
   /**
@@ -385,7 +418,32 @@ export class HudModel {
       n++;
     }
     m.unitCount = n;
+    const points = s.points;
+    const owners = m.pointOwner;
+    if (owners) for (let i = 0; i < points.length && i < owners.length; i++) owners[i] = points[i].owner;
   }
+}
+
+/**
+ * The "Deploy at" chip's choices in the order a tap steps through them: the front-most point (auto), the HQ, then each
+ * spawn point the player may use. Only the first two when the mission has none, and the chip is then not shown.
+ */
+export function deployOptions(s: BattleState): ('auto' | 'hq' | number)[] {
+  const out: ('auto' | 'hq' | number)[] = ['auto', 'hq'];
+  for (let k = 0; k < s.points.length; k++) {
+    const p = s.points[k];
+    if (p.spawn && (p.spawnFor < 0 || p.spawnFor === 0)) out.push(k);
+  }
+  return out;
+}
+
+/** The choice after the player's current one, wrapping round. */
+export function nextDeploy(s: BattleState): 'auto' | 'hq' | number {
+  const options = deployOptions(s);
+  const d = s.sides[0].deploy;
+  const now = d === DEPLOY_AUTO ? 'auto' : d === DEPLOY_HQ ? 'hq' : d;
+  const i = options.indexOf(now);
+  return options[(i + 1) % options.length];
 }
 
 /** The prep panel's numbers this frame, or null once the prep phase is over (or the mission has none). */

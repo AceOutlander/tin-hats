@@ -2,17 +2,18 @@ import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
- * Stalingrad mission 6 (1006): Mamayev Kurgan, 19 September 1942 (docs/campaigns/STALINGRAD.md, mission 6).
- * The 95th Rifle Division crossed the night before and goes straight up Height 102.0: the railway cutting at the foot
- * (trench 2), two shell-hole positions on the eastern slope (trenches 3 and 4) behind wire, and on the summit the two
- * water tanks the Germans turned into blockhouses (pillboxes 1 and 2) with a trench between them (trench 5). When the
- * summit falls the 295th Infantry Division comes back at it four times; then the western slope and the German HQ.
+ * Stalingrad mission 6 (1006): Mamayev Kurgan, 19 September 1942 (docs/campaigns/STALINGRAD.md, mission 6). The 95th
+ * Rifle Division crossed the night before and goes straight up Height 102.0: the railway cutting at the foot (trench
+ * 2), two shell-hole positions on the eastern slope (trenches 3 and 4) behind wire, and on the summit the two water
+ * tanks the Germans turned into blockhouses (pillboxes 1 and 2) with a trench between them (trench 5). When the summit
+ * falls the 295th Infantry Division comes back at it four times; then the western slope and the German HQ.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): a hold in four phases. Take the
- * railway cutting (trench 2 for P1), then the two shell-hole positions on the slope (trenches 3 and 4), then destroy
- * the water tanks (pillboxes 1 and 2) and take the summit between them (trench 5 for P2), then a 45 s prep phase and
- * hold the summit for 360 s against
- * four counter-attacks. The Stukas and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
+ * railway cutting (P1, held through trench 2, a forward spawn once ours), then the two shell-hole positions on the
+ * slope (trenches 3 and 4), then destroy the water tanks (pillboxes 1 and 2) and take the summit between them (P2, open
+ * ground taken by holding it 10 s), then a 45 s prep phase and hold the summit for 360 s against four counter-attacks.
+ * The ground is rubble at the foot, the slope up, the summit's rock (heightBonus 1.1: the crest outranges the slope)
+ * and the slope down. The Stukas and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
  * and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and, by look, the StuG III Ausf. F; the
  * `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
  */
@@ -118,13 +119,28 @@ export const M1006: MissionDef = {
     { id: 2, x: 10900, side: 1, hpMul: 1.6 },
   ],
   wire: [{ id: 1, x: 8600, width: 140, owner: 1 }],
+  // The brief's sectors (FOUNDATIONS.md 4.1): rubble at the foot, the climb, the summit's reach (heightBonus 1.1:
+  // whoever holds the crest outranges the slope) and the way down the far side.
+  sectors: [
+    { from: 0, to: 3000, ground: 'rubble', label: 'The ravine' },
+    { from: 3000, to: 5000, ground: 'rubble', label: 'The railway' },
+    { from: 5000, to: 9500, ground: 'slopeUp', label: 'The eastern slope' },
+    { from: 9500, to: 11500, ground: 'rock', label: 'The summit', heightBonus: 1.1 },
+    { from: 11500, to: 14000, ground: 'slopeDown', label: 'The western slope' },
+  ],
+  // The capture points (4.5): the railway cutting (held through trench 2, a forward spawn point) and the summit between
+  // the water tanks, open ground taken by holding it (trench 5 lies inside it).
+  capturePoints: [
+    { id: 'P1', x: 4200, width: 300, label: 'Railway cutting', owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 2 } },
+    { id: 'P2', x: 10500, width: 600, label: 'The summit', owner: 1, captureTime: 10, spawn: false, contestRadius: 600 },
+  ],
   timer: null,
   // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 6).
   phases: [
     {
       id: 'foot',
       title: 'The foot of the hill',
-      objectives: [{ id: 'cutting', type: 'capture', point: { trench: 2 }, text: 'Take the railway cutting' }],
+      objectives: [{ id: 'cutting', type: 'capture', point: { point: 'P1' }, text: 'Take the railway cutting' }],
       sideObjectives: [
         {
           id: 'waterTanks',
@@ -151,7 +167,7 @@ export const M1006: MissionDef = {
       // The summit trench between the tanks is taken with them, so the hold (and its counter-attacks) starts on it.
       objectives: [
         { id: 'waterTanksDown', type: 'destroy', structures: [{ pillbox: 1 }, { pillbox: 2 }], text: 'Water tanks destroyed' },
-        { id: 'summitTaken', type: 'capture', point: { trench: 5 }, text: 'Take the summit' },
+        { id: 'summitTaken', type: 'capture', point: { point: 'P2' }, text: 'Take the summit' },
       ],
       next: 'summit',
     },
@@ -163,7 +179,7 @@ export const M1006: MissionDef = {
         zone: { from: 9500, to: 11300 },
         buildables: ['wire', 'foxhole'],
       },
-      objectives: [{ id: 'summitHeld', type: 'hold', point: { trench: 5 }, seconds: 360, text: 'Hold the summit' }],
+      objectives: [{ id: 'summitHeld', type: 'hold', point: { point: 'P2' }, seconds: 360, text: 'Hold the summit' }],
       sideObjectives: [
         // The phase brings five German vehicles: every one of them burnt (counted from here, as the mission's kills).
         { id: 'noStug', text: 'No assault gun survives', objective: { id: 'phase4Armour', type: 'kill', side: 1, kinds: ['tank'], count: 5 }, bonus: 0.1 },
@@ -207,10 +223,10 @@ export const M1006: MissionDef = {
         { kind: 'assault', count: 1 },
       ],
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 2 }, text: 'The railway cutting is ours. Now the slope.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P1' } }, text: 'The railway cutting is ours. Now the slope.' },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 2, delay: 10 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 10 },
       side: 0,
       forces: [
         { kind: 'rifle', count: 4, x: 4000 },
@@ -231,7 +247,7 @@ export const M1006: MissionDef = {
     },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 2, delay: 4 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 4 },
       text: 'Their mortars sit behind the crest. Let your Mortar Crews and the Sniper duel them, smoke the slope, then climb.',
     },
     {
@@ -257,10 +273,10 @@ export const M1006: MissionDef = {
       text: 'Flamethrowers burn out the water tanks. Keep riflemen around them: a hit from behind sets the fuel alight.',
     },
     { type: 'announce', when: { phase: 'tanks', delay: 60 }, text: 'Rocket mortars on the slope!' },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 5 }, text: 'The summit is ours. Dig in!' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' } }, text: 'The summit is ours. Dig in!' },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 5 },
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 5 },
       side: 0,
       forces: [
         { kind: 'at', count: 3, x: 10300 },

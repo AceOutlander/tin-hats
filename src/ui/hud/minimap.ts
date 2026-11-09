@@ -79,8 +79,39 @@ export class MinimapView {
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = COL_GROUND;
     ctx.fillRect(0, ground, w, h - ground);
+    // The ground by sector (FOUNDATIONS.md 4.1): each stretch in its own shade.
+    const sectorColor = m.sectorColor;
+    const from = m.sectorFrom;
+    const to = m.sectorTo;
+    if (sectorColor && from && to) {
+      for (let i = 0; i < sectorColor.length; i++) {
+        const x0 = Math.round(pad + from[i] * k);
+        const x1 = Math.round(pad + to[i] * k);
+        ctx.fillStyle = sectorColor[i];
+        ctx.fillRect(x0, ground, Math.max(1, x1 - x0), h - ground);
+      }
+    }
     ctx.fillStyle = COL_GROUND_EDGE;
     ctx.fillRect(0, ground, w, Math.max(1, Math.round(s * 0.5)));
+
+    // Capture points (FOUNDATIONS.md 4.5): a flag on a pole, in the holder's colour.
+    const pointX = m.pointX;
+    const pointOwner = m.pointOwner;
+    const points = m.pointCount ?? 0;
+    if (pointX && pointOwner) {
+      const poleH = Math.max(5, Math.round(ground * 0.55));
+      const flagW = Math.max(3, Math.round(4 * s));
+      const flagH = Math.max(2, Math.round(3 * s));
+      const lw = Math.max(1, Math.round(s * 0.6));
+      for (let i = 0; i < points; i++) {
+        const x = Math.round(pad + pointX[i] * k);
+        ctx.fillStyle = COL_CAM_EDGE;
+        ctx.fillRect(x, ground - poleH, lw, poleH);
+        const owner = pointOwner[i];
+        ctx.fillStyle = owner === 0 ? col0 : owner === 1 ? col1 : COL_NEUTRAL;
+        ctx.fillRect(x + lw, ground - poleH, flagW, flagH);
+      }
+    }
 
     // Trenches: a notch cut into the ground, coloured by whoever holds it.
     const trenchH = Math.max(2, Math.round(3 * s));

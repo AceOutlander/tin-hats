@@ -3,17 +3,19 @@ import type { MissionDef } from '../../schema';
 
 /**
  * Stalingrad mission 7 (1007): the House on the Square, 9 January Square, late September to November 1942
- * (docs/campaigns/STALINGRAD.md, mission 7). Survival: Sergeant Pavlov's four men take the four-storey house
- * (trench 2, two Germans inside), Lieutenant Afanasyev's section comes up the communication trench from the mill
- * (trench 1), and the garrison holds the house through two days and three nights compressed into 22 minutes: rifle
- * attacks by day, raiding parties by night, tanks on the second day, flamethrowers on the last night.
+ * (docs/campaigns/STALINGRAD.md, mission 7). Survival: Sergeant Pavlov's four men take the four-storey house (trench 2,
+ * two Germans inside), Lieutenant Afanasyev's section comes up the communication trench from the mill (trench 1), and
+ * the garrison holds the house through two days and three nights compressed into 22 minutes: rifle attacks by day,
+ * raiding parties by night, tanks on the second day, flamethrowers on the last night.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1007): phase 0 takes the house (a trench
  * with many slots, no buildings or floors yet; two Germans inside) before first light, and brings Afanasyev's section
- * up the communication trench; the 60 s prep phase follows it (the bot wires the doors); then day one (lost if the house
- * falls, a Stuka raid), night one, day two with the tanks and the last night (the Katyusha comes up for it), all under
- * the one 22-minute clock. The attackers have no HQ: their Stukas are scripted raids. The artillery reloads in 90 s here.
- * StuG III Ausf. F and Panzer III J are the `tank` kind (the era's Panzer III Ausf. L; the StuG by look `stug3f`).
+ * up the communication trench; the 60 s prep phase follows it (the bot wires the doors); then day one (lost if the
+ * house falls, a Stuka raid), night one, day two with the tanks and the last night (the Katyusha comes up for it), all
+ * under the one 22-minute clock. The attackers have no HQ: their Stukas are scripted raids. The artillery reloads in 90
+ * s here. The communication trench is the capture point P1 (its side objective keeps it open); the ground is the mill's
+ * rubble, the square's cobbles and the German-held blocks' rubble. StuG III Ausf. F and Panzer III J are the `tank`
+ * kind (the era's Panzer III Ausf. L; the StuG by look `stug3f`).
  */
 export const M1007: MissionDef = {
   id: 1007,
@@ -92,6 +94,17 @@ export const M1007: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
+  // The brief's sectors (FOUNDATIONS.md 4.1): the mill's rubble, the square's cobbles, the German-held blocks.
+  sectors: [
+    { from: 0, to: 1600, ground: 'rubble', label: 'The mill' },
+    { from: 1600, to: 2200, ground: 'rubble', label: 'Communication trench' },
+    { from: 2200, to: 2800, ground: 'cobble', label: "Pavlov's House" },
+    { from: 2800, to: 4400, ground: 'cobble', label: '9 January Square' },
+    { from: 4400, to: 7000, ground: 'rubble', label: 'German-held blocks' },
+  ],
+  // The communication trench, held the trench way (FOUNDATIONS.md 4.5): the side objective keeps it open, and new men
+  // come up it from the mill (a forward spawn point while it is ours and quiet).
+  capturePoints: [{ id: 'P1', x: 1900, width: 200, label: 'The trench', owner: 0, captureTime: 0, spawn: true, contestRadius: 400, structure: { trench: 1 } }],
   timer: { seconds: 1320, onExpire: 'win', label: 'Until the counter-offensive' },
   // The mission director (FOUNDATIONS.md 3): take the house, dig in, then two days and two nights. Phase 0 runs at least
   // 110 s (the section comes up), so the day and night phases keep the old clock: 110 to 420, 660, 960 and 1320 s.
@@ -121,7 +134,7 @@ export const M1007: MissionDef = {
       objectives: [{ id: 'dayOne', type: 'survive', seconds: 310, text: 'Hold the house' }],
       lose: [{ type: 'pointLost', point: { trench: 2 } }],
       sideObjectives: [
-        { id: 'trenchOpen', text: 'The trench stays open', failIf: { type: 'pointLost', point: { trench: 1 } }, bonus: 0.15 },
+        { id: 'trenchOpen', text: 'The trench stays open', failIf: { type: 'pointLost', point: { point: 'P1' } }, bonus: 0.15 },
         { id: 'noGerman', text: 'No German sets foot inside', failIf: { type: 'enemyReached', x: 2560, count: 1 }, bonus: 0.15 },
       ],
       next: 'nightOne',

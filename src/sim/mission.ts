@@ -7,6 +7,7 @@ import type { ForceDef, MissionEventDef, Side } from '../data/schema';
 import { checkDirector, directorTrigger, endBattle, enterPhase, fireDirectorEvent, pointOwner, setOwner, updateDirector } from './director';
 import { inPrep, missionTime } from './prep';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
+import { deployX } from './points';
 import { claimSlot, enterSlot } from './trenches';
 import { makeVeteran, spawnUnit } from './units';
 import type { World } from './world';
@@ -39,8 +40,15 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let trench = -1;
   // A forward spawn point the side holds (ForceDef.at): just behind it, going back.
   if (force.x === undefined && force.trenchId === undefined && force.at !== undefined && pointOwner(s, force.at) === si) {
-    for (let i = 0; i < s.trenches.length; i++) {
-      if (s.trenches[i].id === force.at.trench) baseX = s.trenches[i].x - dir * (w.trenchHalf[i] + CONFIG.trenchFormGap);
+    const at = force.at;
+    if ('trench' in at) {
+      for (let i = 0; i < s.trenches.length; i++) {
+        if (s.trenches[i].id === at.trench) baseX = s.trenches[i].x - dir * (w.trenchHalf[i] + CONFIG.trenchFormGap);
+      }
+    } else {
+      // A capture point: just behind its zone, where trained units deploy.
+      const k = s.points.findIndex((p) => p.id === at.point);
+      if (k >= 0) baseX = deployX(w, si, k);
     }
     step = -dir * CONFIG.spacing;
     inFormation = false;
@@ -101,6 +109,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
         look: force.look ?? '',
         faction: force.nation ?? '',
         leash: force.leash ?? -1,
+        skis: force.tags?.includes('skis') === true,
       });
       side.reservePop += (count - j) * def.pop;
       break;
@@ -111,6 +120,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     if (!u) break;
     spawned++;
     if (force.leash !== undefined) u.leash = force.leash;
+    if (force.tags?.includes('skis') === true) u.skis = true;
     if (force.veteran === true) makeVeteran(w, u);
     // Names and looks only (FOUNDATIONS.md 5.1): the force's look inside the era, and its nation if not the side's.
     if (force.look !== undefined) u.look = force.look;
@@ -249,6 +259,7 @@ function releaseReserve(w: World): void {
       u.look = g.look;
       if (g.faction !== '') u.faction = g.faction;
       if (g.leash >= 0) u.leash = g.leash;
+      u.skis = g.skis;
       g.left--;
       side.reservePop -= def.pop;
       if (!Number.isNaN(g.postX)) u.postX = g.postX;

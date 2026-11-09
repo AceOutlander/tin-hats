@@ -420,6 +420,11 @@ class HudView implements Hud {
   // Bottom bar.
   private readonly trainWrap: HTMLElement;
   private readonly trainBar: HTMLElement;
+  /** The "Deploy at" chip on the training bar (FOUNDATIONS.md 4.5): hidden unless the mission has spawn points. */
+  private readonly deployButton: HTMLButtonElement;
+  private readonly deployText: TextCell;
+  private readonly deployClosed: FlagCell;
+  private deployShown: boolean | null = null;
   private readonly trainViews: TrainView[] = [];
   private readonly supportViews: SupportView[] = [];
   // Call-ins: a "Call-ins" toggle with a mini pip per call-in, which opens the column of call-in buttons above it.
@@ -646,6 +651,13 @@ class HudView implements Hud {
     const trainBar = el('div', 'th-train', trainWrap);
     trainBar.dataset.interactive = '';
     this.trainBar = trainBar;
+    // "Deploy at": a tab on the training bar's top edge; each tap steps to the next spawn point (the front, the HQ...).
+    const deploy = button('th-hbtn th-deploy', 'deploy-at', 'Deploy at', trainWrap);
+    deploy.hidden = true;
+    this.deployText = new TextCell(el('span', 'th-deploy-text', deploy));
+    this.deployClosed = new FlagCell(deploy, 'is-closed');
+    this.deployButton = deploy;
+    onTap(deploy, () => this.app.dispatch({ type: 'deploy' }));
     icon('chevLeft', el('span', 'th-more th-more-l', trainWrap));
     icon('chevRight', el('span', 'th-more th-more-r', trainWrap));
     trainBar.addEventListener('scroll', this.onTrainScroll, { passive: true });
@@ -801,6 +813,16 @@ class HudView implements Hud {
     const train = s.train;
     if (!this.trainMatches(train)) this.rebuildTrain(train);
     for (let i = 0; i < train.length; i++) this.trainViews[i].apply(train[i]);
+    const deploy = s.deploy ?? null;
+    const showDeploy = deploy !== null && train.length > 0;
+    if (showDeploy !== this.deployShown) {
+      this.deployShown = showDeploy;
+      this.deployButton.hidden = !showDeploy;
+    }
+    if (deploy !== null && showDeploy) {
+      this.deployText.set(deploy.label);
+      this.deployClosed.set(deploy.closed);
+    }
 
     // Army scope lights the army order. A kind scope lights the order that kind obeys: its own, or the
     // army's together with Follow army while it has none.

@@ -641,7 +641,12 @@ export interface ForceDef {
    * of fuel, a dug-in hull): it still turns and shoots. A force with a leash and no behaviour is a guard.
    */
   leash?: number;
+  /** Abilities of these units (FOUNDATIONS.md 4.2): `skis` = deep snow does not slow them (1004's ski troopers). */
+  tags?: UnitTag[];
 }
+
+/** A unit ability a force may carry (ForceDef.tags). */
+export type UnitTag = 'skis';
 
 /**
  * The per-force looks a mission may name (ForceDef.look): vehicle looks drawn in src/art/vehicles (VehicleLook in
@@ -697,10 +702,80 @@ export interface SideStart {
 export type StructureRef = { trench: number } | { pillbox: number } | { wire: number } | { hq: Side };
 
 /**
- * Something a side owns and the director can test: today a trench (FOUNDATIONS.md 4.5's capture points add
- * `{ point: string }` here). Owned = the side holds it; lost = the other side holds it.
+ * Something a side owns and the director can test: a trench, or a capture point by its id (MissionDef.capturePoints,
+ * FOUNDATIONS.md 4.5). Owned = the side holds it; lost = the other side holds it.
  */
-export type PointRef = { trench: number };
+export type PointRef = { trench: number } | { point: string };
+
+/**
+ * Battlefield ground (FOUNDATIONS.md 4.2; src/data/ground.ts holds each one's speeds, cover and art). `slopeUp` rises
+ * toward the right-hand (+x) end of the field, `slopeDown` falls toward it.
+ */
+export type GroundId =
+  | 'grass'
+  | 'field'
+  | 'steppe'
+  | 'road'
+  | 'cobble'
+  | 'forest'
+  | 'mud'
+  | 'sand'
+  | 'rock'
+  | 'snow'
+  | 'deepSnow'
+  | 'rubble'
+  | 'slopeUp'
+  | 'slopeDown'
+  | 'water';
+
+/**
+ * A stretch of the battlefield with its own ground (FOUNDATIONS.md 4.1). A mission's sectors run left to right without
+ * gaps or overlaps from 0 to its length; ground left uncovered is even ground (every multiplier 1).
+ */
+export interface SectorDef {
+  /** wu. */
+  from: number;
+  to: number;
+  ground: GroundId;
+  /** Its own backdrop set (at most two per mission). Data only until the backdrop crossfade is built. */
+  backdrop?: TheatreId;
+  /** Minimap and briefing name ("Kholm Gate", "Red October"). */
+  label?: string;
+  /** Range multiplier for every weapon fired from here (a hilltop: 1006's summit 1.1). */
+  heightBonus?: number;
+}
+
+/**
+ * The structure a capture point is (CapturePointDef.structure): a trench, or a building (FOUNDATIONS.md 4.3). Until
+ * buildings exist in the sim, `{ building: n }` is held the trench way through trench n, the building's stand-in.
+ */
+export type PointStructureRef = { trench: number } | { building: number };
+
+/**
+ * A capture point (FOUNDATIONS.md 4.5): a stretch of ground a side takes by holding it alone, a forward spawn point
+ * for trained units while owned and uncontested, a rally point for Fall Back, and a candidate for the hold line.
+ */
+export interface CapturePointDef {
+  /** Unique in the mission: 'P1'. Named by PointRef `{ point: 'P1' }`. */
+  id: string;
+  /** Centre and width of its zone (wu). */
+  x: number;
+  width: number;
+  /** HUD and minimap name, 24 characters at most. */
+  label: string;
+  /** Starting owner; -1 = nobody. */
+  owner: Side | -1;
+  /** Seconds a side must hold the zone alone (armed units in it, none of the other side's) to take it; 0 = at once. */
+  captureTime: number;
+  /** Owned and uncontested: trained units may deploy here, and Fall Back rallies here. */
+  spawn: boolean;
+  /** Only this side deploys and rallies here (a forward spawn the attacker gains by taking it); absent = its owner. */
+  spawnFor?: Side;
+  /** An armed enemy within this distance of x contests it: nobody deploys there, and Fall Back picks another. */
+  contestRadius: number;
+  /** The point is this trench or building: it changes hands with it (the trench way), not by its own timer. */
+  structure?: PointStructureRef;
+}
 
 /**
  * When a scripted mission event fires. Times are seconds on the mission clock (missionTime: battle time less every
@@ -775,7 +850,7 @@ export type MissionEventDef = { id?: string } & (
   | { type: 'support'; when: MissionTrigger; side: Side; kind: SupportKind; enabled: boolean }
   | { type: 'disguise'; when: MissionTrigger; side: Side; seconds: number; x0: number; x1: number }
   | { type: 'reveal'; when: MissionTrigger; side: Side; seconds: number }
-  | { type: 'setOwner'; when: MissionTrigger; ref: { trench: number } | { pillbox: number }; owner: Side | -1 }
+  | { type: 'setOwner'; when: MissionTrigger; ref: { trench: number } | { pillbox: number } | { point: string }; owner: Side | -1 }
   | { type: 'endMission'; when: MissionTrigger; winner: Side; text: string }
 );
 
@@ -845,7 +920,7 @@ export interface PhaseTimerDef {
  * which trenches and pillboxes, money, and units placed for each side.
  */
 export interface PhaseAssume {
-  owners?: { ref: { trench: number } | { pillbox: number }; owner: Side | -1 }[];
+  owners?: { ref: { trench: number } | { pillbox: number } | { point: string }; owner: Side | -1 }[];
   supplies?: [number, number];
   forces?: [ForceDef[], ForceDef[]];
 }
@@ -949,6 +1024,13 @@ export interface MissionDef {
   trenches: TrenchDef[];
   pillboxes: PillboxDef[];
   wire: WireDef[];
+  /**
+   * The ground in sectors, left to right (FOUNDATIONS.md 4.1 and 4.2): speeds, cover, the crest's range bonus, the
+   * ground art and the minimap. Absent = even ground, exactly as before.
+   */
+  sectors?: SectorDef[];
+  /** Capture points, forward spawn and rally points (FOUNDATIONS.md 4.5). Absent = none, exactly as before. */
+  capturePoints?: CapturePointDef[];
   /**
    * A prep phase before the enemy attacks (defensive missions; src/data/prep.ts): its countdown (default
    * PREP.defaultSeconds), what may be built (default every buildable), the zone the player builds in (default their

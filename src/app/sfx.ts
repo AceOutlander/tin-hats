@@ -27,6 +27,12 @@ export function playEventSound(audio: SfxAudio, e: SimEvent, playerSide: number)
       if (e.side === playerSide) audio.playAt(EVENT_SOUND.trenchCaptured, e.x);
       else audio.playAt(EVENT_SOUND.trenchCaptured, e.x, SFX.enemyCapture);
       break;
+    case 'pointCaptured':
+      // A capture point of open ground (one that is a trench has just sounded its trenchCaptured).
+      if (e.hit) break;
+      if (e.side === playerSide) audio.playAt(EVENT_SOUND.trenchCaptured, e.x);
+      else audio.playAt(EVENT_SOUND.trenchCaptured, e.x, SFX.enemyCapture);
+      break;
     case 'wireDestroyed':
       audio.playAt(EVENT_SOUND.wireDestroyed, e.x);
       break;

@@ -977,6 +977,39 @@
   opacity: 1;
 }
 
+/*
+ * "Deploy at" (FOUNDATIONS.md 4.5): a small tab on the training bar's top edge, so the bar keeps its size. It sits at
+ * the bar's right end: the left end has the call-ins toggle above it.
+ */
+.th-deploy {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 3px);
+  max-width: calc(100% - 12px);
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  color: var(--th-brass);
+  font-size: var(--fs-s);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-deploy[hidden] {
+  display: none;
+}
+
+.th-deploy.is-closed {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
 /* Buttons give up a few pixels (never below 54) before the bar starts to scroll. */
 .th-tbtn {
   flex: 0 1 auto;

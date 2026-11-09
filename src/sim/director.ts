@@ -79,6 +79,11 @@ export function firstPrep(m: MissionDef): MissionPrepDef | undefined {
 
 /** Who holds a point: 0, 1 or -1 (nobody, or a point that does not exist). */
 export function pointOwner(s: BattleState, ref: PointRef): number {
+  if ('point' in ref) {
+    const points = s.points;
+    for (let i = 0; i < points.length; i++) if (points[i].id === ref.point) return points[i].owner;
+    return -1;
+  }
   const trenches = s.trenches;
   for (let i = 0; i < trenches.length; i++) if (trenches[i].id === ref.trench) return trenches[i].owner;
   return -1;
@@ -86,6 +91,11 @@ export function pointOwner(s: BattleState, ref: PointRef): number {
 
 /** Battle time a point was last taken, or -1. */
 function pointTakenAt(s: BattleState, ref: PointRef): number {
+  if ('point' in ref) {
+    const points = s.points;
+    for (let i = 0; i < points.length; i++) if (points[i].id === ref.point) return points[i].capturedAt;
+    return -1;
+  }
   const trenches = s.trenches;
   for (let i = 0; i < trenches.length; i++) if (trenches[i].id === ref.trench) return trenches[i].capturedAt;
   return -1;
@@ -741,10 +751,34 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
   }
 }
 
-/** A trench or pillbox changes hands (setOwner, PhaseDef.assume). */
-export function setOwner(w: World, ref: { trench: number } | { pillbox: number }, owner: Side | -1): void {
+/** A trench, pillbox or capture point changes hands (setOwner, PhaseDef.assume). A point that is a structure goes with it. */
+export function setOwner(w: World, ref: { trench: number } | { pillbox: number } | { point: string }, owner: Side | -1): void {
   const s = w.state;
-  if ('trench' in ref) {
+  if ('point' in ref) {
+    for (let k = 0; k < s.points.length; k++) {
+      const p = s.points[k];
+      if (p.id !== ref.point) continue;
+      if (p.trench >= 0) {
+        setOwner(w, { trench: s.trenches[p.trench].id }, owner);
+        p.owner = s.trenches[p.trench].owner;
+        p.capturedAt = s.trenches[p.trench].capturedAt;
+      } else if (p.owner !== owner) {
+        const prev = p.owner;
+        p.owner = owner;
+        p.capturing = -1;
+        p.progress = 0;
+        if (owner >= 0) {
+          p.capturedAt = s.time;
+          const e = w.events.emit('pointCaptured');
+          e.side = owner;
+          e.targetIndex = k;
+          e.x = p.x;
+          e.value = prev;
+          e.text = p.label;
+        }
+      }
+    }
+  } else if ('trench' in ref) {
     for (const t of s.trenches) {
       if (t.id !== ref.trench || t.owner === owner) continue;
       const prev = t.owner;
