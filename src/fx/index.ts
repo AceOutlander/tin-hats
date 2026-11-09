@@ -10,6 +10,19 @@ export {
 } from './weather';
 export { createBoltBuffer, createLightning, generateBolt, type LightningBolt, type LightningFx } from './lightning';
 export { createRainField, type RainField } from './rain';
+export {
+  DriftField,
+  brightestTime,
+  landTint,
+  mixVeil,
+  nightTintAlpha,
+  rgbInt,
+  timeBrightness,
+  weatherVeils,
+  weatherWeight,
+  type Rgb01,
+  type Veil,
+} from './sky';
 export { MenuRain, MenuStorm, PanelDrops, StormGuard, type MenuStormState, type ThunderCue } from './menuStorm';
 export { createParticles, ParticleSystem, type FxVisitor } from './particles';
 export { createShake, shakeStrength, type ScreenShake } from './shake';

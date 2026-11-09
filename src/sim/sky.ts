@@ -87,10 +87,10 @@ export function changeTime(w: World, to: TimeOfDay, over: number): void {
 }
 
 /** A flare over x (the flare event): visibility 1 within width / 2 of x for `seconds`. */
-export function fireFlare(w: World, x: number, side: Side, seconds?: number, width?: number): void {
+export function fireFlare(w: World, x: number, side: Side, seconds?: number, width?: number, color: 'white' | 'green' = 'white'): void {
   const s = w.state;
   const half = (width ?? WEATHER_SIM.flare.width) / 2;
-  s.sky.flares.push({ x, x0: x - half, x1: x + half, side, from: s.time, until: s.time + (seconds ?? WEATHER_SIM.flare.seconds) });
+  s.sky.flares.push({ x, x0: x - half, x1: x + half, side, color, from: s.time, until: s.time + (seconds ?? WEATHER_SIM.flare.seconds) });
 }
 
 /** Every tick: a change past its midpoint takes effect, burnt-out flares go. */

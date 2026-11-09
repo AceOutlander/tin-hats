@@ -202,3 +202,126 @@ export const WEATHER: WeatherConfig & { rain: RainLook; lightning: LightningLook
     },
   },
 };
+
+/**
+ * A drifting particle field of the scripted weather (src/fx/sky.ts): screen-space sprites in a band of the view that
+ * fall, blow or drift and wrap around. Sizes and the band are view wu; speeds wu/s.
+ */
+export interface DriftFieldLook {
+  sprite: 'flake' | 'dust' | 'smoke' | 'fog';
+  /** Particles across one nominal screen width. */
+  perScreen: number;
+  /** The band (view y) they live in; falling ones re-enter at the top. */
+  y0: number;
+  y1: number;
+  /** Speed ranges, wu/s (vy > 0 falls). */
+  vx: readonly [number, number];
+  vy: readonly [number, number];
+  /** Sideways sway: amplitude (wu) and frequency (Hz). */
+  wobble: number;
+  wobbleHz: number;
+  /** Drawn size (wu) and opacity ranges. */
+  size: readonly [number, number];
+  alpha: readonly [number, number];
+  /** Colour multiplied over the sprite. */
+  tint: string;
+  /** How far the field slides with the camera pan (0 = fixed to the screen). */
+  parallax: number;
+}
+
+/** How one kind of scripted weather looks (src/render/weather/sky.ts). Alphas are at full strength. */
+export interface WeatherLook {
+  /** A flat veil over the sky and the backdrop strips (behind the ground and the units). */
+  skyTint: string;
+  skyAlpha: number;
+  /** A lighter veil over the whole scene, units included. */
+  sceneTint: string;
+  sceneAlpha: number;
+  fields: readonly DriftFieldLook[];
+  /** Scripted rain turns on the rain streaks of src/fx/rain.ts. */
+  rain?: boolean;
+}
+
+const FLAKES = (perScreen: number, vx: readonly [number, number], vy: readonly [number, number], size: readonly [number, number], alpha: readonly [number, number], parallax: number, wobble: number): DriftFieldLook => ({
+  sprite: 'flake',
+  perScreen,
+  y0: -20,
+  y1: 560,
+  vx,
+  vy,
+  wobble,
+  wobbleHz: 0.35,
+  size,
+  alpha,
+  tint: '#f4f7fa',
+  parallax,
+});
+
+export const WEATHER_LOOKS: Record<WeatherKind, WeatherLook> = {
+  clear: { skyTint: '#ffffff', skyAlpha: 0, sceneTint: '#ffffff', sceneAlpha: 0, fields: [] },
+  overcast: { skyTint: '#9ba1a7', skyAlpha: 0.42, sceneTint: '#8c9298', sceneAlpha: 0.06, fields: [] },
+  rain: { skyTint: '#5d6670', skyAlpha: 0.2, sceneTint: '#6c737b', sceneAlpha: 0.04, fields: [], rain: true },
+  snow: {
+    skyTint: '#c7ced6',
+    skyAlpha: 0.4,
+    sceneTint: '#dfe5ea',
+    sceneAlpha: 0.06,
+    fields: [FLAKES(110, [-14, 6], [26, 46], [1.6, 2.6], [0.35, 0.6], 0.15, 9), FLAKES(55, [-20, 10], [55, 85], [3, 4.6], [0.55, 0.85], 0.4, 14)],
+  },
+  blizzard: {
+    skyTint: '#d4dade',
+    skyAlpha: 0.66,
+    sceneTint: '#e3e8ec',
+    sceneAlpha: 0.26,
+    fields: [FLAKES(260, [-320, -200], [80, 140], [1.4, 2.4], [0.4, 0.7], 0.2, 5), FLAKES(140, [-460, -300], [120, 200], [2.8, 4.4], [0.6, 0.9], 0.5, 8)],
+  },
+  fog: {
+    skyTint: '#c9ced1',
+    skyAlpha: 0.72,
+    sceneTint: '#cbd0d3',
+    sceneAlpha: 0.3,
+    fields: [
+      { sprite: 'fog', perScreen: 9, y0: 300, y1: 470, vx: [6, 16], vy: [0, 0], wobble: 4, wobbleHz: 0.05, size: [320, 520], alpha: [0.22, 0.38], tint: '#dde1e3', parallax: 0.6 },
+    ],
+  },
+  dust: {
+    skyTint: '#c3a87d',
+    skyAlpha: 0.42,
+    sceneTint: '#b99f73',
+    sceneAlpha: 0.16,
+    fields: [
+      { sprite: 'dust', perScreen: 7, y0: 330, y1: 460, vx: [20, 45], vy: [0, 0], wobble: 6, wobbleHz: 0.08, size: [220, 380], alpha: [0.16, 0.28], tint: '#cdb58c', parallax: 0.7 },
+      { sprite: 'flake', perScreen: 60, y0: 300, y1: 520, vx: [30, 70], vy: [-4, 6], wobble: 10, wobbleHz: 0.25, size: [1, 1.8], alpha: [0.2, 0.4], tint: '#d8c49d', parallax: 0.5 },
+    ],
+  },
+  smoke: {
+    skyTint: '#7f766b',
+    skyAlpha: 0.44,
+    sceneTint: '#6e665d',
+    sceneAlpha: 0.12,
+    fields: [
+      { sprite: 'smoke', perScreen: 6, y0: 120, y1: 300, vx: [8, 20], vy: [-3, 0], wobble: 6, wobbleHz: 0.04, size: [260, 460], alpha: [0.18, 0.32], tint: '#6f675f', parallax: 0.25 },
+      { sprite: 'flake', perScreen: 30, y0: 80, y1: 520, vx: [6, 20], vy: [8, 18], wobble: 12, wobbleHz: 0.3, size: [0.9, 1.6], alpha: [0.25, 0.45], tint: '#3f3a36', parallax: 0.4 },
+    ],
+  },
+};
+
+/** How a flare looks: a bright star drifting down under its parachute, and the pool of light it throws. */
+export const FLARE_LOOK = {
+  /** View y it bursts at and the y it has sunk to when it burns out. */
+  burstY: 70,
+  endY: 230,
+  /** Sideways drift over its life (wu). */
+  drift: 60,
+  /** The star (wu) and its halo; the light pool on the ground is `pool` wu wide. */
+  star: 9,
+  halo: 120,
+  pool: 1500,
+  /** Pool opacity in daylight and at full night (the night tint's level picks between them). */
+  poolDay: 0.04,
+  poolNight: 0.3,
+  /** Seconds to flare up and to die away. */
+  rise: 0.6,
+  fade: 2.5,
+  colors: { white: '#fff3d6', green: '#8dff9a' } as Record<'white' | 'green', string>,
+};

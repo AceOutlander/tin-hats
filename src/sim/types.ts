@@ -714,8 +714,9 @@ export interface FlareState {
   x: number;
   x0: number;
   x1: number;
-  /** Who fired it (the view's colour and where it rises from). */
+  /** Who fired it, and its colour (the view's). */
   side: Side;
+  color: 'white' | 'green';
   from: number;
   until: number;
 }

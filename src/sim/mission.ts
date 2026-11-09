@@ -94,6 +94,18 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     if (trench >= 0) baseX = s.trenches[trench].x - dir * (w.trenchHalf[trench] + CONFIG.trenchFormGap);
     step = -dir * CONFIG.spacing;
     inFormation = false;
+    // A later wave for a trench or building the other side has already got past (its front at or behind the centre:
+    // a tank that rolled by it in the fog) is not seated behind them: it forms up just ahead of their line instead,
+    // like a wave at a position (the two lines never pass through each other).
+    if (trench >= 0 && !atStart) {
+      const gap = CONFIG.spacing * 2;
+      const tx = s.trenches[trench].x;
+      if (si === 0 ? tx >= w.front[1] - gap : tx <= w.front[0] + gap) {
+        trench = -1;
+        baseX = si === 0 ? Math.min(baseX, w.front[1] - gap) : Math.max(baseX, w.front[0] + gap);
+        if (baseX < CONFIG.mapMargin || baseX > s.length - CONFIG.mapMargin) return 0;
+      }
+    }
   }
 
   // A garrison placed at the start simply holds its trench; taking one later is a capture.
@@ -244,7 +256,10 @@ function releaseReserve(w: World): void {
       if (reserve[k].side === g.side) ahead += reserve[k].left * KIND_DEFS[reserve[k].kindIndex].pop;
     }
     const dir = g.side === 0 ? 1 : -1;
-    const posted = !Number.isNaN(g.postX) && (g.postX - side.holdLineX) * dir <= 0;
+    // Posted: its position lies behind the side's hold line, and the enemy has not got past it.
+    const enemyFront = w.front[1 - g.side];
+    const posted =
+      !Number.isNaN(g.postX) && (g.postX - side.holdLineX) * dir <= 0 && (g.side === 0 ? g.postX < enemyFront - CONFIG.spacing * 2 : g.postX > enemyFront + CONFIG.spacing * 2);
     // The door is in the enemy's hands (they stand at or past it): the group waits inside rather than walk out behind
     // their line.
     const gap = CONFIG.spacing * 2;

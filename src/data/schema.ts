@@ -920,7 +920,8 @@ export type BannerSound = 'horn' | 'alarm' | 'boss';
  * weather / time = the weather or the time of day changes over `over` seconds (FOUNDATIONS.md 4.7): the sim switches
  *   at the midpoint, the view crossfades over the whole span;
  * flare = a flare over x: visibility 1 within `width` wu of it (default WEATHER_SIM.flare.width 1,500, centred) for
- *   `seconds` (default 20), for both sides; `side` fired it (the view's colour and where it rises from; default 1).
+ *   `seconds` (default 20), for both sides; `side` fired it (default 1); `color` is the view's (default white; green
+ *   for a signal).
  */
 export type MissionEventDef = { id?: string } & (
   | { type: 'wave'; when: MissionTrigger; side: Side; forces: ForceDef[]; announce?: string }
@@ -956,7 +957,7 @@ export type MissionEventDef = { id?: string } & (
   | { type: 'endMission'; when: MissionTrigger; winner: Side; text: string }
   | { type: 'weather'; when: MissionTrigger; to: WeatherKind; over: number }
   | { type: 'time'; when: MissionTrigger; to: TimeOfDay; over: number }
-  | { type: 'flare'; when: MissionTrigger; x: number; side?: Side; seconds?: number; width?: number }
+  | { type: 'flare'; when: MissionTrigger; x: number; side?: Side; seconds?: number; width?: number; color?: 'white' | 'green' }
 );
 
 /**

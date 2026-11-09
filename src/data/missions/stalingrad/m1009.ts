@@ -239,7 +239,7 @@ export const M1009: MissionDef = {
     { id: 'day', type: 'time', when: { phase: 'steppe' }, to: 'day', over: 120 },
     { id: 'blizzard', type: 'weather', when: { phase: 'steppe', delay: 500 }, to: 'blizzard', over: 60 },
     { id: 'night', type: 'time', when: { phase: 'bridge' }, to: 'night', over: 60 },
-    { id: 'greenFlares', type: 'flare', when: { objective: 'sovetsky' }, side: 0, x: 28800 },
+    { id: 'greenFlares', type: 'flare', when: { objective: 'sovetsky' }, side: 0, x: 28800, color: 'green' },
     // Headlights on: the column is not engaged on the road to the bridge for 40 s unless it opens fire.
     { id: 'headlights', type: 'disguise', when: { phase: 'bridge' }, side: 0, seconds: 40, x0: 21000, x1: 24600 },
     { type: 'announce', when: { at: 2 }, text: 'Siren! Every gun on the front has opened fire.' },

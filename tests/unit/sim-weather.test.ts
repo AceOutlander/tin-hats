@@ -278,7 +278,7 @@ describe('the Stalingrad missions', () => {
     const b = makeBattle({ mission: m1004, commanders: ['bot', 'ai'] });
     expect(b.state.sky.visibility).toBe(0.65);
     expect(airGrounded(b.state, 0, 'airStrike')).toBe('blizzard');
-    expect(m1004.events.some((e) => e.type === 'flare' && 'phase' in e.when && e.when.phase === 'night' && e.when.delay === 200)).toBe(true);
+    expect(m1004.events.some((e) => e.type === 'flare' && 'delay' in e.when && 'phase' in e.when && e.when.phase === 'night' && e.when.delay === 200)).toBe(true);
     const m1009 = stalingrad.find((m) => m.id === 1009)!;
     expect(m1009.weather).toBe('fog');
     const kinds = (id: number, type: 'weather' | 'time'): string[] =>

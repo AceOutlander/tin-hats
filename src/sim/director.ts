@@ -770,7 +770,7 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
       changeTime(w, ev.to, ev.over);
       break;
     case 'flare':
-      fireFlare(w, ev.x, ev.side ?? 1, ev.seconds, ev.width);
+      fireFlare(w, ev.x, ev.side ?? 1, ev.seconds, ev.width, ev.color);
       break;
     case 'endMission': {
       d.endText = ev.text;

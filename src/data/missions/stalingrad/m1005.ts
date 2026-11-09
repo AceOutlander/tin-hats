@@ -156,6 +156,9 @@ export const M1005: MissionDef = {
       id: 'bank',
       title: 'The high bank',
       objectives: [{ id: 'bank', type: 'capture', point: { point: 'P2' }, text: 'Take the riverside blocks' }],
+      // Off the beach before first light, when the Stukas can fly (DECISIONS E4-6): a battalion still on the sand at
+      // dawn is lost.
+      timer: { seconds: 600, label: 'Before first light', onExpire: 'lose' },
       next: 'station',
     },
     {
