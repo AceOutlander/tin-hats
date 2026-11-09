@@ -21,7 +21,51 @@ What each part of the campaign has today, and what waits for which foundation fe
 - Unit tags (`ForceDef.tags: ['skis']`; Klin's ski troops have the `skiTroops` look but no deep-snow rule yet) and the
   Romanian nation (1009's Romanians field as German troops in the Romanian look, see "Era-correct forces" below).
 - Buildings for the Katyusha's second counter (explosive x0.7 inside).
-- The campaign select screen, campaign map (bounds lon 22 to 47, lat 46 to 57.5), theme and map music fields.
+- The campaign theme field (`theme: 'sovietWinter'`; the map music field is in, see "Campaign select" below).
+
+## Campaign select, the campaign map and the unlocks
+
+**In** (DECISIONS 295 to 302; `tests/unit/campaign-select.test.ts`, `tests/unit/stalingrad-unlocks.test.ts`,
+`tests/e2e/campaign-select.spec.ts`). Screenshots `docs/screenshots/stalingrad-select.png`, `stalingrad-map.png`,
+`stalingrad-map-1943.png`, `stalingrad-briefing-1001.png` (local only).
+
+- **Campaign select** (`src/ui/screens/campaigns.ts`, screen id `campaigns`): one dossier card per offered campaign in
+  the registry's order, Stalingrad first: flag, name, dates, pitch, a tick per mission cleared ("2 / 10") and the next
+  mission. Touch and keyboard (arrows, Enter, Escape); stacks in portrait under the rotate notice. Play opens it when
+  more than one campaign is offered; with one (the live site, Stalingrad unreleased) Play goes straight to the map.
+  Unreleased campaigns show on the dev server, with `?unreleased=1`, or after the admin panel's unlock.
+- **Campaigns in the app**: `App.campaigns` (every campaign and its missions), `App.offered`, `App.current`,
+  `selectCampaign`; `Campaign.map` and `Campaign.mapMusic` in `src/data/campaigns.ts`. Saves keep each campaign's
+  progress (`SaveRules.campaigns`), unit unlocks count every offered campaign, a battle puts its campaign on the map,
+  Basic Training is played as the nation of the campaign on the map. Debug: `__TH.campaigns()`, `__TH.selectCampaign(id)`.
+- **The Stalingrad map** (`src/data/campaignMapStalingrad.ts`, drawn by `src/ui/screens/mapPaint.ts` in the campaign
+  map style): lon 22 to 47, lat 46 to 57.5; the Gulf of Riga, the Black Sea and the Sea of Azov; the Volga, Don,
+  Dnieper, Pripyat, Bug and a stub of the Moskva; the Pripyat marshes; the brief's ten towns; the ten markers at Brest,
+  Dubno, Dubosekovo, Klin, the central landing, Mamayev Kurgan, Pavlov's House, the Tractor Factory, the Serafimovich
+  bridgehead (Uranus) and Pitomnik (the ring); locked, open, cleared and selected states; the briefing from a marker.
+  The front line of the selected mission's date: 22 and 27 June 1941, 16 November and 5 December 1941, 13 September
+  1942, 10 January 1943 with the pocket ringed. The map plays `STALINGRAD_MUSIC.map`.
+- **Briefings**: every mission has `intel` (enemy forces with era names and rough numbers, our forces), shown between
+  the objective and the orders; NEW UNIT cards only for what the mission unlocks.
+- **Unlock order** (newUnit and unlocks in the mission files; each mission's list holds everything unlocked by then):
+
+| Mission | Unlocks | Lent (not unlocked yet) |
+| --- | --- | --- |
+| 1001 Brest | DP Gunner, Tank Hunters (with sapper and rifleman) | 2 mortar crews (phase 2 wave) |
+| 1002 Dubno | T-34, Mortar Crew | (none) |
+| 1003 Volokolamsk | PPD Trooper (the anti-tank kind is the PTRD Team by date) | sniper, sanitarka |
+| 1004 Klin | Sanitarka, Militia Squad (conscripts) | (none) |
+| 1005 Volga | ROKS-3 Flamethrower | (none) |
+| 1006 Mamayev Kurgan | Sniper, AA Gun Crew | (none) |
+| 1007 Pavlov's House | Lieutenant | (none) |
+| 1008 Tractor Factory | (none) | (none) |
+| 1009 Uranus | Universal Carrier | (none) |
+| 1010 Ring | (none) | (none) |
+
+**Waits for**: the city inset for the four city markers (they are pushed apart with leaders), the Stalingrad medal
+targets in `MEDALS.missions` (they score on the fallback), the campaign theme field, unlock rules after a mission of
+another campaign (Road to Berlin; `unlock.afterMission` is read by the cards but no campaign uses it), and a card
+for the save's "Continue" strip (mid-mission resume).
 
 **Soviet art: drawn** (no British or German stand-ins left; `tests/unit/art-soviet.test.ts` guards it). Screenshots in
 `docs/screenshots/stalingrad-art-*.png` (local only).
@@ -127,8 +171,8 @@ mission has a date yet).
 
 - Eight more battle tracks, so that no two missions share one (QUEUE "Music for the new campaigns"). Each is a plan
   file on the cold kit like the two above; the brief's music paragraph of each mission says what it should be.
-- The campaign select job: play `STALINGRAD_MUSIC.map` on the Stalingrad map screen (today `MAP_MUSIC` in
-  src/app/app.ts is always the British "Between the Lines").
+- (Done by the campaign select job: the Stalingrad map, briefing, Quartermaster and Armoury play
+  `STALINGRAD_MUSIC.map` through `Campaign.mapMusic`; `MAP_MUSIC` in src/app/app.ts is the British map's track.)
 - The prep phase (FOUNDATIONS): both tracks have a prep layer, heard once `app.setPrepPhase(true)` is called.
 - Owner's lag report: battle music must be fully rendered at mission load, never mid-battle. Today the engine still
   renders a track after the battle starts (MUSIC.md, Budgets); moving that to the load screen is the engine's job and
