@@ -59,6 +59,7 @@ import { infantryLookOf, missionEra, resolveEra, unitVehicleLook, type ResolvedE
 import type { DamageType, FactionId, MissionDef, Side, UnitKind } from '../data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
+import { WEAPONS } from '../data/weapons';
 import { createRng, mixSeed, type Rng01 } from '../fx';
 import { lookStyle, planeGearOf } from '../meta/looks';
 import type { BattleState, UnitState } from '../sim';
@@ -160,7 +161,7 @@ abstract class UnitViewBase {
   private readonly pipTint: number[] = [];
   pipsShown = false;
   private readonly shadowInv: number;
-  private readonly whiteInv: number;
+  protected readonly whiteInv: number;
 
   constructor(
     readonly row: number,
@@ -555,8 +556,20 @@ class TankView extends UnitViewBase {
     return over;
   }
 
+  /** The main gun's reload bar (player's own tanks only; showReload). */
+  readonly reloadBack: Img;
+  readonly reloadFill: Img;
+  reloadShown = false;
+
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
+    const bar = reg.get(RENDER_KEYS.whiteTL).frame;
+    this.reloadBack = addImage(scene, layers.pips[row], bar);
+    this.reloadBack.setTint(U.reloadBar.back);
+    this.reloadBack.visible = false;
+    this.reloadFill = addImage(scene, layers.pips[row], bar);
+    this.reloadFill.setTint(U.reloadBar.fill);
+    this.reloadFill.visible = false;
     const first = reg.get(RENDER_KEYS.white);
     for (let i = 0; i <= PASSENGER_IMAGE; i++) {
       const img = addImage(scene, this.layer, first.frame);
@@ -606,7 +619,43 @@ class TankView extends UnitViewBase {
       for (const img of this.images) img.visible = false;
       this.shadow.visible = false;
       this.hidePips();
+      this.hideReload();
     }
+  }
+
+  hideReload(): void {
+    if (!this.reloadShown) return;
+    this.reloadShown = false;
+    this.reloadBack.visible = false;
+    this.reloadFill.visible = false;
+  }
+
+  /** The reload bar centred over the tank, its bottom at `bottomY`, filled to `frac` (0 = just fired). */
+  showReload(frac: number, bottomY: number): void {
+    const R = U.reloadBar;
+    const s = this.s;
+    const k = this.whiteInv;
+    const w = R.w * s;
+    const h = R.h * s;
+    const x0 = this.x - w / 2;
+    const y0 = bottomY - h;
+    const pad = 0.6 * s;
+    const a = this.alpha * R.alpha;
+    const back = this.reloadBack;
+    back.visible = true;
+    back.x = x0 - pad;
+    back.y = y0 - pad;
+    back.scaleX = (w + pad * 2) * k;
+    back.scaleY = (h + pad * 2) * k;
+    back.alpha = a;
+    const fill = this.reloadFill;
+    fill.visible = true;
+    fill.x = x0;
+    fill.y = y0;
+    fill.scaleX = Math.max(0.001, w * frac) * k;
+    fill.scaleY = h * k;
+    fill.alpha = a;
+    this.reloadShown = true;
   }
 
   applyAlpha(a: number): void {
@@ -984,7 +1033,10 @@ export class UnitViews {
     this.dying.push(v);
     v.hidePips();
     // A body on the ground lies under everyone still standing in its row.
-    if (v instanceof TankView) v.setOver(false, this.layers.byName.vehicleOver);
+    if (v instanceof TankView) {
+      v.setOver(false, this.layers.byName.vehicleOver);
+      v.hideReload();
+    }
     v.sendBack();
     if (v instanceof FigureView) {
       const fromFront = dir !== 0 && dir === -v.facing;
@@ -1001,9 +1053,15 @@ export class UnitViews {
     }
   }
 
-  onFired(slot: number, unitId: number): void {
+  /**
+   * A unit fired `weapon`. A tank's hull rocks and its barrel recoils for its main gun only: the coaxial machine gun
+   * chattering between main-gun rounds must not look like a shot of the cannon.
+   */
+  onFired(slot: number, unitId: number, weapon: string | null = null): void {
     const v = this.liveView(slot, unitId);
-    if (v) v.fired = true;
+    if (!v) return;
+    if (v instanceof TankView && v.kind !== 'apc' && weapon !== null && WEAPONS[weapon]?.delivery === 'hitscan') return;
+    v.fired = true;
   }
 
   onHit(slot: number, unitId: number): void {
@@ -1259,6 +1317,16 @@ export class UnitViews {
       this.pipsDrawn[u.side]++;
     } else {
       v.hidePips();
+    }
+    // The player's own tanks show their main gun's reload, so it is plain when one is vulnerable (DECISIONS 424).
+    if (v instanceof TankView) {
+      const gun = u.mount.weapon;
+      if (u.side === 0 && gun !== null && gun.cooldown >= U.reloadBar.minCooldown && u.weaponCharge < 1) {
+        const top = v.y + v.sink - v.bodyH * v.s - U.pipLift * v.s;
+        v.showReload(u.weaponCharge, v.pipsShown ? top - U.reloadBar.lift * v.s : top + U.pipH * v.s);
+      } else {
+        v.hideReload();
+      }
     }
   }
 

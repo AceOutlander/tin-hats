@@ -9,6 +9,7 @@
  * context.
  */
 import { HQ_LAYOUT, TANK_LAYOUT } from '../../data/artLayout';
+import { CONFIG } from '../../data/config';
 import { FX_TRACERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
 import { ORDER_WHISTLE } from '../../data/sounds';
@@ -34,7 +35,20 @@ const X = R.explosion;
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
 /** Size of the muzzle blast for weapons that fire a shell or rocket (1 = a tank gun). */
-const MUZZLE_SIZE: Readonly<Record<string, number>> = { tankGun: 1, heavyGun: 1.35, rocket: 0.6, mortar: 0.55, airRocket: 0.6, artilleryShell: 1.2 };
+const MUZZLE_SIZE: Readonly<Record<string, number>> = {
+  // The tank cannon by calibre (DECISIONS 424): a bigger flash for a bigger gun; the T-60's 20 mm barely a tank's.
+  gun20: 0.45,
+  lightTankGun: 1,
+  gun50L: 1.05,
+  tankGun: 1.35,
+  gun75L: 1.4,
+  heavyGun: 1.75,
+  gun152: 2.1,
+  rocket: 0.6,
+  mortar: 0.55,
+  airRocket: 0.6,
+  artilleryShell: 1.2,
+};
 
 function dirOf(side: number): number {
   return side === 0 ? 1 : -1;
@@ -163,8 +177,10 @@ function onShot(fx: EffectContext, e: SimEvent): void {
       fx.play('tankMuzzle', from.x, from.y, d.x, d.y, gy, size);
     }
     if (!hidden && fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, gy, 2.2 * size);
-    if (e.source === 'unit' && (weapon.id === 'tankGun' || weapon.id === 'heavyGun') && fx.lowOk()) {
-      fx.play('shellCasing', from.x - dir * 58, from.y + 22, -dir, 0, gy, 1);
+    if (e.source === 'unit' && weapon.knockback > 0) {
+      if (fx.lowOk()) fx.play('shellCasing', from.x - dir * 58, from.y + 22, -dir, 0, gy, 1);
+      // Smoke curls from the barrel while the gun reloads: the tell that this tank is between shots.
+      if (!hidden) fx.play('barrelSmoke', from.x, from.y, dir, 0, gy, VIEW.rowScale[Math.max(0, e.row)]);
     }
     if (weapon.projectileLook !== 'none' && !fx.flights.has(fx.stepId, weapon.id, e.x)) {
       const faction = fx.state ? fx.state.sides[e.side === 1 ? 1 : 0].faction : 'british';
@@ -256,7 +272,16 @@ function onExplosion(fx: EffectContext, e: SimEvent): void {
     strafeHit(fx, e);
     return;
   }
-  blast(fx, e.x, e.value > 0 ? e.value : X.smallMax, fx.groundY(e.row >= 0 ? e.row : -1) + (fx.rng() - 0.5) * 12);
+  const ground = fx.groundY(e.row >= 0 ? e.row : -1) + (fx.rng() - 0.5) * 12;
+  const weapon = e.weapon ? (WEAPONS[e.weapon] as (typeof WEAPONS)[string] | undefined) : undefined;
+  const heavy = weapon !== undefined && weapon.knockback > 0;
+  // A tank shell's blast is drawn as far as it throws men (CONFIG.knockReach x its lethal splash).
+  const radius = (e.value > 0 ? e.value : X.smallMax) * (heavy ? CONFIG.knockReach : 1);
+  blast(fx, e.x, radius, ground);
+  // A tank shell (a heavy round that throws men): a big cloud of dust rolls out from the impact (DECISIONS 424).
+  if (heavy && fx.onScreen(e.x - radius, e.x + radius)) {
+    fx.play('shellDust', e.x, ground, 1, 0, ground, clamp(radius / X.refRadius.medium, 0.7, 1.8));
+  }
 }
 
 /* ------------------------------------------------------------------ */

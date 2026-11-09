@@ -158,8 +158,9 @@ describe('Advance', () => {
     const mission = testMission(
       field({
         a: { forces: [{ kind: 'rifle', count: 8 }] },
-        // A tank standing guard cannot be hurt by rifles, so the fight lasts.
-        b: { forces: [{ kind: 'tank', count: 1, x: 2150, behaviour: 'guard' }] },
+        // An armoured carrier standing guard cannot be hurt by rifles, so the fight lasts. (Not a tank since the tank
+        // cannon change, DECISIONS 424: its shells throw the riflemen about and cut them down, so they never settle.)
+        b: { forces: [{ kind: 'apc', count: 1, x: 2150, behaviour: 'guard' }] },
       }),
     );
     const b = makeBattle({ mission });
@@ -169,7 +170,7 @@ describe('Advance', () => {
       return troops.length > 0 && troops.every((u) => u.velX === 0 && FIGHTING.includes(u.action));
     });
     expect(settled).toBe(true);
-    const tank = unitsOf(b, 1, 'tank')[0];
+    const tank = unitsOf(b, 1, 'apc')[0];
     expect(tank.x).toBe(2150);
     for (const u of unitsOf(b, 0, 'rifle')) {
       const d = tank.x - u.x;

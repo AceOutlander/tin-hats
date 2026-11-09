@@ -152,6 +152,14 @@ export interface WeaponDef {
   preferStructures: boolean;
   /** Thrown by hand: the unit plays 'throw' and the round leaves after config.throwReleaseTime. */
   thrown: boolean;
+  /**
+   * Heavy shells (tank cannon): how far (wu) the blast throws a man in the open at its centre, falling off linearly to
+   * nothing at the splash edge; men in a trench or behind sandbags within config.knockDugIn of the radius are blown out
+   * of their slots. 0 = no throw (everything but the tank cannon).
+   */
+  knockback: number;
+  /** Multiplier on the blast's damage to fortifications: wire, tank traps and road blocks, pillboxes, building walls. 1 normally. */
+  fortMul: number;
 }
 
 export interface UnitDef {
@@ -466,6 +474,11 @@ export interface GameConfig {
   /** Thrown weapons: seconds from the start of the 'throw' action to the release, and the whole action. */
   throwReleaseTime: number;
   throwPoseTime: number;
+  /** Heavy shells (WeaponDef.knockback): speed (wu/s) a thrown man is carried at, and the share of the splash radius inside which men dug in are blown out of their slots. */
+  knockSpeed: number;
+  /** How far past its splash radius a heavy shell still throws men in the open (x the radius; they are not hurt out there). */
+  knockReach: number;
+  knockDugIn: number;
   /** A guard that was hit by something it cannot reach chases toward the enemy (inside its leash) for this long. */
   guardAlertTime: number;
 

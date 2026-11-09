@@ -10,7 +10,7 @@ import { inPrep, missionTime } from './prep';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
 import { deployX } from './points';
 import { claimSlot, enterSlot } from './trenches';
-import { makeVeteran, spawnUnit } from './units';
+import { armVehicle, makeVeteran, spawnUnit } from './units';
 import { boardFerry, ferryFor } from './water';
 import type { World } from './world';
 
@@ -147,6 +147,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     // Names and looks only (FOUNDATIONS.md 5.1): the force's look inside the era, and its nation if not the side's.
     if (force.look !== undefined) u.look = force.look;
     if (force.nation !== undefined) u.faction = force.nation;
+    armVehicle(w, u);
     if (ferry >= 0) {
       boardFerry(w, u, ferry);
       continue;
@@ -287,6 +288,7 @@ function releaseReserve(w: World): void {
       if (g.veteran) makeVeteran(w, u);
       u.look = g.look;
       if (g.faction !== '') u.faction = g.faction;
+      armVehicle(w, u);
       if (g.leash >= 0) u.leash = g.leash;
       u.skis = g.skis;
       g.left--;

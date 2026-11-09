@@ -6,6 +6,49 @@ const EVERYTHING: TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortificat
 /** Men in cover of any kind: what a grenade is thrown at. */
 const DUG_IN: TargetClass[] = ['infantryTrench', 'infantryBuilding', 'rubbleCover'];
 
+/** The numbers that set one tank or assault gun's main armament apart (cannon() fills in the rest). */
+type CannonSpec = Pick<
+  WeaponDef,
+  'damage' | 'range' | 'aimTime' | 'cooldown' | 'splashRadius' | 'scatter' | 'projectileSpeed' | 'prefer' | 'knockback' | 'fortMul'
+> &
+  Partial<Pick<WeaponDef, 'burst' | 'burstInterval' | 'sound' | 'preferStructures'>>;
+
+/**
+ * A tank cannon (owner's change 3, DECISIONS 424): a long reload, but each high-explosive round hits hard, throws the
+ * men around it (knockback) and wrecks fortifications (fortMul). Scaled by calibre (TANK_GUNS in ./tankGuns).
+ */
+function cannon(id: string, c: CannonSpec): WeaponDef {
+  return {
+    id,
+    damageType: 'explosive',
+    damage: c.damage,
+    range: c.range,
+    minRange: 0,
+    aimTime: c.aimTime,
+    cooldown: c.cooldown,
+    burst: c.burst ?? 1,
+    burstInterval: c.burstInterval ?? 0,
+    accuracyNear: 0.85,
+    accuracyFar: 0.6,
+    delivery: 'direct',
+    projectileSpeed: c.projectileSpeed,
+    splashRadius: c.splashRadius,
+    scatter: c.scatter,
+    targets: EVERYTHING,
+    prefer: c.prefer,
+    moveAndFire: false,
+    tracer: 'none',
+    projectileLook: 'shell',
+    sound: c.sound ?? 'tankGun',
+    setupTime: 0,
+    dugIn: 'none',
+    preferStructures: c.preferStructures ?? false,
+    thrown: false,
+    knockback: c.knockback,
+    fortMul: c.fortMul,
+  };
+}
+
 /**
  * Every weapon in the game, keyed by id. Units, the HQ, pillboxes and support
  * call-ins all refer to these ids. First-pass numbers; the balance phase tunes them.
@@ -40,6 +83,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   lmg: {
     id: 'lmg',
@@ -67,6 +112,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   smg: {
     id: 'smg',
@@ -94,6 +141,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   grenade: {
     id: 'grenade',
@@ -122,6 +171,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: true,
+    knockback: 0,
+    fortMul: 1,
   },
   mortar: {
     id: 'mortar',
@@ -149,6 +200,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'prefer',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   sniperRifle: {
     id: 'sniperRifle',
@@ -176,6 +229,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   rocket: {
     id: 'rocket',
@@ -203,62 +258,108 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: true,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
-  tankGun: {
-    id: 'tankGun',
-    damageType: 'explosive',
-    damage: 90,
-    range: 420,
-    minRange: 0,
-    aimTime: 0.9,
-    cooldown: 3.6,
-    burst: 1,
-    burstInterval: 0,
-    accuracyNear: 0.85,
-    accuracyFar: 0.6,
-    delivery: 'direct',
-    projectileSpeed: 900,
-    splashRadius: 30,
-    scatter: 16,
-    targets: EVERYTHING,
-    prefer: ['heavyTank', 'tank'],
-    moveAndFire: false,
-    tracer: 'none',
-    projectileLook: 'shell',
-    sound: 'tankGun',
-    setupTime: 0,
-    dugIn: 'none',
-    preferStructures: false,
-    thrown: false,
-  },
-  heavyGun: {
-    id: 'heavyGun',
-    damageType: 'explosive',
+  // Tank and assault-gun cannon by calibre (DECISIONS 424; which vehicle carries which: TANK_GUNS in ./tankGuns).
+  // The 7.5 cm short, the 76.2 mm and the Churchill's 75 mm: the medium tank's gun.
+  tankGun: cannon('tankGun', {
     damage: 220,
-    range: 520,
-    minRange: 0,
-    // A slow turret: long to settle on a new target.
-    aimTime: 2.2,
-    cooldown: 4.5,
-    burst: 1,
-    burstInterval: 0,
-    accuracyNear: 0.9,
-    accuracyFar: 0.7,
-    delivery: 'direct',
-    projectileSpeed: 1000,
-    splashRadius: 70,
+    range: 420,
+    aimTime: 1,
+    cooldown: 8.5,
+    splashRadius: 32,
+    scatter: 16,
+    projectileSpeed: 900,
+    prefer: ['heavyTank', 'tank'],
+    knockback: 60,
+    fortMul: 2.5,
+  }),
+  // The long 7.5 cm (Panzer IV Ausf. G, StuG III Ausf. F): harder on armour, reaches further, a slightly smaller burst.
+  gun75L: cannon('gun75L', {
+    damage: 250,
+    range: 460,
+    aimTime: 1,
+    cooldown: 8.5,
+    splashRadius: 30,
     scatter: 14,
-    targets: EVERYTHING,
+    projectileSpeed: 1000,
+    prefer: ['heavyTank', 'tank'],
+    knockback: 55,
+    fortMul: 2.5,
+  }),
+  // The King Tiger's long 8.8 cm (and the heavy Churchill's gun). A slow turret: long to settle on a new target.
+  heavyGun: cannon('heavyGun', {
+    damage: 500,
+    range: 520,
+    aimTime: 2.2,
+    cooldown: 10.5,
+    splashRadius: 60,
+    scatter: 14,
+    projectileSpeed: 1000,
     prefer: ['tank'],
-    moveAndFire: false,
-    tracer: 'none',
-    projectileLook: 'shell',
-    sound: 'tankGun',
-    setupTime: 0,
-    dugIn: 'none',
-    preferStructures: false,
-    thrown: false,
-  },
+    knockback: 90,
+    fortMul: 3,
+    sound: 'tankGunHeavy',
+  }),
+  // The KV-2's 152 mm howitzer: the hardest hit and the slowest reload of all, a bunker buster.
+  gun152: cannon('gun152', {
+    damage: 640,
+    range: 480,
+    aimTime: 2.6,
+    cooldown: 17,
+    splashRadius: 80,
+    scatter: 22,
+    projectileSpeed: 650,
+    prefer: ['heavyTank', 'tank'],
+    preferStructures: true,
+    knockback: 130,
+    fortMul: 4.5,
+    sound: 'tankGunHeavy',
+  }),
+  // 3.7 cm to 5 cm short and the 45 mm (Panzer III Ausf. E and H, BT-7, T-26, the cruiser): fine against infantry
+  // and light armour, little use against a heavier tank.
+  lightTankGun: cannon('lightTankGun', {
+    damage: 110,
+    range: 360,
+    aimTime: 0.8,
+    cooldown: 6.5,
+    splashRadius: 24,
+    scatter: 16,
+    projectileSpeed: 850,
+    prefer: ['tank', 'apc', 'lightTank'],
+    knockback: 30,
+    fortMul: 1.6,
+  }),
+  // The long 5 cm of the Panzer III Ausf. L: a light tank's blast, more bite on armour.
+  gun50L: cannon('gun50L', {
+    damage: 135,
+    range: 390,
+    aimTime: 0.8,
+    cooldown: 6.5,
+    splashRadius: 24,
+    scatter: 15,
+    projectileSpeed: 950,
+    prefer: ['tank', 'apc', 'lightTank'],
+    knockback: 30,
+    fortMul: 1.6,
+  }),
+  // The T-60's 20 mm TNSh: a light autocannon, short bursts, no big blast, no throw.
+  gun20: cannon('gun20', {
+    damage: 24,
+    range: 330,
+    aimTime: 0.5,
+    cooldown: 2.6,
+    burst: 3,
+    burstInterval: 0.2,
+    splashRadius: 12,
+    scatter: 14,
+    projectileSpeed: 900,
+    prefer: ['apc', 'lightTank'],
+    knockback: 0,
+    fortMul: 1,
+    sound: 'aaGun',
+  }),
   coaxMg: {
     id: 'coaxMg',
     damageType: 'bullet',
@@ -285,6 +386,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   hqGun: {
     id: 'hqGun',
@@ -312,6 +415,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   pillboxGun: {
     id: 'pillboxGun',
@@ -339,6 +444,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   artilleryShell: {
     id: 'artilleryShell',
@@ -366,6 +473,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   airRocket: {
     id: 'airRocket',
@@ -393,6 +502,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
 
   // Job 7: the new kinds' weapons and the aircraft rounds. Their own tracers and sounds come with the view work.
@@ -422,6 +533,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   // A gout of burning fuel: short, splashes along a trench, burns men out of their slots (FLUSH_WEAPONS).
   flamer: {
@@ -440,7 +553,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     projectileSpeed: 700,
     splashRadius: 38,
     scatter: 6,
-    targets: [...INFANTRY, 'fortification'],
+    // Vehicles too since the tank cannon change (DECISIONS 424): fire on the engine deck, at SPECIALS.flameVehicleMul.
+    targets: [...INFANTRY, 'fortification', 'vehicle'],
     prefer: [],
     moveAndFire: false,
     tracer: 'none',
@@ -450,6 +564,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'prefer',
     preferStructures: true,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   pistol: {
     id: 'pistol',
@@ -477,6 +593,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   // Against the ground the AA gun is weak (it is sighted for aircraft); against planes see ANTI_AIR in supports.ts.
   aaGun: {
@@ -505,34 +623,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
-  },
-  // The Panzer III's short 3.7 cm or 5 cm gun: fine against infantry and light armour, little use against a heavier tank.
-  lightTankGun: {
-    id: 'lightTankGun',
-    damageType: 'explosive',
-    damage: 42,
-    range: 360,
-    minRange: 0,
-    aimTime: 0.7,
-    cooldown: 3,
-    burst: 1,
-    burstInterval: 0,
-    accuracyNear: 0.85,
-    accuracyFar: 0.6,
-    delivery: 'direct',
-    projectileSpeed: 850,
-    splashRadius: 22,
-    scatter: 16,
-    targets: EVERYTHING,
-    prefer: ['tank', 'apc', 'lightTank'],
-    moveAndFire: false,
-    tracer: 'none',
-    projectileLook: 'shell',
-    sound: 'tankGun',
-    setupTime: 0,
-    dugIn: 'none',
-    preferStructures: false,
-    thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   aerialBomb: {
     id: 'aerialBomb',
@@ -560,6 +652,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   strafeMg: {
     id: 'strafeMg',
@@ -587,6 +681,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
 
   // Soviet signature weapons (docs/campaigns/NATIONS.md). The conscript's rifle: the rifleman's Mosin in poorly trained
@@ -617,6 +713,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   katyushaRocket: {
     id: 'katyushaRocket',
@@ -645,6 +743,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
 
   // Scripted barrages (the mission director's `barrage` event, src/sim/director.ts): fired by mission data, never by a
@@ -676,6 +776,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   /** A heavy bomb dropped on a building (1008 B3 loses a floor once buildings exist; until then a big blast). */
   heavyBomb: {
@@ -704,6 +806,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   /** The 15 cm Nebelwerfer's rocket: a wide, smoky salvo, lighter than a shell. */
   nebelwerfer: {
@@ -732,6 +836,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
   /** The 21 cm mortar's shell: slow and heavy, for HQs and strongpoints. */
   mortar21: {
@@ -760,6 +866,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
     dugIn: 'none',
     preferStructures: false,
     thrown: false,
+    knockback: 0,
+    fortMul: 1,
   },
 };
 

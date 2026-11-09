@@ -371,6 +371,11 @@ export interface UnitState {
   setup: number;
   /** internal: battle time it last took damage. */
   hitTime: number;
+  /**
+   * Signed distance (wu) a heavy shell's blast still has to throw this man (+x or -x); 0 when not thrown. While it is
+   * not 0 he is carried along at config.knockSpeed and does nothing else (DECISIONS 424).
+   */
+  knock: number;
   /** internal: medics: pool index and id of the unit being healed, -1 for none. */
   healIndex: number;
   healId: number;

@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG, SPECIALS } from '../../src/data/config';
 import type { ForceDef, UnitKind } from '../../src/data/schema';
+import { DAMAGE } from '../../src/data/damage';
 import { SUPPORTS } from '../../src/data/supports';
 import { UNITS } from '../../src/data/units';
 import { WEAPONS } from '../../src/data/weapons';
@@ -70,7 +71,7 @@ describe('hit-facing armour', () => {
     b.command(0, { type: 'support', kind: 'bomber', x: 3250 });
     const hits = hitsOn(b, 12, 'heavyTank');
     expect(hits.length).toBeGreaterThan(0);
-    const bomb = WEAPONS.aerialBomb.damage * SUPPORTS.bomber.vehicleDamageMul * 0.5;
+    const bomb = WEAPONS.aerialBomb.damage * SUPPORTS.bomber.vehicleDamageMul * DAMAGE.explosive.vehicle;
     for (const h of hits) expect(h.value).toBeLessThanOrEqual(bomb + 1e-6);
     expect(Math.max(...hits.map((h) => h.value))).toBeGreaterThan(bomb * UNITS.heavyTank.armour!.front);
     expect(UNITS.tank.armour).toBeUndefined();

@@ -148,6 +148,8 @@ const SHOW: Record<FxPresetId, Show> = {
   grenadeBurst: { zoom: 1.7, period: 2.3, height: 0, dirX: 0, dirY: -1, figureX: -62 },
   shellExplosion: { zoom: 1.1, period: 3.3, height: 0, dirX: 0, dirY: -1, figureX: -95 },
   bigExplosion: { zoom: 0.72, period: 4.4, height: 0, dirX: 0, dirY: -1, figureX: -150 },
+  shellDust: { zoom: 0.72, period: 4.4, height: 0, dirX: 1, dirY: 0, figureX: -150 },
+  barrelSmoke: { zoom: 1.5, period: 3, height: 40, dirX: 1, dirY: 0, figureX: -75 },
   pillboxDebris: { zoom: 1.1, period: 3.3, height: 22, dirX: 0, dirY: -1, figureX: -95 },
   wireSnap: { zoom: 2.2, period: 1.9, height: 14, dirX: 0, dirY: -1, figureX: -50 },
   smokeScreen: { zoom: 0.72, period: 9, height: 34, dirX: 0, dirY: -1, emitFor: 5, spreadX: 70, spreadY: 14, figureX: -150 },

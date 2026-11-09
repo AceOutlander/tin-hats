@@ -529,19 +529,38 @@ export const SOUNDS = {
     { minInterval: 0.15, pitchJitter: 0.08, reach: 4, duck: { depth: 0.6, seconds: 0.55 } },
   ),
 
-  /** Tank main gun: a violent crack, a deep thump, a ring from the breech and an echo. */
+  /**
+   * Tank main gun (DECISIONS 424): a violent crack, a deep chest thump that falls away to a sub-bass rumble, a ring from
+   * the breech and a long rolling echo off the ground.
+   */
   tankGun: sound(
     [
-      noise('white', 1.2, 0.0005, 0.006, 0.07, { filter: hp(900) }),
-      noise('pink', 1.5, 0.001, 0.02, 0.35, { filter: lp(2600, 300) }),
-      noise('brown', 1.2, 0.002, 0.03, 0.6, { filter: lp(1000, 140, 1) }),
-      tone('sine', 125, 0.6, 0.001, 0.02, 0.45, { freqEnd: 33, sweep: 0.14 }),
+      noise('white', 1.3, 0.0005, 0.006, 0.08, { filter: hp(900) }),
+      noise('pink', 1.6, 0.001, 0.025, 0.45, { filter: lp(2400, 260) }),
+      noise('brown', 1.5, 0.002, 0.05, 0.95, { filter: lp(900, 110, 1) }),
+      tone('sine', 110, 0.85, 0.001, 0.03, 0.7, { freqEnd: 28, sweep: 0.2 }),
+      tone('sine', 55, 0.45, 0.004, 0.08, 0.9, { freqEnd: 24, sweep: 0.5 }),
       tone('triangle', 615, 0.08, 0.002, 0.01, 0.3),
       tone('triangle', 921, 0.05, 0.002, 0.01, 0.22),
-      noise('pink', 0.5, 0.03, 0.1, 0.7, { at: 0.05, filter: bp(500, 0.6, 200) }),
+      noise('pink', 0.6, 0.04, 0.15, 1.1, { at: 0.06, filter: bp(420, 0.6, 160) }),
     ],
-    0.85,
-    { minInterval: 0.12, reach: 2.5, duck: { depth: 0.4, seconds: 0.3 } },
+    0.9,
+    { minInterval: 0.12, reach: 2.5, duck: { depth: 0.45, seconds: 0.45 } },
+  ),
+
+  /** The heaviest guns (the King Tiger's 8.8 cm, the KV-2's 152 mm): the tank gun an octave down, longer and wider. */
+  tankGunHeavy: sound(
+    [
+      noise('white', 1.2, 0.0005, 0.008, 0.1, { filter: hp(700) }),
+      noise('pink', 1.7, 0.001, 0.03, 0.6, { filter: lp(1800, 200) }),
+      noise('brown', 1.8, 0.002, 0.08, 1.3, { filter: lp(700, 80, 1) }),
+      tone('sine', 80, 1, 0.001, 0.04, 0.95, { freqEnd: 22, sweep: 0.3 }),
+      tone('sine', 40, 0.55, 0.006, 0.1, 1.2, { freqEnd: 20, sweep: 0.7 }),
+      tone('triangle', 430, 0.07, 0.002, 0.01, 0.35),
+      noise('pink', 0.7, 0.05, 0.2, 1.5, { at: 0.08, filter: bp(320, 0.6, 120) }),
+    ],
+    0.9,
+    { minInterval: 0.15, reach: 3.2, duck: { depth: 0.55, seconds: 0.6 } },
   ),
 
   /** Anti-tank rocket leaving the tube: ignition hiss, then a rising whoosh. */

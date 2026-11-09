@@ -87,6 +87,12 @@ export const RENDER = {
     /** Tank barrel recoil: seconds for the gun to run out again. */
     tankRecoilTime: 0.45,
     /**
+     * The reload bar over the player's own tanks (DECISIONS 424): a thin bar that fills while the main gun reloads and
+     * hides when it is ready. Width and height (wu), lift above the health pips (wu), fill and backing colours, opacity,
+     * and the shortest main-gun reload that gets one (the T-60's quick autocannon does not).
+     */
+    reloadBar: { w: 26, h: 1.6, lift: 4, fill: 0xe6cf7a, back: 0x101010, alpha: 0.8, minCooldown: 4 },
+    /**
      * Tank suspension (view only). bobAmp: hull bounce over the ground (wu) at bobFullSpeed (wu/s) and above, with
      * bobFreq bumps per wu travelled; rollRock: pitch wobble while rolling (fraction of the look's rockMax). The pitch
      * spring rings at rockFreq (rad/s) with rockDamping (0..1); fireKick is the pitch speed the gun's recoil gives it,
@@ -386,7 +392,7 @@ export const RENDER = {
   /** Sound hookup (src/render/effects/sound.ts). */
   audio: {
     /** Smallest real-time gap (s) between plays of one sound, and a ceiling on all plays per second. */
-    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, mortarLaunch: 0.12, shellWhistle: 0.12, incomingWhistle: 0.15, rocketShriek: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
+    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, tankGunHeavy: 0.2, mortarLaunch: 0.12, shellWhistle: 0.12, incomingWhistle: 0.15, rocketShriek: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
     defaultGap: 0.05,
     maxPerSecond: 70,
     /** Shots further off screen than this many view widths are not played at all. */

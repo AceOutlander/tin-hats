@@ -58,6 +58,9 @@ export const CONFIG: GameConfig = {
   clusterRadius: 50,
   throwReleaseTime: 0.35,
   throwPoseTime: 0.8,
+  knockSpeed: 260,
+  knockReach: 2,
+  knockDugIn: 0.5,
   guardAlertTime: 6,
 
   // The King Tiger escort: tougher and steadier than the line.
@@ -88,6 +91,8 @@ export interface SpecialsDef {
   flamePillboxMul: number;
   /** Flamethrower: extra multiplier on its damage to men in a trench (fire pours into it). */
   flameTrenchMul: number;
+  /** Flamethrower: multiplier on its damage to a vehicle (burning fuel on the engine deck; DECISIONS 424). */
+  flameVehicleMul: number;
   /** Flamethrower fuel tank going up: radius (wu) of the explosion the view draws. */
   igniteRadius: number;
 }
@@ -99,5 +104,6 @@ export const SPECIALS: SpecialsDef = {
   flushSeconds: 6,
   flamePillboxMul: 3,
   flameTrenchMul: 2,
+  flameVehicleMul: 0.4,
   igniteRadius: 40,
 };

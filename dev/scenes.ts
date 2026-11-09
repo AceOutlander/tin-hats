@@ -17,6 +17,7 @@
 import { CONFIG } from '../src/data/config';
 import type { FactionId, MissionDef, UnitAction, UnitKind } from '../src/data/schema';
 import { UNITS } from '../src/data/units';
+import { WEAPONS } from '../src/data/weapons';
 import type { BattleState, SimEvent, SimEventType, UnitState } from '../src/sim';
 
 export type Emit = (type: SimEventType, fields: Partial<SimEvent>) => void;
@@ -269,7 +270,15 @@ export const SCENES: Record<string, Scene> = {
     tick(t, k) {
       if (t < 13) k.go(0, 2210, 55, 'aim');
       else k.go(0, 1900, 45, 'aim');
-      if (k.at(4) || k.at(9)) k.launch(0, 'tankGun', 2560, 0.6, 60);
+      // The tank cannon (DECISIONS 424): the shot (flash, recoil, barrel smoke), the shell, a man thrown by the blast,
+      // and the reload bar filling until the next round.
+      if (k.at(4) || k.at(9)) {
+        k.shot(0, 2560, -1, 'tankGun');
+        k.launch(0, 'tankGun', 2560, 0.6, WEAPONS.tankGun.splashRadius);
+      }
+      if (k.at(4.6)) k.kill(5, 'explosive', 1);
+      k.u[0].mount.weapon = WEAPONS.tankGun;
+      k.u[0].weaponCharge = t < 4 ? 1 : Math.min(1, ((t - 4) % 5) / WEAPONS.tankGun.cooldown);
       k.shootCycle(1, 0.5, 1.3, 2520, 1);
       k.shootCycle(2, 0.8, 1.1, 2580, 3);
       k.shootCycle(3, 1.1, 1.5, 2520, 1);

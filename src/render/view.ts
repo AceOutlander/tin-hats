@@ -480,7 +480,7 @@ export class BattleViewImpl implements BattleView {
       const e = ev.items[i];
       switch (e.type) {
         case 'shot':
-          if (e.source === 'unit') units.onFired(e.unit, e.unitId);
+          if (e.source === 'unit') units.onFired(e.unit, e.unitId, e.weapon);
           else if (e.source === 'hq') structures.onStructureShot('hq', e.side);
           else if (e.source === 'pillbox') structures.onStructureShot('pillbox', pillboxAt(state, e.side, e.x));
           break;

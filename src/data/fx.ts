@@ -401,6 +401,21 @@ export const FX_PRESETS = {
     ],
   },
 
+  /** A tank shell's impact (DECISIONS 424): a big, low cloud of dust rolling out both ways and hanging in the air. */
+  shellDust: {
+    emitters: [
+      { sprites: S.dust, layer: 'effects', count: [9, 12], life: [1.6, 2.6], aim: 'sides', spread: 0.25, speed: [160, 380], jitterX: 18, gravity: -10, drag: 2.4, wind: 0.8, scale: [0.8, 1.2], grow: 2.6, growEase: 2, alpha: 0.5, fadeIn: 0.04, fadeOut: 0.4, rotation: 'random', spin: [0.1, 0.5] },
+      { sprites: S.dust, layer: 'effects', count: [6, 8], delay: [0.05, 0.3], life: [2.4, 3.6], aim: 'up', spread: 1.1, speed: [40, 120], jitterX: 40, gravity: -14, drag: 1.4, wind: 1, scale: [0.9, 1.3], grow: 2.4, growEase: 2, alpha: 0.42, fadeIn: 0.1, fadeOut: 0.45, rotation: 'random', spin: [0.05, 0.3] },
+    ],
+  },
+
+  /** Smoke curling from a tank's barrel after a shot: the tell that its gun is reloading. dir = the barrel direction. */
+  barrelSmoke: {
+    emitters: [
+      { sprites: S.smoke, layer: 'effects', count: [3, 4], delay: [0.15, 1.2], life: [1.4, 2.2], aim: 'up', spread: 0.4, speed: [12, 30], forward: [2, 6], gravity: -26, drag: 1.6, wind: 1.2, scale: [0.12, 0.18], grow: 2.6, growEase: 2, alpha: 0.4, fadeIn: 0.1, fadeOut: 0.5, rotation: 'random', spin: [0.1, 0.6] },
+    ],
+  },
+
   /** A pillbox breaking up: concrete chunks and a grey dust cloud. */
   pillboxDebris: {
     shake: 'medium',

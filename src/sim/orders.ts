@@ -415,6 +415,12 @@ export function moveUnits(w: World): void {
       continue;
     }
 
+    // Thrown by a heavy shell's blast (src/sim/projectiles.ts knockBack): carried along, doing nothing else.
+    if (u.knock !== 0) {
+      carryKnock(w, u);
+      continue;
+    }
+
     if (u.kindIndex === KIND_SAPPER) {
       moveSapper(w, u, dir);
       continue;
@@ -448,6 +454,21 @@ export function moveUnits(w: World): void {
     if (anyWire && u.def.crushesWire && u.velX !== 0) crushWire(w, u);
     if (arrived && retreating && u.rally < 0 && side.hq && side.hq.alive) enterHq(w, u);
   }
+}
+
+/** One tick of a blast's throw: up to config.knockSpeed x dt of what is left, kept on the map. */
+function carryKnock(w: World, u: UnitState): void {
+  const max = CONFIG.knockSpeed * w.dt;
+  const k = u.knock;
+  const step = k > max ? max : k < -max ? -max : k;
+  let nx = u.x + step;
+  const lo = CONFIG.mapMargin;
+  const hi = w.state.length - CONFIG.mapMargin;
+  if (nx < lo) nx = lo;
+  else if (nx > hi) nx = hi;
+  u.x = nx;
+  u.velX = 0;
+  u.knock = k === step || nx === lo || nx === hi ? 0 : k - step;
 }
 
 function setAction(u: UnitState, action: UnitAction): void {
@@ -522,7 +543,7 @@ export function fireUnits(w: World): void {
     const m2 = u.mount2;
     // A controlled unit keeps its aim on the target even on the move (crew weapons still set up)
     // and shoots only while the fire button is held.
-    const active = ready && m2.windup <= 0 && hasTarget && (ctrl || u.engaged || (weapon.moveAndFire && !fleeing));
+    const active = ready && m2.windup <= 0 && u.knock === 0 && hasTarget && (ctrl || u.engaged || (weapon.moveAndFire && !fleeing));
     m.x = u.x;
     m.damageMul = w.mods[u.side].unitDamage[u.kindIndex];
     if (w.auraUnit[u.side] >= 0) applyAura(w, u, m);

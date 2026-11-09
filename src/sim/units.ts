@@ -2,7 +2,9 @@
  * The unit pool: spawning, death, the hold-formation grid and entering the HQ.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import { resolveEra, unitVehicleLook, type VehicleKind } from '../data/eras';
 import type { Side } from '../data/schema';
+import { vehicleGun } from '../data/tankGuns';
 import { WEAPONS } from '../data/weapons';
 import { CLASS_TRENCH, DAMAGE_TYPES, KIND_BOSS, KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
 import { releaseSlot } from './trenches';
@@ -115,6 +117,7 @@ export function createUnit(index: number): UnitState {
     slot: -1,
     setup: 0,
     hitTime: -LONG_AGO,
+    knock: 0,
     healIndex: -1,
     healId: -1,
     veteran: false,
@@ -261,6 +264,7 @@ export function spawnUnit(
   u.slot = -1;
   u.setup = 0;
   u.hitTime = -LONG_AGO;
+  u.knock = 0;
   u.healIndex = -1;
   u.healId = -1;
   u.veteran = false;
@@ -282,6 +286,7 @@ export function spawnUnit(
   u.slotDepth = def.formationDepth;
   u.row = serial % CONFIG.rows;
   if (behaviour === 'army' && kindIndex !== KIND_SAPPER) allocCell(w, u);
+  if (def.class === 'vehicle') armVehicle(w, u);
 
   sideState.alive[u.kind]++;
   if (!trained) sideState.pop += def.pop;
@@ -298,6 +303,26 @@ export function spawnUnit(
   e.hit = inside;
   if (KIND_BOSS[kindIndex] === 1 && !inside) emitUnitEvent(w, 'bossArrived', u);
   return u;
+}
+
+/**
+ * Give a vehicle the main gun of the look it is drawn with (its force's look, else its era's for its nation; TANK_GUNS
+ * in src/data/tankGuns.ts): the cannon scale by calibre. Call again whenever u.look or u.faction changes. Only the
+ * weapon changes; the mount's aim, accuracy and spread stay as they are.
+ */
+export function armVehicle(w: World, u: UnitState): void {
+  if (u.def.class !== 'vehicle' || u.def.weapon === null) return;
+  const m = w.mission;
+  const era = resolveEra(u.faction, m.dateIso ?? null, m.climate ?? 'temperate');
+  const gun = vehicleGun(u.kind, unitVehicleLook(era, u.kind as VehicleKind, u.look));
+  const mount = u.mount;
+  if (gun === null || (mount.weapon !== null && mount.weapon.id === gun)) return;
+  const index = weaponIndex(gun);
+  if (index < 0) return;
+  mount.weapon = WEAPONS[gun];
+  mount.weaponIndex = index;
+  mount.aim = mount.weapon.aimTime;
+  mount.cooldown = 0;
 }
 
 /** Remove a unit from play. `dtype` indexes DAMAGE_TYPES; `killerSide` is -1 if nobody gets the credit. */
