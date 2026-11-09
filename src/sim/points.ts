@@ -52,6 +52,7 @@ function flip(w: World, i: number, side: number): void {
   e.x = p.x;
   e.value = previous;
   e.text = p.label;
+  e.hit = p.trench >= 0;
 }
 
 /** Scratch per point and side: armed units in the zone, and within the contest radius. */

@@ -19,9 +19,11 @@ import { structureSpecs } from '../art/structures';
 import { vehicleSpecs } from '../art/vehicles';
 import { sideEra } from '../data/eras';
 import { FX_KEYS } from '../data/fx';
+import { groundArt } from '../data/ground';
 import { MENU_STORM } from '../data/menuStorm';
 import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
+import { THEATRES } from '../data/theatres';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
 import type { SideLooks } from '../data/upgradeLooks';
@@ -40,6 +42,7 @@ import { QualityGovernor, startQuality } from './quality';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { renderSprites } from './sprites';
 import { BuildSiteViews, type Placing } from './buildSites';
+import { PointViews } from './points';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
@@ -92,6 +95,7 @@ export class BattleViewImpl implements BattleView {
   private backdrop: BackdropView | null = null;
   private units: UnitViews | null = null;
   private structures: StructureViews | null = null;
+  private points: PointViews | null = null;
   private buildSites: BuildSiteViews | null = null;
   /** The build the player is placing in a prep phase (the ghost), or null. */
   private placing: Placing | null = null;
@@ -228,6 +232,7 @@ export class BattleViewImpl implements BattleView {
     this.units.blood.setEnabled(this.showBlood);
     this.units.hpReveal = this.hpReveal;
     this.structures = new StructureViews(scene, layers, reg);
+    this.points = new PointViews(scene, layers, reg);
     this.buildSites = new BuildSiteViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
@@ -335,7 +340,11 @@ export class BattleViewImpl implements BattleView {
     this.visualSeed = opts.visualSeed;
     const state = battle.state;
     const mission = battle.config.mission;
-    this.backdrop.build(mission.theatre, mission.timeOfDay, opts.visualSeed);
+    // A mission in sectors draws each one's ground (FOUNDATIONS.md 4.1), blended at the edges.
+    const theatreGround = THEATRES[mission.theatre].groundStyle;
+    const winter = mission.climate === 'winter';
+    const ground = (mission.sectors ?? []).map((sec) => ({ from: sec.from, to: sec.to, style: groundArt(sec.ground, theatreGround, winter) }));
+    this.backdrop.build(mission.theatre, mission.timeOfDay, opts.visualSeed, ground);
     this.backdrop.setAllHidden(false);
     const colours = getTheatreColours(mission.theatre, mission.timeOfDay);
     this.nightAlpha = colours.nightTintAlpha;
@@ -358,6 +367,7 @@ export class BattleViewImpl implements BattleView {
     const specs = StructureViews.battleSpecs(state, earth, looks);
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
     this.structures.build(state, earth, looks);
+    this.points?.build(state);
     this.units.reset(opts.visualSeed);
     this.units.setLooks(0, looks[0]);
     this.units.setLooks(1, looks[1]);
@@ -383,6 +393,7 @@ export class BattleViewImpl implements BattleView {
     this.battle = null;
     this.units?.reset(this.visualSeed);
     this.structures?.clear();
+    this.points?.clear();
     this.effects?.clear();
     this.weatherView?.clear();
     if (this.effects) {
@@ -487,6 +498,7 @@ export class BattleViewImpl implements BattleView {
       ctx.sound.setView(rig.centerX, viewW);
       this.structures.sync(state); // trenches, pillboxes and wire built in the prep phase
       this.structures.update(state, dt);
+      this.points?.update(state, dt);
       this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
       this.weatherView?.update(dt, left, viewW, this.effects.enabled);

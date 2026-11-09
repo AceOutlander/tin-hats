@@ -128,7 +128,7 @@ function applyDeploy(w: World, si: number, at: number): void {
   const side = w.state.sides[si];
   const points = w.state.points;
   if (at === DEPLOY_AUTO || at === DEPLOY_HQ) side.deploy = at;
-  else if (at >= 0 && at < points.length && points[at].spawn) side.deploy = at;
+  else if (at >= 0 && at < points.length && points[at].spawn && (points[at].spawnFor < 0 || points[at].spawnFor === si)) side.deploy = at;
   else return;
   side.deployPoint = resolveDeploy(w, si);
 }

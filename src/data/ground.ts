@@ -149,3 +149,29 @@ export const POINT_RULES = {
   /** Trained units deploying at a point walk out this far behind its zone's rear edge (wu). */
   deployBehind: 0,
 };
+
+/**
+ * How a capture point is drawn (src/render/points.ts), in wu from the ground line: a tall flagpole at its centre with
+ * the holder's colours, two short marker posts at the zone's edges, and a thin bar over the pole while a side takes it.
+ */
+export const POINT_ART = {
+  poleH: 64,
+  poleW: 2.2,
+  poleColor: 0x3d3326,
+  flagW: 20,
+  flagH: 12,
+  /** The cloth of a point nobody holds. */
+  neutralFlag: 0x8a8576,
+  /** Edge posts: height, width, colour. */
+  postH: 12,
+  postW: 2,
+  postColor: 0x54483a,
+  /** Behind the near rows: the pole stands this far back of the ground line. */
+  backY: -6,
+  barW: 34,
+  barH: 3,
+  barGap: 6,
+  barBack: 0x1d1c16,
+  /** Seconds the new holder's flag takes to run up the pole. */
+  hoist: 0.8,
+} as const;

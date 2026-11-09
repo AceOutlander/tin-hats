@@ -92,9 +92,12 @@ describe.each(MISSIONS.map((m) => [m.id, m] as const))('mission %i data', (_id, 
     expect(times.some((s) => s <= 20)).toBe(true);
     for (const w of waves(m, 1)) if (w.announce !== undefined) expect(w.announce.length, w.announce).toBeGreaterThan(10);
     expect(m.events.some((e) => e.type === 'hint' && 'hqHpBelow' in e.when && e.when.side === 0), 'a hint when the HQ is in trouble').toBe(true);
-    // Taking an enemy trench in an assault is acknowledged.
+    // Taking an enemy trench (or capture point, FOUNDATIONS.md 4.5) in an assault is acknowledged.
     if (m.mode === 'assault' && m.trenches.some((t) => t.owner === 1)) {
-      expect(m.events.some((e) => e.type === 'announce' && 'trenchCapturedBy' in e.when && e.when.trenchCapturedBy === 0), 'taking ground is announced').toBe(true);
+      const taken = (e: MissionEventDef): boolean =>
+        e.type === 'announce' &&
+        (('trenchCapturedBy' in e.when && e.when.trenchCapturedBy === 0) || ('pointCapturedBy' in e.when && e.when.pointCapturedBy === 0));
+      expect(m.events.some(taken), 'taking ground is announced').toBe(true);
     }
   });
 

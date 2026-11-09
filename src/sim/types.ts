@@ -377,7 +377,7 @@ export interface UnitState {
   aaCooldown: number;
   /** Admin panel: this unit takes no damage (its side's cheats.invincible covers every unit of the side). */
   invincible: boolean;
-  /** Ski troops (ForceDef.tags 'skis'): deep snow does not slow them. Draw the skis. */
+  /** Ski troops (ForceDef.tags `skis`): deep snow does not slow them. */
   skis: boolean;
   /** internal: Fall Back: index into state.points of the rally point it is heading for or holds, -1 for none (the HQ). */
   rally: number;
@@ -870,7 +870,8 @@ export type SimEventType =
  * structureDestroyed  target, targetIndex, side = owner, x.
  * trenchCaptured    side = new owner, targetIndex = trench id, x = trench centre, value = previous owner (-1 none).
  * pointCaptured     A capture point changed hands. side = new owner, targetIndex = index into state.points, x = its
- *                   centre, value = previous owner (-1 none), text = its label.
+ *                   centre, value = previous owner (-1 none), text = its label, hit = it is a structure (its
+ *                   trenchCaptured came with it).
  * wireDestroyed     targetIndex = wire id, side = its owner, x = its centre, cause = 'explosive' (splash) or null (crushed).
  * supplyDelivered   A sapper reached the HQ door. side, unit, unitId, kind, x, row, value = supplies credited.
  * trainStarted      A unit was queued. side, kind, value = that kind's queue length afterwards.

@@ -102,8 +102,9 @@ export const M1007: MissionDef = {
     { from: 2800, to: 4400, ground: 'cobble', label: '9 January Square' },
     { from: 4400, to: 7000, ground: 'rubble', label: 'German-held blocks' },
   ],
-  // The communication trench, held the trench way (FOUNDATIONS.md 4.5): the side objective keeps it open.
-  capturePoints: [{ id: 'P1', x: 1900, width: 200, label: 'The trench', owner: 0, captureTime: 0, spawn: false, contestRadius: 400, structure: { trench: 1 } }],
+  // The communication trench, held the trench way (FOUNDATIONS.md 4.5): the side objective keeps it open, and new men
+  // come up it from the mill (a forward spawn point while it is ours and quiet).
+  capturePoints: [{ id: 'P1', x: 1900, width: 200, label: 'The trench', owner: 0, captureTime: 0, spawn: true, contestRadius: 400, structure: { trench: 1 } }],
   timer: { seconds: 1320, onExpire: 'win', label: 'Until the counter-offensive' },
   // The mission director (FOUNDATIONS.md 3): take the house, dig in, then two days and two nights. Phase 0 runs at least
   // 110 s (the section comes up), so the day and night phases keep the old clock: 110 to 420, 660, 960 and 1320 s.
