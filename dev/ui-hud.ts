@@ -81,6 +81,7 @@ const supportDefs = SUPPORTS.slice(0, count('supports', SUPPORTS.length, SUPPORT
 const train: TrainButtonState[] = roster.map((r) => ({
   kind: r.kind,
   name: british.unitNames[r.kind],
+  label: british.buttonNames[r.kind] ?? british.unitNames[r.kind],
   cost: r.cost,
   pop: r.pop,
   queued: 0,

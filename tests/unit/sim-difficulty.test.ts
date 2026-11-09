@@ -109,6 +109,16 @@ describe('difficulty never alters unit or weapon stats', () => {
     expect(JSON.stringify([UNITS, WEAPONS, DAMAGE, CONFIG])).toBe(before);
   });
 
+  it('caps both armies at 100 on every difficulty, in every mission', () => {
+    expect(CONFIG.popCap).toBe(100);
+    for (const mission of MISSIONS) {
+      for (const difficulty of DIFFICULTY_LIST) {
+        const b = makeBattle({ mission, difficulty, commanders: ['bot', 'ai'] });
+        expect(b.state.sides.map((s) => s.popCap), `mission ${mission.id} on ${difficulty}`).toEqual([100, 100]);
+      }
+    }
+  });
+
   it("scales only the AI side's income, waves and army size, and never the player's", () => {
     const mission = MISSIONS[0];
     for (const difficulty of DIFFICULTY_LIST) {

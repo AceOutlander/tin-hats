@@ -10,7 +10,7 @@ import type { DebugApi, DebugState, FieldInfo } from '../../src/app/debug';
 import { describeEnd } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
 import { MISSIONS } from '../../src/data/missions';
-import type { Difficulty, UnitKind } from '../../src/data/schema';
+import type { Difficulty, SupportKind, UnitKind } from '../../src/data/schema';
 
 /** window.__TH as the page sees it (it is not declared globally, because a dev page declares another type). */
 export type Hooked = { __TH?: DebugApi };
@@ -131,6 +131,19 @@ export async function open(page: Page, query = '?debug=1'): Promise<void> {
 
 export async function tap(page: Page, testId: string): Promise<void> {
   await page.getByTestId(testId).tap({ timeout: 10_000 });
+}
+
+/** Open the call-ins column with a tap on the folded "Call-ins" toggle, unless it is open already. */
+export async function openCallIns(page: Page): Promise<void> {
+  const column = page.getByTestId('callins-column');
+  if (!(await column.isVisible())) await tap(page, 'callins');
+  await expect(column).toBeVisible();
+}
+
+/** Tap a call-in's button the way a player does: open the folded call-ins column first if need be. */
+export async function tapCallIn(page: Page, kind: SupportKind): Promise<void> {
+  await openCallIns(page);
+  await tap(page, `support-${kind}`);
 }
 
 /** Tap a control on the screen that has arrived (a screen that is leaving is still in the page for its fade). */
