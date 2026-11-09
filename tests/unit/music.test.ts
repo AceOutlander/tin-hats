@@ -378,7 +378,7 @@ describe('the campaign map theme as a score', () => {
     expect(horn.strings ?? []).toEqual([]);
     expect(horn.horn.reduce((t, n) => t + n.beats, 0)).toBeGreaterThanOrEqual(horn.bars * def.beatsPerBar * 0.9);
     // ...taken up by the full strings (in octaves), the same tune, with the choir underneath.
-    const upper = (strings.strings ?? []).filter((n, i, all) => all.every((m) => m.at !== n.at || m.note <= n.note));
+    const upper = (strings.strings ?? []).filter((n, _i, all) => all.every((m) => m.at !== n.at || m.note <= n.note));
     const sung = horn.horn.slice(0, 15).map((n) => [n.at, n.note]);
     expect(upper.slice(0, 15).map((n) => [n.at, n.note])).toEqual(sung);
     for (const u of upper) expect((strings.strings ?? []).some((n) => n.at === u.at && n.note === u.note - 12), `octave under ${u.note}`).toBe(true);

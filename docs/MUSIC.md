@@ -88,7 +88,11 @@ was taken (slow hymn, solo brass over strings, wordless choir, one climax). Melo
   attack, late vibrato, swell; `MusicSection.strings`), a wordless choir (`choir`: buzzy detuned sawtooths through
   three band-pass formants that glide from "oo" to "ah", one formant set per chord; `MusicSection.choir` chords with a
   `vowel` pair) and a tuned timpani with rolls (`DrumHit.roll`, `DrumSettings.roll`).
-- Render: mono 22.05 kHz, 15.0 MB; the climax is the loudest section, the opening and the end about 9 and 7 dB under it.
+- Render: mono 22.05 kHz, 15.0 MB, about 7.5 s in headless Chromium (the menu theme 4.5 s): the graph is built 4 s of
+  music at a time while the offline render is suspended (`TrackDef.chunk`), since a graph holding every note of a long
+  track renders about three times slower; the first chunk is 17 ms of main thread. Pad chords share one filter pair
+  (`playPadChord`), and the strings' and choir's sweeps and vibrato run at k-rate. -18.1 LUFS full range, -20.7 on a
+  phone; the climax is the loudest section, the opening and the end about 9 and 7 dB under it.
   `tools/music-loop-report.ts map [--stems] [--wav <dir> --clip name:from:to]` prints length, memory, render time,
   loudness, the seam and every section's (and every instrument's) level, and writes WAVs to listen to.
 - Checks: `tests/unit/music.test.ts` (key, ranges, the brief's shape, a deterministic graph within a node budget, the

@@ -22,7 +22,7 @@ export interface RenderedTrack {
   channels: number;
   /** Wall-clock milliseconds the render took, from building the graph to the folded, levelled buffer... */
   renderMs: number;
-  /** ...and of that, the main-thread time spent building the graph (the rest runs on the audio thread). */
+  /** ...and of that, the longest main-thread task building the graph (all of it, or its first chunk; the rest runs on\n   * the audio thread). */
   buildMs: number;
   /** Bytes of sample memory the buffer holds. */
   bytes: number;
@@ -30,9 +30,20 @@ export interface RenderedTrack {
   rawPeak: number;
 }
 
-/** Build the score into `ctx` (any BaseAudioContext): instruments on their buses, the buses into the dry mix and the reverb. */
-export function buildTrack(ctx: BaseAudioContext, out: AudioNode, def: TrackDef, bank: NoiseBank): void {
-  const rng = seededRandom(def.seed);
+/** One note (or chord, or roll) of the score, ready to be added to the graph: when it starts, and what adds it. */
+interface NoteJob {
+  at: number;
+  play: (rng: () => number) => void;
+}
+
+/**
+ * The score's graph without its notes (the buses, the dry mix and the reverb into `out`) and every note as a job, in
+ * the order they are to be added. A track built all at once adds them in score order, humanised from one random
+ * stream (as every looping track always was). A track rendered in chunks (`TrackDef.chunk`) adds them in time order,
+ * each humanised from its own stream (seeded from the track's seed and its place in the score), so the music does not
+ * depend on where the chunks fall.
+ */
+function trackJobs(ctx: BaseAudioContext, out: AudioNode, def: TrackDef, bank: NoiseBank): { at: number; play: () => void }[] {
   // Everything through one gentle low-pass at the end: heard from far off, across a field.
   const dark = ctx.createBiquadFilter();
   dark.type = 'lowpass';
@@ -72,36 +83,63 @@ export function buildTrack(ctx: BaseAudioContext, out: AudioNode, def: TrackDef,
     return settings;
   };
   const H = def.humanize;
-  const human = (t: number): number => Math.max(0, t + (rng() * 2 - 1) * H.time);
-  const velocity = (v: number): number => Math.max(0.05, Math.min(1, v * (1 + (rng() * 2 - 1) * H.velocity)));
+  const human = (rng: () => number, t: number): number => Math.max(0, t + (rng() * 2 - 1) * H.time);
+  const velocity = (rng: () => number, v: number): number => Math.max(0.05, Math.min(1, v * (1 + (rng() * 2 - 1) * H.velocity)));
+  const jobs: NoteJob[] = [];
   // The pad a chord at a time (one filter pair per chord), not humanised.
-  for (const c of padChords(def)) playPadChord(ctx, bus('pad'), c.at, c.length, c.notes, I.pad.level * c.vel, I.pad);
+  for (const c of padChords(def)) jobs.push({ at: c.at, play: () => playPadChord(ctx, bus('pad'), c.at, c.length, c.notes, I.pad.level * c.vel, I.pad) });
   for (const n of scoreNotes(def)) {
     switch (n.instrument) {
       case 'pad':
-        // Played above, chord by chord.
+        // Played chord by chord, above.
         break;
       case 'horn':
-        playHorn(ctx, bus('horn'), human(n.at), n.length, n.note, velocity(n.vel), I.horn, bank, rng);
+        jobs.push({ at: n.at, play: (rng) => playHorn(ctx, bus('horn'), human(rng, n.at), n.length, n.note, velocity(rng, n.vel), I.horn, bank, rng) });
         break;
-      case 'piano':
-        playPiano(ctx, bus('piano'), human(n.at), n.length, n.note, velocity(n.vel), need(I.piano, 'piano'), bank);
+      case 'piano': {
+        const s = need(I.piano, 'piano');
+        jobs.push({ at: n.at, play: (rng) => playPiano(ctx, bus('piano'), human(rng, n.at), n.length, n.note, velocity(rng, n.vel), s, bank) });
         break;
+      }
       case 'drum':
-        if (n.length > 0) playRoll(ctx, bus('drum'), human(n.at), n.length, velocity(n.vel), n.pitch, I.drum, need(I.drum.roll, 'drum roll'), bank, rng);
-        else playDrum(ctx, bus('drum'), human(n.at), velocity(n.vel), n.pitch, I.drum, bank);
+        if (n.length > 0) {
+          const roll = need(I.drum.roll, 'drum roll');
+          jobs.push({ at: n.at, play: (rng) => playRoll(ctx, bus('drum'), human(rng, n.at), n.length, velocity(rng, n.vel), n.pitch, I.drum, roll, bank, rng) });
+        } else {
+          jobs.push({ at: n.at, play: (rng) => playDrum(ctx, bus('drum'), human(rng, n.at), velocity(rng, n.vel), n.pitch, I.drum, bank) });
+        }
         break;
-      case 'strings':
-        playStringLead(ctx, bus('strings'), human(n.at), n.length, n.note, velocity(n.vel), need(I.strings, 'strings'), rng);
+      case 'strings': {
+        const s = need(I.strings, 'strings');
+        jobs.push({ at: n.at, play: (rng) => playStringLead(ctx, bus('strings'), human(rng, n.at), n.length, n.note, velocity(rng, n.vel), s, rng) });
         break;
+      }
       case 'choir':
         // Sung a chord at a time, below.
         break;
     }
   }
-  for (const c of choirChords(def)) playChoir(ctx, bus('choir'), c.at, c.length, c.notes, c.vel, c.vowel, need(I.choir, 'choir'), rng);
+  const chords = choirChords(def);
+  if (chords.length > 0) {
+    const s = need(I.choir, 'choir');
+    for (const c of chords) jobs.push({ at: c.at, play: (rng) => playChoir(ctx, bus('choir'), c.at, c.length, c.notes, c.vel, c.vowel, s, rng) });
+  }
+  if (!def.chunk) {
+    const rng = seededRandom(def.seed);
+    return jobs.map((j) => ({ at: j.at, play: () => j.play(rng) }));
+  }
+  const own = jobs.map((j, i) => {
+    const rng = seededRandom(def.seed + 7919 * (i + 1));
+    return { at: j.at, play: () => j.play(rng) };
+  });
+  // A stable sort: notes that start together keep their score order.
+  return own.sort((a, b) => a.at - b.at);
 }
 
+/** Build the whole score into `ctx` (any BaseAudioContext) at once: instruments on their buses, the buses into the dry mix and the reverb. */
+export function buildTrack(ctx: BaseAudioContext, out: AudioNode, def: TrackDef, bank: NoiseBank): void {
+  for (const j of trackJobs(ctx, out, def, bank)) j.play();
+}
 /** A timpani roll: strokes at the drum's roll rate over `length` seconds, growing to `vel`, the last left to ring. */
 function playRoll(ctx: BaseAudioContext, dest: AudioNode, at: number, length: number, vel: number, pitch: number, s: DrumSettings, r: NonNullable<DrumSettings['roll']>, bank: NoiseBank, rng: () => number): void {
   const strokes = Math.max(1, Math.round(length * r.rate));
@@ -145,8 +183,36 @@ export async function renderTrack(def: TrackDef, Offline: OfflineContextCtor, no
   const ctx = new Offline(def.channels, frames, rate);
   const master = ctx.createGain();
   master.connect(ctx.destination);
-  buildTrack(ctx, master, def, bank);
-  const buildMs = now() - started;
+  const jobs = trackJobs(ctx, master, def, bank);
+  // A browser without OfflineAudioContext.suspend gets the whole graph at once.
+  const C = typeof ctx.suspend === 'function' ? def.chunk : undefined;
+  let next = 0;
+  /** Add the notes that start before `until` seconds; returns the main-thread milliseconds it took. */
+  const add = (until: number): number => {
+    const t0 = now();
+    while (next < jobs.length && jobs[next].at < until) jobs[next++].play();
+    return now() - t0;
+  };
+  add(C ? C.seconds : Infinity);
+  // Everything up to here (the context, the buses, the reverb's room and the first notes) is one task.
+  let buildMs = now() - started;
+  if (C) {
+    // A graph holding every note of a long track is slow to render: the audio thread walks every node, even those of
+    // notes minutes away. So the notes go in a few seconds of music at a time, each chunk while the render is
+    // suspended a little before it.
+    for (let t = C.seconds; t < seconds; t += C.seconds) {
+      const until = t + C.seconds;
+      ctx.suspend(Math.max(0, t - C.lead)).then(
+        () => {
+          buildMs = Math.max(buildMs, add(until));
+          void ctx.resume();
+        },
+        () => {
+          // A refused suspend: its notes are left out rather than stalling the render.
+        },
+      );
+    }
+  }
   const buffer = await startRendering(ctx);
   const rawPeak = foldAndLevel(buffer, loopFrames, def.peak);
   return {

@@ -229,6 +229,10 @@ export interface TrackDef {
   sampleRate: number;
   channels: 1 | 2;
   tail: number;
+  /** Build the graph `seconds` of music at a time, each chunk added while the render is suspended `lead` seconds
+   * before it (src/audio/music/render.ts): a long, busy track renders several times faster than with every note in the
+   * graph from the start. Without it the whole score is built at once. */
+  chunk?: { seconds: number; lead: number };
   /** The rendered loop is scaled so its peak is this. */
   peak: number;
   /** Small random shifts in timing (s) and velocity (share), so it does not sound like a sequencer. */
