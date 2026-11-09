@@ -14,7 +14,7 @@ What each part of the campaign has today, and what waits for which foundation fe
   (`tests/balance/nations.test.ts`). `nationFields(nation, kind)` says who may field it.
 - Signature call-in `katyusha`: a wide, inaccurate 16-rocket salvo, long cooldown (`tests/unit/sim-soviet.test.ts`).
   Missions offer it from mission 1003 on (first used 14 July 1941).
-- Campaign registry `src/data/campaigns.ts` (`stalingrad`, ids 1001 to 1010, unreleased).
+- Campaign registry `src/data/campaigns.ts` (`stalingrad`, ids 1001 to 1010, released: the only campaign since the British placeholders were removed).
 
 **Waits for**:
 
@@ -32,7 +32,7 @@ What each part of the campaign has today, and what waits for which foundation fe
 - **Campaign select** (`src/ui/screens/campaigns.ts`, screen id `campaigns`): one dossier card per offered campaign in
   the registry's order, Stalingrad first: flag, name, dates, pitch, a tick per mission cleared ("2 / 10") and the next
   mission. Touch and keyboard (arrows, Enter, Escape); stacks in portrait under the rotate notice. Play opens it when
-  more than one campaign is offered; with one (the live site, Stalingrad unreleased) Play goes straight to the map.
+  more than one campaign is offered; with one (today: Stalingrad, since the British missions went) Play goes straight to the map.
   Unreleased campaigns show on the dev server, with `?unreleased=1`, or after the admin panel's unlock.
 - **Campaigns in the app**: `App.campaigns` (every campaign and its missions), `App.offered`, `App.current`,
   `selectCampaign`; `Campaign.map` and `Campaign.mapMusic` in `src/data/campaigns.ts`. Saves keep each campaign's
@@ -62,10 +62,44 @@ What each part of the campaign has today, and what waits for which foundation fe
 | 1009 Uranus | Universal Carrier | (none) |
 | 1010 Ring | (none) | (none) |
 
-**Waits for**: the city inset for the four city markers (they are pushed apart with leaders), the Stalingrad medal
-targets in `MEDALS.missions` (they score on the fallback), the campaign theme field, unlock rules after a mission of
+**Waits for**: the city inset for the four city markers (they are pushed apart with leaders), tuning the first-cut
+Stalingrad medal targets on real play (DECISIONS 306), the campaign theme field, unlock rules after a mission of
 another campaign (Road to Berlin; `unlock.afterMission` is read by the cards but no campaign uses it), and a card
 for the save's "Continue" strip (mid-mission resume).
+
+## The British placeholder missions removed (owner, docs/QUEUE.md; DECISIONS 303 to 308)
+
+**In**:
+
+- Missions 1 to 10 (m01 to m10), their briefings, medal targets, map markers and tests are gone. `MISSIONS` is the
+  Stalingrad campaign; `CampaignId` is `'stalingrad'`; Stalingrad is released and the only campaign, so Play goes
+  straight to its map and the map's Back goes to the title (the select screen returns with a second campaign).
+- Kept for later campaigns: the ten British battle tracks and "Between the Lines", every backdrop, the British nation,
+  and the western map (`WEST_MAP` in src/data/campaignMap.ts, used by no campaign). The matchup harness has its own
+  base mission with the old values; the engine tests use the test field fixture (`tests/unit/fixtures.ts`).
+- Save version 10: medals, upgrades, bought planes, Basic Training and settings kept; every unit type the British
+  missions had unlocked stays unlocked (added to the `armoury` list from `META.legacyCampaign`); the British clears
+  and wins archived in `legacy`; `lastMission` 1 to 10 becomes 0. `tests/unit/meta-save-british.test.ts`.
+- First-cut medal targets for 1001 to 1010 (`MEDALS.missions`, from bot runs).
+- The tests that looped over the old missions loop over the Stalingrad ones (DECISIONS 307 lists them and what was not
+  carried over). New balance file `tests/balance/missions-design.test.ts`.
+
+**Balance on the moved checks** (`tests/balance/missions.test.ts`, 2026-11-09, `CAMPAIGN_RUNS.seeds` seeds each): 1001, 1003, 1007 and 1008
+pass every check. Failing: 1002 (the idle commander leaves one seed undecided at the 40-minute cap; known before),
+1004 (a battle breaks the "lines never cross" invariant at tick 22938, near the enemy HQ; known before), 1005 (the
+bot wins too few seeds; known before), 1006 (the same invariant breaks at tick 20446; first time checked), 1009 (the
+bot's median win takes about 26 minutes against the expected 9 to 24) and 1010 (the idle commander leaves seeds
+undecided at the cap). Tuning these is not part of the removal job.
+The medals run (the campaign in order, seed 1) wins all ten and buys a sensible set of upgrades.
+
+**Unit test waiting for the music job**: `tests/unit/music-score.test.ts` "give every campaign mission a track of its
+own" now checks the Stalingrad missions and fails here (7 distinct tracks for 10 missions: 1001 to 1005 still play
+British tracks, 1006 to 1010 share `factories` and `volokolamsk`). The Stalingrad battle tracks being composed on the
+`stalingrad` branch (`STALINGRAD_MUSIC.planned`) give every mission its own; it should pass after the merge.
+
+**At push to live** (not before): update the Tin Hats card text on hunteracedev.com so it describes the game as a
+whole instead of the old British campaign (owner, docs/QUEUE.md). The live site's save players migrate to version 10
+on their first load.
 
 **Soviet art: drawn** (no British or German stand-ins left; `tests/unit/art-soviet.test.ts` guards it). Screenshots in
 `docs/screenshots/stalingrad-art-*.png` (local only).
