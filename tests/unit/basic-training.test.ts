@@ -238,13 +238,13 @@ describe('the course', () => {
     }
   });
 
-  it('keeps a marked place for the prep phase, left out until job 6 builds it', () => {
+  it('opens with building in a prep phase, now that the engine has one', () => {
     const prep = TUTORIAL.steps.find((s) => s.id === 'prepPhase');
     expect(prep?.needs).toBe('prepPhase');
-    expect(TUTORIAL.features.prepPhase).toBe(false);
-    expect(COURSE).not.toContain('prepPhase');
-    // The step that followed it follows the one before it instead.
-    expect(trainingSteps().find((s) => s.id === 'medals')?.after).toEqual(['fallBack']);
+    expect(prep?.target).toBe('build-wire');
+    expect(TUTORIAL.features.prepPhase).toBe(true);
+    expect(COURSE.slice(0, 3)).toEqual(['welcome', 'prepPhase', 'supplies']);
+    expect(BASIC_TRAINING.prep?.buildables).toContain('wire');
     expect(stepsFor(BASIC_TRAINING).map((s) => s.id)).toEqual(COURSE);
   });
 

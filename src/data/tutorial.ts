@@ -9,7 +9,7 @@
  * shown again; Basic Training's steps run in full every time it is played, whatever the hints setting.
  */
 import { BASIC_TRAINING_ID } from './missions/training';
-import type { Order, SupportKind, UnitKind } from './schema';
+import type { BuildableId, Order, SupportKind, UnitKind } from './schema';
 
 /**
  * What a tip points at. The ids are the data-testid of a HUD control (`train-sapper`, `order-advance`, `order-scope`
@@ -26,7 +26,9 @@ export type TipTarget =
   | 'release'
   | `train-${UnitKind}`
   | `order-${Order}`
-  | `support-${SupportKind}`;
+  | `support-${SupportKind}`
+  | `build-${BuildableId}`
+  | 'prep-ready';
 
 /** A fact about the battle or about what the player has done, which must hold. All numbers are minimums. */
 export type TutorialCond =
@@ -44,6 +46,10 @@ export type TutorialCond =
   | { t: 'ordered'; order: Order; min: number }
   /** The order the whole army is under right now. */
   | { t: 'armyOrder'; order: Order }
+  /** Build sites the player has placed in a prep phase. */
+  | { t: 'placed'; min: number }
+  /** The prep phase has ended (Ready, or the countdown ran out). */
+  | { t: 'prepOver' }
   /** Orders the player has given one unit type alone (the per-unit-type orders). */
   | { t: 'kindOrdered'; min: number }
   /** Call-ins of this support the sim accepted from the player. */
@@ -134,7 +140,7 @@ export const TUTORIAL: TutorialTunables = {
   threatRange: 650,
   threatHqFrac: 0.8,
   beaten: { minPeak: 4, frac: 0.4 },
-  features: { prepPhase: false },
+  features: { prepPhase: true },
   // One lesson after another: each step follows the one before it, so the order below is the order of the course.
   // A lesson the player does not do gives up after its seconds and the course goes on.
   steps: [
@@ -146,12 +152,23 @@ export const TUTORIAL: TutorialTunables = {
       done: [],
       seconds: 8,
     },
+    // Building in a prep phase: Basic Training opens with one, as every defensive mission does.
+    {
+      id: 'prepPhase',
+      text: 'Time to dig in: tap Barbed Wire, tap the ground, then Build here. Ready starts the fight.',
+      target: 'build-wire',
+      after: ['welcome'],
+      when: [],
+      done: [{ t: 'any', of: [{ t: 'placed', min: 1 }, { t: 'prepOver' }] }],
+      seconds: 30,
+      needs: 'prepPhase',
+    },
     // Money and sappers.
     {
       id: 'supplies',
       text: 'Money buys troops. Your Sappers carry it from the dump to your HQ, in boxes.',
       target: 'supplies',
-      after: ['welcome'],
+      after: ['welcome', 'prepPhase'],
       when: [],
       done: [],
       seconds: 10,
@@ -281,23 +298,12 @@ export const TUTORIAL: TutorialTunables = {
       seconds: 14,
       urgent: true,
     },
-    // Building in a prep phase: waits for job 6 (docs/campaigns/STALINGRAD_BUILD.md, Basic Training).
-    {
-      id: 'prepPhase',
-      text: 'Before a defence you get time to build: wire, sandbags, trenches. Then tap START.',
-      target: 'field',
-      after: ['fallBack'],
-      when: [],
-      done: [],
-      seconds: 12,
-      needs: 'prepPhase',
-    },
     // The medals, Armoury and Quartermaster screens.
     {
       id: 'medals',
       text: 'Every win pays medals. Finishing Basic Training pays {reward} medals, once.',
       target: 'field',
-      after: ['fallBack', 'prepPhase'],
+      after: ['fallBack'],
       when: [],
       done: [],
       seconds: 10,

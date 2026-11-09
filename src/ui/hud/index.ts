@@ -92,7 +92,7 @@ const TIP_ARROW_INSET = 16;
 const TIP_NARROW_MIN = 170;
 
 function tipSideOf(target: TipTarget): TipSide {
-  if (target === 'supplies' || target === 'minimap') return 'below';
+  if (target === 'supplies' || target === 'minimap' || target === 'prep-ready' || target.startsWith('build-')) return 'below';
   if (target === 'field') return 'float';
   return target.startsWith('support-') ? 'right' : 'above';
 }
