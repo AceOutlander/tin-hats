@@ -20,6 +20,26 @@ Armoury (Armoury prices raised: old types x2, new types x3). Notes: the Money re
 are now built on the `stalingrad` branch and go live with Stalingrad. Queued for later (specs below): smarter medics;
 the later Panzer III and the Maus; deeper performance work (low priority, the lag was mostly the owner's computer).
 
+## FIRST after the 8 pm reset, before Stalingrad: units unlocked by missions again (owner, 2026-11-09)
+
+"Change of design: soldiers are unlocked by mission progress again, not bought with medals. The medal prices for units are too high and unbalanced.
+- Each mission unlocks its unit types as before (the mission data says which). Once a unit type is unlocked, I can use it in every mission, including replays of earlier missions and other campaigns, each mission using my nation's version for that era.
+- Remove unit buying from the Armoury. Medals now buy only upgrades and the Poland unlock. Re-check that upgrade prices are reasonable for what a player earns per mission, and tell me what you set.
+- Saves keep every unit already bought or unlocked, and refund medals spent on units.
+- Keep the "NEW UNIT" briefing cards and the in-battle "New:" hints, since they're correct again, but only for units actually unlocked by that mission. Ignore my earlier request to remove them.
+- If mission 1 of a campaign would leave players with too few unit types, let each campaign start with sappers, riflemen and one or two basics.
+- Do this now if it fits before my usage limit; otherwise do it first after the reset, before Stalingrad, since Stalingrad's unlock order depends on it. Update the balance tests."
+
+Notes: this supersedes the "Next bug fix" below (the Intel panel and removing the NEW cards / "New:" hints are dropped;
+keep the cards and hints for units that mission actually unlocks). Open questions to settle and report: what plane
+call-ins are (mission unlocks like units, or still bought with medals; they are not soldiers, so keeping them in the
+Armoury is the conservative reading, say so); medals spent on units are refunded at the price paid (save migration
+with a version bump); the automatic loans (MEDALS.autoLoanCount) and loans in general become unnecessary for unlocked
+types: keep loans only where a mission needs a type the player cannot have unlocked yet. Upgrade prices: the earn rate
+is 3 to 30 medals a win (x1.5 Hard, x2.25 Insane, halved per replay); today an upgrade level costs
+UPGRADE_MEDALS_PER_LEVEL = 20; check with the balance bot what a first campaign run earns and price levels so a
+sensible set of upgrades is affordable. The admin panel (branch admin-panel) has an "unlock all" action: keep it working.
+
 ## Next bug fix: briefing Intel panel and first-use tips (owner, 2026-11-08; next free job slot, before Stalingrad; push with the next update)
 
 "Bug: mission briefings still show "NEW UNIT" and "NEW SUPPORT" cards (for example Medic and Smoke Screen at Monte Cassino), left over from the old per-mission unlocks. Units now come only from the Armoury.
