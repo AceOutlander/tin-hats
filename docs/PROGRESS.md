@@ -46,16 +46,32 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 ## Latest state (2026-11-09 evening run; read this first)
 
-v0.12.0 on main: units unlocked by missions again (DECISIONS 280). Medals buy upgrades (re-priced 10/20/30 a level)
-and the plane call-ins; save version 8 refunds medals spent on units and keeps them unlocked; NEW cards and "New:"
-hints only for what a mission really unlocks; Lieutenant m5, Flamethrower m6, Carrier m8, Bofors m10. Balance bot: a
-first Normal run earns 250 medals, nothing on loan, buys 25 of 93 upgrade levels. See below for push status.
+**Live as Beta v0.12.0** (commit 880853c, deployed and checked on hunteracedev.com): units unlocked by missions again
+(DECISIONS 280). Medals buy upgrades (re-priced 10/20/30 a level) and the plane call-ins; save version 8 refunds medals
+spent on units and keeps them unlocked; NEW cards and "New:" hints only for what a mission really unlocks; Lieutenant
+m5, Flamethrower m6, Carrier m8, Bofors m10. Balance bot: a first Normal run earns 250 medals, nothing on loan, buys 25
+of 93 upgrade levels.
 
-Stalingrad branch (worktree C:\dev\tin-hats-stalingrad): the uncommitted WIP there was committed as 0857b26 and main
-(v0.11.0) merged in as 5af2847. Typecheck, lint (apart from a stray untracked dist-bt/ folder), build pass; unit 1281/1282:
-basic-training.test.ts "pays enough for the first unit in the Armoury" must be redefined now units are not sold. The
-branch has Soviet art, music, missions 1001-1010 data and Basic Training; it does NOT have the Money rename or the prep
-phase yet. Its Basic Training save step is 7 -> 8 and clashes with main's new 7 -> 8: on the next merge it becomes 8 -> 9.
+Stalingrad is now worked on in TWO places (keep them apart, merge `stalingrad` into `stalingrad-systems` often):
+- `stalingrad` (worktree C:\dev\tin-hats-stalingrad): another session ("Tin Hats RTS game") was drawing the Soviet art
+  there during this run (vehicles, aircraft, winter figures; commits 61f9adf..f0b26f6). Do not edit that worktree while
+  it is active. The uncommitted WIP found there was committed as 0857b26 and main v0.11.0 merged in as 5af2847.
+- `stalingrad-systems` (worktree C:\dev\tin-hats-stal-systems, from `stalingrad`): this run's non-art work, all checks
+  green (unit 1323/1323, lint, typecheck, build; browser spec prep.spec 1/1):
+  - main v0.12.0 merged in (98a0bd7): Basic Training's save step became 8 -> 9 (saveVersion 9); its reward test now asks
+    for a few first upgrade levels.
+  - Money rename (3dfe443, DECISIONS 281): texts and a banknote HUD icon; code names unchanged.
+  - Prep phase, job 6 (05805ea, 4f385a9, DECISIONS 282): sim (countdown, Ready, enemy and mission clock wait, sappers
+    build wire/foxhole/trench/pillbox, Undo/cancel), HUD panel, ghost placement, build sites drawn, music prep layer,
+    test bot plan; missions 1001, 1003, 1007, 1008 use it. Tank traps not yet (need a vehicle blocker).
+  - Waves at a fixed x never spawn behind the enemy line (8d2fa7e, DECISIONS 283): Stalingrad balance 11 failures -> 4.
+  - Latest `stalingrad` (Soviet art) merged in (bd9e8aa); their DECISIONS 280-282 renumbered 284-286.
+- Stalingrad still to do (none of it may go live until the owner says push): balance of 1002 (idle once undecided),
+  1004 (lines cross near the German HQ at the map's end) and 1005 (bot wins 12/16, needs 14); missions 1006-1010 have
+  no balance test yet; campaign select screen and the Stalingrad map/music wiring; era-by-date names and looks; eight
+  more cold battle tracks (only `volokolamsk` and `factories` exist); buildings/rubble/snow (FOUNDATIONS); removing the
+  10 placeholder British missions (with a save migration that keeps medals, units, upgrades); Basic Training's prep
+  lesson (TUTORIAL.features.prepPhase is still false); the hunteracedev.com card text.
 
 Before this run: live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
 missions lend 2 of every expected type not bought, every bought type usable in every mission), the playtest follow-ups
