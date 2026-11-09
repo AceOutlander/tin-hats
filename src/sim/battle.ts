@@ -15,6 +15,7 @@ import { updateEconomy } from './economy';
 import { EventQueue } from './events';
 import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
+import { createPrep, updateBuilds, updatePrep } from './prep';
 import { Rng } from './rng';
 import { updateProjectiles, updateSmokes } from './projectiles';
 import { computeFronts, fireStructures, senseStructures } from './structures';
@@ -40,6 +41,9 @@ import type {
 } from './types';
 import { createMount, createUnit, resetMount } from './units';
 import {
+  CMD_BUILD,
+  CMD_CANCEL_BUILD,
+  CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
   CMD_FOLLOW,
@@ -265,6 +269,8 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
       hq0 ? { side: 0, x: hq0.doorX + CONFIG.dumpDistance } : null,
       hq1 ? { side: 1, x: hq1.doorX - CONFIG.dumpDistance } : null,
     ],
+    prep: createPrep(mission, hq0 ? hq0.x : null),
+    sites: [],
     timer: mission.timer
       ? {
           secondsLeft: mission.timer.seconds,
@@ -306,12 +312,12 @@ class BattleImpl implements Battle, World {
   readonly holdTrench = new Int32Array(2);
   readonly formBase = new Float64Array(2);
   readonly lineFront = new Float64Array(2);
-  readonly trenchSlot0: Int32Array;
-  readonly trenchTaken: Int32Array;
-  readonly trenchHalf: Float64Array;
-  readonly slotX: Float64Array;
-  readonly slotUnit: Int32Array;
-  readonly trenchInside: Int32Array;
+  trenchSlot0: Int32Array;
+  trenchTaken: Int32Array;
+  trenchHalf: Float64Array;
+  slotX: Float64Array;
+  slotUnit: Int32Array;
+  trenchInside: Int32Array;
   readonly cluster = new Uint8Array(CONFIG.maxUnits);
   readonly clusterOrder: [Int32Array, Int32Array] = [new Int32Array(CONFIG.maxUnits), new Int32Array(CONFIG.maxUnits)];
   readonly clusterLen = new Int32Array(2);
@@ -333,6 +339,7 @@ class BattleImpl implements Battle, World {
   readonly escorts = new Int32Array(2 * KIND_COUNT);
   readonly auraUnit = new Int32Array(2).fill(-1);
   readonly speechCount = new Int32Array(2);
+  nextSiteId = 1;
   readonly aaEngaged = new Uint8Array(CONFIG.maxUnits);
   aaAny = 0;
 
@@ -396,9 +403,11 @@ class BattleImpl implements Battle, World {
 
     applyCommands(this);
     runCommanders(this); // their commands apply at the start of the next tick, like the player's
+    updatePrep(this); // the countdown; the mission clock and events wait while it runs
     updateMission(this);
     cheatTraining(this); // admin panel: instant training
     updateEconomy(this);
+    updateBuilds(this); // sappers on build sites; a finished site becomes its structure
     updateSupports(this); // cooldowns; strikes launch their rounds and lay their smoke
 
     computeFronts(this);
@@ -456,6 +465,18 @@ class BattleImpl implements Battle, World {
       }
       case 'control':
         q.push(side, CMD_CONTROL).unit = cmd.unit;
+        break;
+      case 'build': {
+        const c = q.push(side, CMD_BUILD);
+        c.build = cmd.kind;
+        c.x = cmd.x;
+        break;
+      }
+      case 'cancelBuild':
+        q.push(side, CMD_CANCEL_BUILD).unit = cmd.site;
+        break;
+      case 'ready':
+        q.push(side, CMD_READY);
         break;
       case 'controlInput': {
         const c = q.push(side, CMD_CONTROL_INPUT);

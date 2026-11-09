@@ -713,6 +713,12 @@ export interface MissionDef {
   trenches: TrenchDef[];
   pillboxes: PillboxDef[];
   wire: WireDef[];
+  /**
+   * A prep phase before the enemy attacks (defensive missions; src/data/prep.ts): its countdown (default
+   * PREP.defaultSeconds), what may be built (default every buildable), the zone the player builds in (default their
+   * half of the field, behind their front), and the test bot's build plan.
+   */
+  prep?: MissionPrepDef;
   /** Survival: win when it expires. Deadline: lose when it expires. */
   timer: { seconds: number; onExpire: 'win' | 'lose'; label: string } | null;
   events: MissionEventDef[];
@@ -725,3 +731,15 @@ export interface MissionDef {
   /** The battle music (src/data/musicTracks): the track this mission plays. */
   music: BattleTrackName;
 }
+
+/** A mission's prep phase (MissionDef.prep). */
+export interface MissionPrepDef {
+  seconds?: number;
+  buildables?: BuildableId[];
+  zone?: { from: number; to: number };
+  /** What the "reasonable player" test bot builds, in order, as money allows. */
+  bot?: { kind: BuildableId; x: number }[];
+}
+
+/** What a prep phase can build (src/data/prep.ts). Tank traps wait for a vehicle blocker in the sim. */
+export type BuildableId = 'wire' | 'foxhole' | 'trench' | 'pillbox';

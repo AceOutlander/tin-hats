@@ -5,6 +5,7 @@
 import { CONFIG } from '../data/config';
 import type { ForceDef, MissionEventDef, Side } from '../data/schema';
 import { releaseAll } from './control';
+import { inPrep, missionTime } from './prep';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
 import { claimSlot, enterSlot } from './trenches';
 import type { EndReason } from './types';
@@ -200,10 +201,13 @@ function releaseReserve(w: World): void {
   }
 }
 
-/** Advance the mission timer, let waiting reinforcements out, and fire any scripted events that are due. */
+/**
+ * Advance the mission timer, let waiting reinforcements out, and fire any scripted events that are due. Both count on
+ * the mission clock (missionTime): it waits while a prep phase runs, so the attack and the clock start when it ends.
+ */
 export function updateMission(w: World): void {
   const s = w.state;
-  const time = s.time;
+  const time = missionTime(s);
   if (w.reserve.length > 0) releaseReserve(w);
   if (s.timer) {
     const left = s.timer.total - time;
@@ -211,6 +215,8 @@ export function updateMission(w: World): void {
     s.timer.progress = s.timer.total > 0 ? 1 - s.timer.secondsLeft / s.timer.total : 1;
   }
 
+  // Nothing scripted happens while the prep phase runs.
+  if (inPrep(s)) return;
   const events = w.mission.events;
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
@@ -230,7 +236,7 @@ export function updateMission(w: World): void {
       for (let t = 0; t < s.trenches.length; t++) {
         const trench = s.trenches[t];
         if (trench.id !== when.trenchId || trench.owner !== when.trenchCapturedBy || trench.capturedAt < 0) continue;
-        if (time >= trench.capturedAt + (when.delay ?? 0)) {
+        if (s.time >= trench.capturedAt + (when.delay ?? 0)) {
           w.eventFired[i] = 1;
           fireEvent(w, ev);
         }

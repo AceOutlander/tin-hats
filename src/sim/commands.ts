@@ -10,7 +10,11 @@ import { releaseControl, setControlInput, takeControl } from './control';
 import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
+import { applyBuild, applyCancelBuild, applyReady } from './prep';
 import {
+  CMD_BUILD,
+  CMD_CANCEL_BUILD,
+  CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
   CMD_FOLLOW,
@@ -140,6 +144,15 @@ export function applyCommands(w: World): void {
       case CMD_CONTROL:
         if (c.unit < 0) releaseControl(w, c.side);
         else takeControl(w, c.side, c.unit);
+        break;
+      case CMD_BUILD:
+        applyBuild(w, c.side, c.build, c.x);
+        break;
+      case CMD_CANCEL_BUILD:
+        applyCancelBuild(w, c.side, c.unit);
+        break;
+      case CMD_READY:
+        applyReady(w, c.side);
         break;
       case CMD_CONTROL_INPUT:
         setControlInput(w, c.side, c.moveX, c.fire, c.ability);
