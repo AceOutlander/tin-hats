@@ -49,7 +49,7 @@ export interface AppTunables {
    * Result screen reason text. `{label}` in a line stands for the mission timer's label ("Nightfall"), so a deadline
    * mission can say what ran out.
    */
-  reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw', { win: string; lose: string }>;
+  reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw' | 'admin', { win: string; lose: string }>;
   /** Short banners for scripted events that carry no text of their own. `{n}` = the supplies delivered. */
   /** HUD banners: an airdrop, a survival wave, the King Tiger's arrival (bossArrived). */
   notices: { airdrop: string; wave: string; boss: string };
@@ -94,6 +94,8 @@ export const APP: AppTunables = {
     timerSurvived: { win: 'You held the line until relief arrived', lose: 'Your HQ was overrun' },
     timerExpired: { win: 'Time ran out for the enemy', lose: '{label} came before the enemy HQ was destroyed' },
     draw: { win: 'Both headquarters fell together', lose: 'Both headquarters fell together' },
+    // Only the hidden admin panel ends a battle this way.
+    admin: { win: 'Victory declared from the admin panel', lose: 'Defeat declared from the admin panel' },
   },
   notices: { airdrop: 'Airdrop: +{n} supplies', wave: 'Enemy wave incoming', boss: 'Warning: King Tiger sighted' },
   supportBlurbs: {

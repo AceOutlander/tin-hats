@@ -116,6 +116,7 @@ export function createUnit(index: number): UnitState {
     passengers: 0,
     flushedUntil: -LONG_AGO,
     aaCooldown: 0,
+    invincible: false,
   };
 }
 
@@ -253,6 +254,7 @@ export function spawnUnit(
   u.passengers = 0;
   u.flushedUntil = -LONG_AGO;
   u.aaCooldown = 0;
+  u.invincible = false;
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = def.formationDepth;
@@ -313,6 +315,28 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
   e.dir = dir;
   e.targetIndex = killerSide;
 
+  while (s.unitCount > 0 && !s.units[s.unitCount - 1].alive) s.unitCount--;
+}
+
+/**
+ * Take a unit off the field without a death: no unitDied event, no loss or kill counted (the view lets go of a unit
+ * whose slot is no longer alive). The admin panel's take-over uses it before the unit reappears on the other side.
+ */
+export function removeUnit(w: World, u: UnitState): void {
+  const s = w.state;
+  const side = s.sides[u.side];
+  u.alive = false;
+  side.pop -= u.def.pop;
+  side.alive[u.kind]--;
+  if (u.veteran) w.escorts[u.side * KIND_COUNT + u.kindIndex]--;
+  if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
+  if (u.passengers > 0) dropPassengers(w, u, false);
+  freeCell(w, u);
+  releaseSlot(w, u);
+  if (u.controlled) {
+    u.controlled = false;
+    side.controlled = -1;
+  }
   while (s.unitCount > 0 && !s.units[s.unitCount - 1].alive) s.unitCount--;
 }
 

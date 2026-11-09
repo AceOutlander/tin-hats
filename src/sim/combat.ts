@@ -483,6 +483,8 @@ export function applyDamage(w: World): void {
       case TARGET_UNIT: {
         const u = s.units[q.targetIndex[i]];
         if (!u.alive || u.id !== q.targetId[i] || u.inside) break;
+        // Admin panel invincibility: the blow lands on nothing.
+        if (u.invincible || s.sides[u.side].cheats.invincible) break;
         const flags = q.flags[i];
         const k = u.kindIndex;
         if (KIND_HAS_ARMOUR[k] === 1 && (flags & DMG_TOP) === 0) {
@@ -518,7 +520,7 @@ export function applyDamage(w: World): void {
       }
       case TARGET_HQ: {
         const hq = s.sides[q.targetIndex[i]].hq;
-        if (!hq || !hq.alive) break;
+        if (!hq || !hq.alive || s.sides[hq.side].cheats.hqInvincible) break;
         hq.hp -= amount;
         s.sides[by].stats.damageDealt += amount;
         const e = w.events.emit('structureHit');
