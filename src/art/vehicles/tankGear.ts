@@ -8,7 +8,7 @@
  *   const keys = tankGearKeys(look, gear);   // hull / turret / barrel keys and the extra gun length
  *   state.gunExtra = keys.gunExtra;          // so layoutTank puts the muzzle (flash, shell) at the longer gun's tip
  */
-import { ART_COLORS as C, TANK_LAYOUT, type ArtBox, type TankLook } from '../../data/artLayout';
+import { ART_COLORS as C, TANK_LAYOUT, type ArtBox, type GearLook } from '../../data/artLayout';
 import { TANK_GEAR_ART, TANK_GEAR_PART } from '../../data/looksGear';
 import { TANK_GEAR_STEPS, type GearLevels } from '../../data/upgradeLooks';
 import { type Ctx, makeSpec, mix, rgba, rimRect, sandbag, strokeLine } from '../props/kit';
@@ -17,7 +17,7 @@ import { TANK_KEYS } from './tankLayout';
 import { HULL, TURRET, type TankPalette, paintBarrel, palette, tube } from './tanks';
 
 export interface TankGearKeys {
-  readonly look: TankLook;
+  readonly look: GearLook;
   readonly hull: string;
   readonly turret: string;
   readonly barrel: string;
@@ -37,26 +37,26 @@ function partLevels(gear: GearLevels): { hull: number; turret: number; barrel: n
   return out;
 }
 
-function hullKey(look: TankLook, n: number): string {
+function hullKey(look: GearLook, n: number): string {
   return n === 0 ? TANK_KEYS[look].hull : `veh/${look}/hull/gear${n}`;
 }
 
-function turretKey(look: TankLook, n: number): string {
+function turretKey(look: GearLook, n: number): string {
   return n === 0 ? TANK_KEYS[look].turret : `veh/${look}/turret/gear${n}`;
 }
 
-function barrelKey(look: TankLook, n: number): string {
+function barrelKey(look: GearLook, n: number): string {
   return n === 0 ? TANK_KEYS[look].barrel : `veh/${look}/barrel/long`;
 }
 
-const KEY_CACHE = new Map<TankLook, TankGearKeys[]>();
+const KEY_CACHE = new Map<GearLook, TankGearKeys[]>();
 
 function clampLevel(n: number): number {
   return Math.max(0, Math.min(3, n | 0));
 }
 
 /** Keys a tank of this look draws at these gear levels (cached: no allocation after the first call per look). */
-export function tankGearKeys(look: TankLook, gear: GearLevels): TankGearKeys {
+export function tankGearKeys(look: GearLook, gear: GearLevels): TankGearKeys {
   let list = KEY_CACHE.get(look);
   if (!list) {
     list = [];
@@ -86,7 +86,7 @@ function pad(box: ArtBox, p: readonly [number, number, number]): ArtBox {
 // Painters (tank space for the hull, turret space for the turret)
 // ---------------------------------------------------------------------------
 
-function trackLinks(ctx: Ctx, look: TankLook): void {
+function trackLinks(ctx: Ctx, look: GearLook): void {
   const L = TANK_GEAR_ART[look].links;
   for (let i = 0; i < L.n; i++) {
     const x = L.x + i * L.dx;
@@ -99,7 +99,7 @@ function trackLinks(ctx: Ctx, look: TankLook): void {
   }
 }
 
-function applique(ctx: Ctx, look: TankLook, P: TankPalette): void {
+function applique(ctx: Ctx, look: GearLook, P: TankPalette): void {
   const R = TANK_GEAR_ART[look].applique;
   for (let i = 0; i < R.length; i += 4) {
     const [x, y, w, h] = [R[i], R[i + 1], R[i + 2], R[i + 3]];
@@ -110,7 +110,7 @@ function applique(ctx: Ctx, look: TankLook, P: TankPalette): void {
   }
 }
 
-function sandbags(ctx: Ctx, look: TankLook): void {
+function sandbags(ctx: Ctx, look: GearLook): void {
   const S = TANK_GEAR_ART[look].sandbags;
   for (let i = 0; i < S.n; i++) sandbag(ctx, S.x + i * S.dx - S.w / 2, S.y + i * S.dy - S.h / 2, S.w, S.h, ((i * 3) % 4) / 4 - 0.3);
   // A second, shorter course on top.
@@ -119,7 +119,7 @@ function sandbags(ctx: Ctx, look: TankLook): void {
   }
 }
 
-function stowage(ctx: Ctx, look: TankLook, P: TankPalette): void {
+function stowage(ctx: Ctx, look: GearLook, P: TankPalette): void {
   const [x, y, w, h] = TANK_GEAR_ART[look].stowage;
   rimRect(ctx, x, y, w, h, 1.6, P.panel, P.rim, 1);
   strokeLine(ctx, [x + 1.4, y + h * 0.36, x + w - 1.4, y + h * 0.36], P.bodyDark, 1.1);
@@ -127,32 +127,36 @@ function stowage(ctx: Ctx, look: TankLook, P: TankPalette): void {
   rimRect(ctx, x - 1, y - 4.2, w + 3, 4.4, 2.2, mix(C.sandbag, P.panel, 0.55), P.rim, 0.8);
 }
 
-function cupolaMg(ctx: Ctx, look: TankLook, P: TankPalette): void {
+function cupolaMg(ctx: Ctx, look: GearLook, P: TankPalette): void {
   const M = TANK_GEAR_ART[look].cupolaMg;
-  // Pintle post, receiver, barrel pointing forward, a drum magazine.
-  strokeLine(ctx, [M.x, M.y, M.x, M.y - 4], P.bodyDark, 1.3);
-  rimRect(ctx, M.x - 3.5, M.y - 6.6, 7, 3, 0.8, C.ink, P.rim, 0.8);
-  strokeLine(ctx, [M.x + 3, M.y - 5.3, M.x + 3 + M.len, M.y - 5.3], C.ink, 1.3);
+  // Pintle post, then the gun at its angle: receiver, barrel pointing forward, a drum magazine.
+  strokeLine(ctx, [M.x, M.y, M.x, M.y - M.post], P.bodyDark, 1.3);
+  ctx.save();
+  ctx.translate(M.x, M.y - M.post);
+  ctx.rotate(M.angle);
+  rimRect(ctx, -3.5, -2.6, 7, 3, 0.8, C.ink, P.rim, 0.8);
+  strokeLine(ctx, [3, -1.3, 3 + M.len, -1.3], C.ink, 1.3);
   ctx.fillStyle = C.ink;
   ctx.beginPath();
-  ctx.arc(M.x - 0.8, M.y - 7.6, 1.9, 0, Math.PI * 2);
+  ctx.arc(-0.8, -3.6, 1.9, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 }
 
-function paintHullGear(ctx: Ctx, look: TankLook, P: TankPalette, n: number): void {
+function paintHullGear(ctx: Ctx, look: GearLook, P: TankPalette, n: number): void {
   HULL[look](ctx, P);
   if (n >= 3) sandbags(ctx, look);
   if (n >= 2) applique(ctx, look, P);
   if (n >= 1) trackLinks(ctx, look);
 }
 
-function paintTurretGear(ctx: Ctx, look: TankLook, P: TankPalette, n: number): void {
+function paintTurretGear(ctx: Ctx, look: GearLook, P: TankPalette, n: number): void {
   if (n >= 1) stowage(ctx, look, P);
   TURRET[look](ctx, P);
   if (n >= 2) cupolaMg(ctx, look, P);
 }
 
-function paintLongGun(ctx: Ctx, look: TankLook, P: TankPalette): void {
+function paintLongGun(ctx: Ctx, look: GearLook, P: TankPalette): void {
   const G = TANK_GEAR_ART[look].longGun;
   const len = TANK_LAYOUT[look].barrelLength + G.extra;
   paintBarrel(ctx, look, P, len);
@@ -164,7 +168,7 @@ function paintLongGun(ctx: Ctx, look: TankLook, P: TankPalette): void {
   }
 }
 
-function longGunBox(look: TankLook): ArtBox {
+function longGunBox(look: GearLook): ArtBox {
   const L = TANK_LAYOUT[look];
   const G = TANK_GEAR_ART[look].longGun;
   const half = Math.max(L.barrelBox.oy, Math.ceil(G.brakeHalf) + 2);
@@ -172,7 +176,7 @@ function longGunBox(look: TankLook): ArtBox {
 }
 
 /** The sprites a tank of this look needs at these gear levels, beyond its normal ones (empty at level 0). */
-export function tankGearSpecs(look: TankLook, gear: GearLevels): SpriteSpec[] {
+export function tankGearSpecs(look: GearLook, gear: GearLevels): SpriteSpec[] {
   const L = TANK_LAYOUT[look];
   const A = TANK_GEAR_ART[look];
   const n = partLevels(gear);

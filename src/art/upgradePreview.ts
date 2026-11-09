@@ -6,7 +6,9 @@ import type { FactionId, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { LOOK_TRACKS, LOOK_UPGRADE, NATION_LOOKS, type GearLevels, type LookTrack } from '../data/upgradeLooks';
 import { UPGRADES } from '../data/upgrades';
 import { UPGRADE_PREVIEW } from '../data/looksGear';
-import { gearOf, gearSource, sideLooks, toStage } from '../meta/looks';
+import { gearOf, sideLooks, toStage } from '../meta/looks';
+import { upgradeVisual } from '../data/upgradeLooks';
+import { PLANE_KINDS, planeGearSpecs, planeKey, planeSpecs } from './vehicles';
 import { paintUnitPortrait } from './icons';
 import { bigLoadSpec, cartSpecs, dumpStyleSpecs, truckSpecs } from './props/supplyLooks';
 import { hqGunSpecs } from './structures/hqGun';
@@ -56,6 +58,24 @@ function paintStanding(canvas: HTMLCanvasElement, spec: SpriteSpec): boolean {
   return true;
 }
 
+/** Draw a sprite centred in the canvas, as large as fits (a plane in the air). */
+function paintFitted(canvas: HTMLCanvasElement, spec: SpriteSpec): boolean {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return false;
+  const W = canvas.width;
+  const H = canvas.height;
+  const m = UPGRADE_PREVIEW.margin;
+  const scale = Math.min((W * (1 - 2 * m)) / spec.w, (H * (1 - 2 * m)) / spec.h);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.translate((W - spec.w * scale) / 2, (H - spec.h * scale) / 2);
+  ctx.scale(scale, scale);
+  spec.draw(ctx);
+  ctx.restore();
+  return true;
+}
+
 /**
  * Paint how upgrade `upgradeId` looks at `level` for a nation whose other upgrades stand at `current` (a unit's gear
  * shows both of its upgrades, the other one at its bought level). Returns false when there is nothing to show.
@@ -74,9 +94,17 @@ export function paintUpgradePreview(
     return spec ? paintStanding(canvas, spec) : false;
   }
   const def = defs.find((d) => d.id === upgradeId);
-  const source = def ? gearSource(def) : null;
-  if (!def || !source || def.unit === null) return false;
-  const now = gearOf(sideLooks(faction, current, defs), def.unit);
-  const gear: GearLevels = { ...now, [source]: toStage(level) };
-  return paintUnitPortrait(canvas, def.unit, faction, gear);
+  const visual = def ? upgradeVisual(def) : null;
+  if (!visual) return false;
+  if (visual.type === 'plane') {
+    const plane = PLANE_KINDS.find((k) => k === visual.support);
+    if (!plane) return false;
+    const stage = toStage(level);
+    const spec = stage > 0 ? planeGearSpecs(plane, faction, stage)[0] : planeSpecs().find((s) => s.key === planeKey(plane, faction));
+    return spec ? paintFitted(canvas, spec) : false;
+  }
+  if (visual.type !== 'gear') return false;
+  const now = gearOf(sideLooks(faction, current, defs), visual.unit);
+  const gear: GearLevels = { ...now, [visual.source]: toStage(level) };
+  return paintUnitPortrait(canvas, visual.unit, faction, gear);
 }

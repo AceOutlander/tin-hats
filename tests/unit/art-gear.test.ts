@@ -17,8 +17,8 @@ import {
 } from '../../src/art/figure';
 import { flamePackKey } from '../../src/art/figure/parts';
 import { J_NHAND, J_FHAND } from '../../src/art/figure/pose';
-import { TANK_KEYS, TANK_LOOKS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs } from '../../src/art/vehicles';
-import { TANK_LAYOUT } from '../../src/data/artLayout';
+import { TANK_KEYS, createTankPose, layoutTank, tankGearKeys, tankGearSpecs } from '../../src/art/vehicles';
+import { GEAR_LOOKS, TANK_LAYOUT } from '../../src/data/artLayout';
 import { FIGURE_KINDS, FIGURE_KIND_LIST, type FigureKind } from '../../src/data/figure';
 import { GEAR_NONE, TANK_GEAR_ART } from '../../src/data/looksGear';
 import type { FactionId, UnitAction } from '../../src/data/schema';
@@ -88,8 +88,10 @@ describe('figure upgrade gear', () => {
           return ks;
         };
         const g = (style: string): string => `fig/${f}/gear/${style}`;
-        // The flamethrower wears his fuel tanks in the pack slot at every level.
-        expect(keysAt(1, 0)).toContain(kind === 'flame' ? flamePackKey(f) : g(FIGURE_KINDS[kind].pack ? 'fullPack' : 'haversack'));
+        // The flamethrower wears his fuel tanks in the pack slot at every level: his first health piece is a heat shield
+        // strapped over them (the tanks drawn with it), where everyone else gets a fuller pack.
+        expect(keysAt(1, 0)).toContain(kind === 'flame' ? g('flameShield') : g(FIGURE_KINDS[kind].pack ? 'fullPack' : 'haversack'));
+        if (kind !== 'flame') expect(keysAt(3, 3)).not.toContain(g('flameShield'));
         if (kind === 'flame') expect(keysAt(0, 0)).toContain(flamePackKey(f));
         expect(keysAt(1, 0)).toContain(K.helmet);
         expect(keysAt(2, 0)).toContain(g('helmetNet'));
@@ -216,9 +218,9 @@ describe('figure upgrade gear', () => {
   });
 });
 
-describe('tank upgrade gear', () => {
+describe('tank and APC upgrade gear', () => {
   it('gear (0,0) uses the normal keys and no extra sprites', () => {
-    for (const look of TANK_LOOKS) {
+    for (const look of GEAR_LOOKS) {
       const g = tankGearKeys(look, GEAR_NONE);
       expect(g.hull).toBe(TANK_KEYS[look].hull);
       expect(g.turret).toBe(TANK_KEYS[look].turret);
@@ -229,7 +231,7 @@ describe('tank upgrade gear', () => {
   });
 
   it('health changes the hull, damage the turret and then the gun; specs cover exactly the keys used', () => {
-    for (const look of TANK_LOOKS) {
+    for (const look of GEAR_LOOKS) {
       const seen = new Set<string>();
       for (let h = 0; h < 4; h++) {
         for (let d = 0; d < 4; d++) {
@@ -259,7 +261,7 @@ describe('tank upgrade gear', () => {
   });
 
   it('the long gun moves the muzzle point to its tip', () => {
-    for (const look of TANK_LOOKS) {
+    for (const look of GEAR_LOOKS) {
       const g = tankGearKeys(look, gear(0, 3));
       expect(g.gunExtra).toBe(TANK_GEAR_ART[look].longGun.extra);
       const base = layoutTank({ look, distance: 0, turretAim: 0, recoil: 0, hullRock: 0 }, createTankPose());
