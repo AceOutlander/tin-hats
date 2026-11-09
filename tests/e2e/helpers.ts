@@ -276,8 +276,9 @@ export async function playThroughMenus(page: Page, missionId: number, shots: boo
 }
 
 /**
- * Play at a high time scale until the battle ends. `win` = a keen player: keeps buying riflemen with granted
- * supplies and sends the army forward. Otherwise the player does nothing.
+ * Play at a high time scale until the battle ends. `win` = a keen player: keeps buying riflemen (and machine
+ * gunners where the mission has them) with granted supplies and sends the army forward; in a survival mission (no
+ * enemy HQ, like Brest) it holds the line instead. Otherwise the player does nothing.
  */
 export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
   await setTimeScale(page, win ? 40 : APP.maxTimeScale);
@@ -287,7 +288,10 @@ export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
     if (win) {
       await grantSupplies(page, 800);
       for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
-      if (s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
+      await tapIfThere(page, 'train-lmg');
+      const survival = s.hq[1] === null;
+      if (survival && s.order !== 'hold') await tapIfThere(page, 'order-hold');
+      if (!survival && s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
     }
     await page.waitForTimeout(250);
     s = await state(page);
