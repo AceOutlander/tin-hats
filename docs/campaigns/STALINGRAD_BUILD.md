@@ -152,12 +152,13 @@ for the save's "Continue" strip (mid-mission resume).
 - The tests that looped over the old missions loop over the Stalingrad ones (DECISIONS 307 lists them and what was not
   carried over). New balance file `tests/balance/missions-design.test.ts`.
 
-**Balance on the moved checks** (`tests/balance/missions.test.ts`, 2026-11-09, `CAMPAIGN_RUNS.seeds` seeds each): 1001, 1003, 1007 and 1008
-pass every check. Failing: 1002 (the idle commander leaves one seed undecided at the 40-minute cap; known before),
-1004 (a battle breaks the "lines never cross" invariant at tick 22938, near the enemy HQ; known before), 1005 (the
-bot wins too few seeds; known before), 1006 (the same invariant breaks at tick 20446; first time checked), 1009 (the
-bot's median win takes about 26 minutes against the expected 9 to 24) and 1010 (the idle commander leaves seeds
-undecided at the cap). Tuning these is not part of the removal job.
+**Balance on the moved checks** (`tests/balance/missions.test.ts`, `CAMPAIGN_RUNS.seeds` seeds each): since the mission
+director (2026-11-09, on its phases) every mission passes every check, with missions-design, missions-smoke, medals,
+difficulty and the campaign-order roster check too. Bot wins over 16 seeds and median minutes: 1001 16 (12.8), 1002 14
+(18.0), 1003 16 (17.6), 1004 16 (15.4), 1005 16 (14.1), 1006 16 (17.9), 1007 14 (23.0), 1008 15 (22.0), 1009 16 (20.8),
+1010 16 (20.0); the idle commander loses every seed of every mission. 1002 and 1007 sit at the 85 percent line (14 of
+16). Before the director 1002, 1004, 1005, 1006, 1009 and 1010 failed (the idle commander undecided, the lines crossing
+at the HQ door, too few bot wins, a 26-minute median).
 The medals run (the campaign in order, seed 1) wins all ten and buys a sensible set of upgrades.
 
 **Unit test waiting for the music job**: `tests/unit/music-score.test.ts` "give every campaign mission a track of its
