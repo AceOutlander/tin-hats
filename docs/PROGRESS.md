@@ -44,6 +44,25 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
+## PAUSED for the usage limit at 2026-11-09 07:30Z (resume just after the 08:10Z reset)
+
+Paused cleanly at 85% of the 5-hour window. Nothing pushed; live is still Beta v0.12.0. No processes running.
+State of each branch:
+- `stalingrad` (C:dev	in-hats-stalingrad) at 6333431: Soviet art + all 10 battle tracks + music rendered at mission
+  load + merge of stalingrad-systems (e953490; unit tests 1414/1414). 6333431 is a WIP checkpoint of the browser-spec
+  job (Basic Training pillbox hpMul 0.08, a missions.spec wait; DECISIONS 321 still to write; untracked scratch files
+  tests/e2e/zz-begin-load.tmp.spec.ts and tools/bt-walk.tmp.ts).
+- `stalingrad-core` (C:dev	in-hats-stal-core) at ef02c02, clean: audit, era table + later Panzer III (18f6b79..46d0adb),
+  campaign select + Stalingrad map + briefings + per-mission unlocks (1162c01..ef02c02). Not yet done: removing the
+  British placeholder missions, the engine gaps from the audit, the review.
+Resume steps:
+1. Resume workflow wjsiti813: Workflow({scriptPath: <session>/workflows/scripts/stalingrad-core-wf_b14b3c19-35c.js,
+   resumeFromRunId: 'wf_b14b3c19-35c'}) (audit, era and campaign agents replay from cache; placeholders runs next).
+2. Resume workflow wpqyagmv9 the same way (stalingrad-browser-specs-wf_96d5ba93-8c8.js, 'wf_96d5ba93-8c8'); it reruns
+   from its WIP checkpoint.
+3. When core finishes: merge stalingrad-core into stalingrad (renumber DECISIONS: core took 287-302+, stalingrad
+   287-320), then the missions/playtest phase, then docs/MORNING_REPORT.md.
+
 ## Overnight Stalingrad run (main session, 2026-11-09 05:20Z; read this first)
 
 The main session owns Stalingrad tonight; the resume-queue session stopped after v0.12.0 and its stalingrad-systems work.
