@@ -20,6 +20,25 @@ Armoury (Armoury prices raised: old types x2, new types x3). Notes: the Money re
 are now built on the `stalingrad` branch and go live with Stalingrad. Queued for later (specs below): smarter medics;
 the later Panzer III and the Maus; deeper performance work (low priority, the lag was mostly the owner's computer).
 
+## Next bug fix: briefing Intel panel and first-use tips (owner, 2026-11-08; next free job slot, before Stalingrad; push with the next update)
+
+"Bug: mission briefings still show "NEW UNIT" and "NEW SUPPORT" cards (for example Medic and Smoke Screen at Monte Cassino), left over from the old per-mission unlocks. Units now come only from the Armoury.
+- Remove those cards. Replace them with a useful "Intel" panel: what the enemy is expected to field (for example pillboxes, machine-gun nests, tanks), plus recommended unit types to bring. Mark recommended types I haven't bought yet, and any I'll get on loan for this mission.
+- Make sure no briefing text talks about units being newly unlocked or arriving because of the mission. That applies to the Stalingrad and Basic Training briefings being written now, and all future campaigns.
+- Push the fix with the next update."
+
+"Also: in-battle hints still announce things as "New:" (for example "New: Smoke Screen..." at Monte Cassino). Remove the per-mission "New:" hints. How-to tips now belong in Basic Training. Outside the tutorial, show a short tip only the first time I use a unit or call-in I've bought, in whatever mission that happens, then never again. Add a "Reset tips" option in Settings."
+
+Notes: MissionDef.newUnit/newSupport (schema, m01-m10, campaignView, briefing.ts, tutorial.ts, TUTORIAL.newUnit/newSupport,
+debug, matchup) go; mission hint events whose text starts "New:" (m04, m05, m06, others) go, and briefing prose like m10's
+"The Typhoon Air Strike is now available" is rewritten. Intel comes from mission data (pillboxes, trenches, wire, the
+enemy roster and waves) and MEDALS.missions[id].expects, marked against the save (not bought, on loan via missionRoster).
+First-use tips are keyed by type in TipMemory (tinhats.tips) and fire when a bought type is first trained or called in;
+Settings already clears tips somewhere (app.ts tips.clear): make it a clearly labelled "Reset tips" button. Add a rule to
+docs/AGENT_GUIDE.md and the campaign docs: briefings never say a unit is newly unlocked or arrives because of the
+mission. Tests: no mission text or hint contains "New:" or "now available"; the Intel panel marks not-bought and
+on-loan types; a first-use tip shows once per type across missions; Reset tips brings them back.
+
 ## Build order (owner, 2026-11-08; superseded in part by the current order above)
 
 Done and live: per-unit-type orders; population cap 100; Quartermaster upgrade looks (commit 5931976).
