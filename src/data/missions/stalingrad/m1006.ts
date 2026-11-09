@@ -17,6 +17,9 @@ import type { MissionDef } from '../../schema';
  * and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
  * and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and, by look, the StuG III Ausf. F; the
  * `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the stalingrad theatre; an overcast day with the city's smoke over the hill
+ * (visibility 0.85 for both sides).
  */
 export const M1006: MissionDef = {
   id: 1006,
@@ -47,8 +50,9 @@ export const M1006: MissionDef = {
       'Artillery and Katyusha from the far bank, and smoke',
     ],
   },
-  theatre: 'italy',
+  theatre: 'stalingrad',
   timeOfDay: 'overcast',
+  weather: 'smoke',
   mode: 'hold',
   length: 14000,
   // The unlock order (DECISIONS 295): the sniper, for the duels on the hill (the city's sniper movement of autumn

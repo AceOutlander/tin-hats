@@ -23,7 +23,8 @@ import { groundArt } from '../data/ground';
 import { MENU_STORM } from '../data/menuStorm';
 import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
-import { THEATRES } from '../data/theatres';
+import { theatreVariant } from '../data/theatres';
+import { variantDef } from '../art/backdrops/scene';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
 import type { SideLooks } from '../data/upgradeLooks';
@@ -31,7 +32,7 @@ import { sideLooks } from '../meta/looks';
 import { SpriteRegistry, type SpriteFrame } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
-import { StormGuard, type MenuStormState } from '../fx';
+import { StormGuard, brightestTime, missionTimes, type MenuStormState } from '../fx';
 import type { AttachOptions, AudioSink, BattleView, MenuSceneStats, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
 import { EffectsSystem, pillboxAt } from './effects';
 import { PanInput } from './input';
@@ -48,6 +49,7 @@ import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
 import { MenuStormView } from './weather/menuStorm';
+import { SkyView } from './weather/sky';
 
 const ATLAS_GROUP = 'th/atlas';
 const BATTLE_GROUP = 'th/battle';
@@ -106,6 +108,10 @@ export class BattleViewImpl implements BattleView {
   private effects: EffectsSystem | null = null;
   private input: PanInput | null = null;
   private weatherView: WeatherView | null = null;
+  /** Scripted weather and time of day (FOUNDATIONS.md 4.7), and whether the scripted weather has the rain on now. */
+  private skyView: SkyView | null = null;
+  private skyScripted = false;
+  private scriptedRain = false;
   private menuView: MenuStormView | null = null;
   /** Sheds title rain when frames stay slow. */
   readonly stormGuard = new StormGuard();
@@ -250,6 +256,7 @@ export class BattleViewImpl implements BattleView {
     this.reticle.visible = false;
     this.weatherView = new WeatherView(scene, layers, reg, this.effects.ctx);
     this.weatherView.reduced = this.reducedFlashing;
+    this.skyView = new SkyView(scene, layers, reg, this.effects.ctx, this.backdrop);
     this.menuView = new MenuStormView(scene, layers, reg, this.backdrop);
     if (this.menuWanted && !this.battle) this.menuView.show(true);
 
@@ -345,18 +352,35 @@ export class BattleViewImpl implements BattleView {
     this.visualSeed = opts.visualSeed;
     const state = battle.state;
     const mission = battle.config.mission;
+    // A winter mission sees its theatre's winter look (FOUNDATIONS.md 4.7), where the theatre has one.
+    const variant = theatreVariant(mission.theatre, mission.climate);
     // A mission in sectors draws each one's ground (FOUNDATIONS.md 4.1), blended at the edges.
-    const theatreGround = THEATRES[mission.theatre].groundStyle;
+    const theatreGround = variantDef(mission.theatre, variant).groundStyle;
     const winter = mission.climate === 'winter';
     const ground = (mission.sectors ?? []).map((sec) => ({ from: sec.from, to: sec.to, style: groundArt(sec.ground, theatreGround, winter) }));
-    this.backdrop.build(mission.theatre, mission.timeOfDay, opts.visualSeed, ground);
+    // A mission whose time of day changes paints its land in the brightest of its times and tints it darker; its skies
+    // are painted for every time it passes through. A second theatre's strips fade in over its sectors.
+    const times = missionTimes(mission);
+    const timed = times.length > 1;
+    const baseTime = timed ? brightestTime(times) : mission.timeOfDay;
+    const other = (mission.sectors ?? []).filter((sec) => sec.backdrop !== undefined && sec.backdrop !== mission.theatre);
+    const secondTheatre = other.length > 0 ? other[0].backdrop : undefined;
+    const second =
+      secondTheatre !== undefined
+        ? {
+            theatre: secondTheatre,
+            variant: theatreVariant(secondTheatre, mission.climate),
+            spans: other.filter((sec) => sec.backdrop === secondTheatre).map((sec) => ({ from: sec.from, to: sec.to })),
+          }
+        : undefined;
+    this.backdrop.build(mission.theatre, baseTime, opts.visualSeed, ground, { variant, times: timed ? times : undefined, second });
     this.backdrop.setAllHidden(false);
-    const colours = getTheatreColours(mission.theatre, mission.timeOfDay);
+    const colours = getTheatreColours(mission.theatre, baseTime, variant);
     this.nightAlpha = colours.nightTintAlpha;
     if (this.nightTint) this.nightTint.setTint(colours.int.nightTint);
     // Trenches are dug in this theatre's earth.
     const earth = {
-      id: `${mission.theatre}-${mission.timeOfDay}`,
+      id: variant === 'base' ? `${mission.theatre}-${baseTime}` : `${mission.theatre}~${variant}-${baseTime}`,
       ground: colours.ground,
       groundDark: colours.groundDark,
       soil: colours.soil,
@@ -392,7 +416,11 @@ export class BattleViewImpl implements BattleView {
     this.effects.ctx.seed(opts.visualSeed);
     this.effects.ctx.time = 0;
     this.darkness = 0;
-    this.weatherView?.attach(opts.visualSeed, this.weather, mission.theatre);
+    // Scripted weather turns the random rain off (FOUNDATIONS.md 4.7); the roll is still drawn, so nothing else shifts.
+    this.skyScripted = state.sky.scripted;
+    this.scriptedRain = false;
+    this.weatherView?.attach(opts.visualSeed, this.skyScripted && this.weather === 'auto' ? 'clear' : this.weather, mission.theatre);
+    this.skyView?.attach(mission, opts.visualSeed, baseTime, timed);
     this.camera.setLength(state.length);
     // Open on the player's own end of the map, the whole HQ clear of the screen edge (the clamp's edge margin).
     this.camera.setCenter(opts.playerSide === 0 ? -state.length : 2 * state.length, true);
@@ -406,6 +434,7 @@ export class BattleViewImpl implements BattleView {
     this.buildings?.clear();
     this.effects?.clear();
     this.weatherView?.clear();
+    this.skyView?.clear();
     if (this.effects) {
       this.effects.ctx.state = null;
       this.effects.ctx.sound.stopLoops();
@@ -513,6 +542,18 @@ export class BattleViewImpl implements BattleView {
       this.buildings?.update(state);
       this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
+      if (this.skyView) {
+        this.skyView.update(state, dt, left, viewW, this.effects.enabled, ctx.night);
+        if (this.skyView.nightAlpha >= 0) this.nightAlpha = this.skyView.nightAlpha;
+        // Scripted rain: the streaks come and go with the weather.
+        if (this.skyScripted && this.weather === 'auto') {
+          const rain = SkyView.rainShare(state) >= 0.5;
+          if (rain !== this.scriptedRain) {
+            this.scriptedRain = rain;
+            this.weatherView?.force(rain ? 'rain' : 'clear');
+          }
+        }
+      }
       this.weatherView?.update(dt, left, viewW, this.effects.enabled);
       this.effects.update(dt, this.realDt);
     }

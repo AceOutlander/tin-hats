@@ -18,6 +18,9 @@ import type { MissionDef } from '../../schema';
  * scripted waves. The mode stays `survival` (no enemy HQ, a winning clock) and the medals score it as a delay, with a
  * kill bonus. StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank` kind (the era's Panzer III
  * Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40 crew the `at` kind.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the stalingrad theatre; smoke over the works (visibility 0.85), brick dust
+ * after the heavy bomb (0.8), then smoke again as dusk and night fall in the last phase.
  */
 export const M1008: MissionDef = {
   id: 1008,
@@ -48,8 +51,9 @@ export const M1008: MissionDef = {
       'Artillery, smoke and Katyusha from the far bank',
     ],
   },
-  theatre: 'italy',
+  theatre: 'stalingrad',
   timeOfDay: 'day',
+  weather: 'smoke',
   mode: 'survival',
   length: 14000,
   newUnit: null,
@@ -164,6 +168,11 @@ export const M1008: MissionDef = {
     { id: 'stukaYard', type: 'airRaid', when: { phase: 'bombers', delay: 2 }, side: 1, support: 'airStrike', x: 8000 },
     { id: 'stukaFoundry', type: 'airRaid', when: { phase: 'bombers', delay: 150 }, side: 1, support: 'airStrike', x: 5200 },
     { id: 'heavyBomb', type: 'barrage', when: { phase: 'halls', delay: 240 }, side: 1, x: 6300, spread: 60, rounds: 1, duration: 0, weapon: 'heavyBomb' },
+    // Smoke, the bomb's brick dust, then dusk and night (FOUNDATIONS.md 4.7).
+    { id: 'brickDust', type: 'weather', when: { phase: 'halls', delay: 242 }, to: 'dust', over: 20 },
+    { id: 'smokeAgain', type: 'weather', when: { phase: 'dark' }, to: 'smoke', over: 60 },
+    { id: 'dusk', type: 'time', when: { phase: 'dark' }, to: 'dusk', over: 120 },
+    { id: 'night', type: 'time', when: { phase: 'dark', delay: 200 }, to: 'night', over: 60 },
     { id: 'nebelwerfer', type: 'barrage', when: { phase: 'dark', delay: 100 }, side: 1, x: 5200, spread: 300, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
     {
       type: 'hint',

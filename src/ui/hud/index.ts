@@ -291,6 +291,9 @@ class PickView {
   }
 }
 
+/** What a grounded call-in button shows in place of its clock (FOUNDATIONS.md 4.7). */
+const GROUNDED_LABEL: Record<NonNullable<SupportButtonState['grounded']>, string> = { fog: 'Fog', blizzard: 'Storm', night: 'Night' };
+
 /** One call-in: its button in the call-ins column, and its mini pip on the folded "Call-ins" toggle. */
 class SupportView {
   readonly node: HTMLButtonElement;
@@ -305,7 +308,9 @@ class SupportView {
   private readonly pipSweep: FracCell;
   private readonly pipReady: FlagCell;
   private readonly pipActive: FlagCell;
+  private readonly groundedFlag: FlagCell;
   private rawName = '';
+  private rawGrounded: SupportButtonState['grounded'] = null;
 
   constructor(parent: HTMLElement, pipParent: HTMLElement, kind: SupportKind) {
     this.kind = kind;
@@ -317,6 +322,7 @@ class SupportView {
     this.seconds = new TextCell(el('span', 'th-sbtn-sec', b));
     this.readyFlag = new FlagCell(b, 'is-ready');
     this.active = new FlagCell(b, 'is-active');
+    this.groundedFlag = new FlagCell(b, 'is-grounded');
     b.addEventListener('animationend', () => b.classList.remove('is-deny'));
     const pip = el('span', 'th-pip', pipParent);
     pip.dataset.kind = kind;
@@ -328,18 +334,21 @@ class SupportView {
   }
 
   apply(s: SupportButtonState, targeting: SupportKind | null): void {
-    if (s.name !== this.rawName) {
+    if (s.name !== this.rawName || s.grounded !== this.rawGrounded) {
       this.rawName = s.name;
+      this.rawGrounded = s.grounded;
       this.name.set(shortName(s.name, NAME_CHARS - 1));
-      this.node.setAttribute('aria-label', s.name);
+      this.node.setAttribute('aria-label', s.grounded === null ? s.name : `${s.name}: grounded (${GROUNDED_LABEL[s.grounded].toLowerCase()})`);
     }
-    this.ready = s.charge >= 1;
+    // Aircraft grounded by fog, a blizzard or the night: not ready, and the button says why.
+    this.ready = s.charge >= 1 && s.grounded === null;
     this.readyFlag.set(this.ready);
     this.pipReady.set(this.ready);
+    this.groundedFlag.set(s.grounded !== null);
     if (!this.ready) {
-      this.sweep.set(s.charge);
-      this.pipSweep.set(s.charge);
-      this.seconds.set(clockSeconds(s.secondsLeft));
+      this.sweep.set(s.grounded !== null ? 0 : s.charge);
+      this.pipSweep.set(s.grounded !== null ? 0 : s.charge);
+      this.seconds.set(s.grounded !== null ? GROUNDED_LABEL[s.grounded] : clockSeconds(s.secondsLeft));
     }
     this.active.set(targeting === s.kind);
     this.pipActive.set(targeting === s.kind);

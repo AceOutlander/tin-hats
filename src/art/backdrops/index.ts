@@ -12,7 +12,7 @@
  * and always top edge at layer.y.
  */
 import type { TheatreId, TimeOfDay } from '../../data/schema';
-import { BACKDROP, THEATRES, TIME_GRADES, type BackdropStripDef, type GroundStyle, type RainGrade } from '../../data/theatres';
+import { BACKDROP, THEATRES, TIME_GRADES, type BackdropStripDef, type GroundStyle, type RainGrade, type TheatreVariant } from '../../data/theatres';
 import { DEPTH, PARALLAX, VIEW } from '../../data/view';
 import type { BackdropLayerSpec } from '../types';
 import { rgbToHex, rgbToInt } from './color';
@@ -28,7 +28,10 @@ import { germany } from './theatres/germany';
 import { holland } from './theatres/holland';
 import { italy } from './theatres/italy';
 import { normandy } from './theatres/normandy';
+import { russiaSummer } from './theatres/russiaSummer';
 import { sicily } from './theatres/sicily';
+import { stalingrad } from './theatres/stalingrad';
+import { steppe } from './theatres/steppe';
 
 export type BackdropSlot = BackdropLayerSpec['slot'];
 
@@ -56,11 +59,16 @@ export const BACKDROP_SLOTS: readonly BackdropSlot[] = [
   'foreground',
 ];
 
-const ART: Record<TheatreId, TheatreArt> = { france, desert, sicily, italy, normandy, holland, germany };
+const ART: Record<TheatreId, TheatreArt> = { france, desert, sicily, italy, normandy, holland, germany, russiaSummer, stalingrad, steppe };
+
+/** The name a theatre's textures go by: its id, with the variant after a tilde (bg/stalingrad~winter/...). */
+export function theatreKey(theatre: TheatreId, variant: TheatreVariant = 'base'): string {
+  return variant === 'base' ? theatre : `${theatre}~${variant}`;
+}
 
 type Painter = (ctx: CanvasRenderingContext2D) => void;
 
-function layer(theatre: TheatreId, time: TimeOfDay, slot: BackdropSlot, w: number, h: number, x: number, y: number, tile: boolean, paint: Painter): BackdropLayer {
+function layer(theatre: string, time: TimeOfDay, slot: BackdropSlot, w: number, h: number, x: number, y: number, tile: boolean, paint: Painter): BackdropLayer {
   return {
     key: `bg/${theatre}/${time}/${slot}`,
     slot,
@@ -82,10 +90,10 @@ function layer(theatre: TheatreId, time: TimeOfDay, slot: BackdropSlot, w: numbe
   };
 }
 
-function strip(sc: Scene, theatre: TheatreId, slot: 'farBackdrop' | 'midBackdrop' | 'nearBackdrop', def: BackdropStripDef, painter: LayerPainter): BackdropLayer {
+function strip(sc: Scene, theatre: TheatreId, slot: 'farBackdrop' | 'midBackdrop' | 'nearBackdrop', def: BackdropStripDef, painter: LayerPainter, name: string): BackdropLayer {
   const w = BACKDROP.tileW[slot];
   const bottom = BACKDROP.stripBottom;
-  return layer(theatre, sc.time, slot, w, bottom - def.top, 0, def.top, true, (ctx) => {
+  return layer(name, sc.time, slot, w, bottom - def.top, 0, def.top, true, (ctx) => {
     painter(ctx, sc, mulberry32(subSeed(sc.seed, `${theatre}/${slot}`)), { w, top: def.top, bottom, haze: def.haze });
     mistBand(ctx, w, bottom - def.mistHeight, bottom, sc.hazeCss, def.mist);
   });
@@ -93,10 +101,12 @@ function strip(sc: Scene, theatre: TheatreId, slot: 'farBackdrop' | 'midBackdrop
 
 /**
  * Every backdrop layer for a battle, back to front, one per slot.
- * Deterministic: the same arguments always paint the same pictures.
+ * Deterministic: the same arguments always paint the same pictures. `variant` 'winter' paints the theatre's winter
+ * look (a theatre without one paints its own); its keys carry the variant (theatreKey).
  */
-export function getBackdrop(theatre: TheatreId, timeOfDay: TimeOfDay, seed: number): BackdropLayer[] {
-  const sc = makeScene(theatre, timeOfDay, seed);
+export function getBackdrop(theatre: TheatreId, timeOfDay: TimeOfDay, seed: number, variant: TheatreVariant = 'base'): BackdropLayer[] {
+  const sc = makeScene(theatre, timeOfDay, seed, variant);
+  const name = theatreKey(theatre, sc.winter ? 'winter' : 'base');
   const art = ART[theatre];
   const def = sc.def;
   const stream = (name: string) => mulberry32(subSeed(seed, `${theatre}/${name}`));
@@ -108,23 +118,23 @@ export function getBackdrop(theatre: TheatreId, timeOfDay: TimeOfDay, seed: numb
   const fgW = BACKDROP.tileW.foreground;
 
   return [
-    layer(theatre, timeOfDay, 'sky', skyW, BACKDROP.stripBottom, 0, 0, true, (ctx) => {
+    layer(name, timeOfDay, 'sky', skyW, BACKDROP.stripBottom, 0, 0, true, (ctx) => {
       paintSky(ctx, sc, stream('sky'), skyW, BACKDROP.stripBottom);
     }),
-    layer(theatre, timeOfDay, 'celestial', cs, cs, cel.x - cs / 2, cel.y - cs / 2, false, (ctx) => {
+    layer(name, timeOfDay, 'celestial', cs, cs, cel.x - cs / 2, cel.y - cs / 2, false, (ctx) => {
       ctx.translate(0, cel.y - cs / 2);
       paintCelestial(ctx, sc, cs);
     }),
-    layer(theatre, timeOfDay, 'clouds', cloudW, BACKDROP.cloudsHeight, 0, 0, true, (ctx) => {
+    layer(name, timeOfDay, 'clouds', cloudW, BACKDROP.cloudsHeight, 0, 0, true, (ctx) => {
       paintClouds(ctx, sc, stream('clouds'), cloudW, BACKDROP.cloudsHeight);
     }),
-    strip(sc, theatre, 'farBackdrop', def.layers.far, art.far),
-    strip(sc, theatre, 'midBackdrop', def.layers.mid, art.mid),
-    strip(sc, theatre, 'nearBackdrop', def.layers.near, art.near),
-    layer(theatre, timeOfDay, 'ground', groundW, VIEW.heightWu - BACKDROP.groundTop, 0, BACKDROP.groundTop, true, (ctx) => {
+    strip(sc, theatre, 'farBackdrop', def.layers.far, art.far, name),
+    strip(sc, theatre, 'midBackdrop', def.layers.mid, art.mid, name),
+    strip(sc, theatre, 'nearBackdrop', def.layers.near, art.near, name),
+    layer(name, timeOfDay, 'ground', groundW, VIEW.heightWu - BACKDROP.groundTop, 0, BACKDROP.groundTop, true, (ctx) => {
       paintGround(ctx, sc, stream('ground'), groundW);
     }),
-    layer(theatre, timeOfDay, 'foreground', fgW, VIEW.heightWu - BACKDROP.foregroundTop, 0, BACKDROP.foregroundTop, true, (ctx) => {
+    layer(name, timeOfDay, 'foreground', fgW, VIEW.heightWu - BACKDROP.foregroundTop, 0, BACKDROP.foregroundTop, true, (ctx) => {
       paintForeground(ctx, sc, stream('foreground'), fgW);
     }),
   ];
@@ -151,8 +161,8 @@ export interface TheatreColours {
   rain: RainGrade;
 }
 
-export function getTheatreColours(theatre: TheatreId, timeOfDay: TimeOfDay): TheatreColours {
-  const sc = makeScene(theatre, timeOfDay, 0);
+export function getTheatreColours(theatre: TheatreId, timeOfDay: TimeOfDay, variant: TheatreVariant = 'base'): TheatreColours {
+  const sc = makeScene(theatre, timeOfDay, 0, variant);
   const P = sc.pal;
   const ground = sc.rgb(P.ground);
   const groundDark = sc.rgb(P.groundDark);
@@ -209,9 +219,16 @@ export { franceSpireTileX } from './theatres/france';
  * rules and placement as getBackdrop's ground layer, on a tile of `tileW` wu (narrower tiles keep the extra textures
  * small on phones). Deterministic like getBackdrop.
  */
-export function getGroundLayer(theatre: TheatreId, timeOfDay: TimeOfDay, seed: number, style: GroundStyle, tileW: number = BACKDROP.tileW.ground): BackdropLayer {
-  const sc = makeScene(theatre, timeOfDay, seed);
-  const l = layer(theatre, timeOfDay, 'ground', tileW, VIEW.heightWu - BACKDROP.groundTop, 0, BACKDROP.groundTop, true, (ctx) => {
+export function getGroundLayer(
+  theatre: TheatreId,
+  timeOfDay: TimeOfDay,
+  seed: number,
+  style: GroundStyle,
+  tileW: number = BACKDROP.tileW.ground,
+  variant: TheatreVariant = 'base',
+): BackdropLayer {
+  const sc = makeScene(theatre, timeOfDay, seed, variant);
+  const l = layer(theatreKey(theatre, sc.winter ? 'winter' : 'base'), timeOfDay, 'ground', tileW, VIEW.heightWu - BACKDROP.groundTop, 0, BACKDROP.groundTop, true, (ctx) => {
     paintGround(ctx, sc, mulberry32(subSeed(seed, `${theatre}/ground/${style}`)), tileW, style);
   });
   return { ...l, key: `${l.key}/${style}` };

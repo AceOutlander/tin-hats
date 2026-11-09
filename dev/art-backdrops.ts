@@ -13,7 +13,7 @@ import {
   type BackdropLayer,
 } from '../src/art/backdrops';
 import type { TheatreId, TimeOfDay } from '../src/data/schema';
-import { THEATRE_IDS, TIMES_OF_DAY } from '../src/data/theatres';
+import { THEATRE_IDS, TIMES_OF_DAY, type TheatreVariant } from '../src/data/theatres';
 import { VIEW } from '../src/data/view';
 
 declare global {
@@ -41,6 +41,9 @@ interface Raster {
   layer: BackdropLayer;
   canvas: HTMLCanvasElement;
 }
+
+/** ?variant=winter paints the winter look of the theatres that have one (FOUNDATIONS.md 4.7). */
+const VARIANT: TheatreVariant = new URLSearchParams(location.search).get('variant') === 'winter' ? 'winter' : 'base';
 
 /** Rough share of the view the HUD covers, top and bottom, in wu. */
 const HUD_TOP = 48;
@@ -165,7 +168,7 @@ function composite(
     }
   }
 
-  const colours = getTheatreColours(theatre, time);
+  const colours = getTheatreColours(theatre, time, VARIANT);
   if (o.rain) {
     ctx.save();
     ctx.globalCompositeOperation = 'saturation';
@@ -342,7 +345,7 @@ function main(): void {
     const cw = Math.floor((canvas.width - gap * (cols + 1)) / cols);
     const ch = Math.floor((canvas.height - gap * (rows + 1)) / rows);
     cells.forEach((cell, i) => {
-      const layers = getBackdrop(cell.theatre, cell.time, o.seed);
+      const layers = getBackdrop(cell.theatre, cell.time, o.seed, VARIANT);
       const px = ch / VIEW.heightWu;
       const rasters = rasterise(layers, Math.min(1, (px * 1.2) / 1));
       const left = gap + (i % cols) * (cw + gap);
@@ -352,7 +355,7 @@ function main(): void {
     });
   } else {
     const t0 = performance.now();
-    const layers = getBackdrop(theatre, time, o.seed);
+    const layers = getBackdrop(theatre, time, o.seed, VARIANT);
     const timings: Record<string, number> = {};
     const rasters: Raster[] = layers.map((layer) => {
       const s = performance.now();

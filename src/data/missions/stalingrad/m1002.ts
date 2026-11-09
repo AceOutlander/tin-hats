@@ -14,6 +14,9 @@ import type { MissionDef } from '../../schema';
  * loses too). Dubno's western houses are buildings B1 to B4 (FOUNDATIONS.md 4.3; B3 held by riflemen, the others
  * empty), the HQ is a dugout (`hqLook`), and the two Flak 88s are anti-tank teams on guard (no German gun kind engages
  * tanks yet).
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the russiaSummer theatre on a hot June day; the dust of the tank battle
+ * (visibility 0.8) from 60 s, and dusk falling 400 s into the hold.
  */
 export const M1002: MissionDef = {
   id: 1002,
@@ -44,8 +47,9 @@ export const M1002: MissionDef = {
       'One artillery battery; no air cover',
     ],
   },
-  theatre: 'france',
+  theatre: 'russiaSummer',
   timeOfDay: 'day',
+  weather: 'clear',
   mode: 'delay',
   length: 22000,
   // The unlock order (DECISIONS 295): Dubno, the great tank battle of 1941, brings the T-34 and the mortar crews.
@@ -166,6 +170,8 @@ export const M1002: MissionDef = {
   events: [
     // Phase 2 begins with the road behind cut (the announcement on taking the crossroads says so).
     { id: 'roadCut', type: 'income', when: { phase: 'crossroads' }, side: 0, mul: 0.4 },
+    { id: 'dust', type: 'weather', when: { at: 60 }, to: 'dust', over: 30 },
+    { id: 'dusk', type: 'time', when: { phase: 'crossroads', delay: 400 }, to: 'dusk', over: 90 },
     { id: 'stukas', type: 'airRaid', when: { phase: 'crossroads', delay: 120 }, side: 1, support: 'airStrike', x: 14500 },
     { id: 'dubnoShelled', type: 'barrage', when: { phase: 'crossroads', delay: 250 }, side: 1, x: 13900, spread: 400, rounds: 8, duration: 5, weapon: 'artilleryShell', warning: 'Artillery on Dubno!' },
     // The twelfth tank not dead by dusk: the phase goes on, with a panzer wave every minute until it is.

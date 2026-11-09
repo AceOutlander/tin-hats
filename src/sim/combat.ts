@@ -44,6 +44,7 @@ import {
   type UnitState,
 } from './types';
 import { disguised } from './director';
+import { flareLit } from './sky';
 import { flushUnit } from './trenches';
 import { igniteUnit, killUnit } from './units';
 import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, GROUND_INV_CELL, type World } from './world';
@@ -136,6 +137,9 @@ function search(w: World, m: MountState, side: number): boolean {
   }
   const minRange = weapon.minRange;
   const direct = weapon.delivery !== 'lob';
+  // Fog, blizzard, dust, smoke and night (src/sim/sky.ts): direct fire picks targets only this far, but where a flare
+  // burns. Equal to range in clear daylight, so nothing changes then.
+  const seen = direct ? range * s.sky.visibility : range;
   const enemy = 1 - side;
   const dir = side === 0 ? 1 : -1;
   foundType = TARGET_NONE;
@@ -155,6 +159,7 @@ function search(w: World, m: MountState, side: number): boolean {
     if (masked && disguised(s, t)) continue;
     const d = t.x > x ? t.x - x : x - t.x;
     if (d > range || d < minRange) continue;
+    if (d > seen && !flareLit(s, t.x)) continue;
     if ((mask & (1 << unitClass(t))) === 0) continue;
     const rank = unitRank(w, wi, t);
     if (rank < 0) continue;
@@ -184,6 +189,7 @@ function search(w: World, m: MountState, side: number): boolean {
       if (!p.alive || p.side !== enemy) continue;
       const d = p.x > x ? p.x - x : x - p.x;
       if (d > range || d < minRange) continue;
+      if (d > seen && !flareLit(s, p.x)) continue;
       const score = structRank * RANK_WEIGHT + d;
       if (score >= best) continue;
       if (direct && w.smokeCount > 0) {
@@ -204,7 +210,7 @@ function search(w: World, m: MountState, side: number): boolean {
     const hq = s.sides[enemy].hq;
     if (hq && hq.alive) {
       const d = hq.doorX > x ? hq.doorX - x : x - hq.doorX;
-      if (d <= range && d >= minRange) {
+      if (d <= range && d >= minRange && (d <= seen || flareLit(s, hq.doorX))) {
         const score = structRank * RANK_WEIGHT + d;
         let blocked = false;
         if (direct && w.smokeCount > 0) {
@@ -290,6 +296,8 @@ function targetValid(w: World, m: MountState): boolean {
     range *= g.height[c];
   }
   if (d > range || d < weapon.minRange) return false;
+  // Out of sight in fog or at night (src/sim/sky.ts), unless a flare shows it.
+  if (weapon.delivery !== 'lob' && d > range * s.sky.visibility && !flareLit(s, tx)) return false;
   if (weapon.delivery !== 'lob' && w.smokeCount > 0) {
     SMOKE_LINE[0] = x;
     SMOKE_LINE[1] = tx;
@@ -400,7 +408,9 @@ function fireShot(
   } else if (target !== 'ground') {
     let t = weapon.range > 0 ? dist / weapon.range : 0;
     if (t > 1) t = 1;
-    const chance = (weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t) * m.accuracy;
+    // The blizzard spoils long shots (s.sky.accuracyFar; 1 in any other weather).
+    const far = weapon.accuracyFar * s.sky.accuracyFar;
+    const chance = (weapon.accuracyNear + (far - weapon.accuracyNear) * t) * m.accuracy;
     hit = w.rng.next() < chance;
     if (hit) {
       const flush = WEAPON_FLUSH[wi] === 1;

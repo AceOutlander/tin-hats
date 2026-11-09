@@ -6,6 +6,7 @@
 import { CONFIG } from '../data/config';
 import type { Side } from '../data/schema';
 import { endBattle, fireEvent, jumpToPhase } from './mission';
+import { changeTime, changeWeather } from './sky';
 import { DAMAGE_TYPES, KIND_COUNT, KIND_DEFS, KIND_INDEX, KIND_LIST, KIND_SAPPER } from './tables';
 import type { AdminAction, AiReport, Behaviour, UnitState } from './types';
 import { killUnit, makeVeteran, removeUnit, spawnUnit } from './units';
@@ -153,6 +154,10 @@ export function applyAdmin(w: World, action: AdminAction): number {
     }
     case 'jumpPhase':
       return jumpToPhase(w, action.phase) ? 1 : 0;
+    case 'sky':
+      if (action.weather !== undefined) changeWeather(w, action.weather, action.over ?? 0);
+      if (action.time !== undefined) changeTime(w, action.time, action.over ?? 0);
+      return 1;
   }
 }
 

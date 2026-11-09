@@ -10,7 +10,7 @@ import type { MissionDef } from '../../schema';
  * `hqLook` store). The Sixth Army is starving and short of fuel: its tanks are on guard where they ran dry, its income
  * is low, and it has no aircraft.
  *
- * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): four phases on one backdrop, no
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): four phases (two backdrops), no
  * buildings yet, the minefield is wire; the ground is snow and the steppe under snow, then the city's rubble. Seven
  * thousand guns: five free barrages, then the western steppe and Pitomnik (P1); Gumrak (P2); the ruins (P3), where
  * nests show themselves every 120 s and the Germans hold their positions (the three points are open ground taken by
@@ -19,6 +19,10 @@ import type { MissionDef } from '../../schema';
  * short of shells (a 180 s cooldown). The KV-1S stands in as a T-34 (`tank`); StuG III (look `stug3f`), Panzer III (the
  * era's Ausf. L) and Panzer IV (look `panzer4g`) are the German `tank` (`lightTank` is the 1939 to 1941 Panzer III
  * Ausf. E), the Pak 40 crews the `at` kind.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): an overcast January day on the steppe theatre's winter look, crossfading into
+ * the stalingrad theatre's winter ruins at the city; snow, a blizzard at Gumrak (300 to 420 s of phase 2: no air),
+ * clearing in the ruins, dusk at the Univermag.
  */
 export const M1010: MissionDef = {
   id: 1010,
@@ -50,8 +54,9 @@ export const M1010: MissionDef = {
       'Artillery, Katyusha, smoke, the Il-2, the Pe-2 and the Po-2',
     ],
   },
-  theatre: 'germany',
+  theatre: 'steppe',
   timeOfDay: 'overcast',
+  weather: 'snow',
   mode: 'assault',
   length: 28000,
   newUnit: null,
@@ -197,9 +202,9 @@ export const M1010: MissionDef = {
     { from: 3000, to: 9000, ground: 'steppe', label: 'The western steppe' },
     { from: 9000, to: 13000, ground: 'snow', label: 'Pitomnik airfield' },
     { from: 13000, to: 18000, ground: 'snow', label: 'Gumrak' },
-    { from: 18000, to: 24000, ground: 'rubble', label: 'The western ruins' },
-    { from: 24000, to: 26000, ground: 'rubble', label: 'The central square' },
-    { from: 26000, to: 28000, ground: 'cobble', label: 'The central square' },
+    { from: 18000, to: 24000, ground: 'rubble', label: 'The western ruins', backdrop: 'stalingrad' },
+    { from: 24000, to: 26000, ground: 'rubble', label: 'The central square', backdrop: 'stalingrad' },
+    { from: 26000, to: 28000, ground: 'cobble', label: 'The central square', backdrop: 'stalingrad' },
   ],
   // The capture points and forward spawns (4.5): Pitomnik, Gumrak and the ruins, open ground taken by holding it (the
   // trenches inside them still have to be cleared first).
@@ -253,6 +258,11 @@ export const M1010: MissionDef = {
     },
   ],
   events: [
+    // Snow, the blizzard at Gumrak, clearing in the ruins, dusk at the end (FOUNDATIONS.md 4.7).
+    { id: 'blizzard', type: 'weather', when: { phase: 'gumrak', delay: 300 }, to: 'blizzard', over: 30 },
+    { id: 'blizzardEases', type: 'weather', when: { phase: 'gumrak', delay: 420 }, to: 'snow', over: 30 },
+    { id: 'clears', type: 'weather', when: { phase: 'ruins' }, to: 'clear', over: 60 },
+    { id: 'dusk', type: 'time', when: { phase: 'univermag' }, to: 'dusk', over: 120 },
     // The bombardment: five free barrages on the first trench, the second and the minefield, 6 s apart.
     { id: 'bombardment', type: 'banner', when: { phase: 'guns' }, text: 'The bombardment!', sound: 'horn' },
     { id: 'guns1', type: 'barrage', when: { phase: 'guns' }, side: 0, x: 4500, spread: 160, rounds: 10, duration: 3, weapon: 'artilleryShell' },

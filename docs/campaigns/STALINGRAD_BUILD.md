@@ -64,9 +64,9 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1010 Ring | assault (surrender) | guns, Gumrak, ruins, Univermag | five free barrages, frozen tanks, German artillery cooldown 180 s, nests (hold postures), Nebelwerfer, last counter-attack, surrender at 25% with the closing words; Pitomnik in 8 min, Gumrak without a tank lost, under 28 min |
 
 **Waits for** (other jobs build these on the director; capture points, forward spawns and Fall Back to them are in,
-see "The long-map battlefield", and so are buildings and floors, see "Buildings, rubble and cover props"); bridges,
-demolition and the ford (4.4: 1009's bridge, 1005's ferry loads);
-weather and time-of-day events (4.7: snow, blizzard, fog, flares); loans by phase (7.2); `unlockKind`, `demolish` and
+see "The long-map battlefield", buildings and floors, see "Buildings, rubble and cover props", and weather, time of
+day and flares, see "Weather and time of day"); bridges, demolition and the ford (4.4: 1009's bridge, 1005's ferry
+loads); loans by phase (7.2); `unlockKind`, `demolish` and
 `spawnPointState` events; the AI aiming a counter-attack at its `point`; per-mission medal numbers tuned on real play;
 mid-mission autosave and resume (FOUNDATIONS section 2, DECISIONS 320).
 
@@ -114,7 +114,7 @@ tests `tests/unit/sim-battlefield.test.ts`, `tests/unit/hud-battlefield.test.ts`
 | 1009 Uranus (30,000 wu) | snow, the open steppe, the Don hills (slope), the Don, Kalach bridge (road), the road to Sovetsky | P1 to P3 Soviet spawns only (`spawnFor: 0`): the Romanian line (trench 3), Perelazovsky (building B2), the Don hills (10 s); P4 Sovetsky (trench 6: the map has no buildings in Sovetsky; not a spawn) |
 | 1010 Ring | snow, the steppe, Pitomnik, Gumrak, the western ruins, the central square | P1 Pitomnik, P2 Gumrak, P3 the ruins (10 s each, open ground) |
 
-**Waits for**: the backdrop crossfade for `SectorDef.backdrop`; bridges (water stops vehicles at the bank,
+**Waits for**: bridges (water stops vehicles at the bank,
 FOUNDATIONS 4.4). Buildings are in (next section): the points that were "building later" are held through their
 building, and a fallen building's footprint becomes rubble ground (DECISIONS 340).
 
@@ -178,6 +178,71 @@ building, and a fallen building's footprint becomes rubble ground (DECISIONS 340
 `structure: { building }` (1004 P1, 1005 P2, 1008 P2, 1009 P2), and 1008's assembly hall has no point yet (DECISIONS
 341); direct fire at walls (only blasts hurt them); men drawn at the windows of the mission HQ buildings (the HQ is not
 a building with slots).
+
+## Weather and time of day, and the Soviet theatres (FOUNDATIONS.md 4.1 and 4.7; DECISIONS 343 to 354)
+
+**In.** The sim side is `src/sim/sky.ts` (state `BattleState.sky`, numbers `WEATHER_SIM` in `src/data/weather.ts`); the
+view side `src/fx/sky.ts` (crossfades, drifting fields), `src/render/weather/sky.ts` (veils, particles, flares, the
+time-of-day grade) and `src/render/backdrop.ts` (`BackdropExtras`: the skies of every time, the land tint, the second
+theatre); the theatres in `src/data/theatres.ts` and `src/art/backdrops/theatres/russiaSummer.ts`, `stalingrad.ts`,
+`steppe.ts`. Tests: `tests/unit/sim-weather.test.ts`, `tests/unit/fx-sky.test.ts`, the backdrop tests over every
+theatre (`art-backdrops.test.ts`), and the 1009 case of `sim-budget.test.ts`. How a mission uses it:
+
+- **`MissionDef.weather`** (`WeatherKind`: `clear`, `overcast`, `rain`, `snow`, `blizzard`, `fog`, `dust`, `smoke`)
+  and **`timeOfDay`** are the start; **`MissionDef.nightVisibility`** overrides the night's 0.65 (a full moon 0.8).
+  A mission with neither weather nor weather events is clear and plays exactly as before (tested), with the view's
+  random rain; scripted weather turns the random rain off (scripted `rain` turns the streaks on).
+- **Events**: `{ type: 'weather', to, over }` and `{ type: 'time', to, over }`: the sim switches at the midpoint, the
+  view crossfades over the whole span. `{ type: 'flare', x, side?, seconds?, width?, color? }`: visibility 1 over
+  `width` (1,500 wu) centred on x for `seconds` (20), for both sides; `color` white or green (the view's).
+- **Visibility** (the lower of weather and time): fog 0.6, night 0.65, blizzard 0.7, dust 0.8, smoke 0.85, else 1. It
+  caps the range at which direct-fire and hitscan weapons pick and keep a target, for both sides (units, the HQ gun,
+  pillbox guns); a target inside a burning flare's stretch is seen at full range; lobbed weapons (mortars, grenades)
+  are not limited.
+- **Aircraft** (the air strike, bomber, fighter and recon plane) do not fly in fog or a blizzard, nor at night but for
+  a nation's night flyers (`WEATHER_SIM.nightAir`: the Soviet recon plane, the Po-2). The player's button shows
+  "Fog", "Storm" or "Night" instead of its clock; the AI cannot call them; a scripted `airRaid` does not fly either.
+- **The blizzard** slows men on foot x0.9 (not vehicles, not sappers on the supply road) and multiplies every hitscan
+  weapon's `accuracyFar` by 0.85.
+- **The view**: a veil over the sky and the backdrop and a lighter one over the scene by weather; drifting fields of
+  snowflakes, driven blizzard snow, dust clouds and grit, city smoke and ash, fog banks along the ground (existing FX
+  sprites); flares sink under their parachutes with a halo and a pool of light (strong at night). A mission whose
+  time of day changes paints its land in the brightest of its times and tints it darker for the others; its skies
+  (sky, sun or moon, clouds) are painted for each time it passes through and crossfaded; the night tint follows.
+- **Theatres**: `russiaSummer` (birch woods, rye, log izbas round an onion-domed church, telegraph poles), `stalingrad`
+  (the Volga and its low east bank, gutted blocks, factory chimneys, the grain elevator, smoke columns; autumn) and
+  `steppe` (a table-flat horizon with a railway and a goods train, balkas, haystacks, a post windmill, feather grass),
+  each with a `winter` variant (`TheatreDef.winter`: palette, ground and foreground; painters lay snow on roofs, firs,
+  ledges and drifts, and chimneys smoke) that a mission with `climate: 'winter'` gets (`theatreVariant`). The older
+  theatres have no winter look and are unchanged. Gallery: `dev/art-backdrops.html?theatre=steppe&variant=winter`.
+- **Two backdrops**: `SectorDef.backdrop` names a second theatre for some sectors; its far, mid and near strips fade in
+  over 600 wu around each edge of those sectors by where the camera looks (the sky stays the mission's).
+- **Admin panel**: the Weather and Time of day entries gain rows that change the sim's weather and time (over 10 s).
+
+**The missions on it** (the stand-ins in each header are gone):
+
+| Mission | Theatre | Weather and time |
+| --- | --- | --- |
+| 1001 Brest | russiaSummer | clear at dawn; phase 2: day over 60 s, smoke over 30 s |
+| 1002 Dubno | russiaSummer | clear, day; dust from 60 s; dusk 400 s into the hold |
+| 1003 Volokolamsk | russiaSummer winter | overcast; snow at phase 2; dusk at phase 3 |
+| 1004 Klin | russiaSummer winter, then stalingrad winter for Klin | blizzard by night, a flare over the village at 200 s; snow and dawn in the forest; clear and day for the highway (the Il-2 flies) |
+| 1005 Volga | stalingrad | smoke by night, the Germans' flares over the landing every 40 s; dawn at the station (Stukas from then), day for the hold; the high bank before first light (600 s) |
+| 1006 Kurgan | stalingrad | overcast and smoke |
+| 1007 Pavlov's House | stalingrad | smoke; night, day one, night one (flares), day two, the last night (flares, snow) |
+| 1008 Tractor Factory | stalingrad | smoke; brick dust after the heavy bomb; smoke again, dusk, then night in the last phase |
+| 1009 Uranus | steppe winter | fog at dawn (no air); clear and day from the steppe (the Il-2 window); blizzard at 500 s; night at the bridge (the Po-2 only); green flares over Sovetsky |
+| 1010 Ring | steppe winter, then stalingrad winter for the city | snow, overcast; blizzard 300 to 420 s at Gumrak; clear in the ruins; dusk at the Univermag |
+
+**Balance with the weather** (2026-11-09; missions, missions-design, stalingrad-m1001-1005, medals, missions-smoke and
+difficulty all pass): bot wins over 16 seeds and median minutes 1001 16 (12.8), 1002 16 (19.1), 1003 15 (17.7), 1004 16
+(14.1), 1005 16 (13.3), 1006 16 (18.4), 1007 16 (23.0), 1008 16 (22.0), 1009 16 (12.5), 1010 16 (13.9); the idle
+commander loses every seed. 1009 and 1010 got quicker (20.8 and 20.0 before): the defenders' long sight is cut by fog,
+snow and blizzard. 1001 needed the wave fix (DECISIONS 347), 1005 the dawn clock (348).
+
+**Waits for**: searchlights (Seelow) and flares as a call-in (FOUNDATIONS 4.7); breath puffs on figures and the snow
+on figures' shoulders; the sound of wind and snow (ambience by weather); the stalingrad theatre's own Klin (a small
+Russian town in snow rather than the city's ruins).
 
 ## Soviet nation data (shared by every mission)
 

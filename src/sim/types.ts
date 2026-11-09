@@ -21,12 +21,14 @@ import type {
   Order,
   Side,
   SupportKind,
+  TimeOfDay,
   UnitAction,
   UnitDef,
   UnitKind,
   UpgradeDef,
   UpgradeLevels,
   WeaponDef,
+  WeatherKind,
 } from '../data/schema';
 
 // ---------------------------------------------------------------------------
@@ -134,7 +136,9 @@ export type AdminAction =
   /** Fire the mission's scripted event with this index now (a one-shot event will not fire again). */
   | { type: 'fireEvent'; index: number }
   /** The mission director moves to the phase with this id now, after putting its PhaseDef.assume in place. */
-  | { type: 'jumpPhase'; phase: string };
+  | { type: 'jumpPhase'; phase: string }
+  /** Scripted weather and time of day change now, over `over` seconds (default 0), as the weather and time events. */
+  | { type: 'sky'; weather?: WeatherKind; time?: TimeOfDay; over?: number };
 
 /** What an AI commander is up to, for the admin panel's debug view. Null from battle.inspectAi for a human side. */
 export interface AiReport {
@@ -707,6 +711,46 @@ export interface BuildSiteState {
   cost: number;
 }
 
+/** A flare in the sky (MissionEventDef 'flare'): visibility 1 over [x0, x1] from `from` until `until` (battle times). */
+export interface FlareState {
+  x: number;
+  x0: number;
+  x1: number;
+  /** Who fired it, and its colour (the view's). */
+  side: Side;
+  color: 'white' | 'green';
+  from: number;
+  until: number;
+}
+
+/** Scripted weather and time of day (FOUNDATIONS.md 4.7; src/sim/sky.ts). Plain data. */
+export interface SkyState {
+  /** The mission scripts its weather (MissionDef.weather or a weather event): the view's random rain stays off. */
+  scripted: boolean;
+  /** The weather and time of day the sim uses now (a change takes effect at the midpoint of its transition). */
+  weather: WeatherKind;
+  time: TimeOfDay;
+  /** The latest weather change: from, to, its start (battle time) and length in seconds (0 = at once). The view crossfades by these. */
+  weatherFrom: WeatherKind;
+  weatherTo: WeatherKind;
+  weatherStart: number;
+  weatherOver: number;
+  /** The latest change of the time of day, the same way. */
+  timeFrom: TimeOfDay;
+  timeTo: TimeOfDay;
+  timeStart: number;
+  timeOver: number;
+  /** The mission's visibility at night (MissionDef.nightVisibility or the default). */
+  nightVisibility: number;
+  /** Derived from weather and time: the share of a direct weapon's range it may pick targets at (away from flares). */
+  visibility: number;
+  /** Derived: speed multiplier for men on foot, and the multiplier on every weapon's accuracyFar (the blizzard). */
+  infantrySpeed: number;
+  accuracyFar: number;
+  /** Flares burning now. */
+  flares: FlareState[];
+}
+
 export interface TimerState {
   secondsLeft: number;
   total: number;
@@ -759,6 +803,8 @@ export interface BattleState {
   sites: BuildSiteState[];
   /** The mission director: the current phase, its objectives, the side objectives (src/sim/director.ts). */
   director: DirectorState;
+  /** Scripted weather and time of day (src/sim/sky.ts). */
+  sky: SkyState;
 }
 
 /** One objective of the current phase, as the objective plate shows it. */

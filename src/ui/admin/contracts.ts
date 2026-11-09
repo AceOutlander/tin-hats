@@ -2,7 +2,7 @@
  * What the admin panel's DOM (src/ui/admin) asks of the app (src/app/admin.ts). Plain data both ways: the panel never
  * sees the simulation, the save or the view.
  */
-import type { Difficulty, UnitKind } from '../../data/schema';
+import type { Difficulty, TimeOfDay, UnitKind, WeatherKind } from '../../data/schema';
 
 export type AdminSide = 'mine' | 'enemy';
 export type AdminTarget = AdminSide | 'all' | 'selected';
@@ -34,6 +34,8 @@ export type AdminCommand =
   | { type: 'restart'; difficulty: Difficulty }
   | { type: 'weather'; mode: WeatherChoice }
   | { type: 'timeOfDay'; darkness: number | null }
+  /** The sim's scripted weather or time of day changes now, over 10 s (FOUNDATIONS.md 4.7). */
+  | { type: 'sky'; weather?: WeatherKind; time?: TimeOfDay }
   /** Arm spawning (every tap on the field places `spec`) or stop it (null). */
   | { type: 'place'; spec: SpawnSpec | null }
   /** Arm picking (the next tap on the field selects a unit) or stop it. */

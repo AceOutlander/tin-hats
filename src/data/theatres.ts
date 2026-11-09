@@ -8,7 +8,7 @@
  *
  * All y values are view-space wu (0 = top of the 540 wu view).
  */
-import type { TheatreId, TimeOfDay } from './schema';
+import type { Climate, TheatreId, TimeOfDay } from './schema';
 
 export interface SkyRamp {
   top: string;
@@ -110,6 +110,24 @@ export interface TheatreDef {
   rain: RainGrade;
   /** Colour of the renderer's night overlay (DEPTH.nightTint). The alpha per time of day is TIME_GRADES[time].tintAlpha. */
   nightTint: string;
+  /**
+   * The winter variant (FOUNDATIONS.md 4.7), for a mission whose climate is winter: these palette colours replace the
+   * theatre's, and its painters lay snow on roofs, trees and ridges. Absent = the theatre has no winter look.
+   */
+  winter?: {
+    palette: Partial<TheatrePalette>;
+    cloudCover?: number;
+    groundStyle?: GroundStyle;
+    foreground?: { item: ForegroundItem; count: number }[];
+  };
+}
+
+/** Which look of a theatre a backdrop is painted in: its own (summer, or the city's autumn) or its winter variant. */
+export type TheatreVariant = 'base' | 'winter';
+
+/** The variant a mission of this climate sees: winter if it is a winter mission and the theatre has one. */
+export function theatreVariant(theatre: TheatreId, climate: Climate | undefined): TheatreVariant {
+  return climate === 'winter' && THEATRES[theatre].winter !== undefined ? 'winter' : 'base';
 }
 
 export interface CelestialDef {
@@ -204,7 +222,7 @@ export const BACKDROP = {
 } as const;
 
 export const TIMES_OF_DAY: readonly TimeOfDay[] = ['dawn', 'day', 'overcast', 'dusk', 'night'];
-export const THEATRE_IDS: readonly TheatreId[] = ['france', 'desert', 'sicily', 'italy', 'normandy', 'holland', 'germany'];
+export const THEATRE_IDS: readonly TheatreId[] = ['france', 'desert', 'sicily', 'italy', 'normandy', 'holland', 'germany', 'russiaSummer', 'stalingrad', 'steppe'];
 
 export const TIME_GRADES: Record<TimeOfDay, TimeGradeDef> = {
   dawn: {
@@ -736,6 +754,279 @@ export const THEATRES: Record<TheatreId, TheatreDef> = {
     rain: { darken: 0.22, desaturate: 0.3 },
     nightTint: '#0a122c',
   },
+
+  russiaSummer: {
+    id: 'russiaSummer',
+    palette: {
+      sky: { top: '#6f98c4', mid: '#a6c3dc', horizon: '#e2e8dc' },
+      haze: '#c9d6df',
+      far: '#61806e',
+      farAlt: '#728c6a',
+      mid: '#9aa35f',
+      midAlt: '#c3b16a',
+      near: '#6f8a4c',
+      nearAlt: '#8ea05e',
+      foliage: '#7b9a52',
+      foliageShade: '#5a7a42',
+      foliageAlt: '#3f5c45',
+      foliageAltShade: '#2f4838',
+      trunk: '#5a4a3a',
+      wall: '#8c7458',
+      wallShade: '#6a5642',
+      wallAlt: '#a08766',
+      roof: '#78705f',
+      roofShade: '#5c5649',
+      roofAlt: '#4f7d68',
+      trim: '#86a3c4',
+      opening: '#3f3a34',
+      stone: '#a19c8e',
+      stoneShade: '#7d796d',
+      metal: '#5c5a54',
+      metalShade: '#45433e',
+      water: '#8ba7b3',
+      waterLight: '#b9ccd2',
+      pale: '#ece9dc',
+      ground: '#8d9c5c',
+      groundLight: '#a4b073',
+      groundDark: '#768650',
+      track: '#b4a67e',
+      soil: '#76604a',
+      soilDark: '#4c3d2e',
+      dust: '#b9aa86',
+      tuft: '#64803d',
+      pebble: '#9b968a',
+      fg: '#33422a',
+      fgAlt: '#465531',
+    },
+    layers: {
+      far: { top: 196, haze: 0.6, mist: 0.32, mistHeight: 56 },
+      mid: { top: 214, haze: 0.34, mist: 0.26, mistHeight: 44 },
+      near: { top: 170, haze: 0.13, mist: 0.28, mistHeight: 40 },
+    },
+    cloudCover: 0.36,
+    groundStyle: 'grass',
+    foreground: [
+      { item: 'tuft', count: 12 },
+      { item: 'flower', count: 2 },
+      { item: 'stump', count: 2 },
+      { item: 'stone', count: 2 },
+    ],
+    rain: { darken: 0.2, desaturate: 0.3 },
+    nightTint: '#0b1430',
+    winter: {
+      palette: {
+        sky: { top: '#8d9fb4', mid: '#b6c2ce', horizon: '#dfe3e6' },
+        haze: '#d4dbe1',
+        far: '#8e9ca6',
+        farAlt: '#a9b4bc',
+        mid: '#d6dce1',
+        midAlt: '#c7ced4',
+        near: '#dfe4e8',
+        nearAlt: '#ccd3d9',
+        foliage: '#4f625a',
+        foliageShade: '#3c4d47',
+        foliageAlt: '#3f5249',
+        foliageAltShade: '#2e3e38',
+        trunk: '#55493e',
+        roof: '#e6eaee',
+        roofShade: '#b9c2ca',
+        pale: '#f3f5f7',
+        ground: '#d9dee0',
+        groundLight: '#eef1f2',
+        groundDark: '#a9b3b9',
+        track: '#c4c9c9',
+        dust: '#e2e6e8',
+        tuft: '#8c8a6c',
+        fg: '#3b4544',
+        fgAlt: '#55615f',
+      },
+      cloudCover: 0.62,
+      groundStyle: 'snow',
+      foreground: [
+        { item: 'stump', count: 3 },
+        { item: 'stone', count: 3 },
+        { item: 'tuft', count: 5 },
+        { item: 'post', count: 2 },
+      ],
+    },
+  },
+
+  stalingrad: {
+    id: 'stalingrad',
+    palette: {
+      sky: { top: '#7f8890', mid: '#a9aaa4', horizon: '#d8c9ac' },
+      haze: '#c4bfb2',
+      far: '#8a8d8c',
+      farAlt: '#9b9a92',
+      mid: '#8d8476',
+      midAlt: '#a39a88',
+      near: '#8a7f6e',
+      nearAlt: '#a19683',
+      foliage: '#7f7a4e',
+      foliageShade: '#625e3f',
+      foliageAlt: '#6b6a49',
+      foliageAltShade: '#504f38',
+      trunk: '#4a3f35',
+      wall: '#b3a995',
+      wallShade: '#8c836f',
+      wallAlt: '#a2876a',
+      roof: '#6e655b',
+      roofShade: '#574f47',
+      roofAlt: '#7c6a58',
+      trim: '#d1c8b5',
+      opening: '#2f2b28',
+      stone: '#a69e8f',
+      stoneShade: '#7f786b',
+      metal: '#55524d',
+      metalShade: '#3f3d3a',
+      water: '#7f8f96',
+      waterLight: '#a8b5b8',
+      pale: '#e3ddcf',
+      ground: '#9d907a',
+      groundLight: '#b0a48e',
+      groundDark: '#837763',
+      track: '#aa9e86',
+      soil: '#6a5a47',
+      soilDark: '#43382c',
+      dust: '#b2a58c',
+      tuft: '#7c7651',
+      pebble: '#968e80',
+      fg: '#3a332c',
+      fgAlt: '#4d443a',
+    },
+    layers: {
+      far: { top: 150, haze: 0.58, mist: 0.36, mistHeight: 64 },
+      mid: { top: 176, haze: 0.34, mist: 0.32, mistHeight: 50 },
+      near: { top: 150, haze: 0.14, mist: 0.34, mistHeight: 46 },
+    },
+    cloudCover: 0.6,
+    groundStyle: 'rubble',
+    foreground: [
+      { item: 'rubble', count: 8 },
+      { item: 'stone', count: 4 },
+      { item: 'post', count: 1 },
+      { item: 'tuft', count: 2 },
+    ],
+    rain: { darken: 0.22, desaturate: 0.3 },
+    nightTint: '#0d1228',
+    winter: {
+      palette: {
+        sky: { top: '#8a95a1', mid: '#b2b9bf', horizon: '#dcdcd6' },
+        haze: '#cfd3d6',
+        far: '#9aa1a6',
+        farAlt: '#b3b8bb',
+        mid: '#958e84',
+        midAlt: '#aaa498',
+        near: '#8f877c',
+        nearAlt: '#a69f93',
+        roof: '#e3e7ea',
+        roofShade: '#b8bfc5',
+        pale: '#f1f3f4',
+        water: '#c9d3d8',
+        waterLight: '#e2e8eb',
+        ground: '#d2d6d6',
+        groundLight: '#e6e9ea',
+        groundDark: '#a7aeb1',
+        track: '#bfc2c0',
+        dust: '#dadddd',
+        fg: '#3c3a37',
+        fgAlt: '#55524d',
+      },
+      cloudCover: 0.7,
+      groundStyle: 'snow',
+    },
+  },
+
+  steppe: {
+    id: 'steppe',
+    palette: {
+      sky: { top: '#759cc2', mid: '#abc5d9', horizon: '#e6e6d6' },
+      haze: '#cfd7da',
+      far: '#8c9a8a',
+      farAlt: '#9fa587',
+      mid: '#b1aa76',
+      midAlt: '#c2b47e',
+      near: '#a59d68',
+      nearAlt: '#b9ad74',
+      foliage: '#8a8c58',
+      foliageShade: '#6c6e45',
+      foliageAlt: '#6f7a4f',
+      foliageAltShade: '#56603e',
+      trunk: '#5b4c3c',
+      wall: '#a58f70',
+      wallShade: '#806e56',
+      wallAlt: '#c2ae8a',
+      roof: '#8a7d66',
+      roofShade: '#6b604f',
+      roofAlt: '#b39a62',
+      trim: '#ddd4bf',
+      opening: '#433b33',
+      stone: '#a39b89',
+      stoneShade: '#7e786a',
+      metal: '#5a5852',
+      metalShade: '#44423e',
+      water: '#93a9b1',
+      waterLight: '#bfcfd1',
+      pale: '#eeeadb',
+      ground: '#aba26c',
+      groundLight: '#bdb47f',
+      groundDark: '#918a5b',
+      track: '#c0b48c',
+      soil: '#7b6548',
+      soilDark: '#4f402e',
+      dust: '#c4b791',
+      tuft: '#8e8c50',
+      pebble: '#a19a8a',
+      fg: '#4a4430',
+      fgAlt: '#5d563b',
+    },
+    layers: {
+      far: { top: 232, haze: 0.62, mist: 0.34, mistHeight: 46 },
+      mid: { top: 250, haze: 0.36, mist: 0.26, mistHeight: 36 },
+      near: { top: 222, haze: 0.14, mist: 0.24, mistHeight: 32 },
+    },
+    cloudCover: 0.32,
+    groundStyle: 'steppe',
+    foreground: [
+      { item: 'tuft', count: 13 },
+      { item: 'scrub', count: 3 },
+      { item: 'stone', count: 2 },
+    ],
+    rain: { darken: 0.18, desaturate: 0.26 },
+    nightTint: '#0c1532',
+    winter: {
+      palette: {
+        sky: { top: '#8798ad', mid: '#b4c0cb', horizon: '#e0e3e4' },
+        haze: '#d6dce0',
+        far: '#a4afb7',
+        farAlt: '#b8c0c5',
+        mid: '#d9dee2',
+        midAlt: '#c9d0d5',
+        near: '#e0e5e8',
+        nearAlt: '#cdd4d9',
+        foliage: '#7c7a62',
+        foliageShade: '#5f5e4c',
+        roof: '#e5e9ec',
+        roofShade: '#b8c1c8',
+        pale: '#f4f6f7',
+        ground: '#dadfe1',
+        groundLight: '#eef1f2',
+        groundDark: '#aab4b9',
+        track: '#c6cbca',
+        dust: '#e2e6e8',
+        tuft: '#94906c',
+        fg: '#45494a',
+        fgAlt: '#5c6162',
+      },
+      cloudCover: 0.66,
+      groundStyle: 'snow',
+      foreground: [
+        { item: 'tuft', count: 8 },
+        { item: 'stone', count: 3 },
+        { item: 'post', count: 1 },
+      ],
+    },
+  },
 };
 
 /**
@@ -863,5 +1154,63 @@ export const SCENES = {
     pineClumps: 5,
     pinesPerClump: 4,
     pineHeight: 150,
+  },
+  russiaSummer: {
+    farRidgeY: 262,
+    farRidgeAmp: 14,
+    villageHouses: 8,
+    /** The onion-dome church stands this far across the far strip's tile (0..1). */
+    churchAt: 0.42,
+    domeHeight: 30,
+    midWoodY: 300,
+    midWoodAmp: 10,
+    birches: 70,
+    birchHeight: 40,
+    izbaAt: 0.64,
+    nearBankY: 334,
+    birchClumps: 6,
+    nearBirchHeight: 120,
+    pines: 4,
+    pineHeight: 150,
+    telegraphPoles: 6,
+    poleHeight: 84,
+  },
+  stalingrad: {
+    /** The Volga and its low east bank, far off on the far strip. */
+    riverY: 270,
+    farBankY: 263,
+    /** The skyline of gutted blocks and factory chimneys. */
+    skylineY: 300,
+    farBlocks: 30,
+    chimneys: 7,
+    chimneyHeight: 104,
+    /** The grain elevator stands this far across the far strip's tile (0..1). */
+    elevatorAt: 0.68,
+    elevatorHeight: 92,
+    smokeColumns: 4,
+    midBlocks: 8,
+    midBlockHeight: 96,
+    midBaseY: 330,
+    nearBaseY: 344,
+    nearRuins: 4,
+    nearRuinHeight: 150,
+    rubbleHeaps: 10,
+    deadTrees: 5,
+  },
+  steppe: {
+    farLineY: 300,
+    /** A distant railway embankment with a slow train of wagons and telegraph poles beside it. */
+    railY: 304,
+    wagons: 9,
+    poles: 26,
+    midSwellY: 322,
+    midSwellAmp: 5,
+    balkas: 3,
+    haystacks: 12,
+    nearSwellY: 338,
+    nearSwellAmp: 4,
+    windmillAt: 0.33,
+    windmillHeight: 70,
+    grassClumps: 70,
   },
 } as const;

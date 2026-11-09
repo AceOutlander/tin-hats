@@ -4,7 +4,7 @@
  * colour into the CSS colour it has at a given distance.
  */
 import type { TheatreId, TimeOfDay } from '../../data/schema';
-import { THEATRES, TIME_GRADES, type TheatreDef, type TheatrePalette, type TimeGradeDef } from '../../data/theatres';
+import { THEATRES, TIME_GRADES, type TheatreDef, type TheatrePalette, type TheatreVariant, type TimeGradeDef } from '../../data/theatres';
 import { gradeRgb, hexToRgb, mixRgb, rgbToCss, type Rgb } from './color';
 import type { Rng } from './rng';
 
@@ -12,7 +12,10 @@ import type { Rng } from './rng';
 const MAX_HAZE = 0.9;
 
 export interface Scene {
+  /** The theatre as painted: for the winter variant, with its winter palette, cloud cover, ground and foreground. */
   def: TheatreDef;
+  /** The winter variant: painters lay snow on roofs, trees and ridges. */
+  winter: boolean;
   pal: TheatrePalette;
   time: TimeOfDay;
   grade: TimeGradeDef;
@@ -47,8 +50,23 @@ export interface TheatreArt {
   near: LayerPainter;
 }
 
-export function makeScene(theatre: TheatreId, time: TimeOfDay, seed: number): Scene {
+/** A theatre resolved for its variant: the winter palette and the rest merged over the theatre's own. */
+export function variantDef(theatre: TheatreId, variant: TheatreVariant): TheatreDef {
   const def = THEATRES[theatre];
+  const w = def.winter;
+  if (variant !== 'winter' || w === undefined) return def;
+  return {
+    ...def,
+    palette: { ...def.palette, ...w.palette },
+    cloudCover: w.cloudCover ?? def.cloudCover,
+    groundStyle: w.groundStyle ?? def.groundStyle,
+    foreground: w.foreground ?? def.foreground,
+  };
+}
+
+export function makeScene(theatre: TheatreId, time: TimeOfDay, seed: number, variant: TheatreVariant = 'base'): Scene {
+  const def = variantDef(theatre, variant);
+  const winter = def !== THEATRES[theatre];
   const pal = def.palette;
   const grade = TIME_GRADES[time];
 
@@ -90,6 +108,7 @@ export function makeScene(theatre: TheatreId, time: TimeOfDay, seed: number): Sc
 
   return {
     def,
+    winter,
     pal,
     time,
     grade,

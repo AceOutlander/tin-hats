@@ -58,8 +58,19 @@ export type Order = 'fallBack' | 'hold' | 'advance';
  */
 export type SupportKind = 'artillery' | 'smoke' | 'airStrike' | 'bomber' | 'fighter' | 'recon' | 'katyusha';
 export type Difficulty = 'normal' | 'hard' | 'insane';
-export type TheatreId = 'france' | 'desert' | 'sicily' | 'italy' | 'normandy' | 'holland' | 'germany';
+/**
+ * A backdrop set (src/data/theatres.ts, painters in src/art/backdrops/theatres). The Soviet theatres (FOUNDATIONS.md
+ * 4.7, STALINGRAD.md): russiaSummer (birch woods, rye, izbas), stalingrad (the ruined city, autumn) and steppe (open
+ * land, balkas), each with a winter variant that a winter mission (MissionDef.climate) gets.
+ */
+export type TheatreId = 'france' | 'desert' | 'sicily' | 'italy' | 'normandy' | 'holland' | 'germany' | 'russiaSummer' | 'stalingrad' | 'steppe';
 export type TimeOfDay = 'dawn' | 'day' | 'overcast' | 'dusk' | 'night';
+/**
+ * Scripted weather (FOUNDATIONS.md 4.7): sim state that caps the visible range of direct fire for both sides (fog,
+ * blizzard, dust, smoke), grounds aircraft (fog, blizzard) and slows men on foot (blizzard); the view draws its sky and
+ * particles. The numbers are WEATHER_SIM in src/data/weather.ts.
+ */
+export type WeatherKind = 'clear' | 'overcast' | 'rain' | 'snow' | 'blizzard' | 'fog' | 'dust' | 'smoke';
 /**
  * A label for the HUD, the briefing card and medal scoring (FOUNDATIONS.md 3.1, 7.1); behaviour comes from the phases.
  * assault = take the enemy HQ (or make it surrender); survival = timed, no enemy HQ; hold = take something, then hold
@@ -816,7 +827,10 @@ export interface SectorDef {
   from: number;
   to: number;
   ground: GroundId;
-  /** Its own backdrop set (at most two per mission). Data only until the backdrop crossfade is built. */
+  /**
+   * Its own backdrop set (at most two per mission: the mission's theatre and one other); absent = the mission's
+   * theatre. The view crossfades the backdrop strips over 600 wu where neighbouring sectors differ (FOUNDATIONS.md 4.1).
+   */
   backdrop?: TheatreId;
   /** Minimap and briefing name ("Kholm Gate", "Red October"). */
   label?: string;
@@ -902,7 +916,12 @@ export type BannerSound = 'horn' | 'alarm' | 'boss';
  * support = offer or withdraw a call-in; disguise = units of `side` inside [x0, x1] are not chosen as targets for
  *   `seconds` unless they fire; reveal = enemy health shown to `side` over the whole field for `seconds`;
  * setOwner = a trench or pillbox changes hands; endMission = the battle ends now with this winner (a surrender), with
- *   `text` as the closing announcement.
+ *   `text` as the closing announcement;
+ * weather / time = the weather or the time of day changes over `over` seconds (FOUNDATIONS.md 4.7): the sim switches
+ *   at the midpoint, the view crossfades over the whole span;
+ * flare = a flare over x: visibility 1 within `width` wu of it (default WEATHER_SIM.flare.width 1,500, centred) for
+ *   `seconds` (default 20), for both sides; `side` fired it (default 1); `color` is the view's (default white; green
+ *   for a signal).
  */
 export type MissionEventDef = { id?: string } & (
   | { type: 'wave'; when: MissionTrigger; side: Side; forces: ForceDef[]; announce?: string }
@@ -936,6 +955,9 @@ export type MissionEventDef = { id?: string } & (
       owner: Side | -1;
     }
   | { type: 'endMission'; when: MissionTrigger; winner: Side; text: string }
+  | { type: 'weather'; when: MissionTrigger; to: WeatherKind; over: number }
+  | { type: 'time'; when: MissionTrigger; to: TimeOfDay; over: number }
+  | { type: 'flare'; when: MissionTrigger; x: number; side?: Side; seconds?: number; width?: number; color?: 'white' | 'green' }
 );
 
 /**
@@ -1092,7 +1114,15 @@ export interface MissionDef {
   /** The briefing's intelligence: a few short lines on each side (shown under the orders). Absent = none shown. */
   intel?: MissionIntel;
   theatre: TheatreId;
+  /** The time of day at the start; `time` events change it during the battle (FOUNDATIONS.md 4.7). */
   timeOfDay: TimeOfDay;
+  /**
+   * Scripted weather at the start (FOUNDATIONS.md 4.7); `weather` events change it. Set (or any weather event) = the
+   * view's random rain is off. Absent = no weather in the sim (as 'clear') and the random rain as before.
+   */
+  weather?: WeatherKind;
+  /** Visibility at night for this mission (default WEATHER_SIM.time.night; a full moon is about 0.8). */
+  nightVisibility?: number;
   mode: MissionMode;
   /** Battlefield length in wu (1000 wu is about one screen). */
   length: number;
