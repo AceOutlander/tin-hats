@@ -26,6 +26,7 @@ export const M08: MissionDef = {
   length: 11000,
   newUnit: 'tank',
   newSupport: null,
+  unlocks: ['apc'],
   units: [
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'],

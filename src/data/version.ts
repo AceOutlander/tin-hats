@@ -20,6 +20,16 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.12.0',
+    items: [
+      'Units are unlocked by playing the missions again, not bought. Once unlocked, a unit can be used in every mission.',
+      'Medals you spent on units have been given back. Units you bought stay yours.',
+      'Medals now buy Quartermaster upgrades and the plane call-ins.',
+      'Upgrades re-priced: 10, 20 and 30 medals for levels 1, 2 and 3 (any difference was refunded).',
+      'The Carrier, Flamethrower, Lieutenant and Bofors crew are unlocked in missions 8, 6, 5 and 10.',
+    ],
+  },
+  {
     version: '0.11.0',
     items: [
       'A hidden admin panel for testing (behind a passcode; players never see it).',

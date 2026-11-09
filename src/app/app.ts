@@ -30,6 +30,8 @@ import {
   loadSave,
   maxLevel,
   missionRoster,
+  newsFor,
+  withNews,
   nextMissionId,
   recordClear,
   recordWin,
@@ -43,7 +45,7 @@ import {
 import type { BattleView, WeatherMode } from '../render/contracts';
 import { createBattle } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
-import { buildCampaignView, buildResult } from './campaignView';
+import { buildCampaignView, buildResult, progressOf } from './campaignView';
 import { FpsMeter } from './fpsMeter';
 import { GameLoop } from './loop';
 import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
@@ -245,7 +247,10 @@ export class App implements AppApi {
       this.save.lastMission = mission.id;
       this.persist();
     }
-    const played = armoury && campaign ? applyRoster(mission, missionRoster(this.save, mission)) : mission;
+    // "New:" hints and tips only for what this mission really unlocks for this player (owner, 2026-11-09).
+    const p = progressOf(this.save, this.missions, this.unlockedAll);
+    const shown = campaign ? withNews(mission, newsFor(this.save, this.missions, p.progressed, mission)) : mission;
+    const played = armoury && campaign ? applyRoster(shown, missionRoster(this.save, mission, p.unlocked)) : shown;
     this.launched = { mission, armoury };
     this.lastMedals = null;
     const battle = createBattle({
@@ -261,7 +266,7 @@ export class App implements AppApi {
     this.view.setDarkness(0);
     this.darkness = 0;
     // Guided tips belong to the campaign and to Basic Training: the proving ground and a bot at the controls need none.
-    this.tutorial = (campaign || isTraining(mission)) && !this.autopilot ? new Tutorial(mission, this.tips) : null;
+    this.tutorial = (campaign || isTraining(mission)) && !this.autopilot ? new Tutorial(shown, this.tips) : null;
     this.session = new BattleSession(battle, difficulty, seed, this.view, this.audio, {
       hints: () => this.save.settings.hints,
       sound: () => this.loop.timeScale <= APP.soundMaxTimeScale,

@@ -10,6 +10,7 @@ import { TipMemory, Tutorial, isTraining, stepsFor, trainingSteps } from '../../
 import { campaignOf } from '../../src/data/campaigns';
 import { FACTIONS, nationCallsIn, nationFields } from '../../src/data/factions';
 import { MEDALS } from '../../src/data/medals';
+import { UPGRADES } from '../../src/data/upgrades';
 import { MISSIONS } from '../../src/data/missions';
 import { BASIC_TRAINING, BASIC_TRAINING_ID, trainingMission } from '../../src/data/missions/training';
 import type { MissionDef } from '../../src/data/schema';
@@ -353,10 +354,12 @@ describe('the course', () => {
 });
 
 describe('the reward', () => {
-  it('pays once, the first time, and is enough for the first unit in the Armoury', () => {
-    const units = MEDALS.armoury.filter((a) => a.type === 'unit');
-    expect(MEDALS.trainingReward).toBeGreaterThanOrEqual(units[0].price);
-    expect(MEDALS.trainingReward).toBeLessThan(MEDALS.perfect);
+  // Units are unlocked by missions since v0.12.0, so the reward buys upgrades: a few first levels, no more than a
+  // couple of perfect wins.
+  it('pays once, the first time, and is enough for a few first upgrade levels', () => {
+    const first = UPGRADES[0].levelCosts?.[0] ?? UPGRADES[0].costPerLevel;
+    expect(MEDALS.trainingReward).toBeGreaterThanOrEqual(3 * first);
+    expect(MEDALS.trainingReward).toBeLessThanOrEqual(2 * MEDALS.perfect);
     const save = defaultSave();
     expect(trainingOffered(save)).toBe(true);
     expect(completeTraining(save)).toBe(MEDALS.trainingReward);
@@ -468,7 +471,7 @@ describe('Basic Training in the app', () => {
   });
 });
 
-describe('the save, version 8', () => {
+describe('the save, version 9', () => {
   /** A save as version 6 wrote it: medals and the Armoury, no Basic Training. */
   const v6 = {
     version: 6,
@@ -488,13 +491,14 @@ describe('the save, version 8', () => {
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v6) }));
     expect(loaded.status).toBe('ok');
     expect(loaded.data.training).toEqual({ done: false, skipped: false });
-    expect(loaded.data.medals).toBe(55);
+    // Version 8 gave back the 90 medals the Bren gun cost; it stays unlocked.
+    expect(loaded.data.medals).toBe(55 + (MEDALS.unitRefunds.lmg ?? 0));
     expect(loaded.data.armoury).toEqual(['lmg']);
     expect(loaded.data.cleared).toEqual(v6.cleared);
     expect(loaded.data.lastMission).toBe(1);
     // An old player can still earn the reward once.
     expect(completeTraining(loaded.data)).toBe(MEDALS.trainingReward);
-    expect(loaded.data.medals).toBe(55 + MEDALS.trainingReward);
+    expect(loaded.data.medals).toBe(55 + (MEDALS.unitRefunds.lmg ?? 0) + MEDALS.trainingReward);
   });
 
   it('does not change the document it was given', () => {

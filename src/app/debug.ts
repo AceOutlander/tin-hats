@@ -139,6 +139,8 @@ export interface DebugMission {
   timer: { seconds: number; onExpire: 'win' | 'lose'; label: string } | null;
   newUnit: UnitKind | null;
   newSupport: SupportKind | null;
+  /** Further unit types the mission unlocks (MissionDef.unlocks). */
+  unlocks: UnitKind[];
   /** What the player may train and call in. */
   units: UnitKind[];
   supports: SupportKind[];
@@ -354,6 +356,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         timer: m.timer ? { ...m.timer } : null,
         newUnit: m.newUnit,
         newSupport: m.newSupport,
+        unlocks: [...(m.unlocks ?? [])],
         units: [...m.units[0]],
         supports: [...m.supports[0]],
         enemyHq: m.start[1].hasHq,

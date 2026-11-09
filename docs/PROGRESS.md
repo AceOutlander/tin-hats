@@ -44,9 +44,20 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
-## Latest state (2026-11-09 ~00:55 UTC; read this first)
+## Latest state (2026-11-09 evening run; read this first)
 
-Live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
+v0.12.0 on main: units unlocked by missions again (DECISIONS 280). Medals buy upgrades (re-priced 10/20/30 a level)
+and the plane call-ins; save version 8 refunds medals spent on units and keeps them unlocked; NEW cards and "New:"
+hints only for what a mission really unlocks; Lieutenant m5, Flamethrower m6, Carrier m8, Bofors m10. Balance bot: a
+first Normal run earns 250 medals, nothing on loan, buys 25 of 93 upgrade levels. See below for push status.
+
+Stalingrad branch (worktree C:\dev\tin-hats-stalingrad): the uncommitted WIP there was committed as 0857b26 and main
+(v0.11.0) merged in as 5af2847. Typecheck, lint (apart from a stray untracked dist-bt/ folder), build pass; unit 1281/1282:
+basic-training.test.ts "pays enough for the first unit in the Armoury" must be redefined now units are not sold. The
+branch has Soviet art, music, missions 1001-1010 data and Basic Training; it does NOT have the Money rename or the prep
+phase yet. Its Basic Training save step is 7 -> 8 and clashes with main's new 7 -> 8: on the next merge it becomes 8 -> 9.
+
+Before this run: live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
 missions lend 2 of every expected type not bought, every bought type usable in every mission), the playtest follow-ups
 (fire-like flame, gas mask, cap 100 everywhere with maxUnits 216, short button labels, collapsible call-ins), cheap lag
 wins (Show FPS, body cap, countClusters sweep, budget tests), the campaign map theme "Roll of Honour", the version

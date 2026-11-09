@@ -304,7 +304,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'armoury',
-      text: 'Spend medals in the Armoury, on the campaign map: new unit types and call-ins.',
+      text: 'Missions unlock new unit types. Spend medals in the Armoury, on the campaign map, on plane call-ins.',
       target: 'field',
       after: ['medals'],
       when: [],
