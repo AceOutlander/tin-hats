@@ -44,6 +44,20 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
+## Stalingrad state at 16:25Z (owner back; read this first)
+
+- `stalingrad` (C:dev	in-hats-stalingrad) at c584b01 + 54b4b52: everything merged (art, music, systems, era, campaign
+  map, placeholders removed, the five engine clusters). Unit 1772/1772, lint, typecheck, build pass. Interim
+  docs/MORNING_REPORT.md there.
+- Running: (a) review of stalingrad-core (engine workflow wpl7t6j6q, run wf_ae472a8e-d30); its later commits must be
+  merged into stalingrad when it ends; (b) workflow wkts2xarg (run wf_0d1c849d-882, script
+  stalingrad-prelaunch-changes) on stalingrad, one agent at a time: the owner's fixes (Begin under 2 s, labels that
+  fit, compact Deploy at), the medal economy on the Stick War: Legacy benchmark with call-in charges and a Shop
+  (research: scratchpad stickwar-economy.json), realistic artillery, tank cannons, a verifier. QUEUE.md has the
+  owner's words.
+- Then: the missions/playtest workflow (scratchpad stalingrad-missions.js: ten missions two at a time, Basic Training,
+  campaign critic, final checks, MORNING_REPORT). Stalingrad stays off the live site until the owner says "push to live".
+
 ## RESUMED after the usage limit (main session c19d9338, 13:12Z); was paused at 12:25Z
 
 Paused cleanly at 87%. Nothing pushed; live is still Beta v0.12.0. No test browsers, servers or node processes running.
