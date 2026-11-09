@@ -258,7 +258,7 @@ describe('side objectives', () => {
 describe('medal scoring by mode', () => {
   it('scores survival, hold and delay fixed, assault and special timed, and survival exactly as before', () => {
     expect(['assault', 'survival', 'hold', 'delay', 'special'].map((m) => defaultScoring(m as MissionDef['mode']))).toEqual(['timed', 'fixed', 'fixed', 'fixed', 'timed']);
-    const def = MEDALS.missions[1001];
+    const def = MEDALS.fallback;
     const old = scoreWin('survival', def, { seconds: 800, lost: 30, hqFrac: 0.7 }, 'normal', 0);
     const w = MEDALS.weights.survival;
     expect(old.score).toBeCloseTo(w.casualties * old.casualties.score + w.hq * (old.hq?.score ?? 0), 12);

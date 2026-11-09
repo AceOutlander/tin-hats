@@ -348,7 +348,8 @@ describe('new units and supports in later missions', () => {
     r.run(0.5);
     expect(r.tip()).toBeNull();
     expect(r.memory.has('new-unit-medic')).toBe(true);
-    // Then the new support.
+    // Then the new support, once the mission offers it: the Il-2s fly from phase 3, when the weather clears.
+    r.session.battle.admin({ type: 'jumpPhase', phase: 'highway' });
     r.run(TUTORIAL.gapSeconds + 0.5);
     expect(r.tip()?.target).toBe('support-airStrike');
   });

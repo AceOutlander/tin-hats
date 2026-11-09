@@ -391,8 +391,17 @@ describe('what the HUD shows of a mission', () => {
     app.startMission(ASSAULT, 'normal');
     expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('artillery');
     app.startMission(1003, 'normal');
+    // The Katyusha comes up behind the halt in phase 2, the Il-2s fly from phase 3 at Klin (support events,
+    // FOUNDATIONS.md 3.3): their buttons come with them.
+    expect(app.session?.hud.state.supports.map((b) => b.kind)).not.toContain('katyusha');
+    app.session?.battle.admin({ type: 'jumpPhase', phase: 'again' });
+    app.session?.battle.step();
+    app.session?.fill(false, false);
     expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('katyusha');
     app.startMission(1004, 'normal');
+    app.session?.battle.admin({ type: 'jumpPhase', phase: 'highway' });
+    app.session?.battle.step();
+    app.session?.fill(false, false);
     expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('airStrike');
   });
 });

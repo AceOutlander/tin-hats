@@ -160,14 +160,45 @@ export const MEDALS: MedalTunables = {
   // only; their seconds are the clock plus the prep phase. Tuning them on real play is still open. No mission lends
   // anything: each unlocks its own types.
   missions: {
-    1001: { targetSeconds: 780, roughSeconds: 1560, targetLost: 15, roughLost: 75, loans: [], expects: STAL_1001 },
-    1002: { targetSeconds: 630, roughSeconds: 1620, targetLost: 21, roughLost: 105, loans: [], expects: STAL_1002 },
-    1003: { targetSeconds: 870, roughSeconds: 2160, targetLost: 36, roughLost: 180, loans: [], expects: STAL_1003 },
+    // The brief's scoring (STALINGRAD.md, each mission's Medals): fixed with HQ health 0.3.
+    1001: { targetSeconds: 780, roughSeconds: 1560, targetLost: 15, roughLost: 75, loans: [], expects: STAL_1001, hqHealthWeight: 0.3 },
+    // A delay: fixed, with a kill bonus for the tanks beyond the twelve of the objective.
+    1002: {
+      targetSeconds: 630,
+      roughSeconds: 1620,
+      targetLost: 21,
+      roughLost: 105,
+      loans: [],
+      expects: STAL_1002,
+      killBonus: { kinds: ['lightTank', 'tank', 'heavyTank'], above: 12, per: 0.01, max: 0.1 },
+    },
+    // A hold: the two holds are fixed, Katukov's counter-attack is timed (from its phase; first cut from the bot's 4 to 5 min).
+    1003: { targetSeconds: 220, roughSeconds: 600, targetLost: 36, roughLost: 180, loans: [], expects: STAL_1003, scoring: 'timed', timedFrom: 'katukov' },
     1004: { targetSeconds: 630, roughSeconds: 1560, targetLost: 58, roughLost: 290, loans: [], expects: STAL_1004 },
     1005: { targetSeconds: 510, roughSeconds: 1260, targetLost: 47, roughLost: 235, loans: [], expects: STAL_1005 },
-    1006: { targetSeconds: 870, roughSeconds: 2160, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006 },
-    1007: { targetSeconds: 1380, roughSeconds: 2760, targetLost: 29, roughLost: 145, loans: [], expects: STAL_1007 },
-    1008: { targetSeconds: 1320, roughSeconds: 2640, targetLost: 43, roughLost: 215, loans: [], expects: STAL_1007 },
+    // A hold scored on time, as the brief asks.
+    1006: { targetSeconds: 870, roughSeconds: 2160, targetLost: 109, roughLost: 545, loans: [], expects: STAL_1006, scoring: 'timed' },
+    // Fixed: HQ health 0.2 and the house itself 0.2 (held at the end).
+    1007: {
+      targetSeconds: 1380,
+      roughSeconds: 2760,
+      targetLost: 29,
+      roughLost: 145,
+      loans: [],
+      expects: STAL_1007,
+      hqHealthWeight: 0.2,
+      structureWeight: { ref: { trench: 2 }, weight: 0.2 },
+    },
+    // The brief's delay: fixed, with a kill bonus.
+    1008: {
+      targetSeconds: 1320,
+      roughSeconds: 2640,
+      targetLost: 43,
+      roughLost: 215,
+      loans: [],
+      expects: STAL_1007,
+      killBonus: { kinds: ['tank'], above: 12, per: 0.01, max: 0.1 },
+    },
     1009: { targetSeconds: 1260, roughSeconds: 3120, targetLost: 56, roughLost: 280, loans: [], expects: STAL_1009 },
     1010: { targetSeconds: 480, roughSeconds: 1200, targetLost: 31, roughLost: 155, loans: [], expects: STAL_1009 },
   },

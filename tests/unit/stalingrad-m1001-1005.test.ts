@@ -26,13 +26,13 @@ const M = (id: number): MissionDef => {
 };
 const MINE = IDS.map((id) => [id, M(id)] as const);
 
-/** The design's key, mode, map length and date of each mission (STALINGRAD.md). */
+/** The design's key, mode, map length and date of each mission (STALINGRAD.md; the modes are the brief's summary table's). */
 const SPEC: Record<number, { key: string; length: number; date: string; mode: MissionDef['mode'] }> = {
   1001: { key: 'brest', length: 7000, date: '22 June 1941', mode: 'survival' },
-  1002: { key: 'dubno', length: 22000, date: '27 June 1941', mode: 'assault' },
-  1003: { key: 'volokolamsk', length: 16000, date: '16 November 1941', mode: 'assault' },
+  1002: { key: 'dubno', length: 22000, date: '27 June 1941', mode: 'delay' },
+  1003: { key: 'volokolamsk', length: 16000, date: '16 November 1941', mode: 'hold' },
   1004: { key: 'klin', length: 26000, date: '12 December 1941', mode: 'assault' },
-  1005: { key: 'volga', length: 12000, date: '15 September 1942', mode: 'assault' },
+  1005: { key: 'volga', length: 12000, date: '15 September 1942', mode: 'special' },
 };
 
 function startPop(m: MissionDef, side: Side): number {
