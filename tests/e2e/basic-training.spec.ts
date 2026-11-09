@@ -248,8 +248,7 @@ test.describe('Basic Training', () => {
     }
     expect(s.over).toBe(true);
     expect(s.winner).toBe(0);
-    // The scripted student waits for every picture and lesson gap, so it is allowed two minutes over a player's course.
-    expect(s.time / 60, 'battle minutes').toBeLessThanOrEqual(BASIC_TRAINING.expectedMinutes[1] + 2);
+    expect(s.time / 60, 'battle minutes').toBeLessThanOrEqual(BASIC_TRAINING.expectedMinutes[1]);
 
     // The result: Basic Training passed, the one-time reward, and the Armoury next.
     await expect(arrived(page, 'result')).toBeVisible({ timeout: 30_000 });
