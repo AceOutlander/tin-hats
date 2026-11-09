@@ -1153,7 +1153,7 @@ Expected 15 to 26 minutes (DECISIONS 436; the bot takes about 18 with or without
 - **Player**: 5 sappers; 8 T-34/76; 2 KV-1S; 2 T-70; 16 riflemen; 8 PPSh troopers; 4 conscripts squads; 2 DP; 2
   mortars; 2 snipers; 1 flamethrower; 900 Money. Supports: artillery, Katyusha, smoke, Il-2, Pe-2 (bomber), recon.
   Population at start about 95.
-- **Loans**: 2 flamethrowers (phase 3, resend 180 s); 4 PTRD teams (phase 2); 2 Universal Carriers.
+- **Loans**: 2 flamethrowers (phase 3, resend 180 s); 4 PTRD teams (phase 2); 2 Universal Carriers. Lent charges: Il-2 2 (the Flak at Gumrak), Pe-2 2 (the strongpoints); the guns are scripted (DECISIONS 437; was artillery 9, Katyusha 3, Il-2 6, Pe-2 3, Po-2 10, smoke 2).
 - **Enemy**:
   - HQ, `incomeMul` 0.5 (starving).
   - Start: T1 and T2 garrisons (6 riflemen, 2 MG each); Pitomnik (8 riflemen, 2 MG, 1 Pak 40, 1 immobile Pz III);
@@ -1165,16 +1165,22 @@ Expected 15 to 26 minutes (DECISIONS 436; the bot takes about 18 with or without
 
 ### Phases and events
 
-1. **"Seven thousand guns"** (capture P1).
-   - 0 s: banner "The bombardment!"; 5 free barrages (side 0) on T1, T2 and the minefield, 6 s apart.
+1. **"Seven thousand guns"** (take P1 and hold it 90 s; a 12-minute clock, lost if it runs out: DECISIONS 437).
+   - 0 s: banner "The bombardment!"; 5 free barrages (side 0) on T1, T2 and the minefield, 6 s apart, each landing
+     one shell at a time over 8 to 12 s.
    - Hint: "Artillery breaks the mines too. Then send the sappers to clear the rest."
-   - 300 s: counter-attack from Pitomnik.
-2. **"Gumrak"** (capture P2). Weather `snow`, then `blizzard` at 300 s for 120 s.
+   - The counter-attack on Pitomnik as it falls (was 300 s: the airfield falls at about 3 min). Pitomnik lost, the
+     German income falls to a quarter (no transports land).
+2. **"Gumrak"** (capture P2). Weather `snow`, then `blizzard` 60 s in, easing at the ruins (was 300 s for 120 s;
+   the phase lasts about 2 min). Gumrak lost, the German income falls to 0.15 (parachutes only).
    - Hint: "Their tanks have no fuel. They cannot move, but they can still shoot."
-3. **"The ruins"** (capture P3).
+3. **"The ruins"** (take P3 and hold it 200 s while the 21st Army meets the 13th Guards and splits the pocket).
    - Every 120 s: sniper and MG nests reveal themselves (an announce, and German `posture: 'hold'`).
-   - 200 s: pioneers counter-attack.
-4. **"The Univermag"**: surrender when the enemy HQ falls below 25%.
+   - 200 s: pioneers counter-attack; during the hold two break-back attempts (a Panzer, 4 MP40, 4 riflemen at
+     90 s; 2 flamethrowers and 4 MP40 at 200 s).
+4. **"The Univermag"**: surrender when the enemy HQ (5 x health, dug deep) falls below 25%.
+   - 5 s: the last of the Sixth Army out of the cellars (6 riflemen, 4 MP40, 2 MG round the square).
+   - The Don Front's guns on the square at 30 s and 200 s (12 shells over 30 s each) and Katyushas at 330 s.
    - 100 s: the last German armour (1 StuG, mobile) plus every unit (`posture: 'counterattack'`).
    - On surrender: `endMission` with the announcement "The southern pocket surrenders. Two days later the northern
      pocket lays down its arms. The battle of Stalingrad is over." The regimental colour is raised on the ruins in the
@@ -1188,7 +1194,7 @@ Expected 15 to 26 minutes (DECISIONS 436; the bot takes about 18 with or without
 
 ### Medals
 
-Timed: target 30 minutes, target casualties 65.
+Timed: target about 17 minutes (1,000 s; rough 2,000 s), target casualties 65 (DECISIONS 437; was 8 minutes and 31).
 
 ### Music, weather, time
 
@@ -1206,7 +1212,7 @@ Timed: target 30 minutes, target casualties 65.
    infantry (magnetic charges and Pak 40s in the rubble).
 4. Mass everything on the Univermag.
 
-Expected 28 to 32 minutes.
+Expected 15 to 26 minutes for the bot (the owner's 15 to 30 minute goal; DECISIONS 437). Was 28 to 32.
 
 ---
 
@@ -1223,7 +1229,7 @@ Expected 28 to 32 minutes.
 | 7 | 1007 | pavlov | Sep to Nov 1942 | survival | yes | 7,000 | 22 | fixed / 20 | pavlov | smoke, day-night cycle, snow |
 | 8 | 1008 | factories | 14 Oct 1942 | delay | yes | 14,000 | 21 | fixed / 60 | factories | smoke and dust, day to night |
 | 9 | 1009 | uranus | 19 to 23 Nov 1942 | assault | no | 30,000 | 28 | 28 / 60 | uranus | fog, blizzard, dawn to night |
-| 10 | 1010 | ring | Jan 1943 | assault (surrender) | no | 28,000 | 30 | 30 / 65 | ring | freezing, snow, day |
+| 10 | 1010 | ring | Jan 1943 | assault (surrender) | no | 28,000 | 18 to 25 | 17 / 65 | ring | freezing, snow, day |
 
 New tracks: 10 (`brest` to `ring`), plus the theme `sovietWinter` and the map track `stalingradMap`. Missions 7, 8, 9
 and 10 feature tanks or anti-tank fights; 8 to 10 feature tanks heavily (the owner's "last few generally feature

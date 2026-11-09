@@ -280,7 +280,9 @@ export const MEDALS: MedalTunables = {
       killBonus: { kinds: ['tank'], above: 12, per: 0.01, max: 0.1 },
     },
     1009: { targetSeconds: 1260, roughSeconds: 3120, targetLost: 56, roughLost: 280, loans: [], expects: STAL_1009 },
-    1010: { targetSeconds: 480, roughSeconds: 1200, targetLost: 31, roughLost: 155, loans: [], expects: STAL_1009 },
+    // Retuned with the mission (DECISIONS 437): about 0.8 of the bot's median between unlimited calls (18.5 min) and no
+    // call-in (23.7 min) for a perfect time, its slow no-call wins for a rough one; the brief's 65 casualties.
+    1010: { targetSeconds: 1000, roughSeconds: 2000, targetLost: 65, roughLost: 325, loans: [], expects: STAL_1009 },
   },
   // Every Stalingrad mission was designed and tuned around its own call-ins (MissionDef.supports, used without limit
   // before charges): the director's support-enable events (1003 and 1007 the Katyusha, 1004 the Il-2, 1009 the Il-2
@@ -312,13 +314,11 @@ export const MEDALS: MedalTunables = {
       { kind: 'airStrike', count: 2 },
       { kind: 'recon', count: 2 },
     ],
+    // 1010 lends only the brief's Il-2s (the Flak at Gumrak) and the Pe-2 it introduces (the strongpoints) since its
+    // tuning (DECISIONS 437): the five opening barrages and the Don Front's guns on the square are scripted.
     1010: [
-      { kind: 'artillery', count: 9 },
-      { kind: 'katyusha', count: 3 },
-      { kind: 'airStrike', count: 6 },
-      { kind: 'bomber', count: 3 },
-      { kind: 'recon', count: 10 },
-      { kind: 'smoke', count: 2 },
+      { kind: 'airStrike', count: 2 },
+      { kind: 'bomber', count: 2 },
     ],
   },
   fallback: { targetSeconds: 300, roughSeconds: 900, targetLost: 10, roughLost: 60, loans: [], expects: ['sapper', 'rifle'] },

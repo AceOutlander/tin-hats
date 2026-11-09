@@ -61,7 +61,7 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1007 Pavlov's House | survival | take the house, day one, night one, day two, last night | capture with a 180 s deadline, prep after phase 0, pointLost (day one), Stuka raid, Katyusha for the last night, artillery cooldown 90 s; the trench stays open, no German inside; house health in the score |
 | 1008 Tractor Factory | survival (scored as the brief's delay) | 3 x 420 s under the clock | enemyReached x 2,000 count 6, barrage, Stukas, heavy bomb, Nebelwerfer, the far bank's barrages on each tank attack (DECISIONS 435); machine shops at dark (`atEnd`), 12 tanks; kill bonus |
 | 1009 Uranus | assault | Siren, steppe, Kalach bridge, Sovetsky, link-up (hold 270 s) | side 0's free barrages and Katyusha, the Front's guns and two Il-2 raids on the Don hills, Il-2 and Po-2 from phase 2, disguise, forward spawns, the 4th Tank Corps, the depot's income cut, green flares on the hold (DECISIONS 436); the bridge in 180 s (`withinPhase`), twelve tanks |
-| 1010 Ring | assault (surrender) | guns, Gumrak, ruins, Univermag | five free barrages, frozen tanks, German artillery cooldown 180 s, nests (hold postures), Nebelwerfer, last counter-attack, surrender at 25% with the closing words; Pitomnik in 8 min, Gumrak without a tank lost, under 28 min |
+| 1010 Ring | assault (surrender) | guns (hold Pitomnik 90 s, 12-min clock), Gumrak, ruins (hold 200 s), Univermag | five free barrages, frozen tanks, the Flak pair, German artillery cooldown 180 s, the German income cut at Pitomnik and Gumrak, nests (hold postures), Nebelwerfer, two break-back attempts, the cellars' last men, the Don Front's guns on the square, last counter-attack, surrender at 25% with the closing words (DECISIONS 437); Pitomnik in 8 min, Gumrak's Flak without a tank lost, under 28 min |
 
 **Waits for** (other jobs build these on the director; capture points, forward spawns and Fall Back to them are in,
 see "The long-map battlefield", and so are buildings and floors, see "Buildings, rubble and cover props", weather, time
@@ -417,7 +417,7 @@ Every new save (and every save converted to version 11) starts with 3 smoke and 
 | 1007 Pavlov's House | Katyusha 1 (DECISIONS 434; was artillery 6, Katyusha 1) |
 | 1008 Tractor Factory | (none) (DECISIONS 435; was artillery 14, Katyusha 5) |
 | 1009 Uranus | Il-2 2, Po-2 2 (DECISIONS 436; was artillery 14, Katyusha 6, smoke 5, Il-2 3, Po-2 5) |
-| 1010 Ring | artillery 9, Katyusha 3, Il-2 6, Pe-2 3, Po-2 10, smoke 2 |
+| 1010 Ring | Il-2 2, Pe-2 2 (DECISIONS 437; was artillery 9, Katyusha 3, Il-2 6, Pe-2 3, Po-2 10, smoke 2) |
 
 **Enemy AI**: not limited by charges; its own rules (the mission's side-1 list and events, cooldowns, 10 s between
 calls, decisions every 1 / 0.7 / 0.5 s by difficulty) and the planes' old in-battle prices (bomber 300, fighter 180,

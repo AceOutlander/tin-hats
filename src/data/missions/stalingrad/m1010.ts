@@ -18,7 +18,10 @@ import type { MissionDef } from '../../schema';
  * nests show themselves every 120 s and the Germans hold their positions (the three points are open ground taken by
  * holding it 10 s once the trench in it is cleared, and forward spawns once ours); the Univermag, whose HQ surrenders
  * below 25% (the closing words are scripted). The tanks without fuel cannot move (leash 0); the German artillery is
- * short of shells (a 180 s cooldown). The KV-1S stands in as a T-34 (`tank`); StuG III (look `stug3f`), Panzer III (the
+ * short of shells (a 180 s cooldown). Tuned (DECISIONS 437): Pitomnik is held 90 s against a counter-attack and the
+ * ruins 240 s while the pocket is split (with a break-back attempt), the German income falls with Pitomnik and again
+ * with Gumrak (the airlift ends), the Don Front's guns fire on the square as scripted barrages, and a phase-1 clock
+ * (12 min) ends an offensive that never starts. The KV-1S stands in as a T-34 (`tank`); StuG III (look `stug3f`), Panzer III (the
  * era's Ausf. L) and Panzer IV (look `panzer4g`) are the German `tank` (`lightTank` is the 1939 to 1941 Panzer III
  * Ausf. E), the Pak 40 crews the `at` kind.
  *
@@ -46,7 +49,7 @@ export const M1010: MissionDef = {
     enemy: [
       'The 6th Army, starving and short of shells and fuel',
       'About 100 riflemen and MP40 troopers in trenches and ruins',
-      'About 14 tanks and StuGs, most dug in without fuel',
+      'About 13 tanks and StuGs, most dug in without fuel',
       'Pak teams, flamethrowers; artillery, no aircraft',
     ],
     friendly: [
@@ -98,7 +101,7 @@ export const M1010: MissionDef = {
       hasHq: true,
       supplies: 200,
       // The Univermag's cellars: the last headquarters is dug deep.
-      hqHpMul: 3,
+      hqHpMul: 5,
       hqLook: 'store',
       // Starving and short of everything, shells too.
       supportCooldown: { artillery: 180 },
@@ -119,12 +122,14 @@ export const M1010: MissionDef = {
         { kind: 'lmg', count: 1, buildingId: 1, behaviour: 'garrison' },
         { kind: 'rifle', count: 1, buildingId: 1, behaviour: 'garrison' },
         { kind: 'rifle', count: 2, buildingId: 13, behaviour: 'garrison' },
-        // Gumrak: the station and two assault guns without fuel.
+        // Gumrak: the station and an assault gun without fuel (the brief's one StuG).
         { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 5, behaviour: 'garrison' },
         { kind: 'lmg', count: 1, buildingId: 2, behaviour: 'garrison' },
         { kind: 'rifle', count: 1, buildingId: 2, behaviour: 'garrison' },
-        { kind: 'tank', count: 2, x: 16800, behaviour: 'guard', look: 'stug3f', leash: 0 },
+        { kind: 'tank', count: 1, x: 16800, behaviour: 'guard', look: 'stug3f', leash: 0 },
+        // The Flak 88 pair in the ground role beyond the station (anti-tank teams on guard, as at Dubno).
+        { kind: 'at', count: 2, x: 17200, behaviour: 'guard', leash: 0 },
         // The city's western ruins.
         { kind: 'rifle', count: 2, trenchId: 6, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 6, behaviour: 'garrison' },
@@ -222,9 +227,12 @@ export const M1010: MissionDef = {
     {
       id: 'guns',
       title: 'Seven thousand guns',
-      objectives: [{ id: 'steppe', type: 'capture', point: { point: 'P1' }, text: 'Take Pitomnik' }],
-      // An army that never moves off lets the pocket break out through the jump-off line.
+      // Pitomnik is taken and then held against the counter-attack from the airfield's last defenders.
+      objectives: [{ id: 'steppe', type: 'hold', point: { point: 'P1' }, seconds: 90, text: 'Take Pitomnik and hold it' }],
+      // An army that never moves off lets the pocket break out through the jump-off line, and an offensive that has not
+      // taken the airfield in twelve minutes has stalled (the idle commander's loss; the bot holds it by about 5 min).
       lose: [{ type: 'enemyReached', x: 3200, count: 4 }],
+      timer: { seconds: 720, label: 'Before the offensive stalls', onExpire: 'lose' },
       sideObjectives: [
         { id: 'pitomnik', text: 'Pitomnik in eight minutes', objective: { id: 'pitomnikFast', type: 'capture', point: { point: 'P1' } }, within: 480, bonus: 0.1 },
         { id: 'quick', text: 'Under 28 minutes', within: 1680, bonus: 0.1 },
@@ -238,7 +246,7 @@ export const M1010: MissionDef = {
       sideObjectives: [
         {
           id: 'flak',
-          text: 'Gumrak without losing a tank',
+          text: "Gumrak's Flak without losing a tank",
           objective: { id: 'gumrakTaken', type: 'capture', point: { point: 'P2' } },
           failIf: { type: 'lost', count: 1, kinds: ['tank', 'lightTank', 'heavyTank'] },
           until: 'ruins',
@@ -250,7 +258,8 @@ export const M1010: MissionDef = {
     {
       id: 'ruins',
       title: 'The ruins',
-      objectives: [{ id: 'ruins', type: 'capture', point: { point: 'P3' }, text: 'Clear the western ruins' }],
+      // 26 January: the ruins are held while the 21st Army meets the 13th Guards and splits the pocket.
+      objectives: [{ id: 'ruins', type: 'hold', point: { point: 'P3' }, seconds: 200, text: 'Clear the western ruins and hold them' }],
       next: 'univermag',
     },
     {
@@ -262,17 +271,22 @@ export const M1010: MissionDef = {
   ],
   events: [
     // Snow, the blizzard at Gumrak, clearing in the ruins, dusk at the end (FOUNDATIONS.md 4.7).
-    { id: 'blizzard', type: 'weather', when: { phase: 'gumrak', delay: 300 }, to: 'blizzard', over: 30 },
-    { id: 'blizzardEases', type: 'weather', when: { phase: 'gumrak', delay: 420 }, to: 'snow', over: 30 },
-    { id: 'clears', type: 'weather', when: { phase: 'ruins' }, to: 'clear', over: 60 },
+    // The blizzard comes in over Gumrak once the first Il-2s have had their window, and eases at the city's edge.
+    { id: 'blizzard', type: 'weather', when: { phase: 'gumrak', delay: 60 }, to: 'blizzard', over: 30 },
+    { id: 'blizzardEases', type: 'weather', when: { phase: 'ruins' }, to: 'snow', over: 30 },
+    { id: 'clears', type: 'weather', when: { phase: 'ruins', delay: 120 }, to: 'clear', over: 60 },
+    // Pitomnik lost, the transports cannot land; Gumrak lost, only parachutes: the Sixth Army has nothing left to buy with.
+    { type: 'income', when: { pointCapturedBy: 0, point: { point: 'P1' } }, side: 1, mul: 0.25 },
+    { type: 'income', when: { pointCapturedBy: 0, point: { point: 'P2' } }, side: 1, mul: 0.15 },
     { id: 'dusk', type: 'time', when: { phase: 'univermag' }, to: 'dusk', over: 120 },
     // The bombardment: five free barrages on the first trench, the second and the minefield, 6 s apart.
     { id: 'bombardment', type: 'banner', when: { phase: 'guns' }, text: 'The bombardment!', sound: 'horn' },
-    { id: 'guns1', type: 'barrage', when: { phase: 'guns' }, side: 0, x: 4500, spread: 160, rounds: 10, duration: 3, weapon: 'artilleryShell' },
-    { id: 'guns2', type: 'barrage', when: { phase: 'guns', delay: 6 }, side: 0, x: 7000, spread: 160, rounds: 10, duration: 3, weapon: 'artilleryShell' },
-    { id: 'guns3', type: 'barrage', when: { phase: 'guns', delay: 12 }, side: 0, x: 4200, spread: 120, rounds: 10, duration: 3, weapon: 'artilleryShell' },
-    { id: 'guns4', type: 'barrage', when: { phase: 'guns', delay: 18 }, side: 0, x: 4500, spread: 200, rounds: 10, duration: 3, weapon: 'katyushaRocket' },
-    { id: 'guns5', type: 'barrage', when: { phase: 'guns', delay: 24 }, side: 0, x: 6600, spread: 200, rounds: 10, duration: 3, weapon: 'artilleryShell' },
+    // Each lands one shell at a time (12 rounds over 12 s), so the five overlap into one long bombardment.
+    { id: 'guns1', type: 'barrage', when: { phase: 'guns' }, side: 0, x: 4500, spread: 160, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'guns2', type: 'barrage', when: { phase: 'guns', delay: 6 }, side: 0, x: 7000, spread: 160, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'guns3', type: 'barrage', when: { phase: 'guns', delay: 12 }, side: 0, x: 4200, spread: 120, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'guns4', type: 'barrage', when: { phase: 'guns', delay: 18 }, side: 0, x: 4500, spread: 200, rounds: 16, duration: 8, weapon: 'katyushaRocket' },
+    { id: 'guns5', type: 'barrage', when: { phase: 'guns', delay: 24 }, side: 0, x: 6600, spread: 200, rounds: 12, duration: 12, weapon: 'artilleryShell' },
     // In the ruins the nests show themselves and the Germans hold where they are; once, the Nebelwerfer.
     { id: 'nests', type: 'posture', when: { phaseEvery: 120, phase: 'ruins', from: 120 }, side: 1, posture: 'hold' },
     { id: 'ruinsNebelwerfer', type: 'barrage', when: { phase: 'ruins', delay: 60 }, side: 1, x: 19600, spread: 300, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
@@ -302,15 +316,16 @@ export const M1010: MissionDef = {
       ],
       announce: 'A tank company and four PTRD teams are up.',
     },
+    // The counter-attack on Pitomnik as it falls (the brief's 300 s; the airfield falls at about 170 s).
     {
       type: 'wave',
-      when: { at: 300 },
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 15 },
       side: 1,
       forces: [
-        { kind: 'rifle', count: 4, behaviour: 'assault' },
-        { kind: 'assault', count: 4, behaviour: 'assault' },
+        { kind: 'rifle', count: 4, x: 12600, behaviour: 'assault' },
+        { kind: 'assault', count: 4, x: 12800, behaviour: 'assault' },
       ],
-      announce: 'A counter-attack from Pitomnik!',
+      announce: 'A counter-attack on Pitomnik!',
     },
     // Small, desperate counter-attacks, wherever the ring presses hardest.
     {
@@ -371,6 +386,8 @@ export const M1010: MissionDef = {
         { kind: 'tank', count: 2, x: 25900, behaviour: 'guard' },
         { kind: 'assault', count: 6, x: 25700, behaviour: 'guard' },
         { kind: 'rifle', count: 4, x: 26100, behaviour: 'guard' },
+        // The brief's two mortars in the city, dug in behind the square.
+        { kind: 'mortar', count: 2, x: 27300, behaviour: 'guard', leash: 0 },
       ],
       announce: 'Every German who can still fight is round the central square.',
     },
@@ -451,7 +468,46 @@ export const M1010: MissionDef = {
       ],
       announce: 'Pioneers are counter-attacking in the ruins!',
     },
-    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P3' } }, text: 'The western ruins are clear. The central square is ahead.' },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P3' } }, text: 'The western ruins are ours. Hold them: the 21st Army is cutting the pocket in two.' },
+    // While the pocket is split the Germans try to break back into the ruins from the square.
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 90 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, behaviour: 'assault' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+        { kind: 'rifle', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'They are trying to break back into the ruins!',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 200 },
+      side: 1,
+      forces: [
+        { kind: 'flame', count: 2, behaviour: 'assault' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'Pioneers with flamethrowers, out of the cellars!',
+    },
+    { type: 'announce', when: { phase: 'univermag' }, text: 'The 21st Army has met the 13th Guards. The pocket is split. Now the Univermag.' },
+    // The last of the Sixth Army comes up out of the cellars round the square.
+    {
+      type: 'wave',
+      when: { phase: 'univermag', delay: 5 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 6, x: 26900, behaviour: 'guard' },
+        { kind: 'assault', count: 4, x: 26600, behaviour: 'guard' },
+        { kind: 'lmg', count: 2, x: 27100, behaviour: 'guard' },
+      ],
+      announce: 'The last of the Sixth Army is coming up out of the cellars.',
+    },
+    // The Don Front's guns on the central square, one strike at a time, and the Pe-2s on the last cellars.
+    { id: 'squareGuns1', type: 'barrage', when: { phase: 'univermag', delay: 30 }, side: 0, x: 25500, spread: 300, rounds: 12, duration: 30, weapon: 'artilleryShell', warning: 'The Don Front is firing on the square.' },
+    { id: 'squareGuns2', type: 'barrage', when: { phase: 'univermag', delay: 200 }, side: 0, x: 26300, spread: 300, rounds: 12, duration: 30, weapon: 'artilleryShell', warning: 'The Don Front is firing on the square.' },
+    { id: 'squareKatyusha', type: 'barrage', when: { phase: 'univermag', delay: 330 }, side: 0, x: 26800, spread: 300, rounds: 16, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the square!' },
     {
       type: 'wave',
       when: { phase: 'univermag', delay: 100 },
@@ -502,6 +558,6 @@ export const M1010: MissionDef = {
     ],
     firstAttackAfter: 30,
   },
-  expectedMinutes: [9, 26],
+  expectedMinutes: [15, 26],
   music: STALINGRAD_MUSIC.missions[1010],
 };
