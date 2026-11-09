@@ -17,10 +17,12 @@ function structureExists(m: MissionDef, ref: StructureRef): boolean {
   if ('trench' in ref) return m.trenches.some((t) => t.id === ref.trench);
   if ('pillbox' in ref) return m.pillboxes.some((p) => p.id === ref.pillbox);
   if ('wire' in ref) return m.wire.some((w) => w.id === ref.wire);
+  if ('building' in ref) return (m.buildings ?? []).some((b) => b.id === ref.building);
   return ref.hq === 0 || m.start[1].hasHq;
 }
 
 function pointExists(m: MissionDef, ref: PointRef): boolean {
+  if ('building' in ref) return (m.buildings ?? []).some((b) => b.id === ref.building) || (m.props ?? []).some((p) => p.id === ref.building);
   return m.trenches.some((t) => t.id === ref.trench);
 }
 
@@ -74,10 +76,10 @@ describe.each(MINE)('mission %i on the mission director', (_id, m) => {
         }
         if (so.until !== undefined && !ids.has(so.until)) bad.push(`${so.id}: until ${so.until}`);
         const f = so.failIf;
-        if (f?.type === 'pointLost' && !pointExists(m, f.point)) bad.push(`${so.id}: failIf point`);
+        if ((f?.type === 'pointLost' || f?.type === 'contested') && !pointExists(m, f.point)) bad.push(`${so.id}: failIf point`);
       }
       for (const l of p.lose ?? []) {
-        if (l.type === 'pointLost' && !pointExists(m, l.point)) bad.push(`${p.id}: lose point`);
+        if ((l.type === 'pointLost' || l.type === 'contested') && !pointExists(m, l.point)) bad.push(`${p.id}: lose point`);
         if (l.type === 'enemyReached') expect(l.x > 0 && l.x < m.length).toBe(true);
       }
     }

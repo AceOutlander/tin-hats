@@ -192,13 +192,15 @@ export type EndReason =
   | 'admin';
 
 /** Kinds of thing an event or a weapon mount can point at. */
-export type EntityKind = 'none' | 'unit' | 'hq' | 'pillbox' | 'trench' | 'wire' | 'ground';
+export type EntityKind = 'none' | 'unit' | 'hq' | 'pillbox' | 'trench' | 'wire' | 'ground' | 'building';
 
 /** Numeric target codes used by MountState.targetType. */
 export const TARGET_NONE = 0;
 export const TARGET_UNIT = 1;
 export const TARGET_HQ = 2;
 export const TARGET_PILLBOX = 3;
+/** Damage queue only (no mount aims at one): the walls of state.buildings[targetIndex]. */
+export const TARGET_BUILDING = 4;
 
 /** One weapon on a unit, an HQ or a pillbox, and what it is doing. */
 export interface MountState {
@@ -243,6 +245,10 @@ export interface MountState {
   spread: number;
   /** internal: multiplier on this mount's hit chance (veteran troops; divides the scatter of shells). 1 normally. */
   accuracy: number;
+  /** internal: multiplier on the weapon's range (a man on a building's upper floor). 1 normally. */
+  rangeMul: number;
+  /** internal: multiplier on its damage to vehicles (an anti-tank weapon on a tall building's top floor). 1 normally. */
+  vehicleMul: number;
 }
 
 /**
@@ -291,8 +297,12 @@ export interface UnitState {
   inside: boolean;
   /** Supplies a sapper is carrying (draw the crate when > 0); 0 otherwise. */
   carrying: number;
-  /** Id of the trench the unit occupies (it has dropped into a slot and has cover), or -1. */
+  /** Id of the trench the unit occupies (it has dropped into a slot and has cover), or -1. A building's slots are a trench record (TrenchState.building). */
   trenchId: number;
+  /** Floor of the building slot it holds or is walking to (0 = ground floor; 0 for a trench slot or none). */
+  floor: number;
+  /** internal: damage-matrix column while it holds a slot (trench, building or rubble; see unitClass in tables.ts). */
+  coverClass: number;
   /**
    * True while the player directly controls this unit: it ignores orders, walks with the stick
    * (front-clamped), fires while the fire button is held (crew weapons still set up first) and gets
@@ -403,6 +413,8 @@ export interface HqState {
   garrison: number;
   /** The HQ machine gun. `gun.aimX` is where it points; `gun.burstLeft > 0` or a small `gun.sinceShot` means it is firing. */
   gun: MountState;
+  /** The mission's HQ look (SideStart.hqLook), '' for the side's upgrade look. Names and art only. */
+  look: string;
 }
 
 /** Running totals per side, shown on the result screen. */
@@ -490,6 +502,46 @@ export interface TrenchState {
   occupants: number;
   /** Battle time of the last change of owner, -1 if it never changed. */
   capturedAt: number;
+  /** Index into state.buildings when these are a building's (or cover prop's) slots, -1 for a trench. */
+  building: number;
+}
+
+/**
+ * A building or cover prop (FOUNDATIONS.md 4.3; src/sim/buildings.ts). Its window slots are the slot record
+ * state.trenches[trench] (id BUILDINGS.idBase + id), so occupancy, capture, garrisons and the hold line work as a
+ * trench's; owner and occupants are that record's. Slots run floor by floor, ground floor first.
+ */
+export interface BuildingState {
+  id: number;
+  x: number;
+  width: number;
+  /** Floors it was built with, and floors still standing (0 once rubble). */
+  floors: number;
+  floorsLeft: number;
+  slotsPerFloor: number;
+  hp: number;
+  maxHp: number;
+  look: string;
+  /** Index of its slot record in state.trenches. */
+  trench: number;
+  /** -1 unowned, else the owning side (a copy of the slot record's, kept each tick). */
+  owner: number;
+  /** Men in its slots (a copy of the slot record's). */
+  occupants: number;
+  /** Infantry of each side inside its span this tick. */
+  inside: [number, number];
+  /** True when infantry of a side that does not own it are inside its span while its owner holds it. */
+  contested: boolean;
+  /** Fallen: its men are in rubble (rubbleCover), half as many slots, no floors. */
+  rubble: boolean;
+  /** A cover prop (wagons, a wreck): rubble cover from the start that takes no damage. */
+  prop: boolean;
+  /** The walls take damage (BuildingDef.collapse is not 'none'). */
+  breakable: boolean;
+  /** Also a spawn point while owned. */
+  spawn: boolean;
+  /** Battle time of the last hit on its walls, -1 if never. */
+  hitAt: number;
 }
 
 /** A pillbox: target class `fortification`, a machine gun, and a blocker while alive. Destroyed = rubble with no effect. */
@@ -642,6 +694,8 @@ export interface BattleState {
   trenches: TrenchState[];
   pillboxes: PillboxState[];
   wires: WireState[];
+  /** Buildings and cover props, in mission order (buildings first). */
+  buildings: BuildingState[];
   /** Supply dump of side 0 and side 1; null for a side with no HQ. */
   dumps: [DumpState | null, DumpState | null];
   /** The mission timer, or null. */
@@ -779,7 +833,9 @@ export type SimEventType =
   | 'prepEnded'
   | 'phaseStarted'
   | 'banner'
-  | 'objectiveDone';
+  | 'objectiveDone'
+  /** A building lost its top floor (targetIndex = index in state.buildings, value = floors left, x = its centre). */
+  | 'floorCollapsed';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an
@@ -811,9 +867,11 @@ export type SimEventType =
  *                   dir = direction the blow travelled (+1 = toward +x, so the body falls that way);
  *                   targetIndex = side that made the kill, -1 if none.
  * unitHit           A unit took damage and survived. side, unit, unitId, kind, x, row, value = damage, cause, dir.
- * structureHit      target = 'hq' | 'pillbox', targetIndex = HQ side or pillbox index, side = owner,
- *                   x = impact point, value = damage, cause, dir.
- * structureDestroyed  target, targetIndex, side = owner, x.
+ * structureHit      target = 'hq' | 'pillbox' | 'building', targetIndex = HQ side, pillbox or building index,
+ *                   side = owner (-1 for an unowned building), x = impact point, value = damage, cause, dir.
+ * structureDestroyed  target, targetIndex, side = owner, x. A building's ('building', its index) falls to rubble.
+ * floorCollapsed    A building lost its top floor. targetIndex = its index in state.buildings, value = floors still
+ *                   standing, side = owner, x = its centre.
  * trenchCaptured    side = new owner, targetIndex = trench id, x = trench centre, value = previous owner (-1 none).
  * wireDestroyed     targetIndex = wire id, side = its owner, x = its centre, cause = 'explosive' (splash) or null (crushed).
  * supplyDelivered   A sapper reached the HQ door. side, unit, unitId, kind, x, row, value = supplies credited.

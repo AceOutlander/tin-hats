@@ -26,6 +26,7 @@ import type {
   StructureRef,
   UnitKind,
 } from '../data/schema';
+import { buildingIndex, infantryInside, refTrenchId } from './buildings';
 import { releaseAll } from './control';
 // A cycle by design: mission.ts carries out every event (waves need its spawnForce) and hands the director's types here.
 import { fireEvent } from './mission';
@@ -77,17 +78,19 @@ export function firstPrep(m: MissionDef): MissionPrepDef | undefined {
 // Reading the field
 // ---------------------------------------------------------------------------
 
-/** Who holds a point: 0, 1 or -1 (nobody, or a point that does not exist). */
+/** Who holds a point (a trench, or a building by its slot record): 0, 1 or -1 (nobody, or a point that does not exist). */
 export function pointOwner(s: BattleState, ref: PointRef): number {
   const trenches = s.trenches;
-  for (let i = 0; i < trenches.length; i++) if (trenches[i].id === ref.trench) return trenches[i].owner;
+  const id = refTrenchId(ref);
+  for (let i = 0; i < trenches.length; i++) if (trenches[i].id === id) return trenches[i].owner;
   return -1;
 }
 
 /** Battle time a point was last taken, or -1. */
 function pointTakenAt(s: BattleState, ref: PointRef): number {
   const trenches = s.trenches;
-  for (let i = 0; i < trenches.length; i++) if (trenches[i].id === ref.trench) return trenches[i].capturedAt;
+  const id = refTrenchId(ref);
+  for (let i = 0; i < trenches.length; i++) if (trenches[i].id === id) return trenches[i].capturedAt;
   return -1;
 }
 
@@ -96,7 +99,7 @@ function pointTakenAt(s: BattleState, ref: PointRef): number {
  * by `by` (taken from the other side).
  */
 export function structureGone(s: BattleState, ref: StructureRef, by: Side): boolean {
-  if ('trench' in ref) return pointOwner(s, ref) === by;
+  if ('trench' in ref || 'building' in ref) return pointOwner(s, ref) === by;
   if ('pillbox' in ref) {
     for (const p of s.pillboxes) if (p.id === ref.pillbox) return !p.alive;
     return false;
@@ -115,6 +118,13 @@ export function structureGone(s: BattleState, ref: StructureRef, by: Side): bool
  */
 export function structureHealth(s: BattleState, ref: StructureRef): number {
   if ('trench' in ref) return pointOwner(s, ref) === 0 ? 1 : 0;
+  if ('building' in ref) {
+    // A building side 0 holds: its walls' health (rubble scores nothing).
+    const i = buildingIndex(s.buildings, ref.building);
+    if (i < 0 || pointOwner(s, ref) !== 0) return 0;
+    const b = s.buildings[i];
+    return b.breakable ? (b.maxHp > 0 ? Math.max(0, b.hp) / b.maxHp : 0) : b.rubble ? 0 : 1;
+  }
   if ('pillbox' in ref) {
     for (const p of s.pillboxes) if (p.id === ref.pillbox) return p.alive && p.maxHp > 0 ? Math.max(0, p.hp) / p.maxHp : 0;
     return 0;
@@ -274,6 +284,8 @@ function lossHappened(s: BattleState, loss: LossDef, base: number[], k: number):
       return false;
     case 'lost':
       return deaths(s, 0, loss.kinds) - base[k] >= loss.count;
+    case 'contested':
+      return pointOwner(s, loss.point) === 0 && infantryInside(s, loss.point, 1) > 0;
   }
 }
 
@@ -287,6 +299,8 @@ function lossText(loss: LossDef): string {
       return 'The position was lost.';
     case 'lost':
       return 'Too many men were lost.';
+    case 'contested':
+      return 'The enemy got inside.';
   }
 }
 
@@ -618,6 +632,13 @@ function due(w: World, i: number, when: MissionTrigger, time: number): boolean {
 
 /** A structure destroyed, or a trench taken from the side that held it at the start. */
 function structureDestroyedNow(w: World, ref: StructureRef): boolean {
+  if ('building' in ref) {
+    // A building taken from the side that held it at the start, or fallen.
+    const def = w.mission.buildings?.find((b) => b.id === ref.building);
+    const i = buildingIndex(w.state.buildings, ref.building);
+    const owner = pointOwner(w.state, ref);
+    return def !== undefined && i >= 0 && ((owner >= 0 && owner !== def.owner) || w.state.buildings[i].rubble);
+  }
   if (!('trench' in ref)) return structureGone(w.state, ref, 0);
   const start = w.mission.trenches.find((t) => t.id === ref.trench);
   const owner = pointOwner(w.state, ref);
@@ -742,11 +763,12 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
 }
 
 /** A trench or pillbox changes hands (setOwner, PhaseDef.assume). */
-export function setOwner(w: World, ref: { trench: number } | { pillbox: number }, owner: Side | -1): void {
+export function setOwner(w: World, ref: { trench: number } | { pillbox: number } | { building: number }, owner: Side | -1): void {
   const s = w.state;
-  if ('trench' in ref) {
+  if ('trench' in ref || 'building' in ref) {
+    const id = refTrenchId(ref);
     for (const t of s.trenches) {
-      if (t.id !== ref.trench || t.owner === owner) continue;
+      if (t.id !== id || t.owner === owner) continue;
       const prev = t.owner;
       t.owner = owner;
       if (owner >= 0) {

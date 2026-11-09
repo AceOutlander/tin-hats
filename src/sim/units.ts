@@ -4,7 +4,7 @@
 import { CONFIG, SPECIALS } from '../data/config';
 import type { Side } from '../data/schema';
 import { WEAPONS } from '../data/weapons';
-import { DAMAGE_TYPES, KIND_BOSS, KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
+import { CLASS_TRENCH, DAMAGE_TYPES, KIND_BOSS, KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
 import { releaseSlot } from './trenches';
 import { TARGET_NONE, type Behaviour, type MountState, type SimEvent, type SimEventType, type UnitState } from './types';
 import type { World } from './world';
@@ -41,6 +41,8 @@ export function createMount(): MountState {
     trigger: true,
     spread: 0,
     accuracy: 1,
+    rangeMul: 1,
+    vehicleMul: 1,
   };
 }
 
@@ -61,6 +63,8 @@ export function resetMount(m: MountState, weaponId: string | null, x: number): v
   m.sinceShot = LONG_AGO;
   m.windup = 0;
   m.trigger = true;
+  m.rangeMul = 1;
+  m.vehicleMul = 1;
 }
 
 /** A blank pool slot. */
@@ -86,6 +90,8 @@ export function createUnit(index: number): UnitState {
     inside: false,
     carrying: 0,
     trenchId: -1,
+    floor: 0,
+    coverClass: CLASS_TRENCH,
     controlled: false,
     aimX: 0,
     weaponCharge: 1,
@@ -228,6 +234,8 @@ export function spawnUnit(
   u.inside = inside;
   u.carrying = 0;
   u.trenchId = -1;
+  u.floor = 0;
+  u.coverClass = CLASS_TRENCH;
   u.controlled = false;
   u.aimX = px;
   u.weaponCharge = 1;

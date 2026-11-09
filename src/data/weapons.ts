@@ -1,7 +1,10 @@
 import type { TargetClass, WeaponDef } from './schema';
 
-const INFANTRY: TargetClass[] = ['infantryOpen', 'infantryTrench'];
-const EVERYTHING: TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortification', 'vehicle', 'hq'];
+/** Men wherever they are: in the open, in a trench, at a building's windows, in rubble (FOUNDATIONS.md 4.3). */
+const INFANTRY: TargetClass[] = ['infantryOpen', 'infantryTrench', 'infantryBuilding', 'rubbleCover'];
+const EVERYTHING: TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortification', 'vehicle', 'hq', 'infantryBuilding', 'rubbleCover'];
+/** Men in cover of any kind: what a grenade is thrown at. */
+const DUG_IN: TargetClass[] = ['infantryTrench', 'infantryBuilding', 'rubbleCover'];
 
 /**
  * Every weapon in the game, keyed by id. Units, the HQ, pillboxes and support
@@ -109,7 +112,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     splashRadius: 55,
     scatter: 18,
     // Thrown at trenches, pillboxes, tanks and the HQ only; the blast still catches men in the open nearby.
-    targets: ['infantryTrench', 'fortification', 'vehicle', 'hq'],
+    targets: [...DUG_IN, 'fortification', 'vehicle', 'hq'],
     prefer: [],
     moveAndFire: false,
     tracer: 'none',
@@ -299,7 +302,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     projectileSpeed: 0,
     splashRadius: 0,
     scatter: 0,
-    targets: ['infantryOpen', 'infantryTrench', 'vehicle'],
+    targets: [...INFANTRY, 'vehicle'],
     prefer: [],
     moveAndFire: false,
     tracer: 'mg',
@@ -326,7 +329,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     projectileSpeed: 0,
     splashRadius: 0,
     scatter: 0,
-    targets: ['infantryOpen', 'infantryTrench', 'vehicle'],
+    targets: [...INFANTRY, 'vehicle'],
     prefer: [],
     moveAndFire: false,
     tracer: 'mg',
@@ -437,7 +440,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     projectileSpeed: 700,
     splashRadius: 38,
     scatter: 6,
-    targets: ['infantryOpen', 'infantryTrench', 'fortification'],
+    targets: [...INFANTRY, 'fortification'],
     prefer: [],
     moveAndFire: false,
     tracer: 'none',

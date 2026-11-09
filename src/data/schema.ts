@@ -44,8 +44,12 @@ export type UnitKind =
 
 export type DamageType = 'bullet' | 'explosive' | 'antiTank';
 
-/** Columns of the damage matrix. `hq` is separate from `fortification` so HQ durability can be tuned on its own. */
-export type TargetClass = 'infantryOpen' | 'infantryTrench' | 'fortification' | 'vehicle' | 'hq';
+/**
+ * Columns of the damage matrix. `hq` is separate from `fortification` so HQ durability can be tuned on its own.
+ * `infantryBuilding` = men at the windows of a standing building, `rubbleCover` = men in its rubble or behind a cover
+ * prop (FOUNDATIONS.md 4.3).
+ */
+export type TargetClass = 'infantryOpen' | 'infantryTrench' | 'fortification' | 'vehicle' | 'hq' | 'infantryBuilding' | 'rubbleCover';
 
 export type Order = 'fallBack' | 'hold' | 'advance';
 /**
@@ -592,6 +596,76 @@ export interface TrenchDef {
   owner: Side | -1;
 }
 
+/**
+ * How a building is drawn (src/art/structures/buildings.ts; FOUNDATIONS.md 4.3). The sim treats every look alike.
+ * casemate = a brick ring barracks or casemate; church; izba = a log house; house = a brick or plastered town house;
+ * apartment = a block of flats (3 to 4 floors); station = a railway station; factoryHall = a brick works hall;
+ * waterTank = a concrete water tank; mill; store = a department store; hangar = an airfield hangar; sheds = goods sheds.
+ */
+export type BuildingLook =
+  | 'casemate'
+  | 'church'
+  | 'izba'
+  | 'house'
+  | 'apartment'
+  | 'station'
+  | 'factoryHall'
+  | 'waterTank'
+  | 'mill'
+  | 'store'
+  | 'hangar'
+  | 'sheds';
+
+/**
+ * A building (FOUNDATIONS.md 4.3): infantry take its window slots as they take a trench's (`usesTrench` kinds; never
+ * vehicles), floor by floor, and count as `infantryBuilding`; a side captures it by entering it empty. Damage to the
+ * walls (explosive and anti-tank splash) brings floors down, top first, and at 0 hp it falls to rubble, which still
+ * gives `rubbleCover` to half as many men.
+ */
+export interface BuildingDef {
+  id: number;
+  /** Centre x and width of its footprint (wu). */
+  x: number;
+  width: number;
+  /** Floors 1 to 4. Men on floor 2 and up see further (range x BUILDINGS.upperFloorRange). */
+  floors: 1 | 2 | 3 | 4;
+  /** Window slots on each floor. */
+  slotsPerFloor: number;
+  /** Multiplier on BUILDINGS.hp (src/data/buildings.ts). */
+  hpMul: number;
+  /** Starting owner; -1 = empty and unowned. */
+  owner: Side | -1;
+  look: BuildingLook;
+  /** Also a spawn point while owned (FOUNDATIONS.md 4.5; today waves name it with ForceDef.at). */
+  spawn?: boolean;
+  /** 'none' = the walls take no damage (it never loses a floor or falls). Default 'rubble'. */
+  collapse?: 'rubble' | 'none';
+}
+
+/** A cover prop's look (src/art/structures/buildings.ts): goods wagons on a siding, the wrecks of transport aircraft. */
+export type CoverPropLook = 'wagons' | 'ju52Wreck' | 'he111Wreck';
+
+/**
+ * A cover prop (FOUNDATIONS.md 4.3): scenery men shelter behind as in rubble (`rubbleCover`, `slots` men). It takes no
+ * damage and is taken by entering it empty, like a building. Its id is in the buildings' id space (`buildingId`,
+ * `{ building }` name it too).
+ */
+export interface CoverPropDef {
+  id: number;
+  x: number;
+  width: number;
+  slots: number;
+  look: CoverPropLook;
+  /** Starting owner; default -1 (nobody). */
+  owner?: Side | -1;
+}
+
+/**
+ * The HQ's building for a mission (SideStart.hqLook): one of the Quartermaster's HQ styles, or a building the mission
+ * puts the HQ in (casemate = Brest's ring barracks, mill = the Gerhardt mill, store = the Univermag).
+ */
+export type HqLook = 'tent' | 'bigTent' | 'dugout' | 'bunkerBritish' | 'bunkerGerman' | 'capeTent' | 'zemlyanka' | 'logDugout' | 'bunkerSoviet' | 'casemate' | 'mill' | 'store';
+
 export interface PillboxDef {
   id: number;
   x: number;
@@ -616,6 +690,8 @@ export interface ForceDef {
   x?: number;
   /** Place into this trench's slots instead. */
   trenchId?: number;
+  /** Place into this building's window slots instead (like `trenchId`; `garrison` holds the building). */
+  buildingId?: number;
   /**
    * guard = stay within config.guardLeash of the spawn point (boss tank); assault = always advance (waves);
    * garrison = with `trenchId`, hold that trench whatever the order until it falls, then join the army.
@@ -678,6 +754,8 @@ export interface SideStart {
   supplies: number;
   /** Multiplier on the base HQ health in config. */
   hqHpMul: number;
+  /** The HQ's look in this mission (FOUNDATIONS.md 4.3) instead of the side's upgrade look. Names and art only. */
+  hqLook?: HqLook;
   /** Multiplier on passive and sapper income for this side in this mission. */
   incomeMul: number;
   sappers: number;
@@ -694,13 +772,13 @@ export interface SideStart {
  * "destroyed" and a 0..1 health; later features add their own kinds here ({ building }, { bridge }, { minefield }).
  * A trench counts as destroyed (lost) once the other side holds it.
  */
-export type StructureRef = { trench: number } | { pillbox: number } | { wire: number } | { hq: Side };
+export type StructureRef = { trench: number } | { pillbox: number } | { wire: number } | { hq: Side } | { building: number };
 
 /**
  * Something a side owns and the director can test: today a trench (FOUNDATIONS.md 4.5's capture points add
  * `{ point: string }` here). Owned = the side holds it; lost = the other side holds it.
  */
-export type PointRef = { trench: number };
+export type PointRef = { trench: number } | { building: number };
 
 /**
  * When a scripted mission event fires. Times are seconds on the mission clock (missionTime: battle time less every
@@ -775,7 +853,7 @@ export type MissionEventDef = { id?: string } & (
   | { type: 'support'; when: MissionTrigger; side: Side; kind: SupportKind; enabled: boolean }
   | { type: 'disguise'; when: MissionTrigger; side: Side; seconds: number; x0: number; x1: number }
   | { type: 'reveal'; when: MissionTrigger; side: Side; seconds: number }
-  | { type: 'setOwner'; when: MissionTrigger; ref: { trench: number } | { pillbox: number }; owner: Side | -1 }
+  | { type: 'setOwner'; when: MissionTrigger; ref: { trench: number } | { pillbox: number } | { building: number }; owner: Side | -1 }
   | { type: 'endMission'; when: MissionTrigger; winner: Side; text: string }
 );
 
@@ -809,7 +887,9 @@ export type LossDef =
   | { type: 'pointLost'; point: PointRef }
   | { type: 'enemyReached'; x: number; count: number; kinds?: UnitKind[] }
   | { type: 'structureLost'; structures: StructureRef[] }
-  | { type: 'lost'; count: number; kinds?: UnitKind[] };
+  | { type: 'lost'; count: number; kinds?: UnitKind[] }
+  /** Side 1 infantry inside the point's span (a building or trench) while side 0 holds it (1007: no German inside). */
+  | { type: 'contested'; point: PointRef };
 
 /**
  * An optional objective that pays a medal bonus (FOUNDATIONS.md 7.1), watched from its phase's start to the end of
@@ -845,7 +925,7 @@ export interface PhaseTimerDef {
  * which trenches and pillboxes, money, and units placed for each side.
  */
 export interface PhaseAssume {
-  owners?: { ref: { trench: number } | { pillbox: number }; owner: Side | -1 }[];
+  owners?: { ref: { trench: number } | { pillbox: number } | { building: number }; owner: Side | -1 }[];
   supplies?: [number, number];
   forces?: [ForceDef[], ForceDef[]];
 }
@@ -949,6 +1029,10 @@ export interface MissionDef {
   trenches: TrenchDef[];
   pillboxes: PillboxDef[];
   wire: WireDef[];
+  /** Buildings (FOUNDATIONS.md 4.3). Absent = none. */
+  buildings?: BuildingDef[];
+  /** Cover props: wagons, wrecks (FOUNDATIONS.md 4.3). Absent = none. */
+  props?: CoverPropDef[];
   /**
    * A prep phase before the enemy attacks (defensive missions; src/data/prep.ts): its countdown (default
    * PREP.defaultSeconds), what may be built (default every buildable), the zone the player builds in (default their

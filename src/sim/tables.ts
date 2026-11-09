@@ -27,12 +27,14 @@ export const KIND_SAPPER = KIND_INDEX.sapper;
 export const KIND_DEFS: readonly UnitDef[] = KIND_LIST.map((kind) => UNITS[kind]);
 
 /** Target classes as indices (damage matrix columns) and as bits (weapon target masks). */
-export const CLASS_LIST: readonly TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortification', 'vehicle', 'hq'];
+export const CLASS_LIST: readonly TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortification', 'vehicle', 'hq', 'infantryBuilding', 'rubbleCover'];
 export const CLASS_OPEN = 0;
 export const CLASS_TRENCH = 1;
 export const CLASS_FORT = 2;
 export const CLASS_VEHICLE = 3;
 export const CLASS_HQ = 4;
+export const CLASS_BUILDING = 5;
+export const CLASS_RUBBLE = 6;
 
 export const DAMAGE_TYPES: readonly DamageType[] = ['bullet', 'explosive', 'antiTank'];
 
@@ -51,10 +53,13 @@ export function damageFactor(typeIndex: number, classIndex: number): number {
   return DAMAGE_TABLE[typeIndex * CLASS_LIST.length + classIndex];
 }
 
-/** Damage-matrix column of a unit right now: vehicle, infantry in a trench, or infantry in the open. */
+/**
+ * Damage-matrix column of a unit right now: vehicle, infantry in cover (a trench, a building's windows, rubble or a
+ * cover prop: the column enterSlot gave it), or infantry in the open.
+ */
 export function unitClass(u: UnitState): number {
   if (u.def.class === 'vehicle') return CLASS_VEHICLE;
-  return u.trenchId >= 0 ? CLASS_TRENCH : CLASS_OPEN;
+  return u.trenchId >= 0 ? u.coverClass : CLASS_OPEN;
 }
 
 export const WEAPON_LIST: readonly WeaponDef[] = Object.keys(WEAPONS).map((id) => WEAPONS[id]);
