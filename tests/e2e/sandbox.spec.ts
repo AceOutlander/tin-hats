@@ -237,6 +237,7 @@ test.describe('proving ground (Phase 2)', () => {
     await expect(page.getByTestId('cancel-targeting')).toBeVisible(); // the HUD has caught up with the sim
     await page.keyboard.press('Escape');
     await expect.poll(async () => (await state(page)).targeting).toBeNull();
+    await expect(page.getByTestId('cancel-targeting')).toBeHidden(); // the HUD has caught up: nothing aimed there either
     await expect(column).toBeVisible();
     // With nothing aimed, Escape folds the open column (and does not pause).
     await page.keyboard.press('Escape');

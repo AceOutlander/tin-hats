@@ -270,21 +270,21 @@ class TrainView {
   }
 }
 
-/** One unit kind in the order scope picker: its portrait and name. */
+/** One unit kind in the order scope picker: its portrait and name (the short button label where the name is too long). */
 class PickView {
   readonly node: HTMLButtonElement;
   readonly canvas: HTMLCanvasElement;
   readonly kind: UnitKind;
   readonly name: string;
 
-  constructor(parent: HTMLElement, kind: UnitKind, name: string) {
+  constructor(parent: HTMLElement, kind: UnitKind, name: string, label: string) {
     this.kind = kind;
     this.name = name;
     const b = button('th-hbtn th-pick', `scope-${kind}`, `Orders for ${name}`, parent);
     this.node = b;
     const win = el('span', 'th-pick-win', b);
     this.canvas = el('canvas', 'th-pick-ico', win);
-    el('span', 'th-pick-name', b, name);
+    el('span', 'th-pick-name', b, label);
   }
 }
 
@@ -914,7 +914,7 @@ class HudView implements Hud {
     this.pickViews.length = 0;
     let keep = false;
     for (let i = 0; i < list.length; i++) {
-      const view = new PickView(this.picker, list[i].kind, list[i].name);
+      const view = new PickView(this.picker, list[i].kind, list[i].name, list[i].label);
       onTap(view.node, () => this.doPick(view.kind));
       this.pickViews.push(view);
       if (list[i].kind === this.scope) keep = true;
@@ -948,8 +948,14 @@ class HudView implements Hud {
     this.onLayout();
   }
 
+  /** Open the "Orders for" picker. One pop-up at a time: the call-ins fold and step aside so the picker has the width. */
   private openPicker(): void {
     this.pickerOpen = true;
+    if (this.fold.open) {
+      this.fold.toggle();
+      this.showFold();
+    }
+    this.callIns.classList.add('is-away');
     this.picker.hidden = false;
     this.scopeButton.classList.add('is-open');
     for (let i = 0; i < this.pickViews.length; i++) this.paintIcon(this.pickViews[i].canvas, this.pickViews[i].kind);
@@ -959,6 +965,7 @@ class HudView implements Hud {
     if (!this.pickerOpen) return;
     this.pickerOpen = false;
     this.picker.hidden = true;
+    this.callIns.classList.remove('is-away');
     this.scopeButton.classList.remove('is-open');
   }
 

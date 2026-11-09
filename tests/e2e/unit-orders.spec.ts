@@ -58,13 +58,17 @@ async function checkLayout(page: Page, size: { w: number; h: number }, pickerOpe
   expect(picker.y + picker.h, 'the picker sits above the bottom bar').toBeLessThanOrEqual(rects['order-hold'].y);
   expect(picker.y).toBeGreaterThanOrEqual(0);
   expect(picker.x).toBeGreaterThanOrEqual(0);
-  // The call-ins (opened before the picker) stay clear of it: the toggle and every button of the open column.
-  for (const k of ['callins', 'support-artillery', 'support-smoke', 'support-airStrike']) {
-    expect(rects[k], `${k} shown`).toBeTruthy();
-    expect(apart(picker, rects[k]), `the picker leaves ${k} clear`).toBe(true);
+  // One pop-up at a time: the call-ins (opened before the picker) fold and step aside while it is open, so the picker
+  // covers none of them and can use the width.
+  for (const k of ['callins', 'callins-column', 'support-artillery', 'support-smoke', 'support-airStrike']) {
+    expect(rects[k], `${k} put away while the picker is open`).toBeUndefined();
   }
+  expect(picker.x + picker.w, 'the picker stays on screen').toBeLessThanOrEqual(size.w);
   const picks = Object.keys(rects).filter((k) => k.startsWith('scope-') && k !== 'scope-picker');
-  expect(picks.length, 'All units plus the nine trainable kinds').toBe(10);
+  // The proving ground trains every kind (13 since the new units of job 7), so count its training buttons.
+  const trainable = await page.locator('[data-testid^="train-"]').count();
+  expect(trainable, 'the proving ground trains the nine original kinds and the new ones').toBeGreaterThanOrEqual(9);
+  expect(picks.length, 'All units plus every trainable kind').toBe(trainable + 1);
   for (const k of picks) {
     const r = rects[k];
     expect(Math.min(r.w, r.h), `${k} is a big enough target`).toBeGreaterThanOrEqual(48);
@@ -129,6 +133,9 @@ test('Bren gunners hold on their own orders while the riflemen advance, then fol
     // Escape closes it, and so does a press outside it.
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('scope-picker')).toBeHidden();
+    // The call-ins come back, folded.
+    await expect(page.getByTestId('callins')).toBeVisible();
+    await expect(page.getByTestId('callins-column')).toBeHidden();
     await tap(page, 'order-scope');
     await expect(page.getByTestId('scope-picker')).toBeVisible();
     const supplies = await rectOf(page, '[data-tip="supplies"]');

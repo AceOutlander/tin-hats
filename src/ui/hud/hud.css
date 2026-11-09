@@ -671,6 +671,7 @@
 }
 
 .th-callins[hidden],
+.th-callins.is-away,
 .th-supports[hidden] {
   display: none;
 }
@@ -1224,8 +1225,11 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, var(--pick-w));
   gap: 4px;
-  /* Clear of the support column on the left, and never more than --pick-cols buttons wide. */
-  max-width: min(calc(100% - var(--sl) - var(--sr) - var(--sbtn) - 8px), calc(var(--pick-cols) * (var(--pick-w) + 4px) + 6px));
+  /*
+   * The call-ins are put away while the picker is open (.th-callins.is-away), so it may use the whole width, never
+   * more than --pick-cols buttons: five columns let the proving ground's 13 kinds and All fit at 568x320.
+   */
+  max-width: min(calc(100% - var(--sl) - var(--sr)), calc(var(--pick-cols) * (var(--pick-w) + 4px) + 6px));
   max-height: calc(100% - var(--top-h) - var(--th-safe-top) - var(--bar-h) - var(--sb) - 12px);
   padding: 4px;
   overflow-y: auto;
