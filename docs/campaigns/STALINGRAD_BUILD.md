@@ -401,8 +401,8 @@ all once won on Hard, 10 once won on Insane; replays nothing; Basic Training 3 (
 Every new save (and every save converted to version 11) starts with 3 smoke and 3 artillery. The briefing brings up to
 4 of the player's own call-ins (lent ones come on top); a save holds at most 99 of each.
 
-**The Battle for Poland**: 1,500 medals (or $5.99 in the store; a locked entry in the Shop, no purchase code here):
-20 missions at the bot's scores buying nothing else (the Normal and Hard campaigns with their bonuses).
+**The Battle for Poland**: 2,999 medals (or $5.99 in the store; a locked entry in the Shop, no purchase code here;
+the owner's price, DECISIONS 439): about 28 missions at the bot's scores buying nothing else.
 
 **Lent charges** (spent before the player's own, never kept; sized to each mission's design, DECISIONS 416):
 

@@ -203,9 +203,9 @@ export const MEDALS: MedalTunables = {
   ],
   maxCharges: 99,
   loadoutSlots: 4,
-  // Between the benchmark's money rate ($5.99 is about 1,050 gems) and its top skins (2,000 to 3,000): about the Normal
-  // and Hard campaigns with their bonuses (DECISIONS 415).
-  polandPrice: 1500,
+  // The owner's price (2,999 medals or $5.99; owner, 2026-11-09, overriding the 1,500 of DECISIONS 415): about the
+  // Normal, Hard and most of the Insane campaign with their bonuses, like the benchmark's top skins (2,000 to 3,000).
+  polandPrice: 2999,
   free: ['sapper', 'rifle'],
   units: [
     { kind: 'sapper', isNew: false },
