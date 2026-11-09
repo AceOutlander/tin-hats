@@ -8,17 +8,23 @@
  */
 import { CONFIG } from '../data/config';
 import { PREP } from '../data/prep';
-import type { BuildableId, MissionDef, Side } from '../data/schema';
+import type { BuildableId, MissionDef, MissionPrepDef, Side } from '../data/schema';
 import { KIND_SAPPER } from './tables';
 import { addTrench } from './trenches';
 import type { BattleState, BuildSiteState, PrepState } from './types';
 import { createMount, resetMount } from './units';
-import type { World } from './world';
+import { CMD_ORDER, type World } from './world';
 
 /** The prep state a mission starts with, or null. `hq0X` is side 0's HQ centre (null without one). */
 export function createPrep(mission: MissionDef, hq0X: number | null): PrepState | null {
-  const def = mission.prep;
+  // The mission's prep phase, or its first phase's (FOUNDATIONS.md 7.3).
+  const def = mission.prep ?? mission.phases?.[0]?.prep;
   if (!def) return null;
+  return prepState(mission, def, hq0X, 0, 0);
+}
+
+/** A prep state for `def` starting at battle time `startedAt`, after `before` seconds of earlier preps. */
+function prepState(mission: MissionDef, def: MissionPrepDef, hq0X: number | null, startedAt: number, before: number): PrepState {
   const seconds = def.seconds ?? PREP.defaultSeconds;
   let from = hq0X !== null ? hq0X + CONFIG.hqWidth / 2 + PREP.gap : CONFIG.mapMargin;
   // The player's half, and behind the first enemy position by a gap.
@@ -38,7 +44,9 @@ export function createPrep(mission: MissionDef, hq0X: number | null): PrepState 
     active: seconds > 0,
     secondsLeft: seconds,
     total: seconds,
-    endedAt: seconds > 0 ? -1 : 0,
+    endedAt: seconds > 0 ? -1 : startedAt,
+    startedAt,
+    before,
     buildables: [...(def.buildables ?? PREP.order)],
     zoneFrom: from,
     zoneTo: Math.max(from, to),
@@ -51,14 +59,43 @@ export function inPrep(s: BattleState): boolean {
 }
 
 /**
- * Seconds on the mission clock: battle time less the prep phase. While the prep phase runs it stays at 0, so the
- * mission timer and the scripted events wait for the attack.
+ * Seconds on the mission clock: battle time less every prep phase. While a prep phase runs it stands still (at 0 for
+ * one at the mission start), so the mission timer and the scripted events wait for the attack.
  */
 export function missionTime(s: BattleState): number {
   const p = s.prep;
   if (p === null) return s.time;
-  if (p.active) return 0;
-  return s.time - p.endedAt;
+  if (p.active) return p.startedAt - p.before;
+  return s.time - p.before - (p.endedAt - p.startedAt);
+}
+
+/**
+ * A prep phase at the start of a later phase (FOUNDATIONS.md 7.3): the countdown starts now. Its zone, unless the
+ * phase gives one, runs from PREP.phaseZoneDepth behind side 0's front (never behind its HQ) to PREP.frontGap short
+ * of the enemy's front. The enemy holds while it runs (its commander waits, and is told to Hold now). A prep phase
+ * still running ends first; its unfinished sites go on being built.
+ */
+export function startPhasePrep(w: World, def: MissionPrepDef): void {
+  const s = w.state;
+  const old = s.prep;
+  if (old !== null && old.active) endPrep(w);
+  const before = old === null ? 0 : old.before + (old.endedAt - old.startedAt);
+  const hq = s.sides[0].hq;
+  const p = prepState(w.mission, def, hq ? hq.x : null, s.time, before);
+  if (!def.zone) {
+    const home = hq ? hq.x + CONFIG.hqWidth / 2 + PREP.gap : CONFIG.mapMargin;
+    const to = w.front[1] - PREP.frontGap;
+    p.zoneTo = Math.max(home, to);
+    p.zoneFrom = Math.max(home, Math.min(p.zoneTo, w.front[0]) - PREP.phaseZoneDepth);
+  }
+  s.prep = p;
+  w.prepDef = def;
+  for (let si = 0; si < 2; si++) {
+    const ai = w.ai[si];
+    if (ai) ai.prepNext = 0;
+  }
+  // The enemy waits in its positions.
+  if (s.sides[1].hq && s.sides[1].order === 'advance') w.commands.push(1, CMD_ORDER).order = 'hold';
 }
 
 /** Edge-to-edge clear of every structure and site, with PREP.gap to spare. */
@@ -146,7 +183,7 @@ export function updatePrep(w: World): void {
   const s = w.state;
   const p = s.prep;
   if (p === null || !p.active) return;
-  p.secondsLeft = Math.max(0, p.total - s.time);
+  p.secondsLeft = Math.max(0, p.total - (s.time - p.startedAt));
   if (p.secondsLeft <= 0) endPrep(w);
 }
 

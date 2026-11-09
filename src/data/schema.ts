@@ -56,7 +56,12 @@ export type SupportKind = 'artillery' | 'smoke' | 'airStrike' | 'bomber' | 'figh
 export type Difficulty = 'normal' | 'hard' | 'insane';
 export type TheatreId = 'france' | 'desert' | 'sicily' | 'italy' | 'normandy' | 'holland' | 'germany';
 export type TimeOfDay = 'dawn' | 'day' | 'overcast' | 'dusk' | 'night';
-export type MissionMode = 'assault' | 'survival';
+/**
+ * A label for the HUD, the briefing card and medal scoring (FOUNDATIONS.md 3.1, 7.1); behaviour comes from the phases.
+ * assault = take the enemy HQ (or make it surrender); survival = timed, no enemy HQ; hold = take something, then hold
+ * it; delay = timed, with enemyReached losses and often a kill count; special = anything else (a river crossing).
+ */
+export type MissionMode = 'assault' | 'survival' | 'hold' | 'delay' | 'special';
 
 /**
  * What a unit is doing this tick. The view maps these to animations.
@@ -626,6 +631,16 @@ export interface ForceDef {
   look?: ForceLookId;
   /** The nation these units belong to, if not the side's (FOUNDATIONS.md 5.1, per-kind nation). */
   nation?: NationId;
+  /**
+   * A wave only: come in at this point (a forward spawn, FOUNDATIONS.md 4.5) while the wave's side owns it, just
+   * behind it; otherwise as without it (the HQ door or the map edge). Ignored when `x` or `trenchId` is given.
+   */
+  at?: PointRef;
+  /**
+   * How far a guard may move from its post (wu); omitted = config.guardLeash. 0 = frozen where it stands (a tank out
+   * of fuel, a dug-in hull): it still turns and shoots. A force with a leash and no behaviour is a guard.
+   */
+  leash?: number;
 }
 
 /**
@@ -654,6 +669,10 @@ export type Climate = 'temperate' | 'winter' | 'desert' | 'tropical' | 'city';
 
 export interface SideStart {
   faction: FactionId;
+  /** Call-ins the mission offers but that start withdrawn, until a `support` event offers them (FOUNDATIONS.md 3.3). */
+  supportsOff?: SupportKind[];
+  /** This mission's own full cooldown (seconds, before upgrades) for some call-ins: 1007's 90 s artillery. */
+  supportCooldown?: Partial<Record<SupportKind, number>>;
   /** False in survival missions for side 1: no HQ, no economy, units arrive as waves. */
   hasHq: boolean;
   supplies: number;
@@ -671,23 +690,181 @@ export interface SideStart {
 }
 
 /**
- * When a scripted mission event fires. Times are battle seconds.
+ * A structure on the field, by its mission id (the HQ by side). The director (src/sim/director.ts) resolves each to
+ * "destroyed" and a 0..1 health; later features add their own kinds here ({ building }, { bridge }, { minefield }).
+ * A trench counts as destroyed (lost) once the other side holds it.
+ */
+export type StructureRef = { trench: number } | { pillbox: number } | { wire: number } | { hq: Side };
+
+/**
+ * Something a side owns and the director can test: today a trench (FOUNDATIONS.md 4.5's capture points add
+ * `{ point: string }` here). Owned = the side holds it; lost = the other side holds it.
+ */
+export type PointRef = { trench: number };
+
+/**
+ * When a scripted mission event fires. Times are seconds on the mission clock (missionTime: battle time less every
+ * prep phase); phase times are seconds since that phase began (after its own prep, if any).
  * at = once at that time; every = repeatedly from `from` until `until` (or the end);
  * trenchCapturedBy = once, `delay` seconds after that side takes the trench;
- * hqHpBelow = once, when that side's HQ health drops below this fraction (0..1) of its maximum.
+ * hqHpBelow = once, when that side's HQ health drops below this fraction (0..1) of its maximum;
+ * phase = once, `delay` seconds after that phase starts (only while it is the current phase);
+ * phaseEvery = repeatedly while that phase is current, from `from` (default 0) to `until` seconds into it;
+ * objective = once, `delay` seconds after that objective (or side objective) is done;
+ * pointCapturedBy = once, `delay` seconds after that side takes the point;
+ * kills = once, when this many units of `side` (the side that died; of `kinds` if given) have died in the mission;
+ * structureDestroyed = once, `delay` seconds after the structure is destroyed (a trench: taken by the other side);
+ * enemyNear = once, when a unit of the side other than `side` comes within `dist` of `x` (or past it).
  */
 export type MissionTrigger =
   | { at: number }
   | { every: number; from: number; until?: number }
   | { trenchCapturedBy: Side; trenchId: number; delay?: number }
-  | { hqHpBelow: number; side: Side };
+  | { hqHpBelow: number; side: Side }
+  | { phase: string; delay?: number }
+  | { phaseEvery: number; phase: string; from?: number; until?: number }
+  | { objective: string; delay?: number }
+  | { pointCapturedBy: Side; point: PointRef; delay?: number }
+  | { kills: number; side: Side; kinds?: UnitKind[] }
+  | { structureDestroyed: StructureRef; delay?: number }
+  | { enemyNear: { x: number; dist: number; side: Side } };
 
-export type MissionEventDef =
+/** Weapons made for scripted barrages (src/data/weapons.ts); any lobbed or dropped weapon id of the list works. */
+export type BarrageWeapon = 'artilleryShell' | 'siegeShell' | 'heavyBomb' | 'nebelwerfer' | 'mortar21' | 'katyushaRocket' | 'aerialBomb';
+
+/** A banner's sound (the HUD plays it with the text). */
+export type BannerSound = 'horn' | 'alarm' | 'boss';
+
+/**
+ * A scripted event (FOUNDATIONS.md 3.3). `id` (unique in the mission) names it for the admin panel and the snapshot.
+ * wave, airdrop, hint and announce as before; and:
+ * banner = a big notice with a sound; barrage = scripted shells, free (no cost or cooldown) for any side, with or
+ *   without an HQ: `rounds` land at random within x +- spread over `duration` seconds, from `delay` seconds after the
+ *   event (default 0; 3 with a `warning`, which shows as an alarm banner when the event fires);
+ * airRaid = a free call-in of `support` at x (no cost; the side's own cooldown is untouched; skipped while that side's
+ *   aircraft of the kind is still in the air); income = the side's income becomes the mission's x `mul`;
+ * posture = steer that side's AI commander: hold (no Advance; an Advance in progress stops), counterattack (Advance,
+ *   at `point`, for `seconds`, then free), free (its own judgement again);
+ * support = offer or withdraw a call-in; disguise = units of `side` inside [x0, x1] are not chosen as targets for
+ *   `seconds` unless they fire; reveal = enemy health shown to `side` over the whole field for `seconds`;
+ * setOwner = a trench or pillbox changes hands; endMission = the battle ends now with this winner (a surrender), with
+ *   `text` as the closing announcement.
+ */
+export type MissionEventDef = { id?: string } & (
   | { type: 'wave'; when: MissionTrigger; side: Side; forces: ForceDef[]; announce?: string }
   | { type: 'airdrop'; when: MissionTrigger; side: Side; supplies: number }
   /** `about`: the unit or call-in a "New:" hint introduces; dropped when the player already had it before this mission. */
   | { type: 'hint'; when: MissionTrigger; text: string; about?: UnitKind | SupportKind }
-  | { type: 'announce'; when: MissionTrigger; text: string };
+  | { type: 'announce'; when: MissionTrigger; text: string }
+  | { type: 'banner'; when: MissionTrigger; text: string; sound?: BannerSound }
+  | {
+      type: 'barrage';
+      when: MissionTrigger;
+      side: Side;
+      x: number;
+      spread: number;
+      rounds: number;
+      duration: number;
+      weapon: BarrageWeapon;
+      warning?: string;
+      delay?: number;
+    }
+  | { type: 'airRaid'; when: MissionTrigger; side: Side; support: SupportKind; x: number }
+  | { type: 'income'; when: MissionTrigger; side: Side; mul: number }
+  | { type: 'posture'; when: MissionTrigger; side: Side; posture: 'hold' | 'counterattack' | 'free'; point?: PointRef; seconds?: number }
+  | { type: 'support'; when: MissionTrigger; side: Side; kind: SupportKind; enabled: boolean }
+  | { type: 'disguise'; when: MissionTrigger; side: Side; seconds: number; x0: number; x1: number }
+  | { type: 'reveal'; when: MissionTrigger; side: Side; seconds: number }
+  | { type: 'setOwner'; when: MissionTrigger; ref: { trench: number } | { pillbox: number }; owner: Side | -1 }
+  | { type: 'endMission'; when: MissionTrigger; winner: Side; text: string }
+);
+
+/**
+ * What a phase asks of the player (FOUNDATIONS.md 3.1). `text` is the objective plate's line (a default by type
+ * otherwise). Counted from the phase's start unless said otherwise.
+ * destroyHq = that side's HQ destroyed; capture = side 0 owns the point (once is enough); hold = side 0 owns it
+ * without a break for `seconds` (a loss starts it again); survive = the phase has run `seconds`; kill = `count` units
+ * of `side` (of `kinds`) have died, counted over the whole mission; destroy = every listed structure destroyed (a
+ * trench: taken); reach = `count` living side 0 units (of `kinds`) at or past x at once; surrender = that side's HQ
+ * under `hqBelow` of its health (the battle then ends as a surrender).
+ */
+export type ObjectiveDef = { id: string; text?: string } & (
+  | { type: 'destroyHq'; side: Side }
+  | { type: 'capture'; point: PointRef }
+  | { type: 'hold'; point: PointRef; seconds: number }
+  | { type: 'survive'; seconds: number }
+  | { type: 'kill'; side: Side; kinds?: UnitKind[]; count: number }
+  | { type: 'destroy'; structures: StructureRef[] }
+  | { type: 'reach'; x: number; count: number; kinds?: UnitKind[] }
+  | { type: 'surrender'; side: Side; hqBelow: number }
+);
+
+/**
+ * A way to lose a phase (on top of "your HQ falls"), or what fails a side objective.
+ * pointLost = side 1 holds the point; enemyReached = `count` living side 1 units (of `kinds`) at or past x (toward
+ * side 0's end) at once; structureLost = any listed structure destroyed or taken by side 1; lost = side 0 has lost
+ * `count` units (of `kinds`) since the condition began (its phase's start).
+ */
+export type LossDef =
+  | { type: 'pointLost'; point: PointRef }
+  | { type: 'enemyReached'; x: number; count: number; kinds?: UnitKind[] }
+  | { type: 'structureLost'; structures: StructureRef[] }
+  | { type: 'lost'; count: number; kinds?: UnitKind[] };
+
+/**
+ * An optional objective that pays a medal bonus (FOUNDATIONS.md 7.1), watched from its phase's start to the end of
+ * the mission (failIf only until phase `until` starts, if given). It is earned at a win when its `objective` (if any)
+ * was done, within `within` seconds of the mission clock if given; `failIf` (if any) never happened; and, with no
+ * objective, the win itself came within `within` seconds (if given).
+ */
+export interface SideObjectiveDef {
+  id: string;
+  /** Pause and end screens, 40 characters at most. */
+  text: string;
+  objective?: ObjectiveDef;
+  failIf?: LossDef;
+  within?: number;
+  until?: string;
+  /** Share added to the 0..1 medal score (0.1 = +10%). */
+  bonus: number;
+}
+
+/** A phase's own clock on the HUD. lose = the mission is lost when it runs out; complete = the phase is done then. */
+export interface PhaseTimerDef {
+  seconds: number;
+  label: string;
+  onExpire: 'complete' | 'lose';
+}
+
+/**
+ * What the admin panel's "jump to phase" (and phase-isolated tests) put in place before entering the phase: who holds
+ * which trenches and pillboxes, money, and units placed for each side.
+ */
+export interface PhaseAssume {
+  owners?: { ref: { trench: number } | { pillbox: number }; owner: Side | -1 }[];
+  supplies?: [number, number];
+  forces?: [ForceDef[], ForceDef[]];
+}
+
+/**
+ * One phase of a mission (FOUNDATIONS.md 3.1). One is current at a time; when all its objectives are done the
+ * director moves to `next` (null: the mission is won). Its events are the mission's events with phase triggers, plus
+ * `onEnter` (fired when it starts, after its prep).
+ */
+export interface PhaseDef {
+  id: string;
+  /** HUD objective plate and phase banner, 40 characters at most. */
+  title: string;
+  objectives: ObjectiveDef[];
+  sideObjectives?: SideObjectiveDef[];
+  lose?: LossDef[];
+  timer?: PhaseTimerDef;
+  /** A prep phase at its start (FOUNDATIONS.md 7.3). The first phase's is MissionDef.prep. */
+  prep?: MissionPrepDef;
+  onEnter?: MissionEventDef[];
+  next: string | null;
+  assume?: PhaseAssume;
+}
 
 /** One step of an AI build plan: keep `count` of `kind` alive once `after` seconds have passed. */
 export interface BuildStep {
@@ -774,8 +951,16 @@ export interface MissionDef {
    * half of the field, behind their front), and the test bot's build plan.
    */
   prep?: MissionPrepDef;
-  /** Survival: win when it expires. Deadline: lose when it expires. */
+  /**
+   * A clock over the whole mission (from the end of the first prep phase). Survival: win when it expires. Deadline:
+   * lose when it expires. With `phases` it runs beside them (the HUD shows it unless the current phase has its own).
+   */
   timer: { seconds: number; onExpire: 'win' | 'lose'; label: string } | null;
+  /**
+   * The mission director's phases (FOUNDATIONS.md 3.1), in order; the first is where the mission starts. Absent = one
+   * phase made from `mode` and `timer` (normalPhases in src/sim/director.ts), which plays exactly as before.
+   */
+  phases?: PhaseDef[];
   events: MissionEventDef[];
   /** Build plan for the AI on side 1. */
   ai: MissionAiPlan;

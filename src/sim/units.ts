@@ -102,6 +102,7 @@ export function createUnit(index: number): UnitState {
     cellSpan: 0,
     slotDepth: 0,
     jitter: 0,
+    leash: 0,
     postX: 0,
     postTrench: -1,
     trench: -1,
@@ -243,6 +244,7 @@ export function spawnUnit(
   u.mount.spread = u.jitter;
   u.mount2.spread = u.jitter;
   u.postX = px;
+  u.leash = CONFIG.guardLeash;
   u.postTrench = -1;
   u.trench = -1;
   u.slot = -1;
@@ -294,7 +296,12 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
   side.alive[u.kind]--;
   if (u.veteran) w.escorts[u.side * KIND_COUNT + u.kindIndex]--;
   side.stats.lost++;
-  if (killerSide >= 0) s.sides[killerSide].stats.kills++;
+  side.stats.lostByKind[u.kind]++;
+  if (killerSide >= 0) {
+    const killer = s.sides[killerSide].stats;
+    killer.kills++;
+    killer.killsByKind[u.kind]++;
+  }
   if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
   if (u.passengers > 0) dropPassengers(w, u, false);
   freeCell(w, u);

@@ -43,6 +43,8 @@ export interface PrepTunables {
   frontGap: number;
   /** Most sites a side may have at once (built or not, a sanity cap). */
   maxSites: number;
+  /** A prep phase at a later phase's start: its zone reaches this far behind side 0's front (FOUNDATIONS.md 7.3). */
+  phaseZoneDepth: number;
 }
 
 export const PREP: PrepTunables = {
@@ -58,4 +60,5 @@ export const PREP: PrepTunables = {
   gap: 20,
   frontGap: 60,
   maxSites: 16,
+  phaseZoneDepth: 1800,
 };

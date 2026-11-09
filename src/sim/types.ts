@@ -17,6 +17,7 @@ import type {
   FactionId,
   MissionDef,
   MissionMode,
+  ObjectiveDef,
   Order,
   Side,
   SupportKind,
@@ -126,7 +127,9 @@ export type AdminAction =
   /** Units of `kind` walk out until the side's population reaches its cap. */
   | { type: 'fillArmy'; side: Side; kind: UnitKind }
   /** Fire the mission's scripted event with this index now (a one-shot event will not fire again). */
-  | { type: 'fireEvent'; index: number };
+  | { type: 'fireEvent'; index: number }
+  /** The mission director moves to the phase with this id now, after putting its PhaseDef.assume in place. */
+  | { type: 'jumpPhase'; phase: string };
 
 /** What an AI commander is up to, for the admin panel's debug view. Null from battle.inspectAi for a human side. */
 export interface AiReport {
@@ -177,6 +180,14 @@ export type EndReason =
   | 'timerExpired'
   /** Both HQs fell in the same tick; `winner` is -1. */
   | 'draw'
+  /** The mission director's last phase was completed; side 0 wins. */
+  | 'objectives'
+  /** A phase's loss condition happened (a point lost, the enemy through, a structure lost); side 1 wins. */
+  | 'objectiveFailed'
+  /** The enemy gave up (a surrender objective); side 0 wins. */
+  | 'surrender'
+  /** A scripted endMission event ended it; `winner` is the side it named. */
+  | 'scripted'
   /** The admin panel ended it (AdminAction 'end'); `winner` is the side it chose. */
   | 'admin';
 
@@ -320,6 +331,8 @@ export interface UnitState {
   slotDepth: number;
   /** internal: fixed 0..1 value per unit, used to stagger stopping distances so units do not stack. */
   jitter: number;
+  /** internal: how far a guard may move from its post (ForceDef.leash; config.guardLeash by default, 0 = frozen). */
+  leash: number;
   /** internal: the post a guard or garrison unit returns to. */
   postX: number;
   /** internal: index into state.trenches of the trench a garrison unit holds, -1 for none. */
@@ -400,6 +413,10 @@ export interface SideStats {
   lost: number;
   /** Enemy units killed by this side. */
   kills: number;
+  /** Enemy units killed by this side, per kind of the unit killed. */
+  killsByKind: Record<UnitKind, number>;
+  /** Own units lost, per kind (whoever killed them): the director's kill objectives count these. */
+  lostByKind: Record<UnitKind, number>;
   /** All supplies earned: passive income, sapper deliveries and airdrops (starting supplies excluded). */
   suppliesGathered: number;
   /** Supplies spent on training. */
@@ -557,6 +574,10 @@ export interface PrepState {
   total: number;
   /** Battle time it ended, or -1 while it runs. The mission clock and events count from here. */
   endedAt: number;
+  /** Battle time it began: 0 for a prep phase at the mission start, later for one at a phase's start. */
+  startedAt: number;
+  /** Seconds of the earlier prep phases of this battle (the mission clock leaves them out too). */
+  before: number;
   /** What may be built. */
   buildables: BuildableId[];
   /** Side 0's build zone (side 1 never builds). */
@@ -629,6 +650,93 @@ export interface BattleState {
   prep: PrepState | null;
   /** Build sites not yet finished (placed in the prep phase), in the order placed. */
   sites: BuildSiteState[];
+  /** The mission director: the current phase, its objectives, the side objectives (src/sim/director.ts). */
+  director: DirectorState;
+}
+
+/** One objective of the current phase, as the objective plate shows it. */
+export interface ObjectiveState {
+  id: string;
+  type: ObjectiveDef['type'];
+  /** The plate's line ("Tanks destroyed", "Hold the summit"). */
+  text: string;
+  /** Progress toward `target`: a count, or seconds for hold and survive. */
+  value: number;
+  target: number;
+  /** count = "7 / 12"; seconds = a countdown of target - value; flag = done or not. */
+  unit: 'count' | 'seconds' | 'flag';
+  done: boolean;
+  /** internal (hold): phase time since the point has been held without a break, -1 while not held. */
+  since: number;
+}
+
+/** A side objective (pause and end screens). */
+export interface SideObjectiveState {
+  id: string;
+  text: string;
+  bonus: number;
+  /** open while it can still be earned; done once earned for good (or at a win); failed for good. */
+  status: 'open' | 'done' | 'failed';
+  /** internal: index into the mission's phases where its failIf stops being watched (`until`), or -1. */
+  untilPhase: number;
+  /** internal: what its failIf keeps from its start (side 0's losses for `lost`; 1 once side 0 held a point). */
+  base: number;
+  /** Progress of its objective, or null when it has none. */
+  progress: ObjectiveState | null;
+  /** True once its objective was done (in time). */
+  met: boolean;
+}
+
+/** A scripted barrage in progress (MissionEventDef 'barrage'). */
+export interface BarrageState {
+  side: Side;
+  x: number;
+  spread: number;
+  rounds: number;
+  fired: number;
+  /** Battle time of the first round and seconds between rounds. */
+  start: number;
+  interval: number;
+  /** Index into the sim's weapon tables. */
+  weapon: number;
+  /** 1 when the rounds come down from above (bombs). */
+  top: number;
+}
+
+/** The mission director's state (FOUNDATIONS.md 3; src/sim/director.ts). Plain data. */
+export interface DirectorState {
+  /** Index of the current phase in the mission's phases, its id and title, and how many phases there are. */
+  phase: number;
+  phaseId: string;
+  title: string;
+  count: number;
+  /** Mission time the current phase began (its own prep, which stops the mission clock, does not count). */
+  startedAt: number;
+  /** Mission time each phase began, by phase id (scoring times a mission from one of them). */
+  phaseStarts: Record<string, number>;
+  objectives: ObjectiveState[];
+  /** Every side objective begun so far, in order. */
+  side: SideObjectiveState[];
+  /** Mission time each objective and side objective was done, by id. */
+  doneAt: Record<string, number>;
+  /** internal: side 0's losses (of the condition's kinds) when each loss condition of the phase began. */
+  lossBase: number[];
+  /** The phase's own clock, or null. */
+  timer: TimerState | null;
+  /** Per side: the AI posture (posture events) and the mission time a counter-attack ends (-1 = no end). */
+  posture: ['free' | 'hold' | 'counterattack', 'free' | 'hold' | 'counterattack'];
+  postureUntil: [number, number];
+  /** Per side: the mission's own income multiplier and difficulty, before income events. */
+  incomeBase: [number, number];
+  barrages: BarrageState[];
+  /** The disguise in force (MissionEventDef 'disguise'): side -1 = none; battle times. */
+  disguiseSide: number;
+  disguiseX0: number;
+  disguiseX1: number;
+  disguiseFrom: number;
+  disguiseUntil: number;
+  /** Why the director ended the battle (the closing announcement of a surrender, or the loss), or null. */
+  endText: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -668,7 +776,10 @@ export type SimEventType =
   | 'ignite'
   | 'buildStarted'
   | 'buildDone'
-  | 'prepEnded';
+  | 'prepEnded'
+  | 'phaseStarted'
+  | 'banner'
+  | 'objectiveDone';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an
@@ -745,6 +856,12 @@ export type SimEventType =
  *                   value = soldiers unloaded (unitSpawned events follow for each).
  * ignite            A flamethrower's fuel tank was hit from behind and went up (a unitDied and an
  *                   explosion follow in the same step). side, unit, unitId, kind ('flame'), x, row.
+ *
+ * The mission director (src/sim/director.ts):
+ * phaseStarted      A new phase began (after its prep, if any). value = phase index, text = "Phase 2: The water tanks".
+ * banner            A scripted banner (or a barrage's warning). text; value = sound: 0 horn, 1 alarm, 2 boss.
+ * objectiveDone     An objective of the phase, or a side objective, was done. text = its line; value = 1 for a side
+ *                   objective, 0 for one of the phase.
  */
 export interface SimEvent {
   type: SimEventType;

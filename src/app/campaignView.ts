@@ -290,9 +290,9 @@ export function medalView(b: MedalBreakdown): MedalResultView {
 }
 
 /** Why a battle ended, in words, for the result screen. `label` = the mission timer's label ("Nightfall"), if it has one. */
-export function describeEnd(endReason: EndReason, won: boolean, label: string | null): string {
+export function describeEnd(endReason: EndReason, won: boolean, label: string | null, text: string | null = null): string {
   const reason = endReason === 'none' ? APP.reasons.draw : APP.reasons[endReason];
-  return (won ? reason.win : reason.lose).replace('{label}', label ?? 'Time');
+  return (won ? reason.win : reason.lose).replace('{label}', label ?? 'Time').replace('{reason}', text ?? 'The battle is over');
 }
 
 /** The result screen's figures for a battle that has ended. */
@@ -311,7 +311,11 @@ export function buildResult(
     won,
     missionId: mission.id,
     title: mission.title,
-    reason: describeEnd(s.endReason, won, mission.timer ? mission.timer.label : null),
+    reason: describeEnd(s.endReason, won, s.director.timer?.label ?? (mission.timer ? mission.timer.label : null), s.director.endText),
+    // The mission director's side objectives (FOUNDATIONS.md 3.4: the end screen, not the battle HUD).
+    ...(s.director.side.length > 0
+      ? { sideObjectives: s.director.side.map((so) => ({ text: so.text, done: so.status === 'done', bonus: so.bonus })) }
+      : {}),
     difficulty,
     timeSec: s.time,
     unitsTrained: stats.trained,

@@ -3,7 +3,7 @@
  */
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
-import type { MissionDef, Order, Side, SupportKind, UnitKind } from '../data/schema';
+import type { MissionDef, MissionEventDef, MissionPrepDef, Order, PhaseDef, Side, SupportKind, UnitKind } from '../data/schema';
 import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
@@ -13,6 +13,7 @@ import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
 import { updateEconomy } from './economy';
 import { EventQueue } from './events';
+import { createDirector, directorEvents, normalPhases, resetTriggerClocks, startDirector } from './director';
 import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
 import { createPrep, updateBuilds, updatePrep } from './prep';
@@ -125,10 +126,13 @@ function cooldownRecord(): Record<SupportKind, number> {
   return out;
 }
 
-/** Each support's full cooldown for a side: the data cooldown divided by its upgrade (supportRate). */
-function fullCooldownRecord(mods: SideMods): Record<SupportKind, number> {
+/** Each support's full cooldown for a side: the data cooldown (or the mission's own, SideStart.supportCooldown) divided by its upgrade (supportRate). */
+function fullCooldownRecord(mods: SideMods, own: Partial<Record<SupportKind, number>> | undefined): Record<SupportKind, number> {
   const out = new CooldownRecord();
-  for (let k = 0; k < SUPPORT_KINDS.length; k++) out[SUPPORT_KINDS[k]] = SUPPORTS[SUPPORT_KINDS[k]].cooldown / mods.supportRate[k];
+  for (let k = 0; k < SUPPORT_KINDS.length; k++) {
+    const kind = SUPPORT_KINDS[k];
+    out[kind] = (own?.[kind] ?? SUPPORTS[kind].cooldown) / mods.supportRate[k];
+  }
   return out;
 }
 
@@ -161,6 +165,8 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
   }
   const supportAvailable = supportRecord(false);
   for (const kind of mission.supports[side]) supportAvailable[kind] = true;
+  // Offered later by a `support` event (FOUNDATIONS.md 3.3).
+  for (const kind of start.supportsOff ?? []) supportAvailable[kind] = false;
   return {
     side,
     faction: start.faction,
@@ -179,11 +185,11 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     alive: kindRecord(0),
     supportAvailable,
     supportCooldown: cooldownRecord(),
-    supportCooldownFull: fullCooldownRecord(mods),
+    supportCooldownFull: fullCooldownRecord(mods, start.supportCooldown),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
     holdLineX: 0,
     controlled: -1,
-    stats: { trained: 0, lost: 0, kills: 0, suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
+    stats: { trained: 0, lost: 0, kills: 0, killsByKind: kindRecord(0), lostByKind: kindRecord(0), suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
     cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false },
   };
 }
@@ -280,6 +286,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
           label: mission.timer.label,
         }
       : null,
+    director: createDirector(normalPhases(mission).length, [mods[0].income, mods[1].income]),
   };
 }
 
@@ -303,6 +310,9 @@ class BattleImpl implements Battle, World {
   readonly ai: [AiState | null, AiState | null];
   readonly eventFired: Uint8Array;
   readonly eventNext: Float64Array;
+  readonly phases: PhaseDef[];
+  readonly missionEvents: MissionEventDef[];
+  prepDef: MissionPrepDef | null;
   readonly reserve: ReserveGroup[] = [];
   nextUnitId = 1;
   readonly spawnCount = new Int32Array(2);
@@ -379,18 +389,20 @@ class BattleImpl implements Battle, World {
     this.slotUnit = new Int32Array(slots);
     layoutTrenches(this);
 
-    this.eventFired = new Uint8Array(mission.events.length);
-    this.eventNext = new Float64Array(mission.events.length);
-    for (let i = 0; i < mission.events.length; i++) {
-      const when = mission.events[i].when;
-      if ('every' in when) this.eventNext[i] = when.from;
-    }
+    this.phases = normalPhases(mission);
+    this.missionEvents = directorEvents(mission, this.phases);
+    this.prepDef = mission.prep ?? this.phases[0].prep ?? null;
+    this.eventFired = new Uint8Array(this.missionEvents.length);
+    this.eventNext = new Float64Array(this.missionEvents.length);
+    resetTriggerClocks(this);
 
     this.ai = [createAi(this, config.commanders[0]), createAi(this, config.commanders[1])];
 
     computeFronts(this); // hold lines, needed to place the starting formation
     placeStartingForces(this);
     computeFronts(this);
+    // The first phase begins with the forces in place (garrisons own their trenches).
+    startDirector(this);
     // The spawn events of the starting forces stay readable until the first step.
   }
 

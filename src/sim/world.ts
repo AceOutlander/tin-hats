@@ -8,6 +8,9 @@ import type {
   FactionId,
   MissionAiPlan,
   MissionDef,
+  MissionEventDef,
+  MissionPrepDef,
+  PhaseDef,
   Order,
   Side,
   SupportKind,
@@ -305,6 +308,8 @@ export interface ReserveGroup {
   /** ForceDef.look ('' = the era's) and ForceDef.nation ('' = the side's own, or its roster nation for the kind). */
   look: string;
   faction: FactionId | '';
+  /** ForceDef.leash, or -1 for the default. */
+  leash: number;
 }
 
 /** Per-side memory of the AI commander (also used by the test bot). */
@@ -365,6 +370,15 @@ export interface World {
   eventFired: Uint8Array;
   /** Per mission event: battle time of its next firing (repeating events and delayed triggers). */
   eventNext: Float64Array;
+  /** The mission's phases (MissionDef.phases, or the one made from its mode and timer: normalPhases). */
+  phases: PhaseDef[];
+  /**
+   * Every scripted event the director watches: MissionDef.events (same indices: the admin panel fires them by index),
+   * then each phase's onEnter events with a phase trigger. eventFired and eventNext are indexed like this list.
+   */
+  missionEvents: MissionEventDef[];
+  /** The prep phase being run (the mission's, or the current phase's), for the test bot's build plan; null for none. */
+  prepDef: MissionPrepDef | null;
   /** Scripted reinforcements waiting for room under the population cap (only sides with an HQ). */
   reserve: ReserveGroup[];
   nextUnitId: number;

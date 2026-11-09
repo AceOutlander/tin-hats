@@ -385,6 +385,8 @@ export interface ResultView {
   medals?: MedalResultView | null;
   /** A Basic Training battle (not a campaign mission); `pointsAwarded` is its one-time reward. */
   training?: boolean;
+  /** The mission's side objectives and whether each was earned (absent when it has none). */
+  sideObjectives?: { text: string; done: boolean; bonus: number }[];
 }
 
 /** Implemented by src/app, called by the UI. */

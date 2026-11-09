@@ -61,7 +61,7 @@ function expectedTexts(m: MissionDef, window: number): { hints: string[]; announ
     else if (e.type === 'wave') {
       if (e.announce !== undefined) out.announcements.push(e.announce);
       else if (e.side === 1 && m.mode === 'survival') out.plainWave = true;
-    } else if (e.side === 0) out.airdrop = true;
+    } else if (e.type === 'airdrop' && e.side === 0) out.airdrop = true;
   }
   return out;
 }

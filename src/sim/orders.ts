@@ -129,7 +129,7 @@ function senseAdvance(w: World, u: UnitState, dir: number, hasTarget: boolean, p
 
 /**
  * Guards (the boss tank) ignore orders and fight from their post. Hit by something they cannot
- * reach, they roll toward the enemy for config.guardAlertTime, never further than guardLeash from the post.
+ * reach, they roll toward the enemy for config.guardAlertTime, never further than their leash (ForceDef.leash, config.guardLeash by default) from the post.
  */
 function senseGuard(w: World, u: UnitState, hasTarget: boolean): void {
   releaseSlot(w, u);
@@ -140,8 +140,8 @@ function senseGuard(w: World, u: UnitState, hasTarget: boolean): void {
   }
   let goal = u.postX;
   if (w.state.time - u.hitTime < CONFIG.guardAlertTime) goal = w.front[1 - u.side];
-  const lo = u.postX - CONFIG.guardLeash;
-  const hi = u.postX + CONFIG.guardLeash;
+  const lo = u.postX - u.leash;
+  const hi = u.postX + u.leash;
   u.goalX = goal < lo ? lo : goal > hi ? hi : goal;
 }
 

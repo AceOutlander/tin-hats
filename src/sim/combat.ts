@@ -38,6 +38,7 @@ import {
   type MountState,
   type UnitState,
 } from './types';
+import { disguised } from './director';
 import { flushUnit } from './trenches';
 import { igniteUnit, killUnit } from './units';
 import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './world';
@@ -130,9 +131,12 @@ function search(w: World, m: MountState, side: number): boolean {
   const units = s.units;
   const spreadWu = CONFIG.targetSpread;
   const offset = m.spread;
+  // A disguised column (the director's disguise event) is not picked out while it holds its fire.
+  const masked = s.director.disguiseSide === enemy;
   for (let i = 0; i < s.unitCount; i++) {
     const t = units[i];
     if (!t.alive || t.side !== enemy || t.inside) continue;
+    if (masked && disguised(s, t)) continue;
     const d = t.x > x ? t.x - x : x - t.x;
     if (d > range || d < minRange) continue;
     if ((mask & (1 << unitClass(t))) === 0) continue;
@@ -239,6 +243,7 @@ function targetValid(w: World, m: MountState): boolean {
     case TARGET_UNIT: {
       const t = s.units[m.targetIndex];
       if (!t.alive || t.id !== m.targetId || t.inside) return false;
+      if (s.director.disguiseSide === t.side && disguised(s, t)) return false;
       if ((WEAPON_MASK[wi] & (1 << unitClass(t))) === 0) return false;
       if (unitRank(w, wi, t) < 0) return false;
       tx = t.x;
