@@ -1218,6 +1218,15 @@ svg.th-group-icon {
   height: auto;
 }
 
+/* A call-in's group heading: its plane drawn in the heading's gold, cut-outs in the screen's dark green. */
+.th-group .th-support-icon {
+  color: #e3c06c;
+}
+
+.th-group .th-support-icon .th-cut {
+  fill: #2c3320;
+}
+
 .th-qm-grid {
   display: grid;
   /* Wide enough that the longest level line ("+25% damage, +15% fire rate") fits beside the two buttons without wrapping. */

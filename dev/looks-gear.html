@@ -27,7 +27,8 @@
         looks-gear.html?mode=medic        medic at every healing level, both nations, idle and walking
         looks-gear.html?mode=sapper       sapper pushing (walking cycle, placeholder cart at the handle), standing,
                                           and carrying a swapped load (setFigureCrateKey)
-        looks-gear.html?mode=tanks        every tank look at its gear levels (red dot = muzzle point)
+        looks-gear.html?mode=tanks        every tank and APC look at its gear levels (red dot = muzzle point)
+        looks-gear.html?mode=planes       every call-in plane at levels 0 to 3, both nations
       ';' works in place of '&' (needed when the URL goes through x.cmd):
         x.cmd npx tsx tools/shot.ts "dev/looks-gear.html?mode=infantry;z=0.95" out.png --ready
     -->
