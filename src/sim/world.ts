@@ -5,6 +5,7 @@
  */
 import type {
   BuildableId,
+  FactionId,
   MissionAiPlan,
   MissionDef,
   Order,
@@ -301,6 +302,9 @@ export interface ReserveGroup {
   left: number;
   /** Veterans (ForceDef.veteran). */
   veteran: boolean;
+  /** ForceDef.look ('' = the era's) and ForceDef.nation ('' = the side's own, or its roster nation for the kind). */
+  look: string;
+  faction: FactionId | '';
 }
 
 /** Per-side memory of the AI commander (also used by the test bot). */

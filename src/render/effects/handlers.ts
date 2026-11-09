@@ -344,7 +344,8 @@ function onUnitDied(fx: EffectContext, e: SimEvent): void {
   if (e.kind === 'tank' || e.kind === 'heavyTank' || e.kind === 'apc' || e.kind === 'lightTank') {
     const v = fx.units.findById(e.unitId);
     const faction = e.side === 1 ? 'german' : 'british';
-    const look = vehicleLookOf(e.kind, v ? v.faction : faction);
+    // The look the tank was drawn with (its era's or its force's), else its nation's default.
+    const look = v && 'look' in v ? v.look : vehicleLookOf(e.kind, v ? v.faction : faction);
     const L = TANK_LAYOUT[look];
     const x = v ? v.x : e.x;
     blast(fx, x, e.kind === 'heavyTank' ? 120 : e.kind === 'apc' ? 70 : 88, gy);

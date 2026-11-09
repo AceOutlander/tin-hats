@@ -20,7 +20,8 @@
  */
 export { chooseDeathVariant, updateFigure } from './animate';
 export { drawFigure2d, drawFigureParts, figureBounds, paintUnitIcon } from './canvas';
-export { figureGearKeys, gearSpriteKey, setFigureClothing, setFigureCrateKey, setFigureGear, setFigureHeadgear, setFigurePointing, setFigurePushing, type FigureGearKeys } from './gear';
+export { figureGearKeys, gearSpriteKey, setFigureClothing, setFigureCrateKey, setFigureGear, setFigureHeadgear, setFigurePointing, setFigurePushing, setFigureRocketItem, setFigureWeapon, type FigureGearKeys } from './gear';
+export { MOLOTOV_KEY } from './eraWeapons';
 export { FIGURE_PART_COUNT, FIGURE_RIM_PARTS, createFigureLayout, layoutFigure, type FigurePart } from './layout';
 export { FACTION_FIGURE_KEYS, allFigureSprites, figureSpriteMap } from './parts';
 export {

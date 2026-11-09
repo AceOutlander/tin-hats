@@ -10,8 +10,8 @@ import type { MissionDef } from '../../schema';
  *
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): the phases are trench captures, the
  * hold on the summit is the counter-attack waves that follow its capture, the water tanks are pillboxes, the loans
- * are scripted waves, and StuG III Ausf. F and Panzer III J are the `tank` kind (drawn as a Panzer IV; the
- * `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
+ * are scripted waves, and StuG III Ausf. F and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and,
+ * by look, the StuG III Ausf. F; the `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
  */
 export const M1006: MissionDef = {
   id: 1006,
@@ -19,6 +19,8 @@ export const M1006: MissionDef = {
   title: 'Mamayev Kurgan',
   location: 'Height 102.0, Stalingrad',
   date: '19 September 1942',
+  dateIso: '1942-09-19',
+  climate: 'city',
   mapPos: { lon: 44.5369, lat: 48.7425 },
   briefing: [
     'From the top of Height 102 you can see the whole city, the river and every boat that crosses it. While the Germans sit up there, nothing moves on the Volga by day. We crossed last night and we go straight up, before they understand that a whole division has come over.',
@@ -181,7 +183,7 @@ export const M1006: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 5, delay: 20 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2, behaviour: 'assault' },
+        { kind: 'tank', count: 2, behaviour: 'assault', look: 'stug3f' },
         { kind: 'rifle', count: 10, behaviour: 'assault' },
       ],
       announce: 'They are coming back!',

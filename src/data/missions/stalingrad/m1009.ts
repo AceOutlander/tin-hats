@@ -10,8 +10,10 @@ import type { MissionDef } from '../../schema';
  *
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1009): the full 30,000 wu, but with no
  * forward spawn points or sectors yet, so every reinforcement walks from the bridgehead; the Romanians field as
- * German troops (no Romanian nation yet); every German and Romanian tank (Pz 38(t), Panzer III, Panzer IV, R-2) is
- * the `tank` kind, since `lightTank` is the 1939 to 1941 Panzer III Ausf. E; the 37 mm and Pak 38/40 crews are the
+ * German troops in the `romanian` look (khaki-brown greatcoat, Adrian helmet; no Romanian nation yet); every German and
+ * Romanian tank (Pz 38(t), Panzer III, Panzer IV, R-2) is
+ * the `tank` kind (the era's Panzer III Ausf. L, the Panzer IV Ausf. G by look, the R-2s as the short-gun Panzer III
+ * stand-in `panzer3h`; no Pz 38(t) or R-2 is drawn), since `lightTank` is the 1939 to 1941 Panzer III Ausf. E; the 37 mm and Pak 38/40 crews are the
  * `at` kind; the KV-1S stands in as a T-34 (`tank`); the opening barrage, the fog, the blizzard, the disguise and the
  * bridge demolition wait for the mission director.
  */
@@ -21,6 +23,8 @@ export const M1009: MissionDef = {
   title: 'Operation Uranus',
   location: 'Serafimovich bridgehead to Kalach-na-Donu',
   date: '19 to 23 November 1942',
+  dateIso: '1942-11-19',
+  climate: 'winter',
   mapPos: { lon: 43.53, lat: 48.69 },
   briefing: [
     'For two months the city has held them. Now it is their turn to be surrounded. At twenty past seven every gun on the front opens fire, and when the guns lift we go, fog or no fog. Steer by compass if you must, and keep the tank riders on the hulls until we reach their trenches.',
@@ -71,18 +75,18 @@ export const M1009: MissionDef = {
       sappers: 3,
       forces: [
         // The Romanian 3rd Army's line.
-        { kind: 'rifle', count: 8, trenchId: 2, behaviour: 'garrison' },
-        { kind: 'lmg', count: 2, trenchId: 2, behaviour: 'garrison' },
-        { kind: 'rifle', count: 7, trenchId: 3 },
-        { kind: 'lmg', count: 1, trenchId: 3 },
+        { kind: 'rifle', count: 8, trenchId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'lmg', count: 2, trenchId: 2, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'rifle', count: 7, trenchId: 3, look: 'romanian' },
+        { kind: 'lmg', count: 1, trenchId: 3, look: 'romanian' },
         // A 37 mm anti-tank gun, one of the few the Romanians had.
-        { kind: 'at', count: 1, trenchId: 3 },
+        { kind: 'at', count: 1, trenchId: 3, look: 'romanian' },
         // A Romanian R-2 light tank behind the second trench.
-        { kind: 'tank', count: 1, x: 5900, behaviour: 'guard' },
+        { kind: 'tank', count: 1, x: 5900, behaviour: 'guard', look: 'panzer3h' },
         // Perelazovsky, with a Romanian corps headquarters.
-        { kind: 'rifle', count: 4, trenchId: 4, behaviour: 'garrison' },
-        { kind: 'lmg', count: 1, trenchId: 4, behaviour: 'garrison' },
-        { kind: 'assault', count: 2, trenchId: 4, behaviour: 'garrison' },
+        { kind: 'rifle', count: 4, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'lmg', count: 1, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
+        { kind: 'assault', count: 2, trenchId: 4, behaviour: 'garrison', look: 'romanian' },
         // The 22nd Panzer Division's screen in the Don hills: tank-hunting grenadiers with magnetic charges.
         { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 5, behaviour: 'garrison' },
@@ -175,7 +179,7 @@ export const M1009: MissionDef = {
       type: 'wave',
       when: { trenchCapturedBy: 0, trenchId: 3, delay: 400 },
       side: 1,
-      forces: [{ kind: 'tank', count: 3, behaviour: 'assault' }],
+      forces: [{ kind: 'tank', count: 3, behaviour: 'assault', look: 'panzer3h' }],
       announce: 'Romanian armour on the steppe: their R-2 light tanks.',
     },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3, delay: 500 }, text: 'A blizzard is blowing up over the steppe.' },
@@ -195,7 +199,7 @@ export const M1009: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 4, delay: 5 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 4, x: 21700, behaviour: 'guard' },
+        { kind: 'tank', count: 4, x: 21700, behaviour: 'guard', look: 'panzer4g' },
         { kind: 'at', count: 2, x: 21500, behaviour: 'guard' },
         { kind: 'assault', count: 4, x: 21400, behaviour: 'guard' },
       ],

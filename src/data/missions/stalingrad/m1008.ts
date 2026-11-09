@@ -11,7 +11,7 @@ import type { MissionDef } from '../../schema';
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the halls are trenches (no
  * buildings, floors or rubble yet), a 60 s prep phase comes first (the bot wires the gate), "lose if six get past the cliffs"
  * is the HQ, the loans are scripted waves, StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank`
- * kind, the Pak 40 crew the `at` kind. The attackers have no HQ, so they call in no Stukas.
+ * kind (the era's Panzer III Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40 crew the `at` kind. The attackers have no HQ, so they call in no Stukas.
  */
 export const M1008: MissionDef = {
   id: 1008,
@@ -19,6 +19,8 @@ export const M1008: MissionDef = {
   title: 'The Tractor Factory',
   location: 'Dzerzhinsky Tractor Factory, Stalingrad',
   date: '14 October 1942',
+  dateIso: '1942-10-14',
+  climate: 'city',
   mapPos: { lon: 44.585, lat: 48.795 },
   briefing: [
     'Guards, in peacetime this works made tractors, and since before the war it has made tanks. Today it is a fortress, and we are its garrison. The bombers have been overhead since first light and there is a panzer division in the workers\' settlement, with two infantry divisions behind it.',
@@ -120,7 +122,7 @@ export const M1008: MissionDef = {
       when: { at: 230 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2 },
+        { kind: 'tank', count: 2, look: 'panzer4g' },
         { kind: 'at', count: 1 },
         { kind: 'rifle', count: 8 },
         { kind: 'mortar', count: 2 },
@@ -160,7 +162,7 @@ export const M1008: MissionDef = {
       when: { every: 140, from: 480, until: 760 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3 },
+        { kind: 'tank', count: 3, look: 'stug3f' },
         { kind: 'rifle', count: 8 },
         { kind: 'assault', count: 4 },
         { kind: 'flame', count: 2 },
@@ -185,7 +187,7 @@ export const M1008: MissionDef = {
       when: { at: 1140 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3 },
+        { kind: 'tank', count: 3, look: 'panzer4g' },
         { kind: 'rifle', count: 6 },
       ],
       announce: 'The last tank push before dark!',

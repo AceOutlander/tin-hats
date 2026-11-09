@@ -306,6 +306,10 @@ export class FigureAnim {
   headgear: HeadgearKeys | null = null;
   /** Winter clothing worn over the body (setFigureClothing); null = the plain body. */
   clothing: ClothingKeys | null = null;
+  /** An era weapon in place of the nation's (setFigureWeapon): its sprite, bipod and baseplate keys; null = the nation's. */
+  weaponKeys: { weapon: string | null; bipod: string | null; plate: string | null } | null = null;
+  /** Drawn for the anti-tank "rocket" hand item instead of the nation's round (setFigureRocketItem); null = the nation's. */
+  rocketKey: string | null = null;
   /** Sapper pushing the handcart (setFigurePushing). */
   pushing = false;
   /** Commander: seconds left of pointing forward with his free arm after an order (setFigurePointing). */
@@ -410,6 +414,8 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.crateKey = null;
   a.headgear = null;
   a.clothing = null;
+  a.weaponKeys = null;
+  a.rocketKey = null;
   a.pushing = false;
   a.dead = false;
   a.deathVariant = DEATH_VARIANTS[0];

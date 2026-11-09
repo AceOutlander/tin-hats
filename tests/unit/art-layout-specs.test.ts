@@ -20,7 +20,8 @@ import type { FactionId } from '../../src/data/schema';
 import { VIEW } from '../../src/data/view';
 import { DECAL_KEYS, RUBBLE_KEYS, SUPPLY_KEYS, propSpecs } from '../../src/art/props';
 import { FLAG_KEYS, TRENCH_KEYS, WIRE_KEYS, hqKey, pillboxKey, structureSpecs, trenchSpec } from '../../src/art/structures';
-import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, PLANE_KINDS, TANK_KEYS, VEHICLE_LOOKS, planeKey, planeShadowKey, vehicleSpecs } from '../../src/art/vehicles';
+import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, PLANE_KINDS, TANK_KEYS, VEHICLE_LOOKS, aircraftLookKey, planeKey, planeShadowKey, vehicleSpecs } from '../../src/art/vehicles';
+import { AIRCRAFT_LOOKS, PLANE_LAYOUT as PLANE_BOXES, type AircraftLook } from '../../src/data/artLayout';
 import type { SpriteSpec } from '../../src/art/types';
 
 /** Every nation the art draws (FACTIONS). */
@@ -154,6 +155,8 @@ describe('structure, vehicle and prop sprite specs', () => {
       named.add(planeShadowKey(kind));
       for (const faction of NATIONS) named.add(planeKey(kind, faction));
     }
+    // The era aircraft looks (the 1941 I-16), each in its type's box.
+    for (const look of Object.keys(AIRCRAFT_LOOKS) as AircraftLook[]) named.add(aircraftLookKey(look));
     for (const look of VEHICLE_LOOKS) {
       const t = TANK_KEYS[look];
       [t.hull, t.turret, t.barrel, t.husk, ...t.track, ...t.wheels].forEach((k) => named.add(k));
@@ -206,6 +209,7 @@ describe('structure, vehicle and prop sprite specs', () => {
     expectBox(SUPPLY_KEYS.parachute, SUPPLY_LAYOUT.parachuteBox);
     expectBox(AIR_KEYS.plane, AIR_LAYOUT.planeBox);
     expectBox(AIR_KEYS.il2, AIR_LAYOUT.planeBox);
+    for (const look of Object.keys(AIRCRAFT_LOOKS) as AircraftLook[]) expectBox(aircraftLookKey(look), PLANE_BOXES[AIRCRAFT_LOOKS[look].kind].box);
     expectBox(KV2_KEYS.turret, KV2_TURRET.turretBox);
     expectBox(KV2_KEYS.barrel, KV2_TURRET.barrelBox);
     expectBox(KATYUSHA_LAUNCHER_KEY, BM13_LAYOUT.box);
@@ -314,8 +318,9 @@ describe('anchor points', () => {
       expect(L.height).toBeGreaterThan(VIEW.figureHeight);
       expect(L.height).toBeLessThan(VIEW.figureHeight * 2.2);
       // The light early-war tanks (Panzer III, cruiser, and the T-60 on the cruiser's rig) are a little under three men
-      // long; every other tank is longer.
-      const light = look === 'panzer3' || look === 'cruiser' || look === 't60';
+      // long; every other tank is longer. The era looks on the small Panzer III rig (the Ausf. H and L, the StuG III) and
+      // the T-26 are as long; the BT-7 is longer.
+      const light = ['panzer3', 'cruiser', 't60', 't26', 'panzer3h', 'panzer3l', 'stug3b', 'stug3f'].includes(look);
       expect(L.length).toBeGreaterThan(VIEW.figureHeight * (light ? 2.6 : 3));
       if (light) expect(L.length).toBeLessThan(TANK_LAYOUT.panzer4.length);
     }

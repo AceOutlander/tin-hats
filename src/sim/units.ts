@@ -111,6 +111,7 @@ export function createUnit(index: number): UnitState {
     healIndex: -1,
     healId: -1,
     veteran: false,
+    look: '',
     accuracy: 1,
     carrier: -1,
     carrierId: -1,
@@ -210,7 +211,9 @@ export function spawnUnit(
   u.kind = KIND_LIST[kindIndex];
   u.kindIndex = kindIndex;
   u.side = side;
-  u.faction = sideState.faction;
+  // A kind the side fields as another nation (SideStart.rosterNation; FOUNDATIONS.md 5.1): names and looks only.
+  const roster = w.mission.start[side].rosterNation;
+  u.faction = (roster && roster[u.kind]) ?? sideState.faction;
   u.def = def;
   u.behaviour = behaviour;
   u.x = px;
@@ -248,6 +251,7 @@ export function spawnUnit(
   u.healIndex = -1;
   u.healId = -1;
   u.veteran = false;
+  u.look = '';
   u.accuracy = 1;
   u.mount.accuracy = 1;
   u.mount2.accuracy = 1;

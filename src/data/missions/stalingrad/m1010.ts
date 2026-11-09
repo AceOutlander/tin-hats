@@ -12,7 +12,8 @@ import type { MissionDef } from '../../schema';
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): one battle on one backdrop, no
  * buildings or rubble, the minefield is wire, the immobile tanks are on guard, the opening bombardment, weather and
  * the surrender at 25% wait for the mission director (the HQ is destroyed instead); the KV-1S stands in as a T-34
- * (`tank`); StuG III, Panzer III and Panzer IV are the German `tank` (`lightTank` is the 1939 to 1941 Panzer III
+ * (`tank`); StuG III (look `stug3f`), Panzer III (the era's Ausf. L) and Panzer IV (look `panzer4g`) are the German `tank`
+ * (`lightTank` is the 1939 to 1941 Panzer III
  * Ausf. E), the Pak 40 crews the `at` kind.
  */
 export const M1010: MissionDef = {
@@ -21,6 +22,8 @@ export const M1010: MissionDef = {
   title: 'Operation Ring',
   location: 'The Stalingrad pocket to the Univermag',
   date: 'January 1943',
+  dateIso: '1943-01-10',
+  climate: 'winter',
   mapPos: { lon: 44.515, lat: 48.708 },
   briefing: [
     'The German Sixth Army is inside a ring, and tomorrow the ring begins to close. They were offered honourable terms yesterday and their commander let them lapse. Very well: at dawn seven thousand guns will give our answer, and then the whole front goes forward together.',
@@ -86,7 +89,7 @@ export const M1010: MissionDef = {
         // Gumrak: the station and two assault guns without fuel.
         { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 5, behaviour: 'garrison' },
-        { kind: 'tank', count: 2, x: 16800, behaviour: 'guard' },
+        { kind: 'tank', count: 2, x: 16800, behaviour: 'guard', look: 'stug3f' },
         // The city's western ruins.
         { kind: 'rifle', count: 2, trenchId: 6, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 6, behaviour: 'garrison' },
@@ -94,7 +97,7 @@ export const M1010: MissionDef = {
         { kind: 'rifle', count: 2, trenchId: 7, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 7, behaviour: 'garrison' },
         { kind: 'at', count: 1, trenchId: 7, behaviour: 'garrison' },
-        { kind: 'tank', count: 1, x: 22300, behaviour: 'guard' },
+        { kind: 'tank', count: 1, x: 22300, behaviour: 'guard', look: 'panzer4g' },
         // The central square.
         { kind: 'rifle', count: 2, trenchId: 8, behaviour: 'garrison' },
         { kind: 'assault', count: 2, trenchId: 8, behaviour: 'garrison' },
@@ -318,7 +321,7 @@ export const M1010: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 8, delay: 100 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1, behaviour: 'assault' },
+        { kind: 'tank', count: 1, behaviour: 'assault', look: 'stug3f' },
         { kind: 'assault', count: 4, behaviour: 'assault' },
         { kind: 'rifle', count: 4, behaviour: 'assault' },
       ],

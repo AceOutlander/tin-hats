@@ -5,9 +5,10 @@
  */
 import { APP } from '../data/app';
 import { CONFIG } from '../data/config';
+import { missionEra, resolveEra, unitDisplayName, type ResolvedEra } from '../data/eras';
 import { FACTIONS } from '../data/factions';
 import { PREP } from '../data/prep';
-import type { Side, UnitKind } from '../data/schema';
+import type { Side } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNITS, UNIT_KINDS } from '../data/units';
 import { orderCost, orderPop, type Battle, type BattleState } from '../sim';
@@ -62,7 +63,8 @@ export class HudModel {
     { x: 0, hp: 1 },
     { x: 0, hp: 1 },
   ];
-  private unitNames = {} as Record<UnitKind, string>;
+  /** The player's nation in this battle's era (src/data/eras.ts): the names on the buttons and the unit card. */
+  private era: ResolvedEra = resolveEra('british', null);
 
   constructor() {
     this.state = {
@@ -114,8 +116,9 @@ export class HudModel {
     const s = battle.state;
     const st = this.state;
     const me = s.sides[0];
-    const faction = FACTIONS[me.faction];
-    this.unitNames = faction.unitNames;
+    // Names by the mission's date (src/data/eras.ts): the PPD Trooper in 1941, the PPSh Trooper in 1942.
+    const era = missionEra(battle.config.mission, me.faction);
+    this.era = era;
 
     st.train = [];
     if (me.hasHq) {
@@ -123,8 +126,8 @@ export class HudModel {
         if (!me.available[kind] || !UNITS[kind].trainable) continue;
         const btn: TrainButtonState = {
           kind,
-          name: faction.unitNames[kind],
-          label: faction.buttonNames[kind] ?? faction.unitNames[kind],
+          name: era.names[kind],
+          label: era.buttonNames[kind] ?? era.names[kind],
           // Per training order: a squad kind (Soviet conscripts) costs and takes room for the whole squad.
           cost: orderCost(kind),
           pop: orderPop(kind),
@@ -141,7 +144,7 @@ export class HudModel {
     st.supports = [];
     for (const kind of SUPPORT_KINDS) {
       if (!me.supportAvailable[kind]) continue;
-      const btn: SupportButtonState = { kind, name: faction.supportNames[kind], charge: 1, secondsLeft: 0 };
+      const btn: SupportButtonState = { kind, name: era.supportNames[kind], charge: 1, secondsLeft: 0 };
       st.supports.push(btn);
     }
 
@@ -244,7 +247,7 @@ export class HudModel {
     const u = s.units[index];
     const c = this.control;
     c.kind = u.kind;
-    c.name = this.unitNames[u.kind];
+    c.name = unitDisplayName(this.era, u.kind, u.look);
     c.hp = u.hp;
     c.maxHp = u.maxHp;
     // The sim only lets the player control their own units, but an enemy unit's health would stay hidden all the same.

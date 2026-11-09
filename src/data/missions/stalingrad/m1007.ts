@@ -11,7 +11,7 @@ import type { MissionDef } from '../../schema';
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1007): the house is a trench with many
  * slots (no buildings or floors yet), a 60 s prep phase comes first (the bot wires the doors), the day and night phases are timed
  * waves (no time-of-day changes), the loans are scripted waves, and StuG III Ausf. F and Panzer III J are the `tank`
- * kind. The attackers have no HQ, so they call in no Stukas.
+ * kind (the era's Panzer III Ausf. L; the StuG by look `stug3f`). The attackers have no HQ, so they call in no Stukas.
  */
 export const M1007: MissionDef = {
   id: 1007,
@@ -19,6 +19,9 @@ export const M1007: MissionDef = {
   title: 'The House on the Square',
   location: '9 January Square, Stalingrad',
   date: 'September to November 1942',
+  // The defence began on 27 September; its era is the autumn's (the snow of the last phase is view-only).
+  dateIso: '1942-09-27',
+  climate: 'city',
   mapPos: { lon: 44.5315, lat: 48.716 },
   briefing: [
     'Sergeant, see that four-storey house standing alone on the square? From its upper windows you can see half a kilometre into the German lines. Take it tonight with your three men. If it is empty, hold it until help comes. If it is not empty, make it empty, quietly.',
@@ -182,7 +185,7 @@ export const M1007: MissionDef = {
       when: { at: 840 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2 },
+        { kind: 'tank', count: 2, look: 'stug3f' },
         { kind: 'rifle', count: 8 },
       ],
       announce: 'More tanks are coming round the blocks.',

@@ -18,6 +18,7 @@ import { FIGURE, FIGURE_CRATE, FIGURE_KIND_LIST, FIGURE_LOADOUT, WEAPON_GEOM, ty
 import type { FactionId, HelmetShape } from '../../data/schema';
 import type { SpriteSpec } from '../types';
 import { FIGURE_CLOTHING, FIGURE_GEAR_NATION, FIGURE_HEADGEAR, type FigureClothing, type FigureHeadgear } from '../../data/looksGear';
+import { eraWeaponSpecs } from './eraWeapons';
 import { gearFigureSprites } from './gear';
 import { TAU } from './math';
 import {
@@ -898,7 +899,7 @@ function weaponSpecs(): SpriteSpec[] {
   out.push(makeSpec('fig/item/shell', -6.6, -1.8, 4.2, 1.8, paintShell));
   out.push(makeSpec('fig/item/piatBomb', -5.8, -2.2, 6.8, 2.2, paintPiatBomb));
   out.push(makeSpec('fig/item/rocket', -6.2, -1.6, 7.2, 1.6, paintRocket));
-  out.push(...sovietWeaponSpecs());
+  out.push(...sovietWeaponSpecs(), ...eraWeaponSpecs());
   return out;
 }
 

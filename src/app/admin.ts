@@ -10,7 +10,7 @@
 import { ADMIN, type AdminSquadDef } from '../data/admin';
 import { APP } from '../data/app';
 import { DIFFICULTY_LIST } from '../data/difficulty';
-import { FACTIONS } from '../data/factions';
+import { missionEra, unitDisplayName } from '../data/eras';
 import type { MissionEventDef, Side, UnitKind } from '../data/schema';
 import { UNIT_KINDS } from '../data/units';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
@@ -172,7 +172,7 @@ export class AdminController implements AdminApi {
       hqInvincible: [mine.cheats.hqInvincible, enemy.cheats.hqInvincible],
       sideInvincible: [mine.cheats.invincible, enemy.cheats.invincible],
       events: session.mission.events.map((ev, index) => ({ index, label: eventLabel(ev, index) })),
-      names: [FACTIONS[mine.faction].unitNames, FACTIONS[enemy.faction].unitNames],
+      names: [missionEra(session.mission, mine.faction).names, missionEra(session.mission, enemy.faction).names],
     };
   }
 
@@ -186,10 +186,11 @@ export class AdminController implements AdminApi {
 
   private selected(): AdminSelected | null {
     const u = this.findUnit(this.selectedId);
-    if (!u) return null;
+    const session = this.app.session;
+    if (!u || !session) return null;
     return {
       id: u.id,
-      label: FACTIONS[u.faction].unitNames[u.kind],
+      label: unitDisplayName(missionEra(session.mission, u.faction), u.kind, u.look),
       side: u.side === 0 ? 'mine' : 'enemy',
       hp: Math.ceil(u.hp),
       maxHp: Math.ceil(u.maxHp),

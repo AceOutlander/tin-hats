@@ -17,6 +17,7 @@ import { listFxSprites } from '../art/fx';
 import { propSpecs } from '../art/props';
 import { structureSpecs } from '../art/structures';
 import { vehicleSpecs } from '../art/vehicles';
+import { sideEra } from '../data/eras';
 import { FX_KEYS } from '../data/fx';
 import { MENU_STORM } from '../data/menuStorm';
 import { RENDER } from '../data/render';
@@ -360,8 +361,12 @@ export class BattleViewImpl implements BattleView {
     this.units.reset(opts.visualSeed);
     this.units.setLooks(0, looks[0]);
     this.units.setLooks(1, looks[1]);
+    // The mission's date and climate pick each nation's era looks (src/data/eras.ts).
+    this.units.setMission(mission);
     this.effects.ctx.planes.setLooks(0, looks[0]);
     this.effects.ctx.planes.setLooks(1, looks[1]);
+    this.effects.ctx.planes.setAircraft(0, sideEra(mission, 0).aircraft);
+    this.effects.ctx.planes.setAircraft(1, sideEra(mission, 1).aircraft);
     this.effects.clear();
     this.effects.ctx.state = state;
     this.effects.ctx.playerSide = opts.playerSide;

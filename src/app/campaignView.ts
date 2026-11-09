@@ -4,6 +4,7 @@
  * no DOM, so they run in unit tests.
  */
 import { APP } from '../data/app';
+import { missionEra } from '../data/eras';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
 import { MEDALS } from '../data/medals';
@@ -78,7 +79,9 @@ export function progressOf(save: SaveData, missions: readonly MissionDef[], unlo
 }
 
 function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
-  const faction = FACTIONS[m.start[0].faction];
+  // The names of the mission's date (src/data/eras.ts): Tank Hunters in June 1941, PTRD Teams from November.
+  const era = missionEra(m, m.start[0].faction);
+  const faction = { unitNames: era.names, unitBlurbs: era.blurbs, supportNames: era.supportNames };
   const cleared = {} as Record<Difficulty, boolean>;
   const replay = {} as Record<Difficulty, number>;
   for (const d of DIFFICULTY_LIST) {

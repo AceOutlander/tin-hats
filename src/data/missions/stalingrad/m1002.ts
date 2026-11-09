@@ -18,6 +18,8 @@ export const M1002: MissionDef = {
   title: 'Dubno',
   location: 'Dubno, Volhynia, Ukrainian SSR',
   date: '27 June 1941',
+  dateIso: '1941-06-27',
+  climate: 'temperate',
   mapPos: { lon: 25.73, lat: 50.42 },
   briefing: [
     'The order came this morning: we strike north-east through Verba for Dubno, this afternoon. Half the corps is strung out behind us, broken down or dry of fuel, and the German bombers have had the sky to themselves since Sunday. We go with what is running.',
@@ -46,11 +48,13 @@ export const M1002: MissionDef = {
       incomeMul: 1,
       sappers: 3,
       forces: [
-        // KV-1 and KV-2 (the heavyTank kind until the kv2 look exists).
-        { kind: 'heavyTank', count: 2, x: 1300 },
+        // KV-1 and KV-2 (the heavyTank kind; the second is the kv2 look, one spacing (22 wu) behind the first, as before).
+        { kind: 'heavyTank', count: 1, x: 1300 },
+        { kind: 'heavyTank', count: 1, x: 1278, look: 'kv2' },
         { kind: 'tank', count: 3, x: 1500 },
-        // Three BT-7s and two T-26s (the lightTank kind until the bt7 and t26 looks exist).
-        { kind: 'lightTank', count: 5, x: 1750 },
+        // Three BT-7s (the era's light tank) and two T-26s behind them, in the same five places as one force of five.
+        { kind: 'lightTank', count: 3, x: 1750 },
+        { kind: 'lightTank', count: 2, x: 1684, look: 't26' },
         { kind: 'rifle', count: 8 },
         { kind: 'lmg', count: 1 },
         // Loans: three Tank Hunters and two mortar crews.
@@ -151,7 +155,8 @@ export const M1002: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 3, delay: 180 },
       side: 1,
       forces: [
-        { kind: 'lightTank', count: 2, x: 18500, behaviour: 'assault' },
+        // Panzer IIIs with the 5 cm gun (the 11th Panzer had both guns; HISTORY.md).
+        { kind: 'lightTank', count: 2, x: 18500, behaviour: 'assault', look: 'panzer3h' },
         { kind: 'tank', count: 1, x: 18700, behaviour: 'assault' },
         { kind: 'rifle', count: 6, x: 18400, behaviour: 'assault' },
       ],

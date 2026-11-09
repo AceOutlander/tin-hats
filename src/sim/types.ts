@@ -338,6 +338,11 @@ export interface UnitState {
 
   /** Veteran (the King Tiger's escort): more health and a better hit chance (config.veteran). Draw the elite marker. */
   veteran: boolean;
+  /**
+   * The look its force named (ForceDef.look: a `kv2`, a `stug3f`, the `romanian` look), '' = its era's look for the
+   * kind (src/data/eras.ts). Names and art only; the sim never reads it.
+   */
+  look: string;
   /** internal: multiplier on hit chance (config.veteran.accuracyMul for veterans, else 1). */
   accuracy: number;
   /**

@@ -17,6 +17,8 @@ export const M1005: MissionDef = {
   title: 'Crossing the Volga',
   location: 'Central landing, Stalingrad',
   date: '15 September 1942',
+  dateIso: '1942-09-15',
+  climate: 'city',
   mapPos: { lon: 44.527, lat: 48.709 },
   briefing: [
     'Guardsmen, the city is burning from end to end and the Germans are almost at the river. If they take the central landing, the army over there has no door left. Tonight we cross.',
@@ -206,7 +208,7 @@ export const M1005: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 3, delay: 200 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1, x: 11400, behaviour: 'assault' },
+        { kind: 'tank', count: 1, x: 11400, behaviour: 'assault', look: 'stug3f' },
         { kind: 'assault', count: 6, x: 11300, behaviour: 'assault' },
       ],
       announce: 'An assault gun with sub-machine gunners.',

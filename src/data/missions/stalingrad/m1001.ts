@@ -8,8 +8,8 @@ import type { MissionDef } from '../../schema';
  * club (B2) and the Kholm Gate (B3) are trenches standing in for buildings, a 60 s prep phase comes first (the test bot
  * wires the gate), and the three phases are three 240 s stretches of the one clock (720 s, from the end of the prep
  * phase). The opening barrage, the Nebelwerfer salvo, the 21 cm mortars and the Karl siege mortar wait for scripted
- * call-ins (side 1 has no HQ, so no commander calls anything). The two StuG III Ausf. B are the `tank` kind until the
- * `stug3b` look exists.
+ * call-ins (side 1 has no HQ, so no commander calls anything). The two StuG III Ausf. B are the `tank` kind with the
+ * `stug3b` look (src/data/eras.ts).
  */
 export const M1001: MissionDef = {
   id: 1001,
@@ -17,6 +17,8 @@ export const M1001: MissionDef = {
   title: 'Brest Fortress',
   location: 'Brest-Litovsk, Byelorussian SSR',
   date: '22 June 1941',
+  dateIso: '1941-06-22',
+  climate: 'temperate',
   mapPos: { lon: 23.656, lat: 52.083 },
   briefing: [
     'It is a little after four in the morning. The guns opened up across the Bug without warning and the west of the fortress is burning. The Germans are already on the islands and coming over the bridges. Nobody has told us anything, so we will fight with what we have.',
@@ -198,7 +200,7 @@ export const M1001: MissionDef = {
       when: { at: 490 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1, x: 5600 },
+        { kind: 'tank', count: 1, x: 5600, look: 'stug3b' },
         { kind: 'rifle', count: 6, x: 5400 },
       ],
       announce: 'Assault guns on the bridge!',
@@ -209,7 +211,7 @@ export const M1001: MissionDef = {
       when: { at: 560 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1, x: 5600 },
+        { kind: 'tank', count: 1, x: 5600, look: 'stug3b' },
         { kind: 'rifle', count: 4, x: 5400 },
       ],
       announce: 'A second assault gun is on the bridge.',

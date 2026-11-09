@@ -186,7 +186,7 @@ describe('Soviet art', () => {
     expect(FIGURE_CLOTHING.soviet).toEqual(FIGURE_CLOTHING_LIST);
   });
 
-  it('draws winter clothing over the body parts it covers, a little fuller than the body, for the Red Army only', () => {
+  it('draws winter clothing over the body parts it covers, a little fuller than the body; the British wear none', () => {
     const map = figureSpriteMap();
     for (const id of FIGURE_CLOTHING_LIST) {
       const keys = FACTION_FIGURE_KEYS.soviet.clothing[id];

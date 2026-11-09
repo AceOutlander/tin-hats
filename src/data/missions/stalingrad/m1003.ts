@@ -17,6 +17,8 @@ export const M1003: MissionDef = {
   title: 'The Volokolamsk Highway',
   location: 'Dubosekovo, near Volokolamsk',
   date: '16 November 1941',
+  dateIso: '1941-11-16',
+  climate: 'winter',
   mapPos: { lon: 36.07, lat: 55.98 },
   briefing: [
     'The snow came early this year and the mud with it, and for a month the Germans sat in it. Now the ground has frozen hard and the panzers can roll again. Behind us is the highway, and at the end of the highway is Moscow.',
@@ -99,7 +101,8 @@ export const M1003: MissionDef = {
       when: { at: 30 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1, x: 10800, behaviour: 'assault' },
+        // A Panzer III with the 5 cm gun (the `panzer3h` look) and an Ausf. E.
+        { kind: 'tank', count: 1, x: 10800, behaviour: 'assault', look: 'panzer3h' },
         { kind: 'lightTank', count: 1, x: 10900, behaviour: 'assault' },
         { kind: 'rifle', count: 8, x: 10600, behaviour: 'assault' },
       ],
@@ -120,7 +123,7 @@ export const M1003: MissionDef = {
       when: { at: 150 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 1, x: 10800, behaviour: 'assault' },
+        { kind: 'tank', count: 1, x: 10800, behaviour: 'assault', look: 'stug3b' },
         { kind: 'assault', count: 6, x: 10600, behaviour: 'assault' },
       ],
       announce: 'Assault guns with sub-machine gunners.',
@@ -148,7 +151,7 @@ export const M1003: MissionDef = {
       when: { at: 400 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2, x: 10800, behaviour: 'assault' },
+        { kind: 'tank', count: 2, x: 10800, behaviour: 'assault', look: 'panzer3h' },
         { kind: 'lightTank', count: 1, x: 10900, behaviour: 'assault' },
         { kind: 'rifle', count: 6, x: 10600, behaviour: 'assault' },
         { kind: 'assault', count: 4, x: 10500, behaviour: 'assault' },

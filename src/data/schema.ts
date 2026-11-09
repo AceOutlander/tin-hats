@@ -617,7 +617,39 @@ export interface ForceDef {
   behaviour?: 'army' | 'guard' | 'assault' | 'garrison';
   /** Veteran infantry (the King Tiger's escort): health and hit chance scaled by config.veteran. */
   veteran?: boolean;
+  /**
+   * A look inside the era (FOUNDATIONS.md 5.1, src/data/eras.ts): a vehicle variant (a `kv2` among the KV-1s, a
+   * `stug3b` instead of the era's Panzer IV) or an infantry look (`romanian`). Names and art only: the stats stay the
+   * kind's. tests/unit/eras.test.ts checks each against the equipment table (src/data/equipment.ts).
+   */
+  look?: ForceLookId;
+  /** The nation these units belong to, if not the side's (FOUNDATIONS.md 5.1, per-kind nation). */
+  nation?: NationId;
 }
+
+/**
+ * The per-force looks a mission may name (ForceDef.look): vehicle looks drawn in src/art/vehicles (VehicleLook in
+ * src/data/artLayout.ts) and infantry looks (INFANTRY_LOOKS in src/data/eras.ts).
+ */
+export type ForceLookId =
+  | 't26'
+  | 'bt7'
+  | 't60'
+  | 't34'
+  | 'kv1'
+  | 'kv2'
+  | 'panzer3'
+  | 'panzer3h'
+  | 'panzer3l'
+  | 'panzer4'
+  | 'panzer4g'
+  | 'stug3b'
+  | 'stug3f'
+  | 'romanian'
+  | 'skiTroops';
+
+/** A mission's climate (FOUNDATIONS.md 5.1): with its date, it picks each nation's era (src/data/eras.ts). */
+export type Climate = 'temperate' | 'winter' | 'desert' | 'tropical' | 'city';
 
 export interface SideStart {
   faction: FactionId;
@@ -630,6 +662,11 @@ export interface SideStart {
   incomeMul: number;
   sappers: number;
   forces: ForceDef[];
+  /**
+   * Kinds this side fields as another nation (FOUNDATIONS.md 5.1): `{ lightTank: 'southAfrican' }`. Their units carry
+   * that nation's names and looks; stats stay the kind's. ForceDef.nation overrides it per force.
+   */
+  rosterNation?: Partial<Record<UnitKind, NationId>>;
 }
 
 /**
@@ -690,6 +727,13 @@ export interface MissionDef {
   title: string;
   location: string;
   date: string;
+  /**
+   * The mission's date as 'YYYY-MM-DD' (FOUNDATIONS.md 5.1 and 9.1): with `climate` it picks each nation's era, its
+   * unit names and looks (src/data/eras.ts). Absent = every nation's default era (today's names and looks).
+   */
+  dateIso?: string;
+  /** The mission's climate for the era (winter brings the winter looks). Absent = temperate. */
+  climate?: Climate;
   /** Position on the campaign map in degrees. */
   mapPos: { lon: number; lat: number };
   briefing: string[];

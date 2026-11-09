@@ -72,7 +72,8 @@ export function smallTankHull(ctx: Ctx, P: TankPalette): void {
   disc(ctx, 48.2, -41.8, 1.5, P.bodyDark);
 }
 
-function smallTankTurretBody(ctx: Ctx, P: TankPalette): void {
+/** The Panzer III turret without its marking (the cruiser and the later Panzer IIIs build on it). */
+export function smallTankTurretBody(ctx: Ctx, P: TankPalette): void {
   // A short box turret with a squared rear bin and the drum cupola set at the back.
   rimPoly(ctx, [-26, 0, -30, -4, -27, -18, -23, -20, 12, -20, 24, -12, 26, -3, 23, 0], P.body, P.rim, 1.3);
   fillPoly(ctx, [-24, -3, -25, -16, -21.5, -17.6, 11, -17.6, 21, -11, 22.5, -3], P.panel);

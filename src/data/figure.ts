@@ -62,7 +62,10 @@ export type WeaponModel =
   | 'ppsh'
   | 'mortar82'
   | 'ptrd'
-  | 'tt33';
+  | 'tt33'
+  // Era weapons (FOUNDATIONS.md 5.1, src/data/eras.ts picks them by date; drawn in src/art/figure/eraWeapons.ts).
+  | 'ppd'
+  | 'pzb39';
 
 /** Small item drawn in a hand: grenades, a mortar bomb, an anti-tank round. */
 export type HandItem = 'none' | 'mills' | 'stick' | 'f1' | 'shell' | 'rocket';
@@ -867,6 +870,10 @@ export const WEAPON_GEOM: Record<WeaponModel, WeaponGeom> = {
   ptrd: geom({ muzzleX: 34.0, muzzleY: -2.6, restY: 2.4 }),
   /** TT-33: the officer's Tokarev, held like the other pistols. */
   tt33: geom({ muzzleX: 7.8, muzzleY: -1.0, restY: 1.0 }),
+  /** PPD-40 (1940 to 1942): the PPSh's forerunner, a longer wooden stock to the jacket, the drum under the receiver. */
+  ppd: geom({ muzzleX: 16.6, muzzleY: -0.8 }),
+  /** PzB 39 (1939 to 1942): the German anti-tank rifle, shouldered like the PTRD; folding stock, bipod folded. */
+  pzb39: geom({ muzzleX: 30.6, muzzleY: -2.4, restY: 2.2 }),
 };
 
 export interface FigureLoadout {

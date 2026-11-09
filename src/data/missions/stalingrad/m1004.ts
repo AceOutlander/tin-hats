@@ -17,6 +17,8 @@ export const M1004: MissionDef = {
   title: 'The Road to Klin',
   location: 'Klin, Moscow Oblast',
   date: '12 December 1941',
+  dateIso: '1941-12-12',
+  climate: 'winter',
   mapPos: { lon: 36.73, lat: 56.33 },
   briefing: [
     'For five months we have given ground. Tonight we take some back. The Germans stand thirty kilometres from Moscow with frozen engines, and their men are wrapped in blankets and summer boots. They expected to be in the city by now; instead they are out in our winter.',
@@ -49,8 +51,8 @@ export const M1004: MissionDef = {
       sappers: 4,
       forces: [
         { kind: 'rifle', count: 10 },
-        // Ski troopers (the assault kind until the skis tag exists).
-        { kind: 'assault', count: 6 },
+        // Ski troopers (the assault kind until the skis tag exists) in white snow smocks (the `skiTroops` look).
+        { kind: 'assault', count: 6, look: 'skiTroops' },
         { kind: 'lmg', count: 2 },
         { kind: 'tank', count: 1, x: 1200 },
         // T-60 (the lightTank kind).
@@ -87,7 +89,7 @@ export const M1004: MissionDef = {
         { kind: 'at', count: 1, trenchId: 5, behaviour: 'garrison' },
         { kind: 'mortar', count: 2, x: 24200, behaviour: 'guard' },
         // The 1st Panzer Division's tanks in Klin: a Panzer III and a Panzer IV frozen in place, one Panzer IV running.
-        { kind: 'lightTank', count: 1, x: 24600, behaviour: 'guard' },
+        { kind: 'lightTank', count: 1, x: 24600, behaviour: 'guard', look: 'panzer3h' },
         { kind: 'tank', count: 1, x: 24900, behaviour: 'guard' },
         { kind: 'tank', count: 1, x: 22600, behaviour: 'guard' },
       ],

@@ -328,6 +328,71 @@ function paintPo2(ctx: Ctx, f: FactionId): void {
   redStar(ctx, -61, -11, 3.6);
 }
 
+// ---------------------------------------------------------------------------
+// I-16 (the fighter of 1941, NATIONS.md section 3): a short barrel of a fuselage behind the big blunt radial cowling,
+// the open cockpit with its windscreen and headrest fairing, the small rounded fin. An era look (FOUNDATIONS 5.1).
+// ---------------------------------------------------------------------------
+
+/** The I-16 Type 24 in the fighter's box and anchors (PLANE_LAYOUT.fighter), drawn a little over life size. */
+export function paintI16(ctx: Ctx, f: FactionId): void {
+  const S = skin(f);
+  // Tailplane behind the fuselage.
+  rimmed(ctx, (c) => ellipse(c, -64, -3, 12, 2.2), C.ink, RIM, 0, 1);
+  const body = (c: Ctx): void => {
+    c.beginPath();
+    // The cowling's front ring, the belly, the taper to the rudder, the fin, then the back, the cockpit and the hump.
+    c.moveTo(60, -12);
+    c.lineTo(60, 10);
+    c.bezierCurveTo(48, 13, 30, 12, 10, 10);
+    c.bezierCurveTo(-20, 7, -50, 4, -70, 2);
+    c.lineTo(-74, 1);
+    c.lineTo(-76, -8);
+    c.bezierCurveTo(-78, -20, -70, -24, -64, -20);
+    c.lineTo(-60, -8);
+    c.bezierCurveTo(-40, -9, -20, -11, -2, -13);
+    c.lineTo(4, -17);
+    c.lineTo(10, -17);
+    c.lineTo(14, -14);
+    c.bezierCurveTo(28, -15, 40, -15, 46, -14);
+    c.closePath();
+  };
+  twoTone(ctx, body, S, 0, 100);
+  camo(ctx, body, [-40, -6, 12, 3, 20, -10, 10, 3]);
+  // The cowling: its front ring, the shutter, and the exhaust stubs round its back edge.
+  rimRect(ctx, 54, -12.5, 7, 23, 3, C.ink, RIM, 0.8);
+  strokeLine(ctx, [57.5, -10, 57.5, 8], rgba(RIM, 0.5), 0.7);
+  ctx.fillStyle = rgba(C.void, 0.85);
+  for (let i = 0; i < 4; i++) ctx.fillRect(44, -9 + i * 5, 2.4, 2);
+  // The open cockpit: the windscreen ahead of the pilot's head, the headrest fairing behind it.
+  rimPoly(ctx, [14, -14, 11, -19, 8, -19, 8, -15], C.glass, GLASS_RIM, 0.8);
+  fillPoly(ctx, [4, -17, 6.5, -18.6, 8, -17], C.ink);
+  ctx.fillStyle = '#2a2a24';
+  ctx.beginPath();
+  ctx.arc(5.4, -18.6, 2.4, 0, TAU);
+  ctx.fill();
+  // Near wing edge-on, low on the fuselage, with the wing gun's muzzle.
+  rimmed(
+    ctx,
+    (c) => {
+      c.beginPath();
+      c.moveTo(42, 6);
+      c.bezierCurveTo(36, 2, 6, 2, -16, 6);
+      c.bezierCurveTo(4, 10, 32, 10.5, 42, 6);
+      c.closePath();
+    },
+    C.ink,
+    RIM,
+    0.2,
+    1.2,
+  );
+  strokeLine(ctx, [42, 5, 50, 5], C.ink, 1.1);
+  // The propeller hub and blur.
+  fillPoly(ctx, [60, -4, 66, -1, 66, 1, 60, 4], C.ink);
+  propBlur(ctx, 64, 0, 26);
+  marking(ctx, f, -30, -1.2, 4.6);
+  redStar(ctx, -70, -12, 3.8);
+}
+
 export const SOVIET_PLANES: Record<PlaneKind, (ctx: Ctx, f: FactionId) => void> = {
   bomber: paintPe2,
   fighter: paintYak1,

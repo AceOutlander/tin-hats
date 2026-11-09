@@ -19,10 +19,15 @@ import {
   createFigureLayout,
   layoutFigure,
   resetFigureAnim,
+  MOLOTOV_KEY,
+  setFigureClothing,
   setFigureCrateKey,
   setFigureGear,
+  setFigureHeadgear,
   setFigurePointing,
   setFigurePushing,
+  setFigureRocketItem,
+  setFigureWeapon,
   updateFigure,
   type FigureAnim,
   type FigureDeath,
@@ -49,7 +54,8 @@ import { FX_KEYS } from '../data/fx';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
-import type { DamageType, FactionId, Side, UnitKind } from '../data/schema';
+import { infantryLookOf, missionEra, resolveEra, unitVehicleLook, type ResolvedEra, type VehicleKind } from '../data/eras';
+import type { DamageType, FactionId, MissionDef, Side, UnitKind } from '../data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { createRng, mixSeed, type Rng01 } from '../fx';
@@ -557,8 +563,8 @@ class TankView extends UnitViewBase {
     }
   }
 
-  reset(kind: UnitKind, faction: FactionId): void {
-    const look = vehicleLookOf(kind, faction);
+  /** `look` = the era's or the force's vehicle look (src/data/eras.ts unitVehicleLook); default = the nation's. */
+  reset(kind: UnitKind, faction: FactionId, look: VehicleLook = vehicleLookOf(kind, faction)): void {
     this.look = look;
     this.tank.look = look;
     this.tank.distance = 0;
@@ -730,6 +736,17 @@ export class UnitViews {
   private relaxed = new Float64Array(64);
   /** Looks of each side (upgrade gear), from setLooks; null = no gear. */
   private readonly looks: (SideLooks | null)[] = [null, null];
+  /** The battle's mission, for the era looks by date (src/data/eras.ts); null = every nation's defaults. */
+  private mission: MissionDef | null = null;
+
+  /** The mission whose date and climate pick the units' era looks (call once per battle, after reset). */
+  setMission(mission: MissionDef | null): void {
+    this.mission = mission;
+  }
+
+  private eraOf(faction: FactionId): ResolvedEra {
+    return this.mission ? missionEra(this.mission, faction) : resolveEra(faction, null);
+  }
   /** Blood pools under the bodies of soldiers killed by gunfire (the "Show blood" setting). */
   readonly blood: BloodPools;
   /** Whose health pips are drawn (the enemy's are hidden unless revealed); the battle view hands in its own. */
@@ -843,15 +860,22 @@ export class UnitViews {
     if (isVehicle(u.kind)) {
       const pool = this.tankPool[row];
       const tv = pool.pop() ?? new TankView(row, this.reg, this.scene, this.layers);
-      tv.reset(u.kind, u.faction);
+      tv.reset(u.kind, u.faction, unitVehicleLook(this.eraOf(u.faction), u.kind as VehicleKind, u.look));
       tv.setGear(this.gearOf(u.side, u.kind));
       v = tv;
     } else {
       const pool = this.figurePool[row];
       const fv = pool.pop() ?? new FigureView(row, this.reg, this.scene, this.layers);
       fv.reset(u.kind, u.faction, mixSeed(this.seed ^ U.seedSalt, u.id));
-      // After the reset (which goes back to level 0): this unit's upgrade gear.
+      // After the reset (which goes back to level 0): this unit's upgrade gear, then its era's cap, clothing and arms
+      // (or its force's infantry look: the Romanian line).
       setFigureGear(fv.anim, this.gearOf(u.side, u.kind));
+      const era = this.eraOf(u.faction);
+      const inf = infantryLookOf(u.look);
+      setFigureHeadgear(fv.anim, inf ? inf.headgear : (era.headgear[u.kind] ?? null));
+      setFigureClothing(fv.anim, inf ? inf.clothing : (era.clothing[u.kind] ?? null));
+      setFigureWeapon(fv.anim, era.weapon[u.kind] ?? null);
+      setFigureRocketItem(fv.anim, era.rocketItem[u.kind] === 'molotov' ? MOLOTOV_KEY : null);
       const looks = this.looks[u.side];
       if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);
       // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.

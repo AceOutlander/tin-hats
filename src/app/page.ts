@@ -5,6 +5,7 @@
 import { paintUnitPortrait } from '../art/icons';
 import { paintUpgradePreview } from '../art/upgradePreview';
 import type { GameAudio } from '../audio';
+import { isVehicleKind, missionEra } from '../data/eras';
 import type { FactionId, Side, UnitKind } from '../data/schema';
 import { createMemoryStorage, type StorageLike } from '../meta';
 import type { App } from './app';
@@ -26,8 +27,11 @@ const DEFAULT_FACTIONS: readonly [FactionId, FactionId] = ['british', 'german'];
 /** The painter the UI calls for unit portraits: side 0 and 1 are mapped to the factions of the battle in progress. */
 export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: UnitKind, side: Side) => void {
   return (canvas, kind, side) => {
-    const faction = app.session ? app.session.battle.state.sides[side].faction : DEFAULT_FACTIONS[side];
-    paintUnitPortrait(canvas, kind, faction);
+    const session = app.session;
+    const faction = session ? session.battle.state.sides[side].faction : DEFAULT_FACTIONS[side];
+    // A vehicle's portrait shows the mission's era look (the BT-7 in June 1941; src/data/eras.ts).
+    const look = session && isVehicleKind(kind) ? missionEra(session.mission, faction).vehicle[kind] : undefined;
+    paintUnitPortrait(canvas, kind, faction, undefined, look);
   };
 }
 

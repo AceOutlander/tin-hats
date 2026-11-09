@@ -8,7 +8,7 @@
  * turrets carry a small Balkenkreuz, British ones a plain white-red-white flash,
  * Soviet ones a red star. The Soviet tanks have files of their own (./t34, ./kv, ./t60).
  */
-import { ART_COLORS as C, ELITE_TANK_LOOK, KV2_TURRET, TANK_LAYOUT, VEHICLE_LOOKS, type ArtBox, type VehicleLook, type TankWheelKind } from '../../data/artLayout';
+import { ART_COLORS as C, ELITE_TANK_LOOK, TANK_LAYOUT, VEHICLE_LOOKS, type ArtBox, type VehicleLook, type TankWheelKind } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import {
   type Ctx,
@@ -52,10 +52,25 @@ import {
   smallTankSide,
   tacticalNumber,
 } from './lightVehicles';
+import { bt7Barrel, bt7Hull, bt7Side, bt7Turret, bt7Wheel } from './bt7';
+import {
+  panzer3hBarrel,
+  panzer3hTurret,
+  panzer3lBarrel,
+  panzer3lHull,
+  panzer3lTurret,
+  panzer4gBarrel,
+  stug3bBarrel,
+  stug3bCasemate,
+  stug3fBarrel,
+  stug3fCasemate,
+  stugHull,
+} from './germanEra';
 import { kv2Barrel, kv2Turret, kvBarrel, kvHull, kvSide, kvTurret, kvWheel } from './kv';
+import { t26Barrel, t26Hull, t26Side, t26Turret, t26Wheel } from './t26';
 import { t34Barrel, t34Hull, t34Side, t34Turret, t34Wheel } from './t34';
 import { t60Barrel, t60Hull, t60Side, t60Turret, t60Wheel } from './t60';
-import { TANK_KEYS, TANK_TRACK_PITCH } from './tankLayout';
+import { TANK_KEYS, TANK_TRACK_PITCH, hullOf, rigOf } from './tankLayout';
 
 export interface TankPalette {
   body: string;
@@ -156,7 +171,14 @@ function paintWheel(ctx: Ctx, r: number, kind: TankWheelKind, P: TankPalette): v
 }
 
 /** Looks whose road wheels have a painter of their own. */
-const ROAD_WHEEL: Partial<Record<VehicleLook, (ctx: Ctx, r: number, P: TankPalette) => void>> = { t34: t34Wheel, kv1: kvWheel, t60: t60Wheel };
+const ROAD_WHEEL: Partial<Record<VehicleLook, (ctx: Ctx, r: number, P: TankPalette) => void>> = {
+  t34: t34Wheel,
+  kv1: kvWheel,
+  t60: t60Wheel,
+  t26: t26Wheel,
+  bt7: bt7Wheel,
+  kv2: kvWheel,
+};
 
 function paintLookWheel(ctx: Ctx, look: VehicleLook, r: number, kind: TankWheelKind, P: TankPalette): void {
   const own = kind === 'road' ? ROAD_WHEEL[look] : undefined;
@@ -219,6 +241,15 @@ const SIDE_DETAIL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   kv1: kvSide,
   t60: t60Side,
   carrierSoviet: carrierSide,
+  t26: t26Side,
+  bt7: bt7Side,
+  // The era looks on another rig draw that rig's running gear (only their husks paint it again).
+  kv2: kvSide,
+  panzer3h: smallTankSide,
+  panzer3l: smallTankSide,
+  panzer4g: panzer4Side,
+  stug3b: smallTankSide,
+  stug3f: smallTankSide,
 };
 
 function paintTrack(ctx: Ctx, look: VehicleLook, frame: number): void {
@@ -362,6 +393,14 @@ export const HULL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   kv1: kvHull,
   t60: t60Hull,
   carrierSoviet: (ctx, P) => carrierHull(ctx, P, 'soviet'),
+  t26: t26Hull,
+  bt7: bt7Hull,
+  kv2: kvHull,
+  panzer3h: smallTankHull,
+  panzer3l: panzer3lHull,
+  panzer4g: panzer4Hull,
+  stug3b: stugHull,
+  stug3f: stugHull,
 };
 
 // ---------------------------------------------------------------------------
@@ -457,6 +496,14 @@ export const TURRET: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   kv1: kvTurret,
   t60: t60Turret,
   carrierSoviet: (ctx) => carrierGunner(ctx, 'soviet'),
+  t26: t26Turret,
+  bt7: bt7Turret,
+  kv2: kv2Turret,
+  panzer3h: panzer3hTurret,
+  panzer3l: panzer3lTurret,
+  panzer4g: panzer4Turret,
+  stug3b: stug3bCasemate,
+  stug3f: stug3fCasemate,
 };
 
 // ---------------------------------------------------------------------------
@@ -483,6 +530,22 @@ export function paintBarrel(ctx: Ctx, look: VehicleLook, P: TankPalette, len = T
     kvBarrel(ctx, P, len);
   } else if (look === 't60') {
     t60Barrel(ctx, P, len);
+  } else if (look === 't26') {
+    t26Barrel(ctx, P, len);
+  } else if (look === 'bt7') {
+    bt7Barrel(ctx, P, len);
+  } else if (look === 'kv2') {
+    kv2Barrel(ctx, P, len);
+  } else if (look === 'panzer3h') {
+    panzer3hBarrel(ctx, P, len);
+  } else if (look === 'panzer3l') {
+    panzer3lBarrel(ctx, P, len);
+  } else if (look === 'panzer4g') {
+    panzer4gBarrel(ctx, P, len);
+  } else if (look === 'stug3b') {
+    stug3bBarrel(ctx, P, len);
+  } else if (look === 'stug3f') {
+    stug3fBarrel(ctx, P, len);
   } else if (look === 'panzer4') {
     tube(ctx, [-9, len, 3.2, -3, 13, 4.3, len - 3.5, len, 3.9], P);
   } else if (look === 'panzer3' || look === 'cruiser') {
@@ -578,23 +641,27 @@ function tankPartSpecs(look: VehicleLook): SpriteSpec[] {
   const K = TANK_KEYS[look];
   const P = palette(look);
   const specs: SpriteSpec[] = [];
-  for (let frame = 0; frame < L.trackFrames; frame++) {
+  // An era look on another look's rig shares that rig's track and wheel sprites (and its hull, unless it has its own).
+  const ownRig = rigOf(look) === look;
+  for (let frame = 0; frame < L.trackFrames && ownRig; frame++) {
     specs.push(makeSpec(K.track[frame], L.trackBox, (ctx) => paintTrack(ctx, look, frame)));
   }
   const seen = new Set<string>();
-  for (let i = 0; i < L.wheels.length; i++) {
+  for (let i = 0; i < L.wheels.length && ownRig; i++) {
     const key = K.wheels[i];
     if (seen.has(key)) continue;
     seen.add(key);
     const wheel = L.wheels[i];
     specs.push(makeSpec(key, wheelBox(wheel.r), (ctx) => paintLookWheel(ctx, look, wheel.r, wheel.kind, P)));
   }
-  specs.push(
-    makeSpec(K.hull, L.hullBox, (ctx) => {
-      ctx.translate(-L.rockPivot.x, -L.rockPivot.y);
-      HULL[look](ctx, P);
-    }),
-  );
+  if (hullOf(look) === look) {
+    specs.push(
+      makeSpec(K.hull, L.hullBox, (ctx) => {
+        ctx.translate(-L.rockPivot.x, -L.rockPivot.y);
+        HULL[look](ctx, P);
+      }),
+    );
+  }
   specs.push(makeSpec(K.barrel, L.barrelBox, (ctx) => paintBarrel(ctx, look, P)));
   specs.push(makeSpec(K.turret, L.turretBox, (ctx) => TURRET[look](ctx, P)));
   specs.push(makeSpec(K.husk, L.huskBox, (ctx) => paintHusk(ctx, look)));
@@ -603,21 +670,12 @@ function tankPartSpecs(look: VehicleLook): SpriteSpec[] {
   return specs;
 }
 
-/** The KV-2's turret and howitzer, worn on the KV-1 rig (KV2_TURRET): drawn for the 1941 era looks to select. */
-export const KV2_KEYS = { turret: 'veh/kv1/turret/kv2', barrel: 'veh/kv1/barrel/kv2' } as const;
+/** The KV-2's turret and howitzer, worn on the KV-1 rig (KV2_TURRET): the `kv2` look's own parts. */
+export const KV2_KEYS = { turret: TANK_KEYS.kv2.turret, barrel: TANK_KEYS.kv2.barrel } as const;
 
-function kv2Specs(): SpriteSpec[] {
-  const P = palette('kv1');
-  return [
-    makeSpec(KV2_KEYS.turret, KV2_TURRET.turretBox, (ctx) => kv2Turret(ctx, P)),
-    makeSpec(KV2_KEYS.barrel, KV2_TURRET.barrelBox, (ctx) => kv2Barrel(ctx, P, KV2_TURRET.barrelLength)),
-  ];
-}
-
-/** Every tank sprite for every look: track frames, wheels, hull, barrel, turret, husk; and the KV-2 turret. */
+/** Every tank sprite for every look, the era looks included: track frames, wheels, hull, barrel, turret, husk. */
 export function tankSpecs(): SpriteSpec[] {
   const specs: SpriteSpec[] = [];
   for (const look of VEHICLE_LOOKS) specs.push(...tankPartSpecs(look));
-  specs.push(...kv2Specs());
   return specs;
 }

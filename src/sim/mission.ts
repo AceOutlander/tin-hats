@@ -69,7 +69,17 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   for (let j = 0; j < count; j++) {
     if (capped && side.pop + side.reservePop + def.pop > side.popCap) {
       const post = force.x ?? (trench >= 0 ? s.trenches[trench].x : NaN);
-      w.reserve.push({ side: si, kindIndex, behaviour, postX: post, postTrench: trench, left: count - j, veteran: force.veteran === true });
+      w.reserve.push({
+        side: si,
+        kindIndex,
+        behaviour,
+        postX: post,
+        postTrench: trench,
+        left: count - j,
+        veteran: force.veteran === true,
+        look: force.look ?? '',
+        faction: force.nation ?? '',
+      });
       side.reservePop += (count - j) * def.pop;
       break;
     }
@@ -79,6 +89,9 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     if (!u) break;
     spawned++;
     if (force.veteran === true) makeVeteran(w, u);
+    // Names and looks only (FOUNDATIONS.md 5.1): the force's look inside the era, and its nation if not the side's.
+    if (force.look !== undefined) u.look = force.look;
+    if (force.nation !== undefined) u.faction = force.nation;
     if (behaviour === 'garrison') u.postTrench = trench;
     let x: number;
     if (seat && claimSlot(w, u, trench)) {
@@ -200,6 +213,8 @@ function releaseReserve(w: World): void {
       const u = spawnUnit(w, g.side, g.kindIndex, x, g.behaviour, false, false);
       if (!u) break;
       if (g.veteran) makeVeteran(w, u);
+      u.look = g.look;
+      if (g.faction !== '') u.faction = g.faction;
       g.left--;
       side.reservePop -= def.pop;
       if (!Number.isNaN(g.postX)) u.postX = g.postX;

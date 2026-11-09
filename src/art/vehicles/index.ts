@@ -17,6 +17,8 @@ export {
   VEHICLE_LOOKS,
   isGearLook,
   vehicleLookOf,
+  rigOf,
+  hullOf,
   TANK_TRACK_PITCH,
   createTankPose,
   layoutTank,
@@ -27,7 +29,7 @@ export {
 } from './tankLayout';
 export { tankGearKeys, tankGearSpecs, type TankGearKeys } from './tankGear';
 export { KV2_KEYS, tankSpecs } from './tanks';
-export { PLANE_KINDS, planeGearKey, planeGearSpecs, planeKey, planeShadowKey, planeSpecs } from './planes';
+export { PLANE_KINDS, aircraftLookKey, planeGearKey, planeGearSpecs, planeKey, planeShadowKey, planeSpecs } from './planes';
 
 /** Every vehicle sprite. */
 export function vehicleSpecs(): SpriteSpec[] {
