@@ -51,7 +51,7 @@ export const M1003: MissionDef = {
   newUnit: 'assault',
   newSupport: 'katyusha',
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'at'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'at', 'tank'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'at', 'tank'],
   ],
   supports: [

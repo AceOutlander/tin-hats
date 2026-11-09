@@ -823,8 +823,8 @@
   color: var(--th-ink-soft);
 }
 
-/* A narrow screen stacks the cards, and the list scrolls if they do not fit. */
-@media (max-width: 600px) {
+/* Held upright (under the rotate notice) or very narrow, the cards stack, and the list scrolls if they do not fit. */
+@media (orientation: portrait), (max-width: 520px) {
   .th-campaigns-list {
     grid-auto-flow: row;
     grid-auto-columns: auto;
@@ -832,7 +832,7 @@
 }
 
 /* The shortest landscape phones: the pitch gives way to the progress. */
-@media (max-height: 340px) and (min-width: 601px) {
+@media (max-height: 340px) and (orientation: landscape) {
   .th-camp-pitch {
     display: -webkit-box;
     overflow: hidden;

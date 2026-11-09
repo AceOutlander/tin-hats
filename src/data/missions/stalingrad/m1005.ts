@@ -50,7 +50,7 @@ export const M1005: MissionDef = {
   newUnit: 'flame',
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'medic', 'at', 'flame', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'medic', 'at', 'tank', 'flame', 'conscript'],
     // The AI trains riflemen, MGs and Pak crews; its assault troops, mortars, pioneers and panzers come in the waves.
     ['sapper', 'rifle', 'lmg', 'at'],
   ],

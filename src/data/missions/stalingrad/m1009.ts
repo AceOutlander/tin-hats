@@ -56,7 +56,7 @@ export const M1009: MissionDef = {
   newUnit: 'apc',
   newSupport: 'recon',
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'aa', 'commander', 'conscript'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'medic', 'at', 'tank', 'apc'],
   ],
   supports: [

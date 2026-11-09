@@ -50,7 +50,7 @@ export const M1007: MissionDef = {
   newUnit: 'commander',
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'commander', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'flame', 'aa', 'commander', 'conscript'],
     ['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'flame', 'tank'],
   ],
   supports: [['artillery', 'katyusha'], []],

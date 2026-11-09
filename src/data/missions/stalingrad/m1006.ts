@@ -52,7 +52,7 @@ export const M1006: MissionDef = {
   unlocks: ['aa'],
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame', 'aa', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'flame', 'aa', 'conscript'],
     ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'flame', 'tank'],
   ],
   supports: [

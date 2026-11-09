@@ -201,6 +201,8 @@ export function missionUnlocks(mission: MissionDef): UnitKind[] {
  * every reached mission unlocks, in any campaign (owner, 2026-11-09: once unlocked, a type fields in every mission,
  * replays and other campaigns included, as the player's own nation's version). `except` leaves one mission's own
  * unlocks out (what the player had before it); `free` false leaves the free types out unless a mission lists them.
+ * A nation's signature kind (the Soviet conscripts) is not in the Armoury's list: it comes after the others, once a
+ * reached mission lists it (each mission that fields it lists it, so a replay does not call it new again).
  */
 export function unitsUnlocked(
   save: SaveData,
@@ -212,8 +214,15 @@ export function unitsUnlocked(
   const got = new Set<string>();
   if (free) for (const kind of MEDALS.free) got.add(kind);
   for (const id of save.armoury) got.add(id);
-  for (const m of missions) if (m.id !== except && reached(m.id)) for (const kind of missionUnlocks(m)) got.add(kind);
-  return playerUnitKinds().filter((k) => got.has(k));
+  const signature: UnitKind[] = [];
+  for (const m of missions) {
+    if (m.id === except || !reached(m.id)) continue;
+    for (const kind of missionUnlocks(m)) {
+      got.add(kind);
+      if (!MEDALS.units.some((u) => u.kind === kind) && !signature.includes(kind)) signature.push(kind);
+    }
+  }
+  return [...playerUnitKinds().filter((k) => got.has(k)), ...signature];
 }
 
 /** The first mission (in the order given) whose unlocks include this type, or null. */
