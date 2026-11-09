@@ -300,7 +300,10 @@ describe('every Stalingrad mission is era-correct for both sides (FOUNDATIONS.md
     const m = M(1009);
     const romanian = forcesOf(m, 1).filter((f) => f.look === 'romanian');
     expect(romanian.length).toBeGreaterThanOrEqual(5);
-    expect(new Set(romanian.map((f) => f.trenchId))).toEqual(new Set([2, 3, 4]));
+    // The Romanian line (trenches 2 and 3) and Perelazovsky (its houses, buildings 2 and 3; trench 4 before buildings,
+    // FOUNDATIONS.md 4.3).
+    expect(new Set(romanian.filter((f) => f.buildingId === undefined).map((f) => f.trenchId))).toEqual(new Set([2, 3]));
+    expect(new Set(romanian.filter((f) => f.trenchId === undefined).map((f) => f.buildingId))).toEqual(new Set([2, 3]));
     const look = INFANTRY_LOOKS.romanian;
     expect([look.nation, look.headgear, look.clothing]).toEqual(['german', 'adrian', 'greatcoatRomanian']);
     expect(unitDisplayName(missionEra(m, 'german'), 'rifle', 'romanian')).toContain('Romanian');
