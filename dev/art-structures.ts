@@ -109,7 +109,7 @@ const SCENES: { id: SceneId; h: number }[] = [
   { id: 'air', h: 560 },
   { id: 'flags', h: 340 },
   { id: 'soviet', h: 560 },
-  { id: 'buildings', h: 1440 },
+  { id: 'buildings', h: 1840 },
 ];
 
 /** The building types the buildings scene shows: look, width, slots per floor, floors. */
@@ -125,6 +125,8 @@ const BUILDING_SHOW: [BuildingLook, number, number, number][] = [
   ['hangar', 220, 6, 1],
   ['sheds', 180, 5, 1],
   ['apartment', 180, 3, 3],
+  ['mill', 200, 5, 3],
+  ['store', 240, 6, 3],
 ];
 const PROP_SHOW: [CoverPropLook, number][] = [
   ['wagons', 150],
@@ -167,21 +169,21 @@ function building(ctx: Ctx, look: BuildingLook, w: number, n: number, floors: nu
 }
 
 function buildingsScene(ctx: Ctx): void {
-  const rows = [300, 600, 860, 1100, 1400];
+  const rows = [300, 600, 900, 1200, 1500, 1800];
   rows.forEach((gy, r) => stage(ctx, r === 0 ? 0 : rows[r - 1] + 1, gy + 20, gy));
-  let x = 100;
+  let x = 60;
   let row = 0;
   for (const [look, w, n, floors] of BUILDING_SHOW) {
-    if (x + w > SCENE_W - 40) {
-      x = 100;
+    if (x + w > SCENE_W - 20) {
+      x = 60;
       row++;
     }
     building(ctx, look, w, n, floors, x + w / 2, rows[row], false, floors);
     label(ctx, `${look} (${floors} x ${n})`, x + w / 2, rows[row] + 16);
-    x += w + 50;
+    x += w + 40;
   }
   // Damage, a fallen floor, rubble.
-  row = 2;
+  row = 3;
   building(ctx, 'apartment', 220, 7, 4, 150, rows[row], true, 4);
   label(ctx, 'damaged', 150, rows[row] + 16);
   building(ctx, 'apartment', 220, 7, 4, 420, rows[row], true, 2);
@@ -190,7 +192,7 @@ function buildingsScene(ctx: Ctx): void {
   label(ctx, 'rubble cover', 680, rows[row] + 16);
   building(ctx, 'izba', 130, 4, 1, 900, rows[row], true, 1);
   building(ctx, 'factoryHall', 210, 8, 2, 1080, rows[row], true, 1);
-  row = 3;
+  row = 4;
   x = 100;
   for (const [look, w] of PROP_SHOW) {
     put(ctx, propKey(look, w, 'back'), x + w / 2, rows[row]);
@@ -201,8 +203,8 @@ function buildingsScene(ctx: Ctx): void {
   }
   x = 220;
   for (const style of MISSION_HQ_STYLES) {
-    put(ctx, missionHqKey(style, 'soviet', 'intact'), x, rows[4]);
-    label(ctx, `HQ ${style}`, x, rows[4] + 16);
+    put(ctx, missionHqKey(style, 'soviet', 'intact'), x, rows[5]);
+    label(ctx, `HQ ${style}`, x, rows[5] + 16);
     x += 380;
   }
 }
