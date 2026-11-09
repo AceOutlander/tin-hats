@@ -6,10 +6,9 @@
  *
  * Dark silhouette bodies, faction-tint panels and a lighter rim. German
  * turrets carry a small Balkenkreuz, British ones a plain white-red-white flash,
- * Soviet ones a red star. The T-34 has its own rig (./t34); the KV-1 is still a
- * stand-in (the Churchill hull with a turret of its own).
+ * Soviet ones a red star. The Soviet tanks have files of their own (./t34, ./kv, ./t60).
  */
-import { ART_COLORS as C, ELITE_TANK_LOOK, TANK_LAYOUT, VEHICLE_LOOKS, type ArtBox, type VehicleLook, type TankWheelKind } from '../../data/artLayout';
+import { ART_COLORS as C, ELITE_TANK_LOOK, KV2_TURRET, TANK_LAYOUT, VEHICLE_LOOKS, type ArtBox, type VehicleLook, type TankWheelKind } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import {
   type Ctx,
@@ -23,7 +22,6 @@ import {
   mix,
   poly,
   recognitionFlash,
-  redStar,
   rgba,
   rimPoly,
   rimRect,
@@ -40,6 +38,7 @@ import {
   carrierHull,
   carrierSide,
   cruiserTurret,
+  dpOnMount,
   eliteBarrelBand,
   eliteCamo,
   halftrackGunner,
@@ -51,10 +50,11 @@ import {
   smallTankBarrel,
   smallTankHull,
   smallTankSide,
-  t60Turret,
   tacticalNumber,
 } from './lightVehicles';
+import { kv2Barrel, kv2Turret, kvBarrel, kvHull, kvSide, kvTurret, kvWheel } from './kv';
 import { t34Barrel, t34Hull, t34Side, t34Turret, t34Wheel } from './t34';
+import { t60Barrel, t60Hull, t60Side, t60Turret, t60Wheel } from './t60';
 import { TANK_KEYS, TANK_TRACK_PITCH } from './tankLayout';
 
 export interface TankPalette {
@@ -156,7 +156,7 @@ function paintWheel(ctx: Ctx, r: number, kind: TankWheelKind, P: TankPalette): v
 }
 
 /** Looks whose road wheels have a painter of their own. */
-const ROAD_WHEEL: Partial<Record<VehicleLook, (ctx: Ctx, r: number, P: TankPalette) => void>> = { t34: t34Wheel };
+const ROAD_WHEEL: Partial<Record<VehicleLook, (ctx: Ctx, r: number, P: TankPalette) => void>> = { t34: t34Wheel, kv1: kvWheel, t60: t60Wheel };
 
 function paintLookWheel(ctx: Ctx, look: VehicleLook, r: number, kind: TankWheelKind, P: TankPalette): void {
   const own = kind === 'road' ? ROAD_WHEEL[look] : undefined;
@@ -216,8 +216,8 @@ const SIDE_DETAIL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   carrier: carrierSide,
   halftrack: halftrackSide,
   t34: t34Side,
-  kv1: churchillSide,
-  t60: smallTankSide,
+  kv1: kvSide,
+  t60: t60Side,
   carrierSoviet: carrierSide,
 };
 
@@ -359,8 +359,8 @@ export const HULL: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   carrier: carrierHull,
   halftrack: halftrackHull,
   t34: t34Hull,
-  kv1: churchillHull,
-  t60: smallTankHull,
+  kv1: kvHull,
+  t60: t60Hull,
   carrierSoviet: (ctx, P) => carrierHull(ctx, P, 'soviet'),
 };
 
@@ -445,17 +445,6 @@ function kingTigerTurret(ctx: Ctx, P: TankPalette): void {
   );
 }
 
-/** Stand-in KV-1 turret: a tall slab-sided box with a red star (fits the Churchill rig's box). */
-function kv1Turret(ctx: Ctx, P: TankPalette): void {
-  rimPoly(ctx, [-36, 0, -38, -6, -36, -25, -30, -28.5, 24, -28.5, 32, -22, 34, -6, 32, 0], P.body, P.rim, 1.4);
-  fillPoly(ctx, [-33, -3.5, -34.5, -7, -32.5, -23, -28, -25.5, 22, -25.5, 29, -20.5, 30.5, -6, 29, -3.5], P.panel);
-  rimRect(ctx, -14, -32, 16, 4.5, 1.4, P.bodyDark, P.rim, 1);
-  rimRect(ctx, 30, -17, 9, 12, 2, P.body, P.rim, 1);
-  ctx.fillStyle = rgba(P.rim, 0.6);
-  for (const x of [-30, 20]) ctx.fillRect(x, -8, 1.3, 1.3);
-  redStar(ctx, -4, -14, 6);
-}
-
 export const TURRET: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   churchill: churchillTurret,
   panzer4: panzer4Turret,
@@ -465,7 +454,7 @@ export const TURRET: Record<VehicleLook, (ctx: Ctx, P: TankPalette) => void> = {
   carrier: (ctx) => carrierGunner(ctx),
   halftrack: halftrackGunner,
   t34: t34Turret,
-  kv1: kv1Turret,
+  kv1: kvTurret,
   t60: t60Turret,
   carrierSoviet: (ctx) => carrierGunner(ctx, 'soviet'),
 };
@@ -486,16 +475,23 @@ export function tube(ctx: Ctx, sections: readonly number[], P: TankPalette): voi
 
 /** The gun tube; `len` defaults to the look's barrel (the long-gun upgrade passes a longer one). */
 export function paintBarrel(ctx: Ctx, look: VehicleLook, P: TankPalette, len = TANK_LAYOUT[look].barrelLength): void {
-  if (look === 'churchill' || look === 'kv1') {
+  if (look === 'churchill') {
     tube(ctx, [-7, len, 2.4, -2, 12, 3.3, len - 8, len, 3.3], P);
   } else if (look === 't34') {
     t34Barrel(ctx, P, len);
+  } else if (look === 'kv1') {
+    kvBarrel(ctx, P, len);
+  } else if (look === 't60') {
+    t60Barrel(ctx, P, len);
   } else if (look === 'panzer4') {
     tube(ctx, [-9, len, 3.2, -3, 13, 4.3, len - 3.5, len, 3.9], P);
-  } else if (look === 'panzer3' || look === 'cruiser' || look === 't60') {
+  } else if (look === 'panzer3' || look === 'cruiser') {
     smallTankBarrel(ctx, P, len);
-  } else if (look === 'carrier' || look === 'carrierSoviet') {
+  } else if (look === 'carrier') {
     brenOnMount(ctx, P, len);
+    return;
+  } else if (look === 'carrierSoviet') {
+    dpOnMount(ctx, P, len);
     return;
   } else if (look === 'halftrack') {
     mg34OnMount(ctx, P, len);
@@ -607,9 +603,21 @@ function tankPartSpecs(look: VehicleLook): SpriteSpec[] {
   return specs;
 }
 
-/** Every tank sprite for every look: track frames, wheels, hull, barrel, turret, husk. */
+/** The KV-2's turret and howitzer, worn on the KV-1 rig (KV2_TURRET): drawn for the 1941 era looks to select. */
+export const KV2_KEYS = { turret: 'veh/kv1/turret/kv2', barrel: 'veh/kv1/barrel/kv2' } as const;
+
+function kv2Specs(): SpriteSpec[] {
+  const P = palette('kv1');
+  return [
+    makeSpec(KV2_KEYS.turret, KV2_TURRET.turretBox, (ctx) => kv2Turret(ctx, P)),
+    makeSpec(KV2_KEYS.barrel, KV2_TURRET.barrelBox, (ctx) => kv2Barrel(ctx, P, KV2_TURRET.barrelLength)),
+  ];
+}
+
+/** Every tank sprite for every look: track frames, wheels, hull, barrel, turret, husk; and the KV-2 turret. */
 export function tankSpecs(): SpriteSpec[] {
   const specs: SpriteSpec[] = [];
   for (const look of VEHICLE_LOOKS) specs.push(...tankPartSpecs(look));
+  specs.push(...kv2Specs());
   return specs;
 }

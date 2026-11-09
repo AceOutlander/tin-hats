@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   AIR_LAYOUT,
+  BM13_LAYOUT,
   DAMAGE_STATES,
   DECAL_LAYOUT,
   HQ_LAYOUT,
+  KV2_TURRET,
   PILLBOX_LAYOUT,
   SUPPLY_LAYOUT,
   TANK_LAYOUT,
@@ -18,7 +20,7 @@ import type { FactionId } from '../../src/data/schema';
 import { VIEW } from '../../src/data/view';
 import { DECAL_KEYS, RUBBLE_KEYS, SUPPLY_KEYS, propSpecs } from '../../src/art/props';
 import { FLAG_KEYS, TRENCH_KEYS, WIRE_KEYS, hqKey, pillboxKey, structureSpecs, trenchSpec } from '../../src/art/structures';
-import { AIR_KEYS, PLANE_KINDS, TANK_KEYS, VEHICLE_LOOKS, planeKey, planeShadowKey, vehicleSpecs } from '../../src/art/vehicles';
+import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, PLANE_KINDS, TANK_KEYS, VEHICLE_LOOKS, planeKey, planeShadowKey, vehicleSpecs } from '../../src/art/vehicles';
 import type { SpriteSpec } from '../../src/art/types';
 
 /** Every nation the art draws (FACTIONS). */
@@ -157,6 +159,9 @@ describe('structure, vehicle and prop sprite specs', () => {
       [t.hull, t.turret, t.barrel, t.husk, ...t.track, ...t.wheels].forEach((k) => named.add(k));
       if (t.passengers !== null) named.add(t.passengers);
     }
+    // The KV-2 turret and gun on the KV-1 rig, and the Katyusha launcher truck (drawn for the Soviet era looks).
+    Object.values(KV2_KEYS).forEach((k) => named.add(k));
+    named.add(KATYUSHA_LAUNCHER_KEY);
     Object.values(SUPPLY_KEYS).forEach((k) => named.add(k));
     Object.values(DECAL_KEYS).forEach((k) => named.add(k));
     RUBBLE_KEYS.forEach((k) => named.add(k));
@@ -200,6 +205,10 @@ describe('structure, vehicle and prop sprite specs', () => {
     expectBox(SUPPLY_KEYS.dropCrate, SUPPLY_LAYOUT.dropCrateBox);
     expectBox(SUPPLY_KEYS.parachute, SUPPLY_LAYOUT.parachuteBox);
     expectBox(AIR_KEYS.plane, AIR_LAYOUT.planeBox);
+    expectBox(AIR_KEYS.il2, AIR_LAYOUT.planeBox);
+    expectBox(KV2_KEYS.turret, KV2_TURRET.turretBox);
+    expectBox(KV2_KEYS.barrel, KV2_TURRET.barrelBox);
+    expectBox(KATYUSHA_LAUNCHER_KEY, BM13_LAYOUT.box);
     expectBox(AIR_KEYS.shadow, AIR_LAYOUT.shadowBox);
     expectBox(AIR_KEYS.rocket, AIR_LAYOUT.rocketBox);
     expectBox(AIR_KEYS.bomb, AIR_LAYOUT.bombBox);

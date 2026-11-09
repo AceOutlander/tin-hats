@@ -262,7 +262,20 @@ export interface TankGearArt {
  * sides, sandbags on the deck; their "turret" is the gunner, so the stowage is ammunition boxes behind him, the cupola
  * MG a second gun on a post behind him, and the long gun a heavier barrel with a flash hider.
  */
-const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'kv1'>, TankGearArt> = {
+const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'carrierSoviet'>, TankGearArt> = {
+  // KV-1: spare links on the upper glacis, the 1941 bolted screens (ekranami) on the hull side, sandbags on the engine
+  // deck behind the turret, a box on the turret overhang, a DT on a pintle by the hatch; the long gun is a longer
+  // ZiS-5 with no muzzle brake, like the T-34's.
+  kv1: {
+    hullPad: [6, 12, 0],
+    turretPad: [0, 9, 12],
+    links: { x: 70, y: -62.5, dx: 6.4, dy: 3.6, n: 3, w: 4.8, h: 6.6 },
+    applique: [-74, -61, 34, 15, -34, -61, 34, 15, 6, -61, 34, 15],
+    sandbags: { x: -88, y: -66, dx: 10.5, dy: 0, n: 4, w: 10.5, h: 5.6 },
+    stowage: [-60, -22, 12, 15],
+    cupolaMg: { x: -16, y: -30, len: 15, post: 4, angle: 0 },
+    longGun: { extra: 16, brakeLen: 0, brakeHalf: 0 },
+  },
   // T-34: spare links on the glacis, plates on the sloped hull side, sandbags on the engine deck, a box on the turret
   // overhang; the long gun is the 76 mm ZiS-5 length, with no muzzle brake.
   t34: {
@@ -331,10 +344,10 @@ const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'kv1'>, TankGearArt> = {
   },
 };
 
-/** The Soviet KV-1 wears the gear of the rig it borrows (TANK_LAYOUT) until its own is drawn. */
+/** The Soviet carrier is the British vehicle (TANK_LAYOUT) and carries its gear in the same places. */
 export const TANK_GEAR_ART: Record<GearLook, TankGearArt> = {
   ...DRAWN_TANK_GEAR_ART,
-  kv1: DRAWN_TANK_GEAR_ART.churchill,
+  carrierSoviet: DRAWN_TANK_GEAR_ART.carrier,
 };
 
 /** Which tank piece each step adds, as a sprite: health pieces build up on the hull, stowage and the MG on the turret, the long gun is a new barrel. */
@@ -391,6 +404,6 @@ export const PLANE_GEAR_ART: Record<PlaneKind, PlaneGearArt> = {
 export const PLANE_GEAR_NATION: Record<FactionId, { stripes: readonly string[]; nose: string; tally: string; tank: string }> = {
   british: { stripes: ['#ece6d2', '#141410'], nose: '#b8352a', tally: '#ece6d2', tank: '#5d6150' },
   german: { stripes: ['#d8b33a', '#d8b33a'], nose: '#e6e0c8', tally: '#ece6d2', tank: '#4f5552' },
-  // Red Army: a plain white band and a red nose (first guess; the Soviet planes are British shapes until the art job).
+  // Red Army: a plain white band and the red nose (the red spinner and cowling of many Soviet fighters).
   soviet: { stripes: ['#e6e0c8', '#e6e0c8'], nose: '#b3261e', tally: '#ece6d2', tank: '#4f5a3c' },
 };

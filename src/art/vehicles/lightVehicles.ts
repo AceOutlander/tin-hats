@@ -101,12 +101,6 @@ export function cruiserTurret(ctx: Ctx, P: TankPalette): void {
   recognitionFlash(ctx, 0, -14, 12, 6);
 }
 
-/** Stand-in for the Soviet T-60 (the small turret in Soviet paint with a red star) until the art job draws it. */
-export function t60Turret(ctx: Ctx, P: TankPalette): void {
-  smallTankTurretBody(ctx, P);
-  redStar(ctx, 5, -10, 4.2);
-}
-
 /** The short 3.7 cm gun: thin, with no muzzle brake. */
 export function smallTankBarrel(ctx: Ctx, P: TankPalette, len: number): void {
   rimRect(ctx, -6, -1.7, len + 6, 3.4, 0.8, P.bodyDark, P.rim, 1);
@@ -135,6 +129,8 @@ export function carrierHull(ctx: Ctx, P: TankPalette, faction: FactionId = 'brit
   rimRect(ctx, -46, -36.5, 16, 4, 1, P.panelLit, P.rim, 0.8);
   disc(ctx, -62, -28, 5.4, '#11120e');
   disc(ctx, -62, -28, 3, P.panel);
+  // The Red Army's carriers wore a red star on the hull side (and the British paint was soon painted over).
+  if (FACTIONS[faction].look.flag === 'sovietRed') redStar(ctx, -12, -28.4, 3.6);
   // The driver's head beside the gunner, low behind the front plate.
   const look = FACTIONS[faction].look;
   crewHead(ctx, 16, -36, 0.8, look.helmet, look.tint);
@@ -159,6 +155,21 @@ export function brenOnMount(ctx: Ctx, P: TankPalette, len: number): void {
   rimRect(ctx, -4, -2.6, 10, 4.6, 0.8, C.ink, P.rim, 0.8);
   fillPoly(ctx, [0, -2.4, 2, -7.6, 4.6, -7.4, 3.4, -2.4], C.ink);
   rimRect(ctx, len - 3, -1.9, 3, 3.8, 0.6, C.ink, P.rim, 0.8);
+}
+
+/** The Soviet carrier's DP on its mount: the perforated barrel jacket, and the flat pan magazine lying on top. */
+export function dpOnMount(ctx: Ctx, P: TankPalette, len: number): void {
+  rimRect(ctx, -6, -1.3, len + 6, 2.6, 0.6, C.ink, P.rim, 0.8);
+  rimRect(ctx, 6, -1.9, len - 9, 3.8, 0.8, C.ink, P.rim, 0.8);
+  ctx.fillStyle = rgba(P.rim, 0.5);
+  for (let x = 8; x < len - 4; x += 2.8) ctx.fillRect(x, -0.5, 1.1, 1);
+  rimRect(ctx, -4, -2.4, 10, 4.4, 0.8, C.ink, P.rim, 0.8);
+  ellipse(ctx, 1, -3.4, 6.4, 1.6);
+  ctx.fillStyle = C.ink;
+  ctx.fill();
+  ctx.strokeStyle = rgba(P.rim, 0.75);
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
 }
 
 // ---------------------------------------------------------------------------

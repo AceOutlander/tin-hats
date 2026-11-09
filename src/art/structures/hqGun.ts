@@ -272,7 +272,9 @@ function lightGun(ctx: Ctx, faction: FactionId, muzzle: ArtPoint, angle: number,
 const VICKERS_LEN = 42;
 
 /** Vickers: water-jacketed barrel, square receiver and spade grips, in gun space (muzzle at the origin, along -x). */
-function paintVickers(ctx: Ctx): void {
+/** The Vickers, or (maxim) the Red Army's Maxim M1910/30: the same water-cooled pattern with the big winter filler cap on
+ * the front of the jacket. */
+function paintVickers(ctx: Ctx, maxim: boolean): void {
   // Receiver, spade grips and the rear sight.
   rimRect(ctx, -39, -2.9, 13, 5.8, 0.8, C.ink, C.steelRim, 0.9);
   strokeLine(ctx, [-39, -1.4, -41.6, -1.4], C.ink, 1.2);
@@ -283,18 +285,23 @@ function paintVickers(ctx: Ctx): void {
   rimRect(ctx, -27.6, -3.3, 22, 6.6, 2.4, C.steel, C.steelRim, 1.1);
   for (let x = -25; x < -7; x += 2.6) strokeLine(ctx, [x, -2.6, x, 2.6], rgba(C.ink, 0.55), 0.6);
   strokeLine(ctx, [-26, -2.4, -7, -2.4], rgba(C.steelRim, 0.55), 0.6);
-  rimRect(ctx, -24.8, -5, 3, 1.9, 0.5, C.ink, C.steelRim, 0.6);
+  if (maxim) {
+    rimRect(ctx, -14, -6.6, 6, 3.6, 1.4, C.ink, C.steelRim, 0.7);
+    strokeLine(ctx, [-14.6, -5.2, -15.6, -4.2], C.ink, 0.9);
+  } else {
+    rimRect(ctx, -24.8, -5, 3, 1.9, 0.5, C.ink, C.steelRim, 0.6);
+  }
   // Front sight, muzzle block and the flared booster.
   fillPoly(ctx, [-8.2, -3.3, -7.5, -5.2, -6.8, -5.2, -6.8, -3.3], C.ink);
   fillPoly(ctx, [-5.8, -2.2, -2.6, -2.2, -2.4, -1.5, 0, -2.6, 0, 1.8, -2.4, 1, -2.6, 1.8, -5.8, 1.8], C.ink);
   strokeLine(ctx, [-5.4, -1.6, -2.8, -1.6], rgba(C.steelRim, 0.6), 0.5);
 }
 
-function vickers(ctx: Ctx, muzzle: ArtPoint, angle: number, bend = 0): void {
+function vickers(ctx: Ctx, muzzle: ArtPoint, angle: number, bend = 0, maxim = false): void {
   ctx.save();
   ctx.translate(muzzle.x, muzzle.y);
   ctx.rotate(angle);
-  kinked(ctx, -17, bend, () => paintVickers(ctx));
+  kinked(ctx, -17, bend, () => paintVickers(ctx, maxim));
   ctx.restore();
 }
 
@@ -321,7 +328,7 @@ function crosshead(ctx: Ctx, x: number, y: number, w: number): void {
 function heavyGun(ctx: Ctx, faction: FactionId, muzzle: ArtPoint, groundY: number): void {
   if (faction === 'soviet') {
     sokolovMount(ctx, muzzle, groundY);
-    vickers(ctx, muzzle, 0);
+    vickers(ctx, muzzle, 0, 0, true);
   } else if (faction === 'british') {
     const hx = muzzle.x - 26;
     const hy = muzzle.y + 4.6;
@@ -579,7 +586,7 @@ function paintTripod(ctx: Ctx, faction: FactionId, ruin: boolean): void {
     heavyGun(ctx, faction, L.muzzle, 0);
     bagWall(ctx, 22, 1, 2, 3, BAG_W, BAG_H, 1);
     // Re-draw the gun's front over the wall top so the barrel reads clear of the bags.
-    if (waterCooled(faction)) vickers(ctx, L.muzzle, 0);
+    if (waterCooled(faction)) vickers(ctx, L.muzzle, 0, 0, faction === 'soviet');
     else lightGun(ctx, faction, L.muzzle, 0, null);
     drawParts(ctx, crew.arm);
     const feed = feedPoint(faction, L.muzzle);
@@ -593,7 +600,7 @@ function paintTripod(ctx: Ctx, faction: FactionId, ruin: boolean): void {
     // The tripod knocked flat, the gun lying across it with its barrel bent.
     strokeLine(ctx, [-6, -1.5, 16, -10], GUN_STEEL, 1.6);
     strokeLine(ctx, [2, -1, 10, -14], C.ink, 1.6);
-    if (waterCooled(faction)) vickers(ctx, { x: 32, y: -11 }, -0.3, 0.32);
+    if (waterCooled(faction)) vickers(ctx, { x: 32, y: -11 }, -0.3, 0.32, faction === 'soviet');
     else lightGun(ctx, faction, { x: 30, y: -13 }, -0.32, null, 0.3);
     crate(ctx, -26, 1, 13, 12);
     ammoBox(ctx, -42, -2, 9, 6.5, true);
@@ -675,7 +682,7 @@ function paintNest(ctx: Ctx, faction: FactionId, ruin: boolean): void {
     heavyGun(ctx, faction, L.muzzle, 1);
     // The front wall up to the firing slot.
     bagWall(ctx, 26, 1, 2, 4, BAG_W, BAG_H, 1);
-    if (waterCooled(faction)) vickers(ctx, L.muzzle, 0);
+    if (waterCooled(faction)) vickers(ctx, L.muzzle, 0, 0, faction === 'soviet');
     else lightGun(ctx, faction, L.muzzle, 0, null);
     const feed = feedPoint(faction, L.muzzle);
     belt(ctx, { x: -13, y: -8 }, { x: -12, y: -26 }, { x: -9, y: -21 });
@@ -700,7 +707,7 @@ function paintNest(ctx: Ctx, faction: FactionId, ruin: boolean): void {
     burstBags(ctx, 18, 60, 1, 24, rand);
     post(ctx, 44, -22, 1, 5);
     // The broken stump of the front post and the gun's bent barrel poking out of the wreck.
-    if (waterCooled(faction)) vickers(ctx, { x: 52, y: -17 }, -0.22, 0.38);
+    if (waterCooled(faction)) vickers(ctx, { x: 52, y: -17 }, -0.22, 0.38, faction === 'soviet');
     else lightGun(ctx, faction, { x: 50, y: -19 }, -0.22, null, 0.36);
     log(ctx, -20, 42, -13, 5, -0.12);
     ammoBox(ctx, -42, 1, 9, 6.5, true);

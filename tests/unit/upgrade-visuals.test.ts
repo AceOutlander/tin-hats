@@ -13,7 +13,7 @@ import { NATION_LOOKS, upgradeVisual, type GearLevels, type LookStage } from '..
 import { UPGRADES, upgradableKinds, upgradableSupports } from '../../src/data/upgrades';
 import { sideLooks } from '../../src/meta/looks';
 
-const NATIONS: readonly FactionId[] = ['british', 'german'];
+const NATIONS: readonly FactionId[] = ['british', 'german', 'soviet'];
 
 function stage(n: number): LookStage {
   return n as LookStage;

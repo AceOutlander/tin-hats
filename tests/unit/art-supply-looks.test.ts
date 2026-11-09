@@ -20,7 +20,7 @@ import {
 } from '../../src/art/props/supplyLooks';
 import type { SpriteSpec } from '../../src/art/types';
 
-const FACTIONS: FactionId[] = ['british', 'german'];
+const FACTIONS: FactionId[] = ['british', 'german', 'soviet'];
 
 interface DrawCounts {
   paints: number;

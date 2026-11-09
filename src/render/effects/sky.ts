@@ -6,8 +6,9 @@ import type Phaser from 'phaser';
 import { SUPPORTS } from '../../data/supports';
 import { RENDER } from '../../data/render';
 import { SUPPLY_KEYS } from '../../art/props';
-import { AIR_KEYS } from '../../art/vehicles';
+import { AIR_KEYS, airStrikeKey } from '../../art/vehicles';
 import { AIR_LAYOUT, SUPPLY_LAYOUT } from '../../data/artLayout';
+import type { FactionId } from '../../data/schema';
 import type { SpriteRegistry } from '../atlas';
 import { addImage, type Layers } from '../layers';
 import type { EffectContext } from './index';
@@ -28,12 +29,16 @@ class Plane {
   age = 0;
   exhaustT = 0;
   heard = false;
+  /** The sprite the body shows (the nation's air strike plane) and its inverse texture scale. */
+  key: string = AIR_KEYS.plane;
+  inv: number;
   readonly body: Img;
   readonly shadow: Img;
 
-  constructor(body: Img, shadow: Img) {
+  constructor(body: Img, shadow: Img, inv: number) {
     this.body = body;
     this.shadow = shadow;
+    this.inv = inv;
   }
 }
 
@@ -58,7 +63,7 @@ class Drop {
 export class SkyPool {
   private readonly planes: Plane[] = [];
   private readonly drops: Drop[] = [];
-  private readonly planeInv: number;
+  private readonly reg: SpriteRegistry;
   private readonly shadowInv: number;
   private readonly crateInv: number;
   private readonly canopyInv: number;
@@ -68,7 +73,7 @@ export class SkyPool {
     const shadow = reg.get(AIR_KEYS.shadow);
     const crate = reg.get(SUPPLY_KEYS.dropCrate);
     const canopy = reg.get(SUPPLY_KEYS.parachute);
-    this.planeInv = 1 / plane.scale;
+    this.reg = reg;
     this.shadowInv = 1 / shadow.scale;
     this.crateInv = 1 / crate.scale;
     this.canopyInv = 1 / canopy.scale;
@@ -77,7 +82,7 @@ export class SkyPool {
       const body = addImage(scene, layers.byName.effects, plane.frame);
       sh.visible = false;
       body.visible = false;
-      this.planes.push(new Plane(body, sh));
+      this.planes.push(new Plane(body, sh, 1 / plane.scale));
     }
     for (let i = 0; i < MAX_DROPS; i++) {
       const c = addImage(scene, layers.byName.effects, crate.frame);
@@ -103,9 +108,10 @@ export class SkyPool {
 
   /**
    * An aircraft flies over the strike strip centred on `x`: it reaches the strip's near edge after `delay`
-   * seconds (when the first rocket leaves) and leaves the far side. `dir` is the way it flies (the caller's way).
+   * seconds (when the first rocket leaves) and leaves the far side. `dir` is the way it flies (the caller's way);
+   * the calling side's nation picks the aircraft (airStrikeKey).
    */
-  airStrike(x: number, dir: number, delay: number): void {
+  airStrike(x: number, dir: number, delay: number, faction: FactionId = 'british'): void {
     const def = SUPPORTS.airStrike;
     const speed = Math.max(A.minSpeed, Math.min(A.maxSpeed, def.duration > 0 ? (2 * def.spread) / def.duration : A.minSpeed));
     const first = x - dir * def.spread;
@@ -127,6 +133,13 @@ export class SkyPool {
     p.speed = speed;
     p.x = first - dir * speed * Math.max(0, delay);
     p.endX = endX;
+    const key = airStrikeKey(faction);
+    if (key !== p.key && this.reg.has(key)) {
+      const fr = this.reg.get(key);
+      p.body.setFrame(fr.frame);
+      p.inv = 1 / fr.scale;
+      p.key = key;
+    }
     if (fresh) {
       p.age = 0;
       p.exhaustT = 0;
@@ -182,8 +195,8 @@ export class SkyPool {
     p.body.x = p.x;
     p.body.y = y;
     p.body.rotation = bank;
-    p.body.scaleX = p.dir * A.scale * this.planeInv;
-    p.body.scaleY = A.scale * this.planeInv;
+    p.body.scaleX = p.dir * A.scale * p.inv;
+    p.body.scaleY = A.scale * p.inv;
     p.shadow.x = p.x;
     p.shadow.y = gy + 10;
     p.shadow.scaleX = p.dir * A.scale * this.shadowInv;

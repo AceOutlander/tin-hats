@@ -4,7 +4,7 @@ import { LOOK_TRACKS, LOOK_UPGRADE, NATION_LOOKS } from '../../src/data/upgradeL
 import { UPGRADES } from '../../src/data/upgrades';
 import { gearOf, gearSource, lookStyle, sideLooks, toStage } from '../../src/meta/looks';
 
-const FACTIONS: FactionId[] = ['british', 'german'];
+const FACTIONS: FactionId[] = ['british', 'german', 'soviet'];
 
 describe('upgrade looks', () => {
   it('name an existing upgrade for every look track', () => {

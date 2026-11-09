@@ -1,10 +1,11 @@
 /**
  * Quartermaster supply looks: the supply dump at each income stage (a few crates, stacked crates, crates with fuel
  * drums, all that with a parked supply truck), the bigger load a sapper carries, the handcart and the small supply
- * truck (British Bedford-style in khaki, German Opel Blitz-style in field grey). Layouts in src/data/looksSupply.ts.
+ * truck (British Bedford-style in khaki, German Opel Blitz-style in field grey, the Soviet GAZ-AA), and the Red
+ * Army's BM-13 Katyusha launcher on its ZiS-6 truck. Layouts in src/data/looksSupply.ts and src/data/artLayout.ts.
  * Light comes from the upper left, as on the tanks.
  */
-import { ART_COLORS as C } from '../../data/artLayout';
+import { ART_COLORS as C, BM13_LAYOUT } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import { BIG_LOAD_BOX, CART_LAYOUT, DUMP_STYLE_LAYOUT, DUMP_TRUCK_X, SUPPLY_TRUCK_LAYOUT } from '../../data/looksSupply';
 import type { FactionId } from '../../data/schema';
@@ -218,6 +219,9 @@ interface TruckShape {
   /** Radiator grille strip. */
   grille: number[];
   lamp: [number, number];
+  /** Headlamp radius, and whether it stands on a stalk in front of the radiator (the GAZ-AA's Ford-pattern lamps). */
+  lampR: number;
+  lampStalk: boolean;
 }
 
 const WHEEL_R = 9;
@@ -231,7 +235,8 @@ const BED_FLOOR = -20;
 const TILT_TOP = -50;
 
 /** British: square Bedford cab with an upright screen and a flat-fronted bonnet; German: rounded Blitz cab, sloping nose.
- * Soviet: the GAZ-AA, a square cab and flat bonnet much like the Bedford (its own shape comes with the art job). */
+ * Soviet: the GAZ-AA (a licensed Ford AA): a tall cab with a rounded roof, a narrow bonnet stepping down to the tall
+ * upright radiator shell, the swooping Ford-pattern front wing and big round lamps on stalks. */
 const TRUCK_SHAPES: Record<FactionId, TruckShape> = {
   british: {
     cab: [6, -17, 6, -46, 8, -48, 27, -48, 28.5, -46, 30, -33, 47, -32, 49.5, -30, 49.5, -16, 6, -16],
@@ -239,6 +244,8 @@ const TRUCK_SHAPES: Record<FactionId, TruckShape> = {
     guard: [20, -16, 21, -21, 26, -24, 37, -24, 42, -21, 49, -19, 49, -16],
     grille: [46.5, -31, 49.5, -30, 49.5, -19, 46.5, -19],
     lamp: [44, -27],
+    lampR: 2.4,
+    lampStalk: false,
   },
   german: {
     cab: [6, -17, 6, -44, 9, -48, 24, -48.5, 27.5, -46, 30.5, -33.5, 43, -32.5, 47.5, -29.5, 50, -23, 50, -16, 6, -16],
@@ -246,13 +253,17 @@ const TRUCK_SHAPES: Record<FactionId, TruckShape> = {
     guard: [19, -16, 21, -20, 27, -24.5, 36, -25, 43, -22, 48.5, -17.5, 48.5, -16],
     grille: [44.5, -32, 47.5, -29.5, 50, -23, 50, -19, 47, -19],
     lamp: [41, -28],
+    lampR: 2.4,
+    lampStalk: false,
   },
   soviet: {
-    cab: [6, -17, 6, -46, 8, -48, 27, -48, 28.5, -46, 30, -33, 47, -32, 49.5, -30, 49.5, -16, 6, -16],
-    window: [12.5, -45, 26.5, -45, 27.5, -36, 12.5, -36],
-    guard: [20, -16, 21, -21, 26, -24, 37, -24, 42, -21, 49, -19, 49, -16],
-    grille: [46.5, -31, 49.5, -30, 49.5, -19, 46.5, -19],
-    lamp: [44, -27],
+    cab: [6, -17, 6, -46, 8.5, -49.5, 24.5, -49.5, 27, -47, 28, -35, 45, -33, 46.5, -35.5, 48.5, -35.5, 49.5, -33.5, 49.5, -16, 6, -16],
+    window: [12, -45.5, 25, -45.5, 26, -37, 12, -37],
+    guard: [19, -16, 21, -20, 24.5, -23.5, 30, -25.5, 36, -25.5, 41.5, -23.5, 46.5, -19.5, 51, -14.5, 49, -13.8, 44.5, -17.5, 39.5, -21, 34, -22.4, 28.5, -21.6, 24.5, -18.6, 22.5, -16],
+    grille: [45.5, -34, 46.8, -35.2, 48.6, -35.2, 49.8, -34, 49.8, -19, 45.5, -19],
+    lamp: [51, -28.5],
+    lampR: 2.7,
+    lampStalk: true,
   },
 };
 
@@ -405,6 +416,55 @@ function truckCargo(ctx: Ctx, P: Pal): void {
   rope(ctx, [-48, -41, -35, -44, -22, -41, -9, -38]);
 }
 
+/** The cab and bonnet, the window with the driver, the running board, mudguard, bumper and headlamp. */
+function paintCab(ctx: Ctx, P: Pal, S: TruckShape, o: TruckOpts): void {
+  rimPoly(ctx, S.cab, P.body, P.rim, 1.3);
+  inside(
+    ctx,
+    (c) => poly(c, S.cab),
+    () => {
+      // Panel lit from the upper left, shaded nose.
+      ctx.fillStyle = rgba(P.lit, 0.35);
+      ctx.fillRect(6, -49, 6, 33);
+      ctx.fillStyle = rgba(C.void, 0.25);
+      ctx.fillRect(38, -34, 14, 18);
+      // Door seam, handle and bonnet louvres.
+      ctx.fillStyle = rgba(P.bodyDark, 0.95);
+      ctx.fillRect(10.5, -45, 0.9, 28);
+      ctx.fillRect(27.5, -33, 0.9, 16);
+      ctx.fillRect(13, -31, 3, 0.9);
+      for (let x = 32; x < 42; x += 2.4) ctx.fillRect(x, -29.5, 0.9, 6);
+    },
+  );
+  // Window and driver.
+  fillPoly(ctx, S.window, o.wreck ? C.void : mix(C.glass, C.ink, 0.35));
+  if (!o.wreck) {
+    inside(
+      ctx,
+      (c) => poly(c, S.window),
+      () => {
+        ctx.fillStyle = 'rgba(220,226,214,0.18)';
+        ctx.beginPath();
+        ctx.moveTo(S.window[2] - 5, S.window[3]);
+        ctx.lineTo(S.window[2] - 2, S.window[3]);
+        ctx.lineTo(S.window[2] - 8, S.window[5]);
+        ctx.lineTo(S.window[2] - 11, S.window[5]);
+        ctx.fill();
+      },
+    );
+  }
+  if (o.driver) inside(ctx, (c) => poly(c, S.window), () => driver(ctx, P.faction, 18.5, -40));
+  fillPoly(ctx, S.grille, P.bodyDark);
+  // Running board, mudguards, bumper, headlamp.
+  rimRect(ctx, 6, -18, 16, 2.2, 0.6, P.bodyDark, P.lit, 0.8);
+  rimPoly(ctx, S.guard, P.body, P.rim, 1);
+  ctx.fillStyle = P.bodyDark;
+  ctx.fillRect(47, -15.5, 5, 3);
+  if (S.lampStalk) strokeLine(ctx, [S.lamp[0], S.lamp[1], S.lamp[0] - 2, -20.5], P.bodyDark, 1.2);
+  disc(ctx, S.lamp[0], S.lamp[1], S.lampR, P.bodyDark);
+  if (!o.wreck) disc(ctx, S.lamp[0] + 0.8, S.lamp[1] - 0.4, S.lampR * 0.54, rgba(C.silk, 0.75));
+}
+
 function paintTruck(ctx: Ctx, P: Pal, o: TruckOpts): void {
   const S = TRUCK_SHAPES[P.faction];
   const rand = rng(P.faction === 'british' ? 31 : 47);
@@ -450,52 +510,9 @@ function paintTruck(ctx: Ctx, P: Pal, o: TruckOpts): void {
     }
   }
 
-  // Cab and bonnet.
-  rimPoly(ctx, S.cab, P.body, P.rim, 1.3);
-  inside(
-    ctx,
-    (c) => poly(c, S.cab),
-    () => {
-      // Panel lit from the upper left, shaded nose.
-      ctx.fillStyle = rgba(P.lit, 0.35);
-      ctx.fillRect(6, -49, 6, 33);
-      ctx.fillStyle = rgba(C.void, 0.25);
-      ctx.fillRect(38, -34, 14, 18);
-      // Door seam, handle and bonnet louvres.
-      ctx.fillStyle = rgba(P.bodyDark, 0.95);
-      ctx.fillRect(10.5, -45, 0.9, 28);
-      ctx.fillRect(27.5, -33, 0.9, 16);
-      ctx.fillRect(13, -31, 3, 0.9);
-      for (let x = 32; x < 42; x += 2.4) ctx.fillRect(x, -29.5, 0.9, 6);
-    },
-  );
-  // Window and driver.
-  fillPoly(ctx, S.window, o.wreck ? C.void : mix(C.glass, C.ink, 0.35));
-  if (!o.wreck) {
-    inside(
-      ctx,
-      (c) => poly(c, S.window),
-      () => {
-        ctx.fillStyle = 'rgba(220,226,214,0.18)';
-        ctx.beginPath();
-        ctx.moveTo(S.window[2] - 5, S.window[3]);
-        ctx.lineTo(S.window[2] - 2, S.window[3]);
-        ctx.lineTo(S.window[2] - 8, S.window[5]);
-        ctx.lineTo(S.window[2] - 11, S.window[5]);
-        ctx.fill();
-      },
-    );
-  }
-  if (o.driver) inside(ctx, (c) => poly(c, S.window), () => driver(ctx, P.faction, 18.5, -40));
-  fillPoly(ctx, S.grille, P.bodyDark);
-  // Running board, mudguards, bumper, headlamp.
-  rimRect(ctx, 6, -18, 16, 2.2, 0.6, P.bodyDark, P.lit, 0.8);
-  rimPoly(ctx, S.guard, P.body, P.rim, 1);
-  ctx.fillStyle = P.bodyDark;
-  ctx.fillRect(47, -15.5, 5, 3);
+  paintCab(ctx, P, S, o);
+  // The rear mudguard.
   rimPoly(ctx, [BED_X0 + 1.5, -19, -38, -19, -36, -21.6, -30, -23.6, -24, -23.6, -18, -21.6, -16, -19, -16, -16.4, BED_X0 + 1.5, -16.4], P.body, P.rim, 0.9);
-  disc(ctx, S.lamp[0], S.lamp[1], 2.4, P.bodyDark);
-  if (!o.wreck) disc(ctx, S.lamp[0] + 0.8, S.lamp[1] - 0.4, 1.3, rgba(C.silk, 0.75));
 
   truckWheel(ctx, P, REAR_X, o.wreck);
   truckWheel(ctx, P, FRONT_X, o.wreck);
@@ -517,6 +534,78 @@ function paintTruck(ctx: Ctx, P: Pal, o: TruckOpts): void {
     ember(ctx, -30, -23, 3.5, 0.4);
     footing(ctx, -54, 54, -2.4, 4, rand);
   }
+}
+
+// ---------------------------------------------------------------------------
+// BM-13 Katyusha launcher on the ZiS-6 (facing +x, origin = ground centre; BM13_LAYOUT)
+// ---------------------------------------------------------------------------
+
+/** The sprite of the Red Army's Katyusha launcher truck. */
+export const KATYUSHA_LAUNCHER_KEY = 'veh/bm13';
+
+/** An M-13 rocket lying along +x from (x, y) (its centre line): the motor, the fatter warhead, the fin cross at the tail. */
+function m13(ctx: Ctx, P: Pal, x: number, y: number, len: number, shade: number): void {
+  const body = mix(P.bodyDark, C.ink, 0.3 + shade);
+  fillPoly(ctx, [x - 2, y - 2.6, x + 2.6, y - 1.4, x + 2.6, y + 1.4, x - 2, y + 2.6], C.ink);
+  rimRect(ctx, x, y - 1.6, len * 0.66, 3.2, 1, body, P.rim, 0.7);
+  rimPoly(ctx, [x + len * 0.64, y - 2.2, x + len * 0.92, y - 2.2, x + len, y, x + len * 0.92, y + 2.2, x + len * 0.64, y + 2.2], mix(P.lit, C.ink, 0.25 + shade), P.rim, 0.7);
+}
+
+function paintBm13(ctx: Ctx, P: Pal): void {
+  const L = BM13_LAYOUT;
+  const S = TRUCK_SHAPES.soviet;
+  // Wheel wells, the long chassis, the stabilising jack let down at the tail.
+  ctx.fillStyle = C.void;
+  for (const x of [...L.rearAxles, FRONT_X + L.cabShift]) {
+    ctx.beginPath();
+    ctx.arc(x, WHEEL_Y, WHEEL_R + 1.6, Math.PI, 0);
+    ctx.fill();
+  }
+  ctx.fillStyle = P.bodyDark;
+  ctx.fillRect(-60, -19, 112, 4.4);
+  strokeLine(ctx, [-56, -17, -60, -1.5], P.bodyDark, 1.6);
+  rimRect(ctx, -63, -2.4, 6, 2.4, 0.6, P.bodyDark, P.rim, 0.6);
+  // The launcher's base frame on the bed, and the rear mudguard over the tandem axles.
+  rimRect(ctx, -60, -25, 62, 6, 0.8, P.body, P.rim, 1);
+  ctx.fillStyle = rgba(P.bodyDark, 0.9);
+  for (let x = -56; x < 0; x += 9) ctx.fillRect(x, -24, 1.2, 4);
+  rimPoly(ctx, [-60, -19, -58, -22, -10, -22, -8, -19, -8, -16.4, -60, -16.4], P.body, P.rim, 0.9);
+  // The rails: pivot at the rear, a strut and the elevating screw holding them up over the cab.
+  const ca = Math.cos(L.railAngle);
+  const sa = Math.sin(L.railAngle);
+  const at = (d: number): readonly [number, number] => [L.railPivot.x + d * ca, L.railPivot.y - d * sa];
+  const [sx, sy] = at(46);
+  const [ex, ey] = at(20);
+  strokeLine(ctx, [-14, -25, sx, sy], P.bodyDark, 2.2);
+  strokeLine(ctx, [-4, -25, sx + 1, sy + 0.6], P.bodyDark, 1.6);
+  strokeLine(ctx, [-38, -25, ex, ey], mix(P.bodyDark, P.rim, 0.25), 1.6);
+  rimRect(ctx, L.railPivot.x - 3, L.railPivot.y - 3, 6, 8, 1.2, P.body, P.rim, 0.8);
+  ctx.save();
+  ctx.translate(L.railPivot.x, L.railPivot.y);
+  ctx.rotate(-L.railAngle);
+  // The rockets riding on top of the rails (the rows behind, darker, peeking over the near one).
+  const len = 24;
+  m13(ctx, P, 9, -7, len, 0.25);
+  m13(ctx, P, 5, -5.3, len, 0.1);
+  // The package of rails: I-beams seen end to end, flanges and the cross members.
+  rimRect(ctx, 0, -3.6, L.railLength, 7.2, 0.8, P.bodyDark, P.rim, 1);
+  ctx.fillStyle = P.body;
+  ctx.fillRect(1, -1.4, L.railLength - 2, 2.8);
+  ctx.fillStyle = P.bodyDark;
+  for (const d of [18, 46, 74]) ctx.fillRect(d, -4.6, 2.2, 9.2);
+  // And the rockets hanging under them.
+  m13(ctx, P, 5, 5.3, len, 0.1);
+  ctx.restore();
+  // Cab and bonnet of the ZiS-6 (the GAZ shape, longer chassis), its window shutter let down for the salvo.
+  ctx.save();
+  ctx.translate(L.cabShift, 0);
+  paintCab(ctx, P, S, { tilt: 'none', cargo: false, driver: false, wreck: false });
+  fillPoly(ctx, S.window, P.bodyDark);
+  ctx.fillStyle = C.void;
+  ctx.fillRect(S.window[0] + 2, S.window[1] + 3, S.window[2] - S.window[0] - 4, 1.2);
+  ctx.restore();
+  for (const x of L.rearAxles) truckWheel(ctx, P, x, false);
+  truckWheel(ctx, P, FRONT_X + L.cabShift, false);
 }
 
 function truckOpts(state: TruckState): TruckOpts {
@@ -718,6 +807,12 @@ export function truckSpecs(faction: FactionId): SpriteSpec[] {
   return TRUCK_STATES.map((state) =>
     makeSpec(truckKey(faction, state), SUPPLY_TRUCK_LAYOUT.box, (ctx) => paintTruck(ctx, P, truckOpts(state))),
   );
+}
+
+/** The Katyusha launcher truck (drawn in the Soviet colours). */
+export function katyushaLauncherSpec(): SpriteSpec {
+  const P = pal('soviet');
+  return makeSpec(KATYUSHA_LAUNCHER_KEY, BM13_LAYOUT.box, (ctx) => paintBm13(ctx, P));
 }
 
 /** Every supply-look sprite for one nation. */
