@@ -3,7 +3,7 @@ import { CONFIG } from '../../src/data/config';
 import { DAMAGE } from '../../src/data/damage';
 import { SANDBOX, SANDBOX_MIRROR } from '../../src/data/missions/sandbox';
 import type { ForceDef } from '../../src/data/schema';
-import { SUPPORTS } from '../../src/data/supports';
+import { OFF_MAP, SUPPORTS } from '../../src/data/supports';
 import { WEAPONS } from '../../src/data/weapons';
 import { SIM_FEATURES } from '../../src/sim';
 import { DT, checkInvariants, collect, eventsOf, makeBattle, run, testMission } from './sim-helpers';
@@ -64,17 +64,24 @@ describe('support call-ins', () => {
     expect(incoming[0].time - t0).toBeCloseTo(art.delay - art.warning, 1);
     expect(incoming[0].value).toBeCloseTo(art.warning, 1);
 
+    // Realistic artillery (owner, 2026-11-09): fired unseen from off the map, each shell falls OFF_MAP.fall seconds
+    // steeply from above; `delay` counts to the first landing (tests/unit/sim-artillery.test.ts has the rest).
+    const off = OFF_MAP.artilleryShell;
     const shells = events.filter((e) => e.type === 'projectile' && e.weapon === art.weapon);
     expect(shells).toHaveLength(art.rounds);
     for (const s of shells) {
       expect(s.source).toBe('none');
       expect(s.side).toBe(0);
+      expect(s.hit).toBe(true);
+      expect(s.value).toBeCloseTo(off.fall, 9);
       expect(Math.abs(s.x2 - 3050)).toBeLessThanOrEqual(art.spread + 1e-9);
-      expect(s.x2 - s.x).toBeCloseTo(art.launchOffset, 6);
+      expect(s.x2 - s.x).toBeCloseTo(off.slant, 6);
     }
-    expect(shells[0].time - t0).toBeCloseTo(art.delay, 1);
+    expect(shells[0].time - t0).toBeCloseTo(art.delay - off.fall, 1);
     expect(shells[shells.length - 1].time - shells[0].time).toBeCloseTo(art.duration, 1);
-    expect(events.filter((e) => e.type === 'explosion' && e.weapon === art.weapon)).toHaveLength(art.rounds);
+    const landed = events.filter((e) => e.type === 'explosion' && e.weapon === art.weapon);
+    expect(landed).toHaveLength(art.rounds);
+    expect(Math.abs(landed[0].time - t0 - art.delay)).toBeLessThanOrEqual(3 * DT);
 
     const blasts = events.filter((e) => (e.type === 'unitHit' || e.type === 'unitDied') && e.cause === 'explosive');
     expect(blasts.length).toBeGreaterThan(0);

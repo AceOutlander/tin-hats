@@ -621,7 +621,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
   katyushaRocket: {
     id: 'katyushaRocket',
     damageType: 'explosive',
-    damage: 62,
+    damage: 56,
     range: 0,
     minRange: 0,
     aimTime: 0,

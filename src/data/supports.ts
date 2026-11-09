@@ -1,22 +1,25 @@
-import type { SupportDef, SupportKind } from './schema';
+import type { BarrageWeapon, SupportDef, SupportKind } from './schema';
 
 /**
  * Support call-ins. Each side has its own cooldown per kind; the first round leaves `delay` seconds
- * after the call and the rest follow evenly over `duration`.
+ * after the call and the rest follow evenly over `duration`. Off-map fire (OFF_MAP: artillery, Katyusha) counts
+ * `delay` to the first round's landing instead: it is fired, unseen, its fall time earlier.
  */
 export const SUPPORTS: Record<SupportKind, SupportDef> = {
+  // Realistic artillery (owner, 2026-11-09): guns kilometres away, never shown. The first shell lands `delay` seconds
+  // after the call (its whistle starts OFF_MAP[weapon].fall before that) and the rest arrive one by one over `duration`.
   artillery: {
     kind: 'artillery',
     cooldown: 60,
-    delay: 2.5,
-    rounds: 6,
-    duration: 3,
-    spread: 160,
+    delay: 4,
+    rounds: 8,
+    duration: 5,
+    spread: 180,
     weapon: 'artilleryShell',
     smokeRadius: 0,
     smokeTime: 0,
-    warning: 1.5,
-    launchOffset: 260,
+    warning: 1.6,
+    launchOffset: 0,
     hqDamageMul: 0.25,
     vehicleDamageMul: 1,
     pattern: 'scatter',
@@ -112,15 +115,15 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
   katyusha: {
     kind: 'katyusha',
     cooldown: 150,
-    delay: 4,
-    rounds: 16,
-    duration: 2.4,
+    delay: 4.5,
+    rounds: 18,
+    duration: 4.5,
     spread: 420,
     weapon: 'katyushaRocket',
     smokeRadius: 0,
     smokeTime: 0,
-    warning: 2.5,
-    launchOffset: 520,
+    warning: 1.3,
+    launchOffset: 0,
     hqDamageMul: 0.2,
     vehicleDamageMul: 0.8,
     pattern: 'scatter',
@@ -173,6 +176,35 @@ export const ANTI_AIR: AntiAirDef = {
   accuracy: 0.5,
   damage: 30,
 };
+
+/**
+ * Fire from guns and launchers off the map (owner, 2026-11-09: "the guns are kilometres away and never shown"): the
+ * artillery and Katyusha call-ins and every scripted barrage. Each round falls `fall` seconds from high above the top
+ * of the screen (the length of its incoming whistle or rocket shriek, which rises as it falls: the two are kept in step
+ * by tests/unit/sim-artillery.test.ts) and lands steeply, entering `slant` wu short of its landing point on the firer's
+ * side. No muzzle, no gun: the renderer draws it from above the screen top.
+ */
+export interface OffMapFire {
+  fall: number;
+  slant: number;
+  /** Its incoming sound (src/data/sounds.ts), as long as its fall. */
+  sound: 'incomingWhistle' | 'rocketShriek';
+}
+
+export const OFF_MAP: Readonly<Record<BarrageWeapon, OffMapFire>> = {
+  artilleryShell: { fall: 1.6, slant: 110, sound: 'incomingWhistle' },
+  siegeShell: { fall: 1.6, slant: 70, sound: 'incomingWhistle' },
+  mortar21: { fall: 1.6, slant: 60, sound: 'incomingWhistle' },
+  heavyBomb: { fall: 1.6, slant: 40, sound: 'incomingWhistle' },
+  aerialBomb: { fall: 1.6, slant: 40, sound: 'incomingWhistle' },
+  nebelwerfer: { fall: 1.3, slant: 170, sound: 'rocketShriek' },
+  katyushaRocket: { fall: 1.3, slant: 190, sound: 'rocketShriek' },
+};
+
+/** The off-map fire of a weapon id, or null for a weapon fired on the battlefield (or from an aircraft in sight). */
+export function offMapFire(weapon: string | null): OffMapFire | null {
+  return weapon !== null && Object.prototype.hasOwnProperty.call(OFF_MAP, weapon) ? OFF_MAP[weapon as BarrageWeapon] : null;
+}
 
 /** Call-ins whose rounds come down from above: hit-facing armour does not apply to them. */
 export const TOP_ATTACK_SUPPORTS: readonly SupportKind[] = ['airStrike', 'bomber', 'fighter'];

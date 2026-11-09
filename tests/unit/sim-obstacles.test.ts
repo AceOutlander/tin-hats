@@ -391,7 +391,7 @@ describe('the ferry', () => {
   it("loses hitShare of a load to a round landing on the boat, and counts the load lost", () => {
     const m = ferryMission([
       { type: 'wave', when: { at: 1 }, side: 0, forces: [{ kind: 'rifle', count: 6, at: { point: 'L' } }] },
-      { type: 'barrage', when: { at: 24 }, side: 1, x: 2575, spread: 30, rounds: 6, duration: 2, weapon: 'artilleryShell' },
+      { type: 'barrage', when: { at: 23 }, side: 1, x: 2575, spread: 30, rounds: 6, duration: 2, weapon: 'artilleryShell' },
     ]);
     const outcomes: number[] = [];
     for (const seed of [1, 2]) {
@@ -414,8 +414,8 @@ describe('the ferry', () => {
     const m: MissionDef = {
       ...ferryMission([
         { type: 'wave', when: { every: 30, from: 1 }, side: 0, forces: [{ kind: 'rifle', count: 4, at: { point: 'L' } }] },
-        { type: 'barrage', when: { at: 24 }, side: 1, x: 2575, spread: 30, rounds: 6, duration: 2, weapon: 'artilleryShell' },
-        { type: 'barrage', when: { at: 54 }, side: 1, x: 2575, spread: 30, rounds: 6, duration: 2, weapon: 'artilleryShell' },
+        { type: 'barrage', when: { at: 23 }, side: 1, x: 2575, spread: 30, rounds: 6, duration: 2, weapon: 'artilleryShell' },
+        { type: 'barrage', when: { at: 53 }, side: 1, x: 2575, spread: 30, rounds: 6, duration: 2, weapon: 'artilleryShell' },
       ]),
       phases: [
         {

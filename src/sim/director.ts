@@ -11,7 +11,7 @@
  * here is plain data in `state.director` and the battle RNG, so it is deterministic and can be saved.
  */
 import { CONFIG } from '../data/config';
-import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
+import { SUPPORTS, SUPPORT_KINDS, offMapFire } from '../data/supports';
 import type {
   LossDef,
   MissionDef,
@@ -34,7 +34,7 @@ import { inPrep, missionTime, startPhasePrep } from './prep';
 import { LAUNCH, launch } from './projectiles';
 import { airGrounded, changeTime, changeWeather, fireFlare } from './sky';
 import { PLANE_NONE, SUPPORT_COUNT, callSupport } from './supports';
-import { KIND_DEFS, weaponIndex } from './tables';
+import { KIND_DEFS, WEAPON_LIST, weaponIndex } from './tables';
 import { demolishBridge, ferryLoadsLost, raiseBridge } from './water';
 import type { BattleState, DirectorState, EndReason, ObjectiveState, SideObjectiveState, TimerState, UnitState } from './types';
 import type { World } from './world';
@@ -749,6 +749,15 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
         weapon: wi,
         top: ev.weapon === 'heavyBomb' || ev.weapon === 'aerialBomb' ? 1 : 0,
       });
+      // The guns are off the map: the first round lands its fall time after it leaves. The view marks the target area of
+      // the player's own barrages (faintly); the enemy's are heard, not marked.
+      const called = w.events.emit('barrageCalled');
+      called.side = ev.side;
+      called.weapon = ev.weapon;
+      called.x = ev.x;
+      called.value = ev.spread;
+      called.x2 = delay + (offMapFire(ev.weapon)?.fall ?? 0) + (ev.rounds > 1 ? ev.duration : 0);
+      called.row2 = ev.rounds;
       break;
     }
     case 'airRaid': {
@@ -878,7 +887,7 @@ export function setOwner(
 // Every tick
 // ---------------------------------------------------------------------------
 
-/** Launch round `n` of a scripted barrage: at random within its spread, from off the firer's own end of the arc. */
+/** Launch round `n` of a scripted barrage: at random within its spread, falling steeply from guns off the map. */
 function fireBarrageRound(w: World, i: number): void {
   const s = w.state;
   const b = s.director.barrages[i];
@@ -886,16 +895,18 @@ function fireBarrageRound(w: World, i: number): void {
   let land = b.x + (w.rng.next() * 2 - 1) * b.spread;
   if (land < 0) land = 0;
   else if (land > s.length) land = s.length;
-  let from = land - dir * SUPPORTS.artillery.launchOffset;
+  const off = offMapFire(WEAPON_LIST[b.weapon].id);
+  let from = land - dir * (off !== null ? off.slant : 0);
   if (from < 0) from = 0;
   else if (from > s.length) from = s.length;
   LAUNCH[0] = from;
   LAUNCH[1] = land;
   LAUNCH[2] = 1;
-  LAUNCH[3] = 0;
+  LAUNCH[3] = off !== null ? off.fall : 0;
   LAUNCH[4] = SUPPORTS.artillery.hqDamageMul;
   LAUNCH[5] = 1;
   LAUNCH[6] = b.top;
+  LAUNCH[7] = off !== null ? 1 : 0;
   launch(w, b.side, b.weapon, b.fired % CONFIG.rows, -1, null, 'none');
 }
 

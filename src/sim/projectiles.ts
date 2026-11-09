@@ -40,9 +40,11 @@ const FIRE_BUILDING = FIRE_DAMAGE.infantryBuilding ?? 1;
  * [3] flight time in seconds, or 0 to derive it from the distance and weapon.projectileSpeed,
  * [4] extra multiplier on damage to an HQ and [5] to vehicles (1 for weapons; support call-ins use
  * their hqDamageMul and vehicleDamageMul), [6] 1 for a round dropped from an aircraft (hits from above,
- * so hit-facing armour does not apply), else 0. Set all seven before every call.
+ * so hit-facing armour does not apply), else 0. Set all seven before every call. [7] 1 for a round fired from off the
+ * map (artillery, Katyusha, scripted barrages: the projectile event has hit = true, the view draws it falling from
+ * above the screen top with its incoming whistle); launch() sets it back to 0, so only off-map callers set it.
  */
-export const LAUNCH = new Float64Array(7);
+export const LAUNCH = new Float64Array(8);
 
 /**
  * Put a projectile of weapon `wi` in flight from LAUNCH[0] to LAUNCH[1] and emit its `projectile`
@@ -67,7 +69,10 @@ export function launch(
       break;
     }
   }
-  if (index < 0) return -1;
+  if (index < 0) {
+    LAUNCH[7] = 0;
+    return -1;
+  }
   const weapon = WEAPON_LIST[wi];
   const fromX = LAUNCH[0];
   const toX = LAUNCH[1];
@@ -111,6 +116,8 @@ export function launch(
   e.value = flight;
   e.targetIndex = index;
   e.dir = toX >= fromX ? 1 : -1;
+  e.hit = LAUNCH[7] !== 0;
+  LAUNCH[7] = 0;
   return index;
 }
 

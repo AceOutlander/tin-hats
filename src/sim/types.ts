@@ -1046,6 +1046,7 @@ export type SimEventType =
   | 'orderChanged'
   | 'supportCalled'
   | 'supportIncoming'
+  | 'barrageCalled'
   | 'smokeSpawned'
   | 'wave'
   | 'airdrop'
@@ -1105,6 +1106,8 @@ export type SimEventType =
  *                   x2 = landing point, row2 = depth row it lands on (-1 = ground); value = flight time in seconds;
  *                   targetIndex = projectile pool index; source = 'unit' | 'hq' | 'pillbox' | 'none' (a call-in),
  *                   with unit, unitId, kind = the firer when source is 'unit'; dir = sign of x2 - x.
+ *                   hit = true for a round fired from off the map (OFF_MAP in src/data/supports.ts): it falls steeply
+ *                   from high above the screen top for `value` seconds, its incoming whistle rising as it falls.
  * explosion         A projectile landed. side = firer's side, x = centre, row = depth row (-1 = ground),
  *                   value = splash radius, weapon, cause = damage type.
  * unitSpawned       A unit appeared. side, unit, unitId, kind, x, row;
@@ -1137,6 +1140,8 @@ export type SimEventType =
  *                   value = seconds until the first round. Artillery shells land at random within
  *                   x +- spread; air-strike rockets leave the aircraft in order along the strip from
  *                   x - dir * spread to x + dir * spread over `duration`; smoke appears at x (smokeSpawned).
+ * barrageCalled     A scripted barrage (the mission director) was ordered. side = the firing side, weapon, x = target
+ *                   centre, value = half-width of its scatter, x2 = seconds until its last round lands, row2 = rounds.
  * smokeSpawned      side = who made it (-1 none), x, value = radius, x2 = lifetime in seconds.
  * wave              A scripted wave arrived. side, value = units spawned, text = announcement or null.
  * airdrop           Scripted supplies. side, value = supplies credited, x = where the crate lands (HQ door).

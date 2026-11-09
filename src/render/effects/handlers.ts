@@ -12,7 +12,7 @@ import { HQ_LAYOUT, TANK_LAYOUT } from '../../data/artLayout';
 import { FX_TRACERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
 import { ORDER_WHISTLE } from '../../data/sounds';
-import { SUPPORTS } from '../../data/supports';
+import { SUPPORTS, offMapFire } from '../../data/supports';
 import { VIEW } from '../../data/view';
 import { WEAPONS } from '../../data/weapons';
 import { shakeStrength } from '../../fx';
@@ -20,7 +20,7 @@ import type { SimEvent, SimEventType } from '../../sim';
 import type { FlightArc } from './flights';
 import { vehicleLookOf } from '../../art/vehicles';
 import type { FactionId } from '../../data/schema';
-import { isPlaneKind, speechLine, speechOrder } from './callinMath';
+import { isPlaneKind, speechLine, speechOrder, targetMarkerPeak } from './callinMath';
 import type { EffectContext, Point } from './index';
 import { PRESET_DEFS } from './presets';
 
@@ -201,10 +201,27 @@ function onShot(fx: EffectContext, e: SimEvent): void {
   }
 }
 
+/**
+ * A round from guns off the map (the projectile event's hit flag): no muzzle, the guns are kilometres away. Its whistle
+ * sounds where it will land, as loud for the enemy's as for the player's (the warning to take cover), and it falls
+ * steeply from above the top of the screen for its whole flight time.
+ */
+function incoming(fx: EffectContext, e: SimEvent, weapon: (typeof WEAPONS)[string]): void {
+  fx.sound.at(offMapFire(weapon.id)?.sound ?? weapon.sound, e.x2);
+  if (!fx.onScreen(e.x, e.x2) || weapon.projectileLook === 'none') return;
+  const faction = factionOf(fx, e.side);
+  const ground = fx.groundY(e.row2 >= 0 ? e.row2 : -1);
+  fx.flights.spawn(weapon.projectileLook, faction, 'plunge', e.x, -R.flight.plungeTop, e.x2, ground, e.value, weapon.id, fx.stepId, false);
+}
+
 /** A shell, rocket, grenade or bomb leaves its launcher (phase 2 events): launch effects and a sprite on its arc. */
 function onProjectile(fx: EffectContext, e: SimEvent): void {
   const weapon = e.weapon ? (WEAPONS[e.weapon] as (typeof WEAPONS)[string] | undefined) : undefined;
   if (!weapon || weapon.projectileLook === 'none') return;
+  if (e.hit) {
+    incoming(fx, e, weapon);
+    return;
+  }
   const dupe = fx.flights.has(fx.stepId, weapon.id, e.x);
   if (dupe) fx.flights.cancelProvisional(fx.stepId, weapon.id, e.x);
   else fx.sound.at(weapon.sound, e.x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
@@ -432,9 +449,15 @@ function onSupport(fx: EffectContext, e: SimEvent): void {
   const def = SUPPORTS[e.support];
   const delay = e.value > 0 ? e.value : def.delay;
   const half = e.support === 'smoke' ? def.smokeRadius : def.spread;
-  const own = e.side === fx.playerSide;
-  if (half > 0) fx.targetMarkers.add(e.x, half, delay + def.duration * 0.6, own ? 0.9 : 0.45);
+  const peak = targetMarkerPeak(e.side, fx.playerSide);
+  if (half > 0 && peak > 0) fx.targetMarkers.add(e.x, half, delay + def.duration * 0.6, peak);
   if (e.support === 'airStrike') fx.sky.airStrike(e.x, dirOf(e.side), delay, factionOf(fx, e.side));
+}
+
+/** A scripted barrage was ordered: the player's own gets the same faint marker as a call-in; the enemy's, none. */
+function onBarrage(fx: EffectContext, e: SimEvent): void {
+  const peak = targetMarkerPeak(e.side, fx.playerSide);
+  if (peak > 0 && e.value > 0) fx.targetMarkers.add(e.x, e.value, e.x2, peak);
 }
 
 function onBattleEnded(fx: EffectContext, e: SimEvent): void {
@@ -462,6 +485,7 @@ export const EFFECT_HANDLERS: Partial<Record<SimEventType, EffectHandler>> = {
   orderChanged: onOrderChanged,
   supportCalled: onSupport,
   supportIncoming: onSupport,
+  barrageCalled: onBarrage,
   battleEnded: onBattleEnded,
   planePass: onPlanePass,
   planeDown: onPlaneDown,

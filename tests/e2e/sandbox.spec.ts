@@ -4,6 +4,7 @@
  * real tap, drag or key press; the debug hooks only grant supplies and population, set the time scale and read
  * the sim back. Pictures go to docs/screenshots/e2e-sandbox-*.png.
  */
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { MISSIONS } from '../../src/data/missions';
 import type { SupportKind, UnitKind } from '../../src/data/schema';
@@ -21,6 +22,7 @@ import {
   open,
   openCallIns,
   setTimeScale,
+  SHOT_DIR,
   shot,
   startMission,
   startSandbox,
@@ -294,6 +296,13 @@ test.describe('proving ground (Phase 2)', () => {
       } else if (kind === 'recon') {
         // The recon plane drops nothing: it shows the enemy's health around the target for a while.
         await waitForState(page, 'recon over the target', (s) => s.tally.supportIncoming.recon >= 1, 30_000);
+      } else if (kind === 'artillery') {
+        // Realistic artillery: shells from guns off the map land one by one over several seconds. The picture is taken
+        // in real time just after the first lands, with more still falling from above the screen.
+        await setTimeScale(page, 1);
+        await waitForState(page, 'artillery blasts', (s) => s.tally.explosion > blasts, 30_000);
+        await page.waitForTimeout(450);
+        await page.screenshot({ path: join(SHOT_DIR, 'artillery.png') });
       } else {
         await waitForState(page, `${kind} blasts`, (s) => s.tally.explosion > blasts, 30_000);
       }

@@ -335,6 +335,10 @@ export const RENDER = {
       dropMax: 26,
       /** Air-dropped ordnance starts this high above the ground (wu) at the launch x (just under the aircraft). */
       airAltitude: 195,
+      /** Off-map fire (artillery, rockets, scripted barrages) enters this far above the top of the scene (y = 0) and falls steeply. */
+      plungeTop: 60,
+      /** Peak opacity of the faint target marker over the player's own barrage or call-in; the enemy's get none (owner, 2026-11-09). */
+      ownMarkerPeak: 0.4,
       /** Sprite size multiplier and spin (rad/s) by look. */
       scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5, katyusha: 1.3 } as Readonly<Record<string, number>>,
       spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0, katyusha: 0 } as Readonly<Record<string, number>>,
@@ -382,7 +386,7 @@ export const RENDER = {
   /** Sound hookup (src/render/effects/sound.ts). */
   audio: {
     /** Smallest real-time gap (s) between plays of one sound, and a ceiling on all plays per second. */
-    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, mortarLaunch: 0.12, shellWhistle: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
+    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, mortarLaunch: 0.12, shellWhistle: 0.12, incomingWhistle: 0.15, rocketShriek: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
     defaultGap: 0.05,
     maxPerSecond: 70,
     /** Shots further off screen than this many view widths are not played at all. */

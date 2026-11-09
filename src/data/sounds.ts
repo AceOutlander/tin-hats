@@ -472,6 +472,32 @@ export const SOUNDS = {
     { minInterval: 0.25, pitchJitter: 0.1, reach: 1.5 },
   ),
 
+  /**
+   * A shell from guns off the map, falling (owner, 2026-11-09): a whistle that swells and rises in pitch for the whole
+   * fall and stops as it lands. Its length is the shell's fall (OFF_MAP in src/data/supports.ts, 1.6 s). Played for the
+   * enemy's shells as loud as for the player's: it is the warning to take cover.
+   */
+  incomingWhistle: sound(
+    [
+      tone('sine', 640, 0.55, 1.42, 0.15, 0.03, { freqEnd: 1550, decayShape: 'lin', vibrato: { rate: 9, depth: 9 } }),
+      tone('triangle', 1290, 0.12, 1.42, 0.15, 0.03, { freqEnd: 3120, decayShape: 'lin' }),
+      noise('white', 0.22, 1.42, 0.15, 0.03, { decayShape: 'lin', filter: bp(1100, 4, 2700) }),
+    ],
+    0.32,
+    { minInterval: 0.15, maxVoices: 4, pitchJitter: 0.02, reach: 3 },
+  ),
+
+  /** A Katyusha or Nebelwerfer rocket coming in from off the map: a rising, warbling shriek over its 1.3 s fall. */
+  rocketShriek: sound(
+    [
+      tone('sawtooth', 360, 0.2, 1.12, 0.15, 0.03, { freqEnd: 1050, decayShape: 'lin', filter: lp(1600, 4200) }),
+      tone('sine', 720, 0.3, 1.12, 0.15, 0.03, { freqEnd: 2100, decayShape: 'lin', vibrato: { rate: 14, depth: 30 } }),
+      noise('pink', 0.5, 1.12, 0.15, 0.03, { decayShape: 'lin', filter: bp(900, 1.5, 3200) }),
+    ],
+    0.28,
+    { minInterval: 0.12, maxVoices: 4, pitchJitter: 0.02, reach: 3 },
+  ),
+
   /** Mortar bomb or tank shell landing: blast, thump and a low rumble. */
   explosionMedium: sound(
     [
