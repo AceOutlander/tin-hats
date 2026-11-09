@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { MEDALS } from '../../src/data/medals';
 import { META } from '../../src/data/meta';
 import { MISSIONS } from '../../src/data/missions';
-import type { MissionDef } from '../../src/data/schema';
+import type { MissionDef, SupportKind, UnitKind } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import { UPGRADES } from '../../src/data/upgrades';
 import {
@@ -21,6 +21,7 @@ import {
   missionMedals,
   missionRoster,
   ownsItem,
+  recordClear,
   recordWin,
   replayPercent,
   sanitizeSave,
@@ -178,7 +179,15 @@ describe('what the player fields in a mission', () => {
     const save = defaultSave();
     const r = missionRoster(save, mission(7));
     expect(r.units).toEqual(['sapper', 'rifle']);
-    expect(r.loans).toEqual([{ kind: 'at', count: 3 }, { kind: 'medic', count: 2 }]);
+    // Its own loans, then two of every other type its design expects that is not bought (MEDALS.autoLoanCount).
+    expect(r.loans).toEqual([
+      { kind: 'at', count: 3 },
+      { kind: 'medic', count: 2 },
+      { kind: 'lmg', count: MEDALS.autoLoanCount },
+      { kind: 'assault', count: MEDALS.autoLoanCount },
+      { kind: 'mortar', count: MEDALS.autoLoanCount },
+      { kind: 'sniper', count: MEDALS.autoLoanCount },
+    ]);
     // No sappers where the mission has none.
     expect(missionRoster(save, mission(9)).units).toEqual(['rifle']);
   });
@@ -188,10 +197,32 @@ describe('what the player fields in a mission', () => {
     save.armoury = ['lmg', 'medic', 'at', 'tank'];
     const r = missionRoster(save, mission(7));
     expect(r.units).toEqual(['sapper', 'rifle', 'lmg', 'medic', 'at', 'tank']);
-    expect(r.loans).toEqual([]);
-    // Mission 1 (the tutorial) keeps to its own list; Arnhem has no vehicles.
-    expect(missionRoster(save, mission(1)).units).toEqual(['sapper', 'rifle']);
-    expect(missionRoster(save, mission(9)).units).toEqual(['rifle', 'lmg', 'medic', 'at']);
+    // Bought types are no longer lent; the expected ones still missing are.
+    expect(r.loans.map((l) => l.kind)).toEqual(['assault', 'mortar', 'sniper']);
+    // No mission rules out a bought type (owner, 2026-11-08): mission 1 and Arnhem field them too; Arnhem still has no
+    // sappers, a free type it does not list (it has no supply economy).
+    expect(missionRoster(save, mission(1)).units).toEqual(['sapper', 'rifle', 'lmg', 'medic', 'at', 'tank']);
+    expect(missionRoster(save, mission(9)).units).toEqual(expect.arrayContaining(['rifle', 'lmg', 'medic', 'at', 'tank']));
+    expect(missionRoster(save, mission(9)).units).not.toContain('sapper');
+  });
+
+  it('lets every unlocked type be used in every mission, replays included', () => {
+    const save = defaultSave();
+    save.armoury = MEDALS.armoury.map((a) => a.id);
+    const fieldable = MEDALS.armoury
+      .filter((a) => a.type === 'unit' && UNITS[a.id as UnitKind].trainable && UNITS[a.id as UnitKind].enemyOnly !== true)
+      .map((a) => a.id as UnitKind);
+    const planes = MEDALS.armoury.filter((a) => a.type === 'support').map((a) => a.id as SupportKind);
+    for (const m of MISSIONS) {
+      for (const replay of [false, true]) {
+        if (replay) recordClear(save, m.id, 'normal');
+        const r = missionRoster(save, m);
+        for (const k of fieldable) expect(r.units, `mission ${m.id} ${replay ? 'replay' : 'first play'}: ${k}`).toContain(k);
+        for (const k of planes) expect(r.supports, `mission ${m.id}: ${k}`).toContain(k);
+        // The battle really gets them: the roster is what the sim is given.
+        expect(applyRoster(m, r).units[0]).toEqual(r.units);
+      }
+    }
   });
 
   it('leaves out bought types the sim cannot field yet, and lends only fieldable ones', () => {
@@ -215,7 +246,8 @@ describe('what the player fields in a mission', () => {
     expect(played.units[0]).toEqual(roster.units);
     expect(played.units[1]).toEqual(m.units[1]);
     expect(played.supports[0]).toEqual(m.supports[0]);
-    expect(played.start[0].forces.slice(m.start[0].forces.length)).toEqual([
+    expect(played.start[0].forces.slice(m.start[0].forces.length)).toEqual(roster.loans);
+    expect(roster.loans.slice(0, 2)).toEqual([
       { kind: 'at', count: 3 },
       { kind: 'tank', count: 2 },
     ]);
