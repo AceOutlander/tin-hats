@@ -7,12 +7,13 @@ import type { MissionDef } from '../../schema';
  * wood's edge. The mission depicts the real battle, not the "28 Panfilov men" legend, and names no individuals.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1003): a hold. A 60 s prep phase comes
- * first (the bot wires the halt); phases 1 and 2 hold the halt (P1, held through trench 2) for 360 s each and are lost
+ * first: wire, foxholes, a trench, road blocks and the steel tank traps of the Moscow defences (FOUNDATIONS.md 4.8;
+ * the bot puts the traps across the road at x 6,000 and wire at 5,900); phases 1 and 2 hold the halt (P1, held through trench 2) for 360 s each and are lost
  * if it falls; the German barrage on the halt, the Stuka and the Pak 38 and mortar posture are scripted; the Katyusha
  * is offered from phase 2; phase 3 brings Katukov's tanks and takes the wood's edge (P2, through trench 3, a forward
  * spawn once ours), where the Germans counter-attack 90 s after it falls; it is held for 150 s. The ground is snow, the
  * birch wood forest. The halt hut (B1) and two izbas of the hamlet are buildings (FOUNDATIONS.md 4.3) and the HQ is a
- * log dugout (`hqLook`). The tank traps wait for their feature.
+ * log dugout (`hqLook`).
  */
 export const M1003: MissionDef = {
   id: 1003,
@@ -127,7 +128,16 @@ export const M1003: MissionDef = {
     { id: 'P2', x: 9800, width: 300, label: "Wood's edge", owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 3 } },
   ],
   // A minute to wire the halt before the first attack (the bot builds what used to be laid before the battle).
-  prep: { seconds: 60, bot: [{ kind: 'wire', x: 5900 }] },
+  // The brief's prep (STALINGRAD.md, mission 3): wire, foxholes, tank traps, a trench; zone 3,000 to 6,400.
+  prep: {
+    seconds: 60,
+    buildables: ['wire', 'foxhole', 'tankTrap', 'roadBlock', 'trench'],
+    zone: { from: 3000, to: 6400 },
+    bot: [
+      { kind: 'tankTrap', x: 6010 },
+      { kind: 'wire', x: 5900 },
+    ],
+  },
   timer: null,
   // The mission director (FOUNDATIONS.md 3): two holds of the halt, then the counter-attack to the wood's edge.
   phases: [
@@ -182,6 +192,7 @@ export const M1003: MissionDef = {
       when: { at: 4 },
       text: 'Your anti-tank men carry the PTRD now. The long rifle holes a Panzer at close range: keep them in the trenches and let the tanks come near.',
     },
+    { type: 'hint', when: { at: 9 }, text: 'PTRD teams kill tanks from the side. Tank traps stop vehicles until they work them loose or blow them.' },
     {
       type: 'hint',
       when: { at: 14 },

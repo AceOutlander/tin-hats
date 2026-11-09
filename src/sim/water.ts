@@ -222,6 +222,7 @@ export function ferryFor(w: World, si: number, k: number): number {
 export function boardFerry(w: World, u: UnitState, fi: number): void {
   const f = w.state.ferries[fi];
   u.inside = true;
+  u.action = 'inside';
   u.ferry = fi;
   u.x = f.from;
   u.prevX = f.from;
@@ -248,6 +249,7 @@ function land(w: World, fi: number, x: number): number {
     if (px < CONFIG.mapMargin) px = CONFIG.mapMargin;
     else if (px > s.length - CONFIG.mapMargin) px = s.length - CONFIG.mapMargin;
     u.inside = false;
+    u.action = 'idle';
     u.ferry = -1;
     u.x = px;
     u.prevX = px;

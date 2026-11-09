@@ -84,3 +84,16 @@ export const AI_PLANES: AiPlanesDef = {
   fighterMinValue: 300,
   reconMinSupplies: 600,
 };
+
+/** AI tunables for minefields and obstacles in the way (FOUNDATIONS.md 4.6 and 4.8), beside AI like AI_PLANES. */
+export interface AiClearDef {
+  /** Put a sapper on a Clear job only with at least this many sappers alive (the rest keep hauling). */
+  minSappers: number;
+  /** ...and only on a target at least this far behind the enemy's front (wu), so the sapper is not walking into fire. */
+  frontMargin: number;
+}
+
+export const AI_CLEAR: AiClearDef = {
+  minSappers: 2,
+  frontMargin: 60,
+};

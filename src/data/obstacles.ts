@@ -74,7 +74,7 @@ export const MINES: MineTunables = {
   },
   step: 10,
   blastDensity: 0.05,
-  splashDensity: 0.08,
+  splashDensity: 0.04,
   minDensity: 0.02,
   minWidth: 10,
   clearRate: 6,

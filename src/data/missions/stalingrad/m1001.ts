@@ -6,12 +6,12 @@ import type { MissionDef } from '../../schema';
  *
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1001): the ring barracks (B1), the garrison
  * club (B2, a former church) and the Kholm Gate (B3) are buildings of two floors (FOUNDATIONS.md 4.3), the HQ is a
- * casemate of the ring barracks (`hqLook`), a 60 s prep phase comes first (the test bot
- * wires the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
+ * casemate of the ring barracks (`hqLook`), a 60 s prep phase of wire and sandbag walls comes first (FOUNDATIONS.md
+ * 4.8; the test bot wires the bridge foot and sandbags the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
  * clock to nightfall). The opening barrage, the Nebelwerfer salvo, the Karl siege mortar and the 21 cm mortars are
  * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The ground
- * is the brief's sectors (FOUNDATIONS.md 4.1): cobbles, the Kholm Gate's rubble, the Mukhavets bridge as road (until
- * rivers and bridges exist) and the South Island's wood. The two StuG III Ausf. B are the `tank` kind with the `stug3b`
+ * is the brief's sectors (FOUNDATIONS.md 4.1): cobbles, the Kholm Gate's rubble, the Mukhavets (water, 4.4) under
+ * bridge 1, which the Germans cross from the South Island's wood. The two StuG III Ausf. B are the `tank` kind with the `stug3b`
  * look (src/data/eras.ts).
  */
 export const M1001: MissionDef = {
@@ -94,16 +94,30 @@ export const M1001: MissionDef = {
   ],
   pillboxes: [],
   wire: [],
-  // The brief's sectors (FOUNDATIONS.md 4.1). The Mukhavets bridge is road until rivers and bridges exist (4.4).
+  // The brief's sectors (FOUNDATIONS.md 4.1): the Mukhavets is water (4.4), crossed by bridge 1.
   sectors: [
     { from: 0, to: 2600, ground: 'cobble', label: 'Ring barracks' },
     { from: 2600, to: 3250, ground: 'rubble', label: 'Kholm Gate' },
-    { from: 3250, to: 4400, ground: 'road', label: 'Mukhavets bridge' },
+    { from: 3250, to: 3550, ground: 'cobble', label: 'The bridge foot' },
+    { from: 3550, to: 4300, ground: 'water', label: 'Mukhavets' },
+    { from: 4300, to: 4400, ground: 'road', label: 'South Island' },
     { from: 4400, to: 5400, ground: 'forest', label: 'South Island' },
     { from: 5400, to: 7000, ground: 'grass', label: 'South Island' },
   ],
   // Sixty seconds to dig in before the first wave: the bot wires the Kholm Gate and digs a foxhole behind it.
-  prep: { seconds: 60, bot: [{ kind: 'wire', x: 3420 }, { kind: 'foxhole', x: 2700 }] },
+  // The bridge over the Mukhavets (FOUNDATIONS.md 4.4): nobody holds it, nobody has wired it.
+  bridges: [{ id: 1, x0: 3550, x1: 4300, owner: -1 }],
+  // The brief's prep (STALINGRAD.md, mission 1): barbed wire and sandbag walls, zone 900 to 3,500.
+  prep: {
+    seconds: 60,
+    buildables: ['wire', 'sandbags'],
+    zone: { from: 900, to: 3500 },
+    bot: [
+      { kind: 'wire', x: 3440 },
+      { kind: 'sandbags', x: 2700 },
+      { kind: 'sandbags', x: 3330 },
+    ],
+  },
   timer: { seconds: 720, onExpire: 'win', label: 'Until nightfall' },
   // The mission director (FOUNDATIONS.md 3): three 240 s phases under the one clock to nightfall.
   phases: [

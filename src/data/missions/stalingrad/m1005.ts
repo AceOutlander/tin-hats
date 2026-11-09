@@ -6,14 +6,15 @@ import type { MissionDef } from '../../schema';
  * the central railway station against the 71st Infantry Division.
  *
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1005): a special mission of four phases.
- * Hold the landing (P1, held through trench 1, the forward spawn: trained units cross on the ferry) for 180 s, lost if
- * it falls; take the high bank (the riverside apartment blocks B1 to B4, FOUNDATIONS.md 4.3; P2 is held through B2, a
+ * Hold the landing (P1, held through trench 1, the forward spawn and the ferry landing: FOUNDATIONS.md 4.4, a boat
+ * every 40 s from the east bank brings over the men trained or sent since the last) for 180 s, lost if it falls; take the high bank (the riverside apartment blocks B1 to B4, FOUNDATIONS.md 4.3; P2 is held through B2, a
  * forward spawn once ours, with a Nebelwerfer salvo on it); take the station (B5; the Stukas come with daylight); then
  * a 45 s prep phase and hold the station for 240 s against three counter-attacks. B6 is the nail factory hall, the HQ a
- * log dugout (`hqLook`). The Volga is water, waded at a crawl; the boats are free reinforcement waves landing at the
- * landing stage, one load at a time, and the barrage on the river is a smaller load. The ground is the brief's sectors
- * (sand, water, the high bank's slope, rubble). Flares, the ferry's batching of trained units and the night to day
- * changes wait for their features.
+ * log dugout (`hqLook`). The Volga is water: waded at a crawl, and no vehicle crosses it. The free reinforcement waves
+ * go on the boats too, and the barrage on the river at 66 s sinks 30% of the boat then crossing; the side objective
+ * "the whole battalion ashore" fails at two loads hit. Sandbags go in the station's windows in the last prep. The ground
+ * is the brief's sectors (sand, water, the high bank's slope, rubble). Flares and the night to day changes wait for
+ * their features.
  */
 export const M1005: MissionDef = {
   id: 1005,
@@ -129,9 +130,21 @@ export const M1005: MissionDef = {
     { from: 10600, to: 12000, ground: 'cobble', label: 'Central station' },
   ],
   // The capture points (4.5): the landing (held through trench 1) and the riverside blocks (held through the building
-  // B2), both forward spawn points. The ferry's batches (batchEvery) wait for 4.4.
+  // B2), both forward spawn points. The landing is the ferry's (4.4): a boat every 40 s from the east bank, 20 s over.
   capturePoints: [
-    { id: 'P1', x: 4700, width: 300, label: 'Central landing', owner: 0, captureTime: 0, spawn: true, contestRadius: 500, structure: { trench: 1 } },
+    {
+      id: 'P1',
+      x: 4700,
+      width: 300,
+      label: 'Central landing',
+      owner: 0,
+      captureTime: 0,
+      spawn: true,
+      contestRadius: 500,
+      structure: { trench: 1 },
+      batchEvery: 40,
+      ferry: { from: 2450, crossSeconds: 20, hitShare: 0.3 },
+    },
     { id: 'P2', x: 7400, width: 300, label: 'Riverside blocks', owner: 1, captureTime: 0, spawn: true, contestRadius: 600, structure: { building: 2 } },
   ],
   timer: null,
@@ -143,8 +156,8 @@ export const M1005: MissionDef = {
       objectives: [{ id: 'landing', type: 'hold', point: { point: 'P1' }, seconds: 180, text: 'Hold the landing' }],
       lose: [{ type: 'pointLost', point: { point: 'P1' } }],
       sideObjectives: [
-        // Two boat loads are about ten men: the battalion ashore with fewer lost than that on the way.
-        { id: 'ashore', text: 'The whole battalion ashore', failIf: { type: 'lost', count: 10 }, until: 'bank', bonus: 0.1 },
+        // Fewer than two boat loads hit on the way over (the barrage on the river takes one).
+        { id: 'ashore', text: 'The whole battalion ashore', failIf: { type: 'ferryLoads', point: 'P1', count: 2 }, bonus: 0.1 },
         { id: 'nails', text: 'The nail factory', objective: { id: 'nailFactory', type: 'capture', point: { building: 6 } }, bonus: 0.1 },
       ],
       next: 'bank',
@@ -164,7 +177,7 @@ export const M1005: MissionDef = {
     {
       id: 'holdStation',
       title: 'Hold the station',
-      prep: { seconds: 45, buildables: ['wire', 'foxhole'] },
+      prep: { seconds: 45, buildables: ['wire', 'foxhole', 'sandbags'], bot: [{ kind: 'sandbags', x: 10200 }] },
       objectives: [{ id: 'stationHeld', type: 'hold', point: { building: 5 }, seconds: 240, text: 'Hold the station' }],
       next: null,
     },
@@ -188,24 +201,27 @@ export const M1005: MissionDef = {
       forces: [{ kind: 'rifle', count: 8, x: 6300, behaviour: 'assault' }],
       announce: 'Counter-attack from the houses!',
     },
+    // The boats (the ferry at P1): each wave goes aboard the boat that puts out 2 s later and lands 20 s after that.
     {
       type: 'wave',
-      when: { at: 40 },
+      when: { at: 18 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 4, x: 4600 },
-        { kind: 'assault', count: 1, x: 4560 },
+        { kind: 'rifle', count: 4, at: { point: 'P1' } },
+        { kind: 'assault', count: 1, at: { point: 'P1' } },
       ],
-      announce: 'Another boat is in.',
+      announce: 'Another boat is putting out from the east bank.',
     },
-    { type: 'announce', when: { at: 62 }, text: 'Shells on the river: the next boat has been hit.' },
     {
       type: 'wave',
-      when: { at: 80 },
+      when: { at: 58 },
       side: 0,
-      forces: [{ kind: 'rifle', count: 2, x: 4600 }],
-      announce: 'What is left of the boat\'s load has struggled ashore.',
+      forces: [{ kind: 'rifle', count: 4, at: { point: 'P1' } }],
+      announce: 'Another boat is putting out from the east bank.',
     },
+    // The barrage on the river (STALINGRAD.md: "the next ferry load loses 30%"): on the boat in mid-stream.
+    { id: 'riverBarrage', type: 'barrage', when: { at: 66 }, side: 1, x: 3290, spread: 120, rounds: 12, duration: 4, weapon: 'artilleryShell' },
+    { type: 'announce', when: { at: 68 }, text: 'Shells on the river: the boat has been hit.' },
     {
       type: 'wave',
       when: { at: 100 },
@@ -218,23 +234,23 @@ export const M1005: MissionDef = {
     },
     {
       type: 'wave',
-      when: { at: 120 },
+      when: { at: 98 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 4, x: 4600 },
-        { kind: 'lmg', count: 1, x: 4560 },
+        { kind: 'rifle', count: 4, at: { point: 'P1' } },
+        { kind: 'lmg', count: 1, at: { point: 'P1' } },
       ],
-      announce: 'Another boat is in.',
+      announce: 'Another boat is putting out from the east bank.',
     },
     {
       type: 'wave',
-      when: { at: 160 },
+      when: { at: 138 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 4, x: 4600 },
-        { kind: 'assault', count: 2, x: 4560 },
+        { kind: 'rifle', count: 4, at: { point: 'P1' } },
+        { kind: 'assault', count: 2, at: { point: 'P1' } },
       ],
-      announce: 'The last of the battalion is ashore.',
+      announce: 'The last of the battalion is in the boats.',
     },
     // Phase 2, "The high bank".
     { type: 'announce', when: { at: 180 }, text: 'The high bank: clear the houses along the river.' },
@@ -242,8 +258,8 @@ export const M1005: MissionDef = {
       type: 'wave',
       when: { at: 182 },
       side: 0,
-      forces: [{ kind: 'flame', count: 1, x: 4600 }],
-      announce: 'A ROKS flamethrower has come over with the engineers.',
+      forces: [{ kind: 'flame', count: 1, at: { point: 'P1' } }],
+      announce: 'A ROKS flamethrower is coming over with the engineers.',
     },
     {
       type: 'hint',
@@ -256,8 +272,8 @@ export const M1005: MissionDef = {
       when: { every: 60, from: 240, until: 1500 },
       side: 0,
       forces: [
-        { kind: 'rifle', count: 3, x: 4600 },
-        { kind: 'assault', count: 1, x: 4560 },
+        { kind: 'rifle', count: 3, at: { point: 'P1' } },
+        { kind: 'assault', count: 1, at: { point: 'P1' } },
       ],
       announce: 'Another regiment\'s boats are getting across.',
     },

@@ -11,7 +11,8 @@ import type { MissionDef } from '../../schema';
  * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): a hold in four phases. Take the
  * railway cutting (P1, held through trench 2, a forward spawn once ours), then the two shell-hole positions on the
  * slope (trenches 3 and 4), then take the water tanks (buildings B1 and B2, FOUNDATIONS.md 4.3, a German section in
- * each) and the summit between them (P2, open ground taken by holding it 10 s), then a 45 s prep phase and hold the
+ * each) and the summit between them (P2, open ground taken by holding it 10 s), then a 45 s prep phase (wire, foxholes
+ * and sandbag walls, FOUNDATIONS.md 4.8) and hold the
  * summit for 360 s against four counter-attacks. The ground is rubble at the foot, the slope up, the summit's rock
  * (heightBonus 1.1: the crest outranges the slope) and the slope down. The HQ is a log dugout (`hqLook`). The Stukas
  * and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
@@ -185,7 +186,7 @@ export const M1006: MissionDef = {
       prep: {
         seconds: 45,
         zone: { from: 9500, to: 11300 },
-        buildables: ['wire', 'foxhole'],
+        buildables: ['wire', 'foxhole', 'sandbags'],
       },
       objectives: [{ id: 'summitHeld', type: 'hold', point: { point: 'P2' }, seconds: 360, text: 'Hold the summit' }],
       sideObjectives: [
