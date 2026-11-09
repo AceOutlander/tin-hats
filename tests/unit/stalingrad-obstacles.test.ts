@@ -75,7 +75,7 @@ describe('the Stalingrad missions on obstacles and water', () => {
     expect(bridge.point).toBe('P5');
     expect(bridge.demolition).toEqual({ side: 1, wired: true });
     expect((m.capturePoints ?? []).some((p) => p.id === 'P5' && p.x >= bridge.x0 && p.x <= bridge.x1)).toBe(true);
-    expect(m.events.some((e) => e.type === 'demolish' && e.bridge === 1 && 'phase' in e.when && e.when.phase === 'bridge' && e.when.delay === 180)).toBe(true);
+    expect(m.events.some((e) => e.type === 'demolish' && e.bridge === 1 && JSON.stringify(e.when) === JSON.stringify({ phase: 'bridge', delay: 180 }))).toBe(true);
     const pontoon = (m.bridges ?? []).find((b) => b.standing === false)!;
     expect(pontoon.look).toBe('pontoon');
     expect(m.events.some((e) => e.type === 'bridge' && e.bridge === pontoon.id && 'structureDestroyed' in e.when)).toBe(true);
