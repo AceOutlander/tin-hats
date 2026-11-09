@@ -357,6 +357,14 @@ Each mission gets a short briefing and a campaign map location. Check the histor
 
 "Rename the resource to Money: sappers still carry boxes, but every supply label, icon and text becomes money."
 
+## Smarter medics (owner, 2026-11-08; not urgent)
+
+"- Medics automatically look for wounded friendly soldiers nearby, go to the one in most need (lowest health first), and heal them, then move on to the next.
+- They don't run past the front line or into the open toward the enemy just to reach someone. They stay with their army's current order: on Hold they move along their own line, on Advance they follow behind the push, and on Fall Back they retreat with everyone.
+- Several medics don't all go for the same soldier.
+- When I take direct control of a medic, the automatic behaviour pauses.
+- Add a test that a medic picks the most wounded nearby soldier and heals them."
+
 ## Unlockable passives
 
 "- Unlockable badges that give a small, always-on bonus and have no visuals in battle. They show as badges in the Quartermaster screen.
@@ -395,6 +403,20 @@ adding a second one, and keep it out of anything set before mid-1944. Front vers
 rule in the sim (damage depends on which side of the tank the shot comes from); build it as data so other tanks can
 use it later.
 
+
+## More German tanks: later Panzer III and the Maus (owner, 2026-11-08; later, part of the new units)
+
+"## Panzer III, later versions
+- Besides the early Ausf. E (1939–41), add the later Panzer III with the longer, stronger gun for 1942–43. It's the most common German tank in the Stalingrad campaign. Weaker than the Panzer IV and T-34, and vulnerable to anti-tank weapons. Era-correct per mission.
+
+## Maus (super-heavy tank)
+- The Maus is a real fighting unit for the Germans, not just a one-off scripted boss. It appears in late-war missions (1945) when the mission data or the AI calls for it, as a rare, very expensive heavy hitter. No briefing disclaimer needed.
+- It's enormous: a huge gun, near-immune front armour, very slow, and a big population cost. It gets a warning banner when it enters the battle.
+- It's beatable through tactics: hits from behind, bombers, heavy tanks like the IS-2 and concentrated artillery. It's never invincible.
+- The AI fields at most one at a time. The admin panel can spawn it.
+- Add both tanks to the balance tests."
+
+Notes: the later Panzer III matters for Stalingrad's era-correct rosters (the stalingrad branch may use the early one as a stand-in until this lands); the Maus belongs with the 1945 missions (Road to Berlin) and needs the admin panel (job 2) for spawning.
 
 ## Medals and the Armoury
 

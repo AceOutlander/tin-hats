@@ -131,8 +131,10 @@ describe('medals across the campaign on Normal, without replays', () => {
     }
   });
 
-  it('owns the whole core army by the last mission, with no loan needed there', () => {
+  // Prices were raised by the owner (2026-11-08: old types x2, new types x3), so the costliest core type, the tank,
+  // may still be on loan at the end; every core infantry type must be owned by then.
+  it('owns every core infantry type by the last mission; only the tank may still be on loan there', () => {
     const last = steps[steps.length - 1];
-    expect(last.loaned).toEqual([]);
+    expect(last.loaned.filter((k) => k !== 'tank')).toEqual([]);
   });
 });
