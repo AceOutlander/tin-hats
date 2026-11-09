@@ -8,10 +8,12 @@ import type { MissionDef } from '../../schema';
  * (trench 1), and the garrison holds the house through two days and three nights compressed into 22 minutes: rifle
  * attacks by day, raiding parties by night, tanks on the second day, flamethrowers on the last night.
  *
- * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1007): the house is a trench with many
- * slots (no buildings or floors yet), a 60 s prep phase comes first (the bot wires the doors), the day and night phases are timed
- * waves (no time-of-day changes), the loans are scripted waves, and StuG III Ausf. F and Panzer III J are the `tank`
- * kind (the era's Panzer III Ausf. L; the StuG by look `stug3f`). The attackers have no HQ, so they call in no Stukas.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1007): phase 0 takes the house (a trench
+ * with many slots, no buildings or floors yet; two Germans inside) before first light, and brings Afanasyev's section
+ * up the communication trench; the 60 s prep phase follows it (the bot wires the doors); then day one (lost if the house
+ * falls, a Stuka raid), night one, day two with the tanks and the last night (the Katyusha comes up for it), all under
+ * the one 22-minute clock. The attackers have no HQ: their Stukas are scripted raids. The artillery reloads in 90 s here.
+ * StuG III Ausf. F and Panzer III J are the `tank` kind (the era's Panzer III Ausf. L; the StuG by look `stug3f`).
  */
 export const M1007: MissionDef = {
   id: 1007,
@@ -62,9 +64,13 @@ export const M1007: MissionDef = {
       hqHpMul: 1,
       incomeMul: 0.6,
       sappers: 2,
+      // The heavy batteries across the river reload slowly here (FOUNDATIONS.md 3.3); the rocket battery comes up for the
+      // last night.
+      supportCooldown: { artillery: 90 },
+      supportsOff: ['katyusha'],
       forces: [
-        // Sergeant Pavlov's group has just slipped into the house and found it empty.
-        { kind: 'rifle', count: 4, trenchId: 2 },
+        // Sergeant Pavlov's group in the rubble behind the house.
+        { kind: 'rifle', count: 4, x: 2150 },
       ],
     },
     {
@@ -74,35 +80,69 @@ export const M1007: MissionDef = {
       hqHpMul: 1,
       incomeMul: 0,
       sappers: 0,
-      forces: [],
+      // Two Germans in the house.
+      forces: [{ kind: 'rifle', count: 2, trenchId: 2, behaviour: 'garrison' }],
     },
   ],
   trenches: [
     // The communication trench back to the mill.
     { id: 1, x: 1900, width: 150, slots: 6, owner: 0 },
     // Pavlov's House: four floors of windows.
-    { id: 2, x: 2450, width: 220, slots: 12, owner: -1 },
+    { id: 2, x: 2450, width: 220, slots: 12, owner: 1 },
   ],
   pillboxes: [],
   wire: [],
-  // A minute to wire the doors and the square before the first attack (the bot builds what used to be laid at the start).
-  prep: {
-    seconds: 60,
-    bot: [
-      { kind: 'wire', x: 2760 },
-      { kind: 'wire', x: 3400 },
-    ],
-  },
   timer: { seconds: 1320, onExpire: 'win', label: 'Until the counter-offensive' },
+  // The mission director (FOUNDATIONS.md 3): take the house, dig in, then two days and two nights. Phase 0 runs at least
+  // 110 s (the section comes up), so the day and night phases keep the old clock: 110 to 420, 660, 960 and 1320 s.
+  phases: [
+    {
+      id: 'house',
+      title: 'Take the house',
+      objectives: [
+        { id: 'house', type: 'capture', point: { trench: 2 }, text: 'Take the house' },
+        { id: 'section', type: 'survive', seconds: 110, text: 'The section comes up' },
+      ],
+      timer: { seconds: 180, label: 'Before first light', onExpire: 'lose' },
+      next: 'dayOne',
+    },
+    {
+      id: 'dayOne',
+      title: 'Day one',
+      // A minute to wire the doors and the square before the first attack.
+      prep: {
+        seconds: 60,
+        zone: { from: 2200, to: 4000 },
+        bot: [
+          { kind: 'wire', x: 2760 },
+          { kind: 'wire', x: 3400 },
+        ],
+      },
+      objectives: [{ id: 'dayOne', type: 'survive', seconds: 310, text: 'Hold the house' }],
+      lose: [{ type: 'pointLost', point: { trench: 2 } }],
+      sideObjectives: [
+        { id: 'trenchOpen', text: 'The trench stays open', failIf: { type: 'pointLost', point: { trench: 1 } }, bonus: 0.15 },
+        { id: 'noGerman', text: 'No German sets foot inside', failIf: { type: 'enemyReached', x: 2560, count: 1 }, bonus: 0.15 },
+      ],
+      next: 'nightOne',
+    },
+    { id: 'nightOne', title: 'Night one', objectives: [{ id: 'nightOne', type: 'survive', seconds: 240, text: 'Hold the house' }], next: 'dayTwo' },
+    { id: 'dayTwo', title: 'Day two: the tanks', objectives: [{ id: 'dayTwo', type: 'survive', seconds: 300, text: 'Hold the house' }], next: 'lastNight' },
+    { id: 'lastNight', title: 'The last night', objectives: [{ id: 'lastNight', type: 'survive', seconds: 360, text: 'Until the counter-offensive' }], next: null },
+  ],
   events: [
     {
       type: 'hint',
       when: { at: 3 },
-      text: "The house is yours and it was empty. Hold it: every man you train should go to its windows.",
+      text: 'Two Germans are in the house. Kill the men inside first, then walk in to take it: every man you train should go to its windows.',
     },
+    // The brief's Stuka on the house goes for the wire on the square until the house is a building with floors: on a
+    // trench it killed the whole garrison (DECISIONS E1).
+    { id: 'stuka', type: 'airRaid', when: { phase: 'dayOne', delay: 120 }, side: 1, support: 'airStrike', x: 3000 },
+    { id: 'katyusha', type: 'support', when: { phase: 'lastNight' }, side: 0, kind: 'katyusha', enabled: true },
     {
       type: 'wave',
-      when: { at: 40 },
+      when: { pointCapturedBy: 0, point: { trench: 2 } },
       side: 0,
       forces: [
         { kind: 'rifle', count: 6, x: 1900 },

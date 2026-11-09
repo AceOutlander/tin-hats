@@ -254,13 +254,13 @@ function build(w: World, si: number, ai: AiState): void {
 /**
  * How the current phase reads to the test bot: attack while an objective still needs ground taken (capture, a hold of
  * a point it does not own, reach, destroy, the enemy HQ, a surrender), defend when what is left is holding out (survive,
- * hold a point it owns, kills that the enemy brings to it). A phase with no objectives (an old mission) is attack, so
- * the bot plays it as it always did.
+ * hold a point it owns, kills that the enemy brings to it). A phase with no objectives (an old mission) is none: the
+ * bot plays it as it always did (it attacks an enemy HQ and holds against a side without one).
  */
-function phaseStance(w: World): 'attack' | 'defend' {
+function phaseStance(w: World): 'attack' | 'defend' | 'none' {
   const d = w.state.director;
   const objectives = w.phases[d.phase].objectives;
-  if (objectives.length === 0) return 'attack';
+  if (objectives.length === 0) return 'none';
   for (let i = 0; i < objectives.length; i++) {
     if (d.objectives[i].done) continue;
     const o = objectives[i];
@@ -282,7 +282,8 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   // hands the trench to the waves: hold the line until the clock runs out.
   // The test bot reads the phase (a phase it only has to hold out is played like survival), and the mission script
   // may steer either commander (posture events): hold = no Advance, counterattack = Advance now.
-  const survival = w.state.sides[1 - si].hq === null || (ai.bot && phaseStance(w) === 'defend');
+  const stance = ai.bot ? phaseStance(w) : 'none';
+  const survival = stance === 'defend' || (stance === 'none' && w.state.sides[1 - si].hq === null);
   const posture = w.state.director.posture[si];
   const mayAttack = !survival && posture !== 'hold' && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
