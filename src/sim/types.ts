@@ -98,7 +98,12 @@ export type Command =
   /** Take back an unfinished build site of this side by its id; its money comes back in full. */
   | { type: 'cancelBuild'; site: number }
   /** End the prep phase now (the "Ready" button). */
-  | { type: 'ready' };
+  | { type: 'ready' }
+  /**
+   * Where trained units walk out (the "Deploy at" chip, FOUNDATIONS.md 4.5): 'auto' = the forward-most owned,
+   * uncontested spawn point (the default), 'hq' = the HQ door, or an index into state.points. Sappers always use the HQ.
+   */
+  | { type: 'deploy'; at: 'auto' | 'hq' | number };
 
 /**
  * An admin panel action (src/sim/admin.ts). Not a command: battle.admin() applies it at once, between ticks, so it
@@ -372,6 +377,10 @@ export interface UnitState {
   aaCooldown: number;
   /** Admin panel: this unit takes no damage (its side's cheats.invincible covers every unit of the side). */
   invincible: boolean;
+  /** Ski troops (ForceDef.tags 'skis'): deep snow does not slow them. Draw the skis. */
+  skis: boolean;
+  /** internal: Fall Back: index into state.points of the rally point it is heading for or holds, -1 for none (the HQ). */
+  rally: number;
 }
 
 /** Admin panel cheats in force on one side (AdminAction). All off in a normal battle. */
@@ -471,6 +480,46 @@ export interface SideState {
   stats: SideStats;
   /** Admin panel cheats (all off unless the panel turned them on). */
   cheats: SideCheats;
+  /**
+   * Where trained units walk out (the training bar's "Deploy at" chip, FOUNDATIONS.md 4.5): DEPLOY_AUTO (the
+   * forward-most owned, uncontested spawn point, else the HQ; the default, and what the AI and the test bot use),
+   * DEPLOY_HQ, or an index into state.points (while that point is available; otherwise as DEPLOY_AUTO).
+   */
+  deploy: number;
+  /** Where the next trained unit will walk out this tick: an index into state.points, or -1 for the HQ door. */
+  deployPoint: number;
+}
+
+/** SideState.deploy: the forward-most available spawn point (the default). */
+export const DEPLOY_AUTO = -1;
+/** SideState.deploy: always the HQ door. */
+export const DEPLOY_HQ = -2;
+
+/**
+ * A capture point (MissionDef.capturePoints, FOUNDATIONS.md 4.5). A side takes it by holding its zone alone for
+ * captureTime (or with its structure, the trench way); while owned and uncontested it is a spawn and rally point.
+ */
+export interface CapturePointState {
+  id: string;
+  label: string;
+  /** Centre and width of the zone. */
+  x: number;
+  width: number;
+  /** -1 nobody, else the owning side. */
+  owner: number;
+  captureTime: number;
+  spawn: boolean;
+  contestRadius: number;
+  /** Index into state.trenches of its structure's trench (a building's stand-in until buildings exist), -1 for none. */
+  trench: number;
+  /** The side taking it now (alone in the zone), -1 for none. */
+  capturing: number;
+  /** 0..1 of captureTime done by `capturing`. */
+  progress: number;
+  /** An armed unit of the side that does not own it stands within contestRadius. */
+  contested: boolean;
+  /** Battle time of the last change of owner, -1 if it never changed. */
+  capturedAt: number;
 }
 
 /**
@@ -642,6 +691,8 @@ export interface BattleState {
   trenches: TrenchState[];
   pillboxes: PillboxState[];
   wires: WireState[];
+  /** Capture points (MissionDef.capturePoints), in the mission's order; empty for a mission with none. */
+  points: CapturePointState[];
   /** Supply dump of side 0 and side 1; null for a side with no HQ. */
   dumps: [DumpState | null, DumpState | null];
   /** The mission timer, or null. */
@@ -779,7 +830,8 @@ export type SimEventType =
   | 'prepEnded'
   | 'phaseStarted'
   | 'banner'
-  | 'objectiveDone';
+  | 'objectiveDone'
+  | 'pointCaptured';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an
@@ -815,6 +867,8 @@ export type SimEventType =
  *                   x = impact point, value = damage, cause, dir.
  * structureDestroyed  target, targetIndex, side = owner, x.
  * trenchCaptured    side = new owner, targetIndex = trench id, x = trench centre, value = previous owner (-1 none).
+ * pointCaptured     A capture point changed hands. side = new owner, targetIndex = index into state.points, x = its
+ *                   centre, value = previous owner (-1 none), text = its label.
  * wireDestroyed     targetIndex = wire id, side = its owner, x = its centre, cause = 'explosive' (splash) or null (crushed).
  * supplyDelivered   A sapper reached the HQ door. side, unit, unitId, kind, x, row, value = supplies credited.
  * trainStarted      A unit was queued. side, kind, value = that kind's queue length afterwards.

@@ -11,12 +11,15 @@ import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
 import { applyBuild, applyCancelBuild, applyReady } from './prep';
+import { resolveDeploy } from './points';
+import { DEPLOY_AUTO, DEPLOY_HQ } from './types';
 import {
   CMD_BUILD,
   CMD_CANCEL_BUILD,
   CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
+  CMD_DEPLOY,
   CMD_FOLLOW,
   CMD_FOLLOW_ALL,
   CMD_KIND_ORDER,
@@ -117,6 +120,19 @@ function applySupport(w: World, si: number, kind: SupportKind, x: number): void 
   callSupport(w, si, kind, x);
 }
 
+/**
+ * The "Deploy at" choice (FOUNDATIONS.md 4.5): DEPLOY_AUTO, DEPLOY_HQ or a capture point's index. A point that is not
+ * a spawn point is refused; one that is not available now is kept, and used whenever it is (auto meanwhile).
+ */
+function applyDeploy(w: World, si: number, at: number): void {
+  const side = w.state.sides[si];
+  const points = w.state.points;
+  if (at === DEPLOY_AUTO || at === DEPLOY_HQ) side.deploy = at;
+  else if (at >= 0 && at < points.length && points[at].spawn) side.deploy = at;
+  else return;
+  side.deployPoint = resolveDeploy(w, si);
+}
+
 /** Apply everything queued since the last tick, in the order it was issued. */
 export function applyCommands(w: World): void {
   const q = w.commands;
@@ -156,6 +172,9 @@ export function applyCommands(w: World): void {
         break;
       case CMD_CONTROL_INPUT:
         setControlInput(w, c.side, c.moveX, c.fire, c.ability);
+        break;
+      case CMD_DEPLOY:
+        applyDeploy(w, c.side, c.unit);
         break;
       default:
         break;

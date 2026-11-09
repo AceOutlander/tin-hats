@@ -17,7 +17,8 @@ import { applyAura } from './specials';
 import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
-import { orderFor, type World } from './world';
+import { rallyFor } from './points';
+import { GROUND_INV_CELL, GROUND_MODES, orderFor, type World } from './world';
 
 /*
  * Numbers travel between the passes in unit fields (goalX, moveSpeed, mount.x...) and not as
@@ -64,6 +65,7 @@ function findPatient(w: World, u: UnitState): boolean {
  * Hold. Trench-capable infantry take a slot in the hold-line trench (one already sitting in a
  * rear trench moves up only when a slot is free) and fire from it at anything in range. Everyone
  * else, and the overflow, forms up behind the line: they fire at what is in range but never chase.
+ * When the line is a capture point ahead of every trench the side owns, men leave their rear trenches to hold it.
  */
 function senseHold(w: World, u: UnitState, side: SideState, dir: number, hasTarget: boolean, patient: boolean): void {
   const ht = w.holdTrench[u.side];
@@ -71,6 +73,7 @@ function senseHold(w: World, u: UnitState, side: SideState, dir: number, hasTarg
     releaseSlot(w, u);
     claimSlot(w, u, ht);
   }
+  if (u.slot >= 0 && w.holdPoint[u.side] >= 0) releaseSlot(w, u);
   if (u.slot >= 0) {
     u.goalX = w.slotX[u.slot];
     u.engaged = u.trenchId >= 0 && hasTarget;
@@ -175,6 +178,7 @@ export function senseUnits(w: World): void {
       joinArmy(w, u);
     }
     const order = u.behaviour === 'army' ? orderFor(side, u.kind) : u.behaviour === 'assault' ? 'advance' : 'hold';
+    if (order !== 'fallBack') u.rally = -1;
     const retarget = (s.tick + i) % retargetTicks === 0;
     const m = u.mount;
 
@@ -199,7 +203,18 @@ export function senseUnits(w: World): void {
     } else if (order === 'fallBack') {
       releaseSlot(w, u);
       u.engaged = false;
-      if (side.hq && side.hq.alive) u.goalX = side.hq.doorX;
+      // The nearest rally point behind him (FOUNDATIONS.md 4.5), kept while his side holds it; else the HQ.
+      if (u.rally >= 0 && s.points[u.rally].owner !== u.side) u.rally = -1;
+      if (u.rally < 0 && s.points.length > 0) u.rally = rallyFor(w, u);
+      if (u.rally >= 0) {
+        const p = s.points[u.rally];
+        let x = p.x + (dir * p.width) / 2 - dir * u.slotDepth;
+        if (side.hq && (x - side.hq.doorX) * dir < 0) x = side.hq.doorX;
+        u.goalX = x;
+        // Formed up at the rally point, out of the line: he defends himself but does not chase.
+        const gap = u.x > x ? u.x - x : x - u.x;
+        u.engaged = hasTarget && gap <= CONFIG.moveDeadband;
+      } else if (side.hq && side.hq.alive) u.goalX = side.hq.doorX;
       else goToFormation(w, u, side, dir);
     } else if (u.behaviour === 'guard') {
       senseGuard(w, u, hasTarget);
@@ -214,15 +229,23 @@ export function senseUnits(w: World): void {
 }
 
 /**
- * Walk a unit toward u.goalX at u.moveSpeed. Forward movement stops at the front
- * clamp (never past the nearest enemy blocker minus contactGap); the unit is
- * never pushed back. Returns true when it stands on the goal.
+ * Walk a unit toward u.goalX at u.moveSpeed, times the ground's speed where it stands (MissionDef.sectors; none =
+ * even ground). Forward movement stops at the front clamp (never past the nearest enemy blocker minus contactGap);
+ * the unit is never pushed back. Returns true when it stands on the goal.
  */
 function walk(w: World, u: UnitState, dir: number): boolean {
   const s = w.state;
   const goalX = u.goalX;
-  const step = u.moveSpeed * w.dt;
   const dx = goalX - u.x;
+  let step = u.moveSpeed * w.dt;
+  const g = w.ground;
+  if (g !== null) {
+    let c = (u.x * GROUND_INV_CELL) | 0;
+    if (c < 0) c = 0;
+    else if (c >= g.count) c = g.count - 1;
+    const mode = u.def.class === 'vehicle' ? 2 : u.skis ? 4 : 0;
+    step *= g.speed[c * GROUND_MODES + mode + (dx < 0 ? 1 : 0)];
+  }
   let nx = dx > step ? u.x + step : dx < -step ? u.x - step : goalX;
   if ((nx - u.x) * dir > 0) {
     const limit = w.limit[u.side];
@@ -396,7 +419,7 @@ export function moveUnits(w: World): void {
     if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     const arrived = walk(w, u, dir);
     if (anyWire && u.def.crushesWire && u.velX !== 0) crushWire(w, u);
-    if (arrived && retreating && side.hq && side.hq.alive) enterHq(w, u);
+    if (arrived && retreating && u.rally < 0 && side.hq && side.hq.alive) enterHq(w, u);
   }
 }
 

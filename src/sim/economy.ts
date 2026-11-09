@@ -6,6 +6,7 @@
 import { CONFIG } from '../data/config';
 import type { Side, UnitKind } from '../data/schema';
 import { KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, KIND_SQUAD } from './tables';
+import { deployX } from './points';
 import { spawnUnit } from './units';
 import { orderFor, type World } from './world';
 
@@ -99,8 +100,11 @@ export function updateEconomy(w: World): void {
         if (w.squadLeft[slot] <= 0) w.squadLeft[slot] = KIND_SQUAD[k];
         // Under Fall Back (army-wide or for its kind) the new men stay inside with the garrison.
         const inside = orderFor(side, kind) === 'fallBack';
+        // They walk out of the side's deploy point (FOUNDATIONS.md 4.5), or the HQ door; sappers always use the HQ.
+        const point = inside || k === KIND_SAPPER ? -1 : side.deployPoint;
+        const x = point >= 0 ? deployX(w, si, point) : hq.doorX;
         while (w.squadLeft[slot] > 0) {
-          const u = spawnUnit(w, si as Side, k, hq.doorX, 'army', inside, true);
+          const u = spawnUnit(w, si as Side, k, x, 'army', inside, true);
           if (!u) break;
           w.squadLeft[slot]--;
           side.stats.trained++;

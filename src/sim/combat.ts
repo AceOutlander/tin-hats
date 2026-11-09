@@ -41,7 +41,7 @@ import {
 import { disguised } from './director';
 import { flushUnit } from './trenches';
 import { igniteUnit, killUnit } from './units';
-import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './world';
+import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, GROUND_INV_CELL, type World } from './world';
 
 /** Index of the bullet damage type (a bullet in the back ignites a flamethrower). */
 const BULLET = DAMAGE_TYPES.indexOf('bullet');
@@ -117,7 +117,15 @@ function search(w: World, m: MountState, side: number): boolean {
   const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   const mask = WEAPON_MASK[wi];
-  const range = weapon.range;
+  let range = weapon.range;
+  // Fired from high ground (SectorDef.heightBonus, 1006's summit), it reaches further.
+  const g = w.ground;
+  if (g !== null) {
+    let c = (x * GROUND_INV_CELL) | 0;
+    if (c < 0) c = 0;
+    else if (c >= g.count) c = g.count - 1;
+    range *= g.height[c];
+  }
   const minRange = weapon.minRange;
   const direct = weapon.delivery !== 'lob';
   const enemy = 1 - side;
@@ -265,7 +273,15 @@ function targetValid(w: World, m: MountState): boolean {
       return false;
   }
   const d = tx > x ? tx - x : x - tx;
-  if (d > weapon.range || d < weapon.minRange) return false;
+  let range = weapon.range;
+  const g = w.ground;
+  if (g !== null) {
+    let c = (x * GROUND_INV_CELL) | 0;
+    if (c < 0) c = 0;
+    else if (c >= g.count) c = g.count - 1;
+    range *= g.height[c];
+  }
+  if (d > range || d < weapon.minRange) return false;
   if (weapon.delivery !== 'lob' && w.smokeCount > 0) {
     SMOKE_LINE[0] = x;
     SMOKE_LINE[1] = tx;
@@ -502,6 +518,14 @@ export function applyDamage(w: World): void {
           s.sides[by].stats.damageDealt += u.hp;
           igniteUnit(w, u, dir, by);
           break;
+        }
+        // Trunks and broken walls (forest, rubble) cover infantry in the open from bullets.
+        const g = w.ground;
+        if (g !== null && dtype === BULLET && u.trenchId < 0 && u.def.class === 'infantry') {
+          let c = (u.x * GROUND_INV_CELL) | 0;
+          if (c < 0) c = 0;
+          else if (c >= g.count) c = g.count - 1;
+          amount *= g.cover[c];
         }
         u.hp -= amount;
         u.hitTime = s.time;

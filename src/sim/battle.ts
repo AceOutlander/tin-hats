@@ -17,6 +17,7 @@ import { createDirector, directorEvents, normalPhases, resetTriggerClocks, start
 import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
 import { createPrep, updateBuilds, updatePrep } from './prep';
+import { createPoints, updatePoints } from './points';
 import { Rng } from './rng';
 import { updateProjectiles, updateSmokes } from './projectiles';
 import { computeFronts, fireStructures, senseStructures } from './structures';
@@ -40,6 +41,7 @@ import type {
   TrenchState,
   WireState,
 } from './types';
+import { DEPLOY_AUTO, DEPLOY_HQ } from './types';
 import { createMount, createUnit, resetMount } from './units';
 import {
   CMD_BUILD,
@@ -47,6 +49,7 @@ import {
   CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
+  CMD_DEPLOY,
   CMD_FOLLOW,
   CMD_FOLLOW_ALL,
   CMD_KIND_ORDER,
@@ -56,7 +59,9 @@ import {
   CommandQueue,
   DamageQueue,
   applyUpgrades,
+  buildGroundField,
   createSideMods,
+  type GroundField,
   type AiState,
   type ReserveGroup,
   type SideMods,
@@ -191,6 +196,8 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     controlled: -1,
     stats: { trained: 0, lost: 0, kills: 0, killsByKind: kindRecord(0), lostByKind: kindRecord(0), suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
     cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false },
+    deploy: DEPLOY_AUTO,
+    deployPoint: -1,
   };
 }
 
@@ -271,6 +278,7 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     trenches,
     pillboxes,
     wires,
+    points: createPoints(mission, trenches),
     dumps: [
       hq0 ? { side: 0, x: hq0.doorX + CONFIG.dumpDistance } : null,
       hq1 ? { side: 1, x: hq1.doorX - CONFIG.dumpDistance } : null,
@@ -322,6 +330,8 @@ class BattleImpl implements Battle, World {
   readonly holdTrench = new Int32Array(2);
   readonly formBase = new Float64Array(2);
   readonly lineFront = new Float64Array(2);
+  readonly holdPoint = new Int32Array(2).fill(-1);
+  ground: GroundField | null;
   trenchSlot0: Int32Array;
   trenchTaken: Int32Array;
   trenchHalf: Float64Array;
@@ -379,6 +389,7 @@ class BattleImpl implements Battle, World {
     const cellCount = CONFIG.formationColumns * CONFIG.rows;
     this.cells = [new Uint8Array(cellCount), new Uint8Array(cellCount)];
     this.state = createState(config, this.mods);
+    this.ground = buildGroundField(mission);
     const trenchCount = mission.trenches.length;
     const slots = slotCount(mission.trenches);
     this.trenchSlot0 = new Int32Array(trenchCount);
@@ -400,6 +411,7 @@ class BattleImpl implements Battle, World {
 
     computeFronts(this); // hold lines, needed to place the starting formation
     placeStartingForces(this);
+    updatePoints(this, 0); // points that are trenches take their garrisons' owner; where each side deploys
     computeFronts(this);
     // The first phase begins with the forces in place (garrisons own their trenches).
     startDirector(this);
@@ -428,6 +440,7 @@ class BattleImpl implements Battle, World {
     moveUnits(this); // wire slows and is crushed here
     updateCarriers(this); // men climb into APCs, loaded APCs unload at the front
     updateTrenches(this); // drop into slots, captures
+    updatePoints(this, this.dt); // capture points change hands; contested points; where each side deploys
     updateProjectiles(this); // rounds already in flight land on the new positions
     updateAuras(this); // each side's commander
     fireAntiAir(this); // guns with a plane in reach fire at it (and hold their fire at the ground)
@@ -489,6 +502,9 @@ class BattleImpl implements Battle, World {
         break;
       case 'ready':
         q.push(side, CMD_READY);
+        break;
+      case 'deploy':
+        q.push(side, CMD_DEPLOY).unit = cmd.at === 'auto' ? DEPLOY_AUTO : cmd.at === 'hq' ? DEPLOY_HQ : cmd.at;
         break;
       case 'controlInput': {
         const c = q.push(side, CMD_CONTROL_INPUT);

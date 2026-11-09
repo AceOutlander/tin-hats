@@ -8,10 +8,11 @@ import { TARGET_NONE, type EntityKind, type MountState } from './types';
 import type { World } from './world';
 
 /**
- * The line a side's army holds under Hold: the forward-most trench it owns,
- * or holdLineOffset in front of its HQ, or its map edge if it has neither.
- * Also sets the side's hold trench, the base its formation forms up behind
- * (behind the trench's rear edge when the line is a trench) and the line's forward edge.
+ * The line a side's army holds under Hold: the forward-most trench (or building) or capture point it owns
+ * (FOUNDATIONS.md 4.5), or holdLineOffset in front of its HQ, or its map edge if it has none.
+ * Also sets the side's hold trench or hold point, the base its formation forms up behind
+ * (behind the trench's rear edge when the line is a trench, from the zone's forward edge back when it is a point)
+ * and the line's forward edge. A trench inside or ahead of a point's zone is the stronger line and wins.
  */
 function holdLineOf(w: World, side: number): void {
   const s = w.state;
@@ -22,9 +23,26 @@ function holdLineOf(w: World, side: number): void {
     if (t.owner !== side) continue;
     if (best < 0 || (t.x - s.trenches[best].x) * dir > 0) best = i;
   }
+  let point = -1;
+  const points = s.points;
+  for (let k = 0; k < points.length; k++) {
+    const p = points[k];
+    // A point that is a structure is held through it (its trench above).
+    if (p.owner !== side || p.trench >= 0) continue;
+    const rear = p.x - (dir * p.width) / 2;
+    if (best >= 0 && (s.trenches[best].x - rear) * dir >= 0) continue;
+    if (point < 0 || (p.x - points[point].x) * dir > 0) point = k;
+  }
+  if (point >= 0) best = -1;
   w.holdTrench[side] = best;
+  w.holdPoint[side] = point;
   let line: number;
-  if (best >= 0) {
+  if (point >= 0) {
+    const p = points[point];
+    line = p.x;
+    w.formBase[side] = p.x + (dir * p.width) / 2;
+    w.lineFront[side] = w.formBase[side];
+  } else if (best >= 0) {
     line = s.trenches[best].x;
     const half = w.trenchHalf[best];
     w.formBase[side] = line - dir * (half + CONFIG.trenchFormGap);

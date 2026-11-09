@@ -21,6 +21,7 @@ function structureExists(m: MissionDef, ref: StructureRef): boolean {
 }
 
 function pointExists(m: MissionDef, ref: PointRef): boolean {
+  if ('point' in ref) return (m.capturePoints ?? []).some((p) => p.id === ref.point);
   return m.trenches.some((t) => t.id === ref.trench);
 }
 
