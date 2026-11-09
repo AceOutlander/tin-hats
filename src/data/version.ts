@@ -20,6 +20,14 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.10.0',
+    items: [
+      'Quartermaster upgrades for every unit you can buy, new ones included: health and damage, 3 levels each.',
+      'Upgrades for the Bomber, Fighter and Recon plane call-ins.',
+      'Every upgrade level now shows a clear change on your men, vehicles, HQ, guns, dump and sappers.',
+    ],
+  },
+  {
     version: '0.9.0',
     items: [
       'The game now shows its version number (we are in beta).',
