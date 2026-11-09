@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDINGS } from '../../src/data/buildings';
 import { DAMAGE, FIRE_DAMAGE } from '../../src/data/damage';
+import { getMission } from '../../src/data/missions';
 import { WEAPONS } from '../../src/data/weapons';
 import type { BuildingDef, MissionDef, MissionEventDef, UnitKind, UpgradeDef } from '../../src/data/schema';
 import { SLOT_SEALED, buildingTrenchId, rubbleSlotCount } from '../../src/sim/buildings';
@@ -273,6 +274,22 @@ describe('a building\'s walls', () => {
     expect(b.state.buildings[0].hp).toBe(b.state.buildings[0].maxHp);
     expect(prop.rubble).toBe(true);
     expect(prop.hp).toBe(0);
+  });
+
+  it('of 1008\'s machine shops lose their upper floor, not the hall, to the heavy bomb (from full health)', () => {
+    const m = getMission(1008);
+    const shops = m?.buildings?.find((x) => x.id === 3);
+    const ev = m?.events.find((e) => e.id === 'heavyBomb');
+    if (!shops || !ev || ev.type !== 'barrage') throw new Error('1008 data');
+    const mission = testMission({
+      length: 9000,
+      buildings: [{ ...shops, owner: 0 }],
+      a: { forces: [{ kind: 'rifle', count: 4, buildingId: 3 }] },
+      events: [{ ...ev, when: { at: 1 } }],
+    });
+    const b = makeBattle({ mission, ...tough('rifle') });
+    run(b, 1 + ev.duration + 3);
+    expect(b.state.buildings[0]).toMatchObject({ floorsLeft: shops.floors - 1, rubble: false });
   });
 
   it('ignore every shell when the building cannot collapse', () => {

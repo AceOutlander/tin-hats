@@ -96,10 +96,11 @@ export const M1008: MissionDef = {
     { id: 1, x: 8000, width: 170, slots: 7, owner: 0 },
   ],
   buildings: [
-    // The assembly hall, the foundry and the machine shops (whose roof the heavy bomb brings in).
+    // The assembly hall, the foundry and the machine shops (whose upper floor the heavy bomb brings in: at 900 hp one
+    // bomb on its own walls, 462, takes it below the 450 the upper floor needs and leaves the ground floor standing).
     { id: 1, x: 3200, width: 260, floors: 2, slotsPerFloor: 10, hpMul: 2, owner: 0, look: 'factoryHall', spawn: true },
     { id: 2, x: 5200, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 1.6, owner: 0, look: 'factoryHall' },
-    { id: 3, x: 6300, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 0.7, owner: 0, look: 'factoryHall' },
+    { id: 3, x: 6300, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 0.6, owner: 0, look: 'factoryHall' },
   ],
   // Goods wagons on the sidings behind the yard trench.
   props: [{ id: 4, x: 7450, width: 150, slots: 4, look: 'wagons', owner: 0 }],
