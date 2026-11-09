@@ -1736,3 +1736,107 @@
 .th-hud.has-fps .th-fps {
   display: block;
 }
+
+/* ----- Prep phase panel (src/ui/hud/prep.ts) ----- */
+.th-prep {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px;
+  background: var(--plate-bg);
+  border: 1px solid var(--th-brass);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px var(--th-shadow);
+  pointer-events: auto;
+}
+
+.th-prep[hidden],
+.th-prep-builds[hidden],
+.th-prep-place[hidden],
+.th-prep-btn[hidden] {
+  display: none;
+}
+
+.th-prep-head,
+.th-prep-builds,
+.th-prep-place {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.th-prep-label {
+  font-size: var(--fs-s);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  padding-left: 4px;
+}
+
+.th-prep-time {
+  font-size: var(--fs-l, 1.2em);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
+}
+
+.th-prep-tip {
+  flex: 1 1 auto;
+  font-size: var(--fs-s);
+  opacity: 0.85;
+  padding-left: 4px;
+}
+
+.th-prep-btn {
+  flex: 0 0 auto;
+  min-width: var(--th-touch);
+  min-height: var(--th-touch);
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: var(--fs-s);
+  color: inherit;
+  background: var(--tex), linear-gradient(180deg, #5e5a40, #3b3826);
+  border: 1px solid var(--th-brass);
+  border-radius: 4px;
+}
+
+.th-prep-btn:disabled {
+  opacity: 0.45;
+}
+
+.th-prep-build {
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.1;
+}
+
+.th-prep-build.is-active {
+  outline: 2px solid var(--th-brass);
+}
+
+.th-prep-cost {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.9;
+}
+
+.th-prep-secs {
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.th-prep-ready,
+.th-prep-confirm {
+  background: var(--tex), linear-gradient(180deg, #5f8a3a, #34501d);
+}
+
+.th-prep-undo .th-ico,
+.th-prep-btn .th-ico {
+  font-size: 1.2em;
+}

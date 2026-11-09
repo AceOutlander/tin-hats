@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { M1001 } from '../../src/data/missions/stalingrad/m1001';
 import { App, MAP_MUSIC } from '../../src/app/app';
 import { createMemoryStorage } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView, quickMission } from './app-helpers';
@@ -110,11 +111,13 @@ describe('music around the campaign and the battles', () => {
     expect(audio.battleTrack).toBe(null);
   });
 
-  it('has a prep phase hook for defensive missions', () => {
+  it('plays the prep layer while the prep phase of a defensive mission runs, and leaves it on Ready', () => {
     const { app, view } = makeApp();
-    app.startMission(1, 'normal');
-    app.setPrepPhase(true);
+    app.beginUnlisted(M1001, 'normal');
     play(view, 15);
     expect(app.musicIntensity?.layer).toBe('prep');
+    app.session?.dispatch({ type: 'ready' });
+    play(view, 15);
+    expect(app.musicIntensity?.layer).not.toBe('prep');
   });
 });

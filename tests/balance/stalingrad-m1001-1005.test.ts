@@ -6,6 +6,7 @@
  * tests/balance/missions.test.ts does for the British campaign).
  */
 import { describe, expect, it } from 'vitest';
+import { PREP } from '../../src/data/prep';
 import { CAMPAIGN_RUNS } from '../../src/data/balance';
 import { getStalingradMission } from '../../src/data/missions/stalingrad';
 import type { MissionDef } from '../../src/data/schema';
@@ -53,6 +54,8 @@ describe.each(MINE)('Stalingrad mission %i on Normal with no upgrades', (_id, m)
   it('the idle commander loses every seed', HEAVY, () => {
     const r = series(m, 'idle');
     expect(r.losses, describeRuns(r)).toBe(SEEDS);
-    if (m.timer) for (const run of r.runs) expect(run.seconds).toBeLessThan(m.timer.seconds);
+    // Battle seconds: a prep phase runs before the mission clock starts.
+    const prep = m.prep ? (m.prep.seconds ?? PREP.defaultSeconds) : 0;
+    if (m.timer) for (const run of r.runs) expect(run.seconds).toBeLessThan(m.timer.seconds + prep);
   });
 });

@@ -379,10 +379,12 @@ export class App implements AppApi {
     if (!session) return;
     const state = session.fill(this.loop.paused, this.save.settings.muted);
     state.fps = this.save.settings.showFps ? this.fps.state : null;
+    // The music's prep layer plays while the prep phase runs.
+    this.musicIntensity?.setPrep(state.prep !== null);
     if (this.ui && this.ui.current() === 'battle') this.ui.updateHud(state);
   }
 
-  /** The prep phase of a defensive mission (a later job adds it): the music's prep layer while it lasts. */
+  /** Debug: the music's prep layer on or off (the battle sets it from the prep phase every frame). */
   setPrepPhase(on: boolean): void {
     this.musicIntensity?.setPrep(on);
   }

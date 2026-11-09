@@ -8,7 +8,7 @@ import type { MissionDef } from '../../schema';
  *
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1003): two 360 s holds and the counter-attack
  * are one timeline (the bot holds until Katukov's tanks arrive at 720 s); the win is the German HQ beyond the wood, as
- * no capture point can end a phase yet. The prep phase's wire is laid before the battle; the tank traps, snow, the
+ * no capture point can end a phase yet. A 60 s prep phase comes first (the bot wires the halt); the tank traps, snow, the
  * opening barrage, the Pak 38 and mortar posture and the "lose if the halt falls" rule wait for their features.
  */
 export const M1003: MissionDef = {
@@ -82,7 +82,9 @@ export const M1003: MissionDef = {
   ],
   pillboxes: [],
   // The prep phase's wire in front of the halt, laid before the battle until the prep phase exists.
-  wire: [{ id: 1, x: 5900, width: 120, owner: 0 }],
+  wire: [],
+  // A minute to wire the halt before the first attack (the bot builds what used to be laid before the battle).
+  prep: { seconds: 60, bot: [{ kind: 'wire', x: 5900 }] },
   timer: null,
   events: [
     // Phase 1, "The morning attack" (0 to 360 s).

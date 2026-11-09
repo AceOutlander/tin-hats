@@ -169,6 +169,20 @@ const state: HudState = {
   bannerSeq: 0,
   hint: null,
   tip: tipFromQuery(),
+  prep: flag('prep')
+    ? {
+        secondsLeft: 42,
+        builds: [
+          { id: 'wire', name: 'Barbed Wire', cost: 40, seconds: 10, canAfford: true },
+          { id: 'foxhole', name: 'Foxhole', cost: 60, seconds: 20, canAfford: true },
+          { id: 'trench', name: 'Trench', cost: 100, seconds: 30, canAfford: true },
+          { id: 'pillbox', name: 'Pillbox', cost: 250, seconds: 60, canAfford: false },
+        ],
+        placing: flag('placing') ? 'trench' : null,
+        placeOk: true,
+        sites: 2,
+      }
+    : null,
   fps: flag('fps') ? { seq: 1, fps: 58.6, avgMs: 17.1, worstMs: 41.8 } : null,
   minimap: {
     length: MAP_LENGTH,

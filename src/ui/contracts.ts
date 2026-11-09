@@ -5,7 +5,7 @@
  * below and reports what the player did through AppApi. The app glue builds
  * these models from the simulation and the save data.
  */
-import type { Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { BuildableId, Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
 import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
@@ -118,6 +118,29 @@ export interface HudState {
   minimap: MinimapState;
   /** The "Show FPS" readout, or null when the setting is off. */
   fps: FpsState | null;
+  /** The prep phase of a defensive mission while it runs, or null. */
+  prep: PrepHudState | null;
+}
+
+/** One build the prep phase offers. */
+export interface BuildButtonState {
+  id: BuildableId;
+  name: string;
+  cost: number;
+  seconds: number;
+  canAfford: boolean;
+}
+
+/** The prep phase panel. The object is reused. */
+export interface PrepHudState {
+  secondsLeft: number;
+  builds: BuildButtonState[];
+  /** The build being placed (its ghost on the battlefield), or null. */
+  placing: BuildableId | null;
+  /** True when the ghost stands where it can be built. */
+  placeOk: boolean;
+  /** Build sites placed and not yet finished. */
+  sites: number;
 }
 
 /** The frame-rate readout's numbers (src/app/fpsMeter.ts). The object is reused; `seq` changes whenever the numbers do. */
@@ -150,7 +173,15 @@ export type HudAction =
   | { type: 'ability' }
   | { type: 'release' }
   /** Jump the camera so that this fraction (0..1) of the map is centred. */
-  | { type: 'minimap'; frac: number };
+  | { type: 'minimap'; frac: number }
+  /** Prep phase: pick a build (its ghost appears), place it where the ghost stands, or stop placing. */
+  | { type: 'build'; kind: BuildableId }
+  | { type: 'confirmBuild' }
+  | { type: 'cancelPlacing' }
+  /** Prep phase: take back the build placed last (its money comes back). */
+  | { type: 'undoBuild' }
+  /** Prep phase: start the attack now. */
+  | { type: 'ready' };
 
 export interface MissionCard {
   id: number;

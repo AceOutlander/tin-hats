@@ -9,7 +9,7 @@ import type { MissionDef } from '../../schema';
  * halls, while panzers and infantry come through the workers' settlement wave after wave.
  *
  * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the halls are trenches (no
- * buildings, floors or rubble yet), the prep phase's wire is laid at the start, "lose if six get past the cliffs"
+ * buildings, floors or rubble yet), a 60 s prep phase comes first (the bot wires the gate), "lose if six get past the cliffs"
  * is the HQ, the loans are scripted waves, StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank`
  * kind, the Pak 40 crew the `at` kind. The attackers have no HQ, so they call in no Stukas.
  */
@@ -78,11 +78,17 @@ export const M1008: MissionDef = {
     { id: 4, x: 3200, width: 260, slots: 10, owner: 0 },
   ],
   pillboxes: [],
-  // The prep phase's wire: the yard gate and the gap in front of the machine shops.
-  wire: [
-    { id: 1, x: 8350, width: 140, owner: 0 },
-    { id: 2, x: 6650, width: 120, owner: 0 },
-  ],
+  wire: [],
+  // A minute to wire the yard gate and the gap in front of the machine shops; the line is past half the field, so the
+  // zone is given.
+  prep: {
+    seconds: 60,
+    zone: { from: 1000, to: 8600 },
+    bot: [
+      { kind: 'wire', x: 8350 },
+      { kind: 'wire', x: 6650 },
+    ],
+  },
   timer: { seconds: 1260, onExpire: 'win', label: 'Until dark' },
   events: [
     {
@@ -206,6 +212,7 @@ export const M1008: MissionDef = {
     ],
     firstAttackAfter: 9999,
   },
-  expectedMinutes: [21, 21.2],
+  // The 21 min clock plus up to a minute of prep.
+  expectedMinutes: [21, 22.2],
   music: STALINGRAD_MUSIC.missions[1008],
 };

@@ -7,7 +7,7 @@
  *   below `combat.exit` (hysteresis).
  * - tense: the player's HQ took damage in the last `damageSeconds`, or an enemy is within `enterDistance` of it (and
  *   it stays tense until they are beyond `exitDistance`), or a survival or deadline clock has under `timerSeconds` left.
- * - prep: the prep phase of a defensive mission (setPrep; nothing calls it yet).
+ * - prep: the prep phase of a defensive mission (the app calls setPrep every frame).
  * - build: otherwise.
  *
  * Tense outranks combat, combat outranks prep. A new layer must be wanted for `confirm[layer]` seconds; a layer once

@@ -51,6 +51,13 @@ export interface AttachOptions {
 /** What a tap on the battlefield is for while a support is being aimed. */
 export type TargetingKind = SupportKind;
 
+/** The ghost of a build being placed in the prep phase: footprint centre and width in wu, and whether it can go there. */
+export interface PlacingGhost {
+  x: number;
+  width: number;
+  ok: boolean;
+}
+
 /**
  * The part of the audio engine (src/audio GameAudio) the view uses. A GameAudio fits it as it is:
  * `view.setAudio(audio)`. The view works with no sink set.
@@ -145,6 +152,8 @@ export interface BattleView {
   setControlled(unitId: number): void;
   /** Show the support targeting reticle (taps then always report the ground), or null to leave targeting. */
   setTargeting(kind: TargetingKind | null): void;
+  /** Show the prep phase's placement ghost (centre and width in wu, green when it can go there), or hide it with null. */
+  setPlacing(p: PlacingGhost | null): void;
   /** False while fast-forwarding: skip tracers, flashes, particles, rain streaks and sounds. */
   setEffectsEnabled(enabled: boolean): void;
   /** Sound for the battle's events (shots, blasts, deliveries, orders, rain, thunder, tank engines); null for silence. */

@@ -27,6 +27,8 @@ export interface FakeView extends BattleView {
   darkness: number[];
   controlled: number[];
   targeting: (string | null)[];
+  /** Every placement ghost the session showed (null = hidden). */
+  placing: ({ x: number; width: number; ok: boolean } | null)[];
   frame: ((dtMs: number) => void) | null;
   /** The title storm scene: whether it is up, and the storm dt and fade of every menu frame drawn. */
   menuScene: boolean;
@@ -84,6 +86,7 @@ export function createFakeView(): FakeView {
     darkness: [],
     controlled: [],
     targeting: [],
+    placing: [],
     frame: null,
     menuScene: false,
     menuFrames: [],
@@ -111,6 +114,9 @@ export function createFakeView(): FakeView {
     },
     setControlled(id) {
       view.controlled.push(id);
+    },
+    setPlacing(p) {
+      view.placing.push(p);
     },
     setTargeting(kind) {
       view.targeting.push(kind);

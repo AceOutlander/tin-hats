@@ -6,10 +6,11 @@
  * Pause, restart, quit and mute are app-level and not handled here.
  */
 import { APP } from '../data/app';
-import type { Difficulty, MissionDef, SupportKind } from '../data/schema';
+import { PREP } from '../data/prep';
+import type { BuildableId, Difficulty, MissionDef, SupportKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
-import type { AdminAction, Battle, UnitState } from '../sim';
-import type { BattleCamera } from '../render/contracts';
+import { buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
+import type { BattleCamera, PlacingGhost } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
 import { HudModel, type HpShownQuery } from './hudModel';
 import { playBossWarning, playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
@@ -21,6 +22,8 @@ export interface SessionView {
   afterStep(): void;
   setControlled(unitId: number): void;
   setTargeting(kind: SupportKind | null): void;
+  /** The prep phase's placement ghost, or null to hide it. */
+  setPlacing(p: PlacingGhost | null): void;
   /** Whose unit health the player sees (the battle view's HpReveal). */
   readonly hpReveal?: HpShownQuery;
 }
@@ -80,6 +83,13 @@ export class BattleSession {
   readonly tally: EventTally = newTally();
 
   private targeting: SupportKind | null = null;
+  /** Prep phase: the build being placed, where its ghost stands, and whether the player has tapped a spot for it. */
+  private placing: BuildableId | null = null;
+  private placeX = 0;
+  private placePinned = false;
+  private readonly ghost: PlacingGhost = { x: 0, width: 0, ok: false };
+  /** Ids of the sites this player placed, newest last (Undo takes the newest still standing). */
+  private readonly placed: number[] = [];
   private stickX = 0;
   private fireDown = false;
   private abilityQueued = false;
@@ -160,6 +170,13 @@ export class BattleSession {
           }
           // The enemy wave that the player is told about is also sounded.
           if (sound && e.type === 'wave' && e.side === 1 && (e.text !== null || battle.state.mode === 'survival')) playWaveWarning(this.audio);
+          break;
+        case 'buildStarted':
+          if (e.side === 0) this.placed.push(e.targetIndex);
+          break;
+        case 'prepEnded':
+          this.endPlacing();
+          if (!this.bannerUp()) this.showBanner(APP.notices.prepEnded);
           break;
         case 'bossArrived':
           if (e.side === 1) this.bossWarning();
@@ -263,7 +280,67 @@ export class BattleSession {
     }
     if (controlled && id >= 0) this.followControlled(controlled.x);
     if (this.targeting !== null && (this.ended || !side.supportAvailable[this.targeting])) this.endTargeting();
+    this.fillPlacing(st);
     return st;
+  }
+
+  /**
+   * Prep phase placement: the ghost stands in the middle of the view (so dragging the battlefield carries it along)
+   * until the player taps the ground, which pins it there; it is green where the build can go.
+   */
+  private fillPlacing(st: HudState): void {
+    const prep = st.prep;
+    if (this.placing !== null && (prep === null || this.ended)) this.endPlacing();
+    const kind = this.placing;
+    if (prep === null) return;
+    prep.placing = kind;
+    if (kind === null) {
+      prep.placeOk = false;
+      return;
+    }
+    if (!this.placePinned) this.placeX = Math.round(this.view.camera.centerX);
+    const ok = buildProblem(this.battle.state, 0, kind, this.placeX) === null;
+    prep.placeOk = ok;
+    this.ghost.x = this.placeX;
+    this.ghost.width = PREP.buildables[kind].width;
+    this.ghost.ok = ok;
+    this.view.setPlacing(this.ghost);
+  }
+
+  private beginPlacing(kind: BuildableId): void {
+    if (this.ended || this.battle.state.prep?.active !== true) return;
+    this.endTargeting();
+    this.placing = kind;
+    this.placePinned = false;
+  }
+
+  private endPlacing(): void {
+    if (this.placing === null) return;
+    this.placing = null;
+    this.placePinned = false;
+    this.view.setPlacing(null);
+  }
+
+  /** Place the build where its ghost stands (if it can go there) and stop placing. */
+  private confirmBuild(): void {
+    const kind = this.placing;
+    if (kind === null) return;
+    if (buildProblem(this.battle.state, 0, kind, this.placeX) === null) {
+      this.battle.command(0, { type: 'build', kind, x: this.placeX });
+      this.endPlacing();
+    }
+  }
+
+  /** Take back the newest of this player's sites still being built. */
+  private undoBuild(): void {
+    const sites = this.battle.state.sites;
+    while (this.placed.length > 0) {
+      const id = this.placed.pop() as number;
+      if (sites.some((s) => s.id === id)) {
+        this.battle.command(0, { type: 'cancelBuild', site: id });
+        return;
+      }
+    }
   }
 
   /**
@@ -326,6 +403,22 @@ export class BattleSession {
       case 'minimap':
         this.view.camera.jumpToFrac(action.frac);
         return true;
+      case 'build':
+        this.beginPlacing(action.kind);
+        return true;
+      case 'confirmBuild':
+        this.confirmBuild();
+        return true;
+      case 'cancelPlacing':
+        this.endPlacing();
+        return true;
+      case 'undoBuild':
+        this.undoBuild();
+        return true;
+      case 'ready':
+        this.endPlacing();
+        this.battle.command(0, { type: 'ready' });
+        return true;
       case 'dismissTip':
         return true;
       default:
@@ -335,6 +428,12 @@ export class BattleSession {
 
   /** A tap on the battlefield ground at world x. */
   tapGround(x: number): void {
+    if (this.placing !== null && !this.ended) {
+      // Prep phase: the tap moves the ghost there (Place confirms it).
+      this.placeX = Math.round(x);
+      this.placePinned = true;
+      return;
+    }
     if (this.targeting === null || this.ended) return;
     const kind = this.targeting;
     const side = this.battle.state.sides[0];
@@ -360,6 +459,7 @@ export class BattleSession {
   /** Stop targeting, release control: used when the player leaves the battle or pauses. */
   stopInputs(): void {
     this.endTargeting();
+    this.endPlacing();
     this.stickX = 0;
     this.fireDown = false;
     this.abilityQueued = false;

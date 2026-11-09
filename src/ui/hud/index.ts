@@ -24,6 +24,7 @@ import {
   stripFrac,
 } from './format';
 import { ICONS, type IconName } from './icons';
+import { PrepPanel } from './prep';
 import { capturePointer, isPrimaryPointer, onPress, onTap } from './input';
 import { MINIMAP_PAD, MinimapView } from './minimap';
 import './hud.css';
@@ -394,6 +395,7 @@ class HudView implements Hud {
   private bannerAlt = false;
   private readonly hintText: TextCell;
   private readonly hintOn: FlagCell;
+  private readonly prep: PrepPanel;
   private readonly objBox: HTMLElement;
 
   // Tutorial tip.
@@ -555,6 +557,13 @@ class HudView implements Hud {
     const hint = el('div', 'th-hint', center);
     this.hintText = new TextCell(hint);
     this.hintOn = new FlagCell(hint, 'is-on');
+
+    // ----- Prep phase (defensive missions): countdown, Ready, builds -----
+    this.prep = new PrepPanel(center, (action) => {
+      if (!this.live()) return;
+      this.app.uiSound('click');
+      this.app.dispatch(action);
+    });
 
     // ----- Left edge: call-ins, folded into one toggle until it is tapped -----
     const callIns = el('div', 'th-callins', root);
@@ -744,6 +753,7 @@ class HudView implements Hud {
     this.state = s;
     if (!this.visible) return;
 
+    this.prep.update(s.prep);
     this.supplies.set(Math.floor(s.supplies));
     const income = incomeTenths(s.incomePerSec);
     if (income !== this.lastIncome) {
