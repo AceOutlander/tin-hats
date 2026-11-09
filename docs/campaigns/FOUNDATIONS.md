@@ -151,6 +151,11 @@ allows about 5 MB per origin, shared with nothing else under `/tin-hats/`).
 
 ## 3. The mission director: phases, objectives, triggers, events
 
+**Built** (Stalingrad core branch): `src/sim/director.ts`; the data as built, its differences from the sketch below (points
+and structures as references, events kept in `MissionDef.events` with phase triggers, `MissionDef.timer` kept beside the
+phases, `atEnd` and `withinPhase` side objectives) and the missions that use it are in
+`docs/campaigns/STALINGRAD_BUILD.md`, "The mission director"; the judgement calls are DECISIONS E1-1 to E1-12.
+
 ### 3.1 Model
 
 A mission is a list of **phases**. One is active at a time. A phase has required objectives (all done means the phase

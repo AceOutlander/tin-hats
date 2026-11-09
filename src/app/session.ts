@@ -193,6 +193,11 @@ export class BattleSession {
             else playWaveWarning(this.audio);
           }
           break;
+        case 'objectiveDone':
+          // A side objective earned is worth a short notice (never over another banner); the phase's own objectives
+          // show on the phase line.
+          if (e.value === 1 && e.text !== null && !this.bannerUp()) this.showBanner(APP.notices.sideObjective.replace('{text}', e.text));
+          break;
         case 'airdrop':
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
           break;

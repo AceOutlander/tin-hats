@@ -2,6 +2,74 @@
 
 What each part of the campaign has today, and what waits for which foundation feature (FOUNDATIONS.md).
 
+## The mission director (FOUNDATIONS.md 3.1 to 3.4)
+
+**In** (`src/sim/director.ts`, types in `src/data/schema.ts`; DECISIONS E1-1 to E1-12; tests
+`tests/unit/sim-director.test.ts`, `tests/unit/hud-phase.test.ts`, `tests/unit/stalingrad-director.test.ts`, the 1009 case
+of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build on; how to write a mission with it:
+
+- **`MissionDef.phases: PhaseDef[]`**, in order, the first is where the mission starts. A phase is
+  `{ id, title (40 chars), objectives, sideObjectives?, lose?, timer?, prep?, onEnter?, next, assume? }`. All objectives
+  done: the director enters `next`, or wins with `next: null`. A phase with no objectives never completes by itself. A
+  mission without `phases` is one phase whose only objective is the enemy HQ (none without one) and plays as before.
+  `MissionDef.timer` stays as a clock over the whole mission beside the phases (the survival missions keep theirs).
+- **Objectives** (`ObjectiveDef`, each `{ id, text? }`): `destroyHq { side }`, `capture { point }`, `hold { point, seconds }`
+  (unbroken; a loss starts it again), `survive { seconds }`, `kill { side, kinds?, count }` (the dead of that side over
+  the whole mission), `destroy { structures }`, `reach { x, count, kinds? }`, `surrender { side, hqBelow }` (wins as a
+  surrender). The HUD line is `text`, or a default by type.
+- **Losses** (`PhaseDef.lose`, `LossDef`): `pointLost { point }` (after side 0 has held it), `enemyReached { x, count,
+  kinds? }` (living enemies at or past x at once), `structureLost { structures }`, `lost { count, kinds? }` (own losses
+  since the phase began). A phase timer `{ seconds, label, onExpire: 'complete' | 'lose' }`.
+- **Side objectives** (`SideObjectiveDef { id, text, objective?, failIf?, within?, withinPhase?, atEnd?, until?, bonus }`):
+  watched from their phase to the end; `bonus` is added to the 0..1 medal score (capped at 1).
+- **Points and structures** are references: `PointRef = { trench }`, `StructureRef = { trench } | { pillbox } | { wire } |
+  { hq }`. Capture points, buildings and bridges (FOUNDATIONS 4.3 to 4.5) add their members (`{ point }`, `{ building }`,
+  `{ bridge }`) and teach `pointOwner`, `structureGone` and `structureHealth` in `src/sim/director.ts` about them.
+- **Triggers** (`MissionTrigger`, added to the old four, on the mission clock that leaves out every prep phase): `phase
+  { phase, delay? }`, `phaseEvery { phaseEvery, phase, from?, until? }`, `objective { objective, delay? }` (with no
+  delay it fires on the very tick the objective is done, even the last one), `pointCapturedBy`, `kills { kills, side,
+  kinds? }`, `structureDestroyed`, `enemyNear { x, dist, side }`. Every event may carry an `id`.
+- **Events** (added to wave, airdrop, hint, announce): `banner { text, sound }`, `barrage { side, x, spread, rounds,
+  duration, weapon, warning?, delay? }` (free, for any side; weapons `siegeShell`, `heavyBomb`, `nebelwerfer`, `mortar21`
+  and the old shells), `airRaid { side, support, x }` (a free call-in), `income { side, mul }`, `posture { side, posture:
+  hold | counterattack | free, point?, seconds? }`, `support { side, kind, enabled }` (with `SideStart.supportsOff` for a
+  call-in offered later), `disguise { side, seconds, x0, x1 }`, `reveal { side, seconds }`, `setOwner { ref, owner }`,
+  `endMission { winner, text }`.
+- **Forces**: `ForceDef.at` (a wave comes in just behind a point its side holds: the forward spawn), `ForceDef.leash`
+  (0 = a frozen or dug-in guard). `SideStart.supportCooldown` gives a call-in its own cooldown for the mission.
+- **Prep at a phase's start**: `PhaseDef.prep` (as `MissionDef.prep`, with its own `bot` plan); the mission clock stops.
+- **Spawning**: no wave appears behind the enemy line from any spawn (the HQ door too, which broke 1004 and 1006).
+- **Commanders**: posture events steer the AI; the test bot attacks while a phase needs ground taken and holds when it
+  only has to hold out.
+- **HUD and tools**: the phase line under the objective plate ("Phase 2/3 · Hold the crossroads · Tanks destroyed 7 /
+  12"), the phase's clock or its hold-out countdown, a banner and horn on each new phase, scripted banners; side
+  objectives on the pause screen and the result screen; call-in buttons that come and go with `support` events; admin
+  "jump to phase" (`AdminAction jumpPhase`, `PhaseDef.assume`) in the panel's Events section.
+- **Medals** (`MissionMedalDef`): `scoring` (timed or fixed; default by mode: assault and special timed, survival, hold
+  and delay fixed), `timedFrom` (a phase), `hqHealthWeight`, `structureWeight`, `killBonus`; the side objectives' bonuses.
+
+**The missions on it** (each mission file's header says what it stands in for):
+
+| Mission | Mode | Phases | Director features used |
+| --- | --- | --- | --- |
+| 1001 Brest | survival | 3 x 240 s under the 720 s clock | opening barrage, Nebelwerfer, siege mortar x2, 21 cm mortars; side objectives gate, StuGs |
+| 1002 Dubno | delay | strike, hold the crossroads | capture, survive 600 + kill 12, enemyReached (x 5,000, then x 10,000), income x0.4, Stuka raid, artillery, overtime waves; Dubno by 6 min, twenty tanks |
+| 1003 Volokolamsk | hold | 2 x 360 s holds, Katukov's tanks | pointLost (the halt), barrage, Stuka, Katyusha from phase 2, AI hold and counter-attack postures, capture + hold 150 s; no tank at the halt (until phase 3), ten tanks; timed from phase 3 |
+| 1004 Klin | assault | village, forest, highway (+ hold 120 s), Klin | forward spawns (`at`), frozen panzers (leash 0), counter-attack posture, Il-2 from phase 3, hold for 240 s then free, artillery, the last counter-attack; the station, the highway in 20 min |
+| 1005 Volga | special | landing (hold 180 s), high bank, station, hold the station | pointLost (landing), Nebelwerfer, Stukas, a 45 s prep at phase 4; battalion ashore (lost < 10), nail factory |
+| 1006 Kurgan | hold | foot, slope, water tanks + summit, summit hold | destroy (pillboxes), 45 s prep at phase 4 with a zone, Stukas, Nebelwerfer, banner, AI hold on the summit; both tanks by 12 min, no assault gun survives |
+| 1007 Pavlov's House | survival | take the house, day one, night one, day two, last night | capture with a 180 s deadline, prep after phase 0, pointLost (day one), Stuka raid, Katyusha for the last night, artillery cooldown 90 s; the trench stays open, no German inside; house health in the score |
+| 1008 Tractor Factory | survival (scored as the brief's delay) | 3 x 420 s under the clock | enemyReached x 2,000 count 6, barrage, Stukas, heavy bomb, Nebelwerfer; machine shops at dark (`atEnd`), 25 tanks; kill bonus |
+| 1009 Uranus | assault | Siren, steppe, Kalach bridge, Sovetsky | side 0's free barrages and Katyusha, Il-2 and Po-2 from phase 2, disguise, forward spawns, green flares on the objective; the bridge in 180 s (`withinPhase`), fifteen tanks |
+| 1010 Ring | assault (surrender) | guns, Gumrak, ruins, Univermag | five free barrages, frozen tanks, German artillery cooldown 180 s, nests (hold postures), Nebelwerfer, last counter-attack, surrender at 25% with the closing words; Pitomnik in 8 min, Gumrak without a tank lost, under 28 min |
+
+**Waits for** (other jobs build these on the director): capture points, forward spawn points and Fall Back to them
+(FOUNDATIONS 4.5: `PointRef.point`); buildings and floors (4.3: 1008's heavy bomb knocking off a floor, 1007's top
+floor bonus, `StructureRef.building`); bridges, demolition and the ford (4.4: 1009's bridge, 1005's ferry loads);
+weather and time-of-day events (4.7: snow, blizzard, fog, flares); loans by phase (7.2); `unlockKind`, `demolish` and
+`spawnPointState` events; the AI aiming a counter-attack at its `point`; per-mission medal numbers tuned on real play;
+mid-mission autosave and resume (FOUNDATIONS section 2, DECISIONS E1-12).
+
 ## Soviet nation data (shared by every mission)
 
 **In** (FOUNDATIONS.md section 5, NATIONS.md section 3):
