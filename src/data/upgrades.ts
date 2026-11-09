@@ -4,13 +4,13 @@ import type { SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from './schema'
 import { UNITS } from './units';
 
 /**
- * Quartermaster upgrades. Three levels each, bought with medals, applied to the player's side
+ * Quartermaster upgrades. Three levels each, bought with upgrade points, applied to the player's side
  * only when a battle is created. Each level lists its cumulative effect (level 2 replaces level 1),
  * so the multipliers below are totals: roughly +10% per level.
  *
  * The unit and call-in tracks are generated from the data: every unit type the player has for free or can unlock in
  * the Armoury (MEDALS.free, MEDALS.units) gets a health track and a damage track (a healing track for a unit that
- * heals instead of fighting), and every plane call-in sold in the Armoury gets one track. A new unit type or call-in
+ * heals instead of fighting), and every plane call-in (UPGRADABLE_SUPPORTS) gets one track. A new unit type or call-in
  * therefore gets its upgrades without a line here; UNIT_TRACK_TEXT and SUPPORT_TRACKS only give them their names.
  * Saved levels are keyed by id: never rename an id (`${kind}Health`, `${kind}Damage`, `${kind}Healing` and
  * SUPPORT_TRACKS[kind].id, or `${kind}Upgrade` without one).
@@ -32,11 +32,13 @@ const SUPPORT_REACH: readonly number[] = [1.1, 1.2, 1.3];
 const SUPPORT_TIME: readonly number[] = [1.12, 1.24, 1.36];
 
 /**
- * Price in medals of level 1, 2 and 3 of every upgrade (the Quartermaster's currency since medals replaced upgrade
- * points). Re-priced when units stopped being bought (owner, 2026-11-09): a win pays 3 to 30 medals and a first run
- * of the campaign on Normal about 200, so a first run buys about a dozen first levels or a few full tracks.
+ * Price in upgrade points of level 1, 2 and 3 of every upgrade. Upgrade points are the Quartermaster's own currency
+ * again (owner, 2026-11-09: Stick War: Legacy's economy, 1 point a level; MEDALS.points says how they are earned).
  */
-export const UPGRADE_LEVEL_MEDALS: readonly number[] = [10, 20, 30];
+export const UPGRADE_LEVEL_POINTS: readonly number[] = [1, 1, 1];
+
+/** The call-ins with a Quartermaster track (the plane call-ins sold in the Armoury before version 11; ids are saved). */
+export const UPGRADABLE_SUPPORTS: readonly SupportKind[] = ['recon', 'fighter', 'bomber'];
 
 function levels(build: (i: number) => UpgradeEffect[]): UpgradeEffect[][] {
   return [build(0), build(1), build(2)];
@@ -95,9 +97,7 @@ export function upgradableKinds(): UnitKind[] {
 
 /** Plane call-ins with a Quartermaster track, in the Armoury's order. */
 export function upgradableSupports(): SupportKind[] {
-  const out: SupportKind[] = [];
-  for (const item of MEDALS.armoury) if (item.type === 'support' && !out.includes(item.id as SupportKind)) out.push(item.id as SupportKind);
-  return out;
+  return [...UPGRADABLE_SUPPORTS];
 }
 
 /** True for a unit that heals instead of fighting: its second track is healing, not damage. */
@@ -122,8 +122,8 @@ function unitTracks(kind: UnitKind): UpgradeDef[] {
       ...health,
       unit: kind,
       levels: levels((i) => [{ stat: 'unitHealth', unit: kind, mul: HEALTH[i] }]),
-      costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-      levelCosts: [...UPGRADE_LEVEL_MEDALS],
+      costPerLevel: UPGRADE_LEVEL_POINTS[0],
+      levelCosts: [...UPGRADE_LEVEL_POINTS],
     },
   ];
   if (heals(kind)) {
@@ -133,8 +133,8 @@ function unitTracks(kind: UnitKind): UpgradeDef[] {
       ...text(id, kind, 'Kit'),
       unit: kind,
       levels: levels((i) => [{ stat: 'unitHeal', unit: kind, mul: HEALING[i] }]),
-      costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-      levelCosts: [...UPGRADE_LEVEL_MEDALS],
+      costPerLevel: UPGRADE_LEVEL_POINTS[0],
+      levelCosts: [...UPGRADE_LEVEL_POINTS],
     });
   } else {
     const id = `${kind}Damage`;
@@ -143,8 +143,8 @@ function unitTracks(kind: UnitKind): UpgradeDef[] {
       ...text(id, kind, 'Drill'),
       unit: kind,
       levels: levels((i) => [{ stat: 'unitDamage', unit: kind, mul: DAMAGE[i] }]),
-      costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-      levelCosts: [...UPGRADE_LEVEL_MEDALS],
+      costPerLevel: UPGRADE_LEVEL_POINTS[0],
+      levelCosts: [...UPGRADE_LEVEL_POINTS],
     });
   }
   return out;
@@ -202,8 +202,8 @@ function supportTrack(kind: SupportKind): UpgradeDef {
     unit: null,
     support: kind,
     levels: levels((i) => t.stats.map((stat) => ({ stat, support: kind, mul: SUPPORT_MULS[stat][i] }))),
-    costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-    levelCosts: [...UPGRADE_LEVEL_MEDALS],
+    costPerLevel: UPGRADE_LEVEL_POINTS[0],
+    levelCosts: [...UPGRADE_LEVEL_POINTS],
   };
 }
 
@@ -218,8 +218,8 @@ export const UPGRADES: readonly UpgradeDef[] = [
       { stat: 'sapperSpeed', mul: SAPPER_SPEED[i] },
       { stat: 'sapperCarry', mul: SAPPER_CARRY[i] },
     ]),
-    costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-    levelCosts: [...UPGRADE_LEVEL_MEDALS],
+    costPerLevel: UPGRADE_LEVEL_POINTS[0],
+    levelCosts: [...UPGRADE_LEVEL_POINTS],
   },
   {
     id: 'hqIncome',
@@ -227,8 +227,8 @@ export const UPGRADES: readonly UpgradeDef[] = [
     description: 'The HQ draws more money from the rear.',
     unit: null,
     levels: levels((i) => [{ stat: 'hqIncome', mul: HQ_INCOME[i] }]),
-    costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-    levelCosts: [...UPGRADE_LEVEL_MEDALS],
+    costPerLevel: UPGRADE_LEVEL_POINTS[0],
+    levelCosts: [...UPGRADE_LEVEL_POINTS],
   },
   {
     id: 'hqHealth',
@@ -236,8 +236,8 @@ export const UPGRADES: readonly UpgradeDef[] = [
     description: 'Extra sandbags and timber on the command post.',
     unit: null,
     levels: levels((i) => [{ stat: 'hqHealth', mul: HQ_HEALTH[i] }]),
-    costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-    levelCosts: [...UPGRADE_LEVEL_MEDALS],
+    costPerLevel: UPGRADE_LEVEL_POINTS[0],
+    levelCosts: [...UPGRADE_LEVEL_POINTS],
   },
   {
     id: 'hqGun',
@@ -248,8 +248,8 @@ export const UPGRADES: readonly UpgradeDef[] = [
       { stat: 'hqGunDamage', mul: HQ_GUN_DAMAGE[i] },
       { stat: 'hqGunRate', mul: HQ_GUN_RATE[i] },
     ]),
-    costPerLevel: UPGRADE_LEVEL_MEDALS[0],
-    levelCosts: [...UPGRADE_LEVEL_MEDALS],
+    costPerLevel: UPGRADE_LEVEL_POINTS[0],
+    levelCosts: [...UPGRADE_LEVEL_POINTS],
   },
   ...upgradableKinds().flatMap(unitTracks),
   ...upgradableSupports().map(supportTrack),

@@ -1,6 +1,6 @@
 /**
  * Campaign rules over a SaveData: which missions are unlocked or cleared, and buying and refunding Quartermaster
- * upgrades with medals (src/meta/medals.ts earns them). Pure functions; the functions that change a save change it in place.
+ * upgrades with upgrade points (src/meta/medals.ts earns them). Pure functions; the functions that change a save change it in place.
  */
 import { META } from '../data/meta';
 import type { Difficulty, UpgradeDef } from '../data/schema';
@@ -59,31 +59,31 @@ export function maxLevel(def: UpgradeDef): number {
   return Math.min(META.maxUpgradeLevel, def.levels.length);
 }
 
-/** Medals for buying level `level` (1 = the first) of an upgrade. */
+/** Upgrade points for buying level `level` (1 = the first) of an upgrade. */
 export function levelCost(def: UpgradeDef, level: number): number {
   return def.levelCosts?.[level - 1] ?? def.costPerLevel;
 }
 
-/** Medals for levels 1 to `level` together. */
+/** Upgrade points for levels 1 to `level` together. */
 export function costUpTo(def: UpgradeDef, level: number): number {
   let sum = 0;
   for (let n = 1; n <= level; n += 1) sum += levelCost(def, n);
   return sum;
 }
 
-/** Medals tied up in upgrades the definitions know about (what Refund all would give back). */
+/** Upgrade points tied up in upgrades the definitions know about (what Refund all would give back). */
 export function pointsSpent(save: SaveData, defs: readonly UpgradeDef[]): number {
   let spent = 0;
   for (const def of defs) spent += costUpTo(def, Math.min(upgradeLevel(save, def.id), maxLevel(def)));
   return spent;
 }
 
-/** Medals left to spend; never negative. */
+/** Upgrade points left to spend; never negative. */
 export function pointsAvailable(save: SaveData): number {
-  return Math.max(0, save.medals);
+  return Math.max(0, save.points);
 }
 
-/** Medals to spend plus those in upgrades. */
+/** Upgrade points to spend plus those in upgrades. */
 export function pointsEarned(save: SaveData, defs: readonly UpgradeDef[] = UPGRADES): number {
   return pointsAvailable(save) + pointsSpent(save, defs);
 }
@@ -92,35 +92,35 @@ export function canBuy(save: SaveData, defs: readonly UpgradeDef[], id: string):
   const def = defs.find((d) => d.id === id);
   if (def === undefined) return false;
   const level = upgradeLevel(save, id);
-  return level < maxLevel(def) && save.medals >= levelCost(def, level + 1);
+  return level < maxLevel(def) && save.points >= levelCost(def, level + 1);
 }
 
 export function canRefund(save: SaveData, id: string): boolean {
   return upgradeLevel(save, id) > 0;
 }
 
-/** Buy the next level for its price in medals. Returns false (and changes nothing) if it is not allowed. */
+/** Buy the next level for its price in upgrade points. Returns false (and changes nothing) if it is not allowed. */
 export function buyUpgrade(save: SaveData, defs: readonly UpgradeDef[], id: string): boolean {
   if (!canBuy(save, defs, id)) return false;
   const def = defs.find((d) => d.id === id) as UpgradeDef;
-  save.medals -= levelCost(def, upgradeLevel(save, id) + 1);
+  save.points -= levelCost(def, upgradeLevel(save, id) + 1);
   save.upgrades[id] = upgradeLevel(save, id) + 1;
   return true;
 }
 
-/** Give back the top level. Refunds are free and complete: its medals come back. */
+/** Give back the top level. Refunds are free and complete: its points come back. */
 export function refundUpgrade(save: SaveData, id: string, defs: readonly UpgradeDef[] = UPGRADES): boolean {
   const level = upgradeLevel(save, id);
   if (level <= 0) return false;
   const def = defs.find((d) => d.id === id);
-  if (def) save.medals += levelCost(def, Math.min(level, maxLevel(def)));
+  if (def) save.points += levelCost(def, Math.min(level, maxLevel(def)));
   if (level === 1) delete save.upgrades[id];
   else save.upgrades[id] = level - 1;
   return true;
 }
 
-/** Give back every upgrade level, and its medals. */
+/** Give back every upgrade level, and its points. */
 export function refundAll(save: SaveData, defs: readonly UpgradeDef[] = UPGRADES): void {
-  save.medals += pointsSpent(save, defs);
+  save.points += pointsSpent(save, defs);
   save.upgrades = {};
 }

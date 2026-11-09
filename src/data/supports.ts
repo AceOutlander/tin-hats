@@ -54,7 +54,9 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
     pattern: 'sweep',
   },
 
-  // Aircraft call-ins (job 7): each costs money (SUPPORT_COST) and flies across the field (PLANES), so anti-aircraft guns get a window.
+  // Aircraft call-ins (job 7): each flies across the field (PLANES), so anti-aircraft guns get a window. No call-in
+  // costs the player in-battle money since 2026-11-09 (owner): the player's are Shop charges (MEDALS.charges); a side
+  // without charges (the AI) pays UNLIMITED_SUPPORT_COST.
   bomber: {
     kind: 'bomber',
     cooldown: 120,
@@ -128,17 +130,6 @@ export const SUPPORTS: Record<SupportKind, SupportDef> = {
 /** In HUD order. */
 export const SUPPORT_KINDS: readonly SupportKind[] = ['artillery', 'smoke', 'airStrike', 'bomber', 'fighter', 'recon', 'katyusha'];
 
-/** Money each call-in costs on top of its cooldown. Paid when the call is accepted. */
-export const SUPPORT_COST: Record<SupportKind, number> = {
-  artillery: 0,
-  smoke: 0,
-  airStrike: 0,
-  bomber: 300,
-  fighter: 180,
-  recon: 100,
-  katyusha: 0,
-};
-
 /**
  * An aircraft call-in in flight. It enters approach seconds before its first round, crosses the
  * strip at the speed that sweeps it in `duration` (or `speed` when it has no rounds), and leaves
@@ -185,3 +176,19 @@ export const ANTI_AIR: AntiAirDef = {
 
 /** Call-ins whose rounds come down from above: hit-facing armour does not apply to them. */
 export const TOP_ATTACK_SUPPORTS: readonly SupportKind[] = ['airStrike', 'bomber', 'fighter'];
+
+/**
+ * Money a call costs a side that is not limited by charges: the enemy AI, the balance bot and the proving ground (no
+ * SideStart.supportCharges). That is the AI's own rule (owner, 2026-11-09: "the enemy AI isn't limited by medals"):
+ * it keeps the prices call-ins had before charges, so its use of aircraft and every mission's balance stay as tuned.
+ * A side with charges (the player from the briefing) pays none.
+ */
+export const UNLIMITED_SUPPORT_COST: Record<SupportKind, number> = {
+  artillery: 0,
+  smoke: 0,
+  airStrike: 0,
+  bomber: 300,
+  fighter: 180,
+  recon: 100,
+  katyusha: 0,
+};

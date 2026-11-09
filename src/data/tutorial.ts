@@ -298,7 +298,7 @@ export const TUTORIAL: TutorialTunables = {
       seconds: 14,
       urgent: true,
     },
-    // The medals, Armoury and Quartermaster screens.
+    // The medals, the Shop and the Quartermaster.
     {
       id: 'medals',
       text: 'Every win pays medals. Finishing Basic Training pays {reward} medals, once.',
@@ -310,7 +310,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'armoury',
-      text: 'Missions unlock new unit types. Spend medals in the Armoury, on the campaign map, on plane call-ins.',
+      text: 'Spend medals in the Shop, on the campaign map: call-in charges. Each call-in you use spends one.',
       target: 'field',
       after: ['medals'],
       when: [],
@@ -319,7 +319,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'quartermaster',
-      text: 'The Quartermaster, next to it, sells upgrades for your troops, for medals too.',
+      text: 'First wins also pay upgrade points: spend them in the Quartermaster, next to the Shop.',
       target: 'field',
       after: ['armoury'],
       when: [],

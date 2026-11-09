@@ -25,10 +25,15 @@ export interface MetaTunables {
    */
   legacyPointMedals: number;
   /**
-   * Medals every upgrade level cost before the re-pricing of save version 8 (src/data/upgrades.ts UPGRADE_LEVEL_MEDALS
-   * today). The step to version 8 gives back the difference for the levels a save holds.
+   * Medals every upgrade level cost before the re-pricing of save version 8. The step to version 8 gives back the
+   * difference to v8UpgradeLevelMedals for the levels a save holds.
    */
   legacyUpgradeLevelMedals: number;
+  /**
+   * Medals of upgrade levels 1, 2 and 3 from save version 8 to 10 (upgrade points replaced medals in the
+   * Quartermaster in version 11): the step to version 8 re-prices to these.
+   */
+  v8UpgradeLevelMedals: readonly number[];
   /** Upgrade levels per upgrade (an upgrade definition may have fewer). */
   maxUpgradeLevel: number;
   /** Settings of a fresh save. */
@@ -61,12 +66,13 @@ export interface MetaTunables {
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 10,
+  saveVersion: 11,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
   firstClearPoints: 2,
   legacyPointMedals: 20,
   legacyUpgradeLevelMedals: 20,
+  v8UpgradeLevelMedals: [10, 20, 30],
   maxUpgradeLevel: 3,
   defaultDifficulty: 'normal',
   defaultMuted: false,

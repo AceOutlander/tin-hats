@@ -2284,6 +2284,18 @@ svg.th-group-icon {
   height: 36px;
 }
 
+.th-arm-lock {
+  width: 28px;
+  height: 28px;
+  opacity: 0.7;
+}
+
+/* Charges held, after the call-in's name. */
+.th-arm-count {
+  font-variant-numeric: tabular-nums;
+  color: #f0d488;
+}
+
 .th-arm.is-max .th-up-buy {
   opacity: 0.75;
 }
@@ -2305,6 +2317,48 @@ svg.th-group-icon {
 
 .th-brief-replay.is-replay {
   color: #f0d488;
+}
+
+/* The briefing's loadout: one chip per call-in with charges held or lent; lit when brought. */
+.th-loadout {
+  margin: 6px 0 0;
+}
+
+.th-loadout-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.th-load-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--th-paper-dim);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--th-paper-dim);
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-load-chip .th-support-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.th-load-chip.is-on {
+  border-color: #f0d488;
+  color: var(--th-paper);
+  background: rgba(240, 212, 136, 0.14);
+}
+
+.th-load-chip.is-lent {
+  border-style: dashed;
 }
 
 /* -------------------------------------------------- medals: result screen */

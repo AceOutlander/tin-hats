@@ -159,7 +159,7 @@ describe('debug hooks', () => {
       expect(s.smokes).toBe(0);
       expect(s.targeting).toBeNull();
       expect(s.controlled).toBeNull();
-      for (const kind of ['artillery', 'smoke', 'airStrike'] as const) expect(s.supports[kind]).toEqual({ available: true, cooldown: 0 });
+      for (const kind of ['artillery', 'smoke', 'airStrike'] as const) expect(s.supports[kind]).toEqual({ available: true, cooldown: 0, charges: -1 });
     });
 
     it('report the controlled man, the support the player is aiming, and the cooldown after a call', () => {

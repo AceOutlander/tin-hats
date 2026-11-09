@@ -78,7 +78,7 @@ export interface DebugState {
   /** The player's unit under direct control, or null. `inTrench` = it holds a trench slot. */
   controlled: { id: number; kind: UnitKind; x: number; hp: number; maxHp: number; action: string; inTrench: boolean } | null;
   /** Availability and seconds of cooldown left (0 = ready) of each support for the player. */
-  supports: Record<SupportKind, { available: boolean; cooldown: number }>;
+  supports: Record<SupportKind, { available: boolean; cooldown: number; /** Charges left, -1 = not limited. */ charges: number }>;
   /** The support the player is aiming (the targeting banner is up), or null. */
   targeting: SupportKind | null;
   /** Live smoke clouds. */
@@ -172,6 +172,14 @@ export interface DebugApi {
   giveMedals(n: number): number;
   /** Take medals, never below zero (saved). Returns the new balance. */
   takeMedals(n: number): number;
+  /** Upgrade points to spend (the Quartermaster). */
+  points(): number;
+  /** Take upgrade points, never below zero (saved). Returns the new balance. */
+  takePoints(n: number): number;
+  /** Give upgrade points (whole numbers; saved). Returns the new balance. */
+  givePoints(n: number): number;
+  /** Give charges of every call-in the Shop sells (saved). */
+  giveCharges(n: number): void;
   /** The result of the last finished battle, or null. */
   result(): ResultView | null;
   /** Every living unit (empty outside a battle). */
@@ -349,7 +357,7 @@ function noKindOrders(): Record<UnitKind, Order | null> {
 
 function noSupports(): DebugState['supports'] {
   const out = {} as DebugState['supports'];
-  for (const kind of SUPPORT_KINDS) out[kind] = { available: false, cooldown: 0 };
+  for (const kind of SUPPORT_KINDS) out[kind] = { available: false, cooldown: 0, charges: -1 };
   return out;
 }
 
@@ -392,6 +400,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     medals: () => app.save.medals,
     giveMedals: (n) => app.giveMedals(Math.max(0, Math.floor(Number(n) || 0))),
     takeMedals: (n) => app.giveMedals(-Math.max(0, Math.floor(Number(n) || 0))),
+    points: () => app.save.points,
+    takePoints: (n) => app.givePoints(-Math.max(0, Math.floor(Number(n) || 0))),
+    givePoints: (n) => app.givePoints(Math.max(0, Math.floor(Number(n) || 0))),
+    giveCharges: (n) => app.giveCharges(Math.floor(Number(n) || 0)),
     result: () => (app.lastResult ? { ...app.lastResult } : null),
 
     audio() {
@@ -553,7 +565,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         return h ? { hp: h.hp, max: h.maxHp } : null;
       };
       const supports = noSupports();
-      for (const kind of SUPPORT_KINDS) supports[kind] = { available: me.supportAvailable[kind], cooldown: me.supportCooldown[kind] };
+      for (const kind of SUPPORT_KINDS) supports[kind] = { available: me.supportAvailable[kind], cooldown: me.supportCooldown[kind], charges: me.supportCharges[kind] };
       const under = me.controlled >= 0 ? s.units[me.controlled] : null;
       let smokes = 0;
       for (const smoke of s.smokes) if (smoke.alive) smokes++;

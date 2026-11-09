@@ -148,6 +148,14 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
     medals(info, out) {
       out.append(
         row(el('span', 'th-admin-value', `${info.medals}`), ...ADMIN.medalGrants.map((n) => btn(`+${n}`, () => run({ type: 'medals', amount: n }), { testid: `admin-medals-${n}` }))),
+        row(
+          el('span', 'th-admin-value', `${info.points} pts`),
+          ...ADMIN.pointGrants.map((n) => btn(`+${n} pts`, () => run({ type: 'points', amount: n }), { testid: `admin-points-${n}` })),
+        ),
+        row(
+          el('span', 'th-admin-value', info.charges.map((c) => c.count).join(' ')),
+          ...ADMIN.chargeGrants.map((n) => btn(`+${n} each`, () => run({ type: 'charges', amount: n }), { testid: `admin-charges-${n}` })),
+        ),
       );
     },
     upgrades(info, out) {

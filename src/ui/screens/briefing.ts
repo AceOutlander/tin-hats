@@ -197,6 +197,46 @@ export const briefingScreen: ScreenFactory = (ctx) => {
     loan.dataset.testid = 'briefing-loans';
     diffBox.append(loan);
   }
+  // The loadout: the call-ins brought, each a toggle with its charges ("x3"; "+2 lent" for those the mission lends,
+  // which always come). Charges are bought in the Shop on the map (owner, 2026-11-09).
+  const callIns = mission?.callIns ?? [];
+  const loadout = el('div', 'th-loadout');
+  loadout.dataset.testid = 'briefing-loadout';
+  const slots = view.loadoutSlots ?? 0;
+  loadout.append(el('div', 'th-label', `Call-ins (up to ${slots})`));
+  if (callIns.length === 0) loadout.append(el('p', 'th-type th-brief-loan', 'No call-in charges: buy them in the Shop.'));
+  const chips = el('div', 'th-loadout-chips');
+  // The screen's own copy of what is brought (the view is cached while a screen is up); the app keeps the save's.
+  const brought = new Set(callIns.filter((c) => c.chosen).map((c) => c.kind));
+  const ownBrought = (): number => callIns.filter((c) => c.loan <= 0 && brought.has(c.kind)).length;
+  for (const c of callIns) {
+    const parts: Node[] = [supportIcon(c.kind), el('span', undefined, c.owned > 0 ? `×${c.owned}` : '')];
+    if (c.loan > 0) parts.push(el('span', undefined, `+${c.loan} lent`));
+    const chip = button({
+      testid: `loadout-${c.kind}`,
+      className: `th-load-chip${c.chosen ? ' is-on' : ''}${c.loan > 0 ? ' is-lent' : ''}`,
+      aria: `${c.name}: ${c.owned} held${c.loan > 0 ? `, ${c.loan} lent for this mission` : ''}, ${c.chosen ? 'brought' : 'left behind'}`,
+      content: parts,
+      onTap: () => {
+        // Lent call-ins always come; a full loadout takes no more.
+        const on = !brought.has(c.kind);
+        if (c.loan > 0 || !ctx.app.toggleCallIn || (on && ownBrought() >= slots)) {
+          ctx.app.uiSound('deny');
+          return;
+        }
+        ctx.app.uiSound('click');
+        ctx.app.toggleCallIn(c.kind);
+        if (on) brought.add(c.kind);
+        else brought.delete(c.kind);
+        chip.classList.toggle('is-on', on);
+        chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+      },
+    });
+    chip.setAttribute('aria-pressed', c.chosen ? 'true' : 'false');
+    chips.append(chip);
+  }
+  loadout.append(chips);
+  diffBox.append(loadout);
 
   const actions = el('div', 'th-brief-actions');
   const back = button({

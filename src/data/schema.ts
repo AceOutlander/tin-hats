@@ -842,6 +842,12 @@ export interface SideStart {
   supportsOff?: SupportKind[];
   /** This mission's own full cooldown (seconds, before upgrades) for some call-ins: 1007's 90 s artillery. */
   supportCooldown?: Partial<Record<SupportKind, number>>;
+  /**
+   * Charges of each call-in this side brings (the player's Shop charges and those lent, src/meta/medals.ts applyRoster):
+   * each use spends one and a call-in with none left cannot be called. Absent = no limit (the enemy, the bot, the
+   * proving ground and Basic Training).
+   */
+  supportCharges?: Partial<Record<SupportKind, number>>;
   /** False in survival missions for side 1: no HQ, no economy, units arrive as waves. */
   hasHq: boolean;
   supplies: number;

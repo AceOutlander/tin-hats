@@ -10,16 +10,17 @@ import { describeEnd } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
 import { CAMPAIGN_MAP_VIEW, projection } from '../../src/data/campaignMap';
 import { STALINGRAD_MAP } from '../../src/data/campaignMapStalingrad';
+import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
-import { UPGRADE_LEVEL_MEDALS, UPGRADES } from '../../src/data/upgrades';
+import { UPGRADE_LEVEL_POINTS, UPGRADES } from '../../src/data/upgrades';
 import { createMemoryStorage, loadSave, recordClear } from '../../src/meta';
 import { layoutPins } from '../../src/ui/screens/mapLayout';
 import { createFakeAudio, createFakeUi, createFakeView } from './app-helpers';
 import { FIELD } from './fixtures';
 
-/** Medals for Quartermaster levels 1, 2 and 3. */
-const [L1, L2, L3] = UPGRADE_LEVEL_MEDALS;
+/** Upgrade points for Quartermaster levels 1, 2 and 3. */
+const [L1, L2, L3] = UPGRADE_LEVEL_POINTS;
 
 /** The first mission (Brest, a survival with a prep phase) and the first assault with an enemy HQ and no prep (Dubno). */
 const FIRST = MISSIONS[0].id;
@@ -130,14 +131,14 @@ describe('upgrades in the campaign', () => {
     expect(view.pointsAvailable).toBe(0);
   });
 
-  // Since medals, a clear pays nothing by itself: wins pay medals (meta-medals.test.ts), and the Quartermaster spends them.
-  it('pays nothing for a clear alone: the Quartermaster spends medals', () => {
+  // A clear pays nothing by itself: wins pay medals and upgrade points (meta-medals.test.ts); the Quartermaster spends points.
+  it('pays nothing for a clear alone: the Quartermaster spends upgrade points, not medals', () => {
     const { app } = makeApp();
     recordClear(app.save, FIRST, 'normal');
     expect(app.campaign().pointsAvailable).toBe(0);
-    app.save.medals = 35;
+    app.save.points = 35;
     expect(app.campaign().pointsAvailable).toBe(35);
-    expect(app.campaign().medals).toBe(35);
+    expect(app.campaign().medals).toBe(0);
   });
 
   it('buys one level at a time, refunds one level at a time or all at once, and never overspends', () => {
@@ -145,7 +146,7 @@ describe('upgrades in the campaign', () => {
     app.buyUpgrade('hqHealth');
     expect(app.save.upgrades).toEqual({});
     // Levels 1, 2 and 3 of hqHealth and level 1 of hqIncome.
-    app.save.medals = L1 + L2 + L3 + L1;
+    app.save.points = L1 + L2 + L3 + L1;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqIncome');
@@ -167,7 +168,7 @@ describe('upgrades in the campaign', () => {
 
   it('builds the battle with the upgrade levels of the save', () => {
     const { app } = makeApp();
-    app.save.medals = L1 + L2;
+    app.save.points = L1 + L2;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
     app.startMission(ASSAULT, 'normal');
@@ -187,7 +188,7 @@ describe('upgrades in the campaign', () => {
     const { app } = makeApp();
     app.startMission(ASSAULT, 'normal');
     const before = app.session?.battle.state.sides.map((s) => s.hq?.maxHp ?? 0) ?? [];
-    app.save.medals = L1;
+    app.save.points = L1;
     app.buyUpgrade('hqHealth');
     app.startMission(ASSAULT, 'normal');
     const upgraded = app.session?.battle.state.sides.map((s) => s.hq?.maxHp ?? 0) ?? [];
@@ -403,6 +404,47 @@ describe('what the HUD shows of a mission', () => {
     app.session?.battle.step();
     app.session?.fill(false, false);
     expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('airStrike');
+  });
+
+  it('spends one charge per call, lent ones first, shows the count on the button and stops at none', () => {
+    const { app, storage } = makeApp();
+    const before = app.save.charges.artillery ?? 0;
+    expect(before).toBeGreaterThan(0);
+    app.startMission(ASSAULT, 'normal');
+    const session = app.session;
+    if (!session) throw new Error('no battle');
+    const side = session.battle.state.sides[0];
+    expect(side.supportCharges.artillery).toBe(before);
+    // No in-battle money cost.
+    const supplies = side.supplies;
+    session.battle.command(0, { type: 'support', kind: 'artillery', x: 3000 });
+    session.step();
+    expect(side.supportCharges.artillery).toBe(before - 1);
+    expect(side.supplies).toBeGreaterThanOrEqual(supplies);
+    expect(app.save.charges.artillery).toBe(before - 1);
+    expect(loadSave(storage).data.charges.artillery).toBe(before - 1);
+    session.fill(false, false);
+    expect(session.hud.state.supports.find((b) => b.kind === 'artillery')?.charges).toBe(before - 1);
+    // None left: the sim refuses the call.
+    side.supportCharges.artillery = 0;
+    side.supportCooldown.artillery = 0;
+    session.battle.command(0, { type: 'support', kind: 'artillery', x: 3000 });
+    session.step();
+    expect(side.supportCooldown.artillery).toBe(0);
+    // 1003 lends Katyushas: they are spent before the save's own, which stay.
+    app.save.charges.katyusha = 1;
+    app.startMission(1003, 'normal');
+    const lent = app.session;
+    if (!lent) throw new Error('no battle');
+    const s3 = lent.battle.state.sides[0];
+    expect(s3.supportCharges.katyusha).toBe(1 + (MEDALS.chargeLoans[1003]?.[0]?.count ?? 0));
+    lent.battle.admin({ type: 'jumpPhase', phase: 'again' });
+    lent.step();
+    s3.supportCooldown.katyusha = 0;
+    lent.battle.command(0, { type: 'support', kind: 'katyusha', x: 3000 });
+    lent.step();
+    expect(s3.supportCharges.katyusha).toBe(MEDALS.chargeLoans[1003]?.[0]?.count);
+    expect(app.save.charges.katyusha).toBe(1);
   });
 });
 

@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG, SPECIALS } from '../../src/data/config';
 import type { ForceDef, UnitKind } from '../../src/data/schema';
-import { SUPPORTS, SUPPORT_COST } from '../../src/data/supports';
+import { SUPPORTS } from '../../src/data/supports';
 import { UNITS } from '../../src/data/units';
 import { WEAPONS } from '../../src/data/weapons';
 import type { Battle } from '../../src/sim';
@@ -233,13 +233,17 @@ describe('the APC', () => {
 });
 
 describe('aircraft and anti-aircraft guns', () => {
-  it('cost money, start their cooldown, and cross the battle in one planePass with a duration', () => {
-    const b = makeBattle({ mission: field([], []) });
+  // Owner, 2026-11-09: call-ins cost no in-battle money; the player's are Shop charges (SideStart.supportCharges).
+  it('cost no money, spend a charge, start their cooldown, and cross the battle in one planePass with a duration', () => {
+    const b = makeBattle({ mission: field([], [], { a: { supportCharges: { fighter: 2 } } }) });
     const before = b.state.sides[0].supplies;
     b.command(0, { type: 'support', kind: 'fighter', x: 3000 });
     const events = collect(b, 8, 'supportCalled', 'planePass', 'projectile');
-    expect(SUPPORT_COST.fighter).toBeGreaterThan(0);
-    expect(b.state.sides[0].supplies).toBeCloseTo(before - SUPPORT_COST.fighter + 8 * CONFIG.hqIncomePerSec, 6);
+    expect(b.state.sides[0].supplies).toBeCloseTo(before + 8 * CONFIG.hqIncomePerSec, 6);
+    expect(b.state.sides[0].supportCharges.fighter).toBe(1);
+    // A side with no charges listed is not limited (the enemy, the bot); one listed without a kind has none of it.
+    expect(b.state.sides[1].supportCharges.fighter).toBe(-1);
+    expect(b.state.sides[0].supportCharges.bomber).toBe(0);
     expect(b.state.sides[0].supportCooldown.fighter).toBeGreaterThan(0);
     const pass = events.filter((e) => e.type === 'planePass');
     expect(pass).toHaveLength(1);
@@ -248,10 +252,13 @@ describe('aircraft and anti-aircraft guns', () => {
     expect(pass[0].x2).toBeGreaterThan(pass[0].x);
     expect(pass[0].value).toBeGreaterThan(SUPPORTS.fighter.duration);
     expect(events.filter((e) => e.type === 'projectile' && e.weapon === 'strafeMg')).toHaveLength(SUPPORTS.fighter.rounds);
-    // Not without the money.
-    const poor = makeBattle({ mission: field([], [], { a: { supplies: SUPPORT_COST.bomber - 1 } }) });
+    // Not without a charge, however rich; and with no money at all when there is one.
+    const none = makeBattle({ mission: field([], [], { a: { supportCharges: { bomber: 0 } } }) });
+    none.command(0, { type: 'support', kind: 'bomber', x: 3000 });
+    expect(collect(none, 1, 'supportCalled')).toHaveLength(0);
+    const poor = makeBattle({ mission: field([], [], { a: { supplies: 0, supportCharges: { bomber: 1 } } }) });
     poor.command(0, { type: 'support', kind: 'bomber', x: 3000 });
-    expect(collect(poor, 1, 'supportCalled')).toHaveLength(0);
+    expect(collect(poor, 1, 'supportCalled')).toHaveLength(1);
   });
 
   it('anti-aircraft guns shoot at planes in reach and can bring one down (planeDown), ending its run', () => {

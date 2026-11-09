@@ -548,7 +548,7 @@ function prepBuild(w: World, si: number, ai: AiState): void {
 }
 
 /**
- * Aircraft, under the same costs, cooldowns and availability as the player: a bomber on a heavy tank
+ * Aircraft, under the same cooldowns and availability as the player (never limited by charges): a bomber on a heavy tank
  * within reach or on a big cluster, a fighter on a smaller one, and a recon plane over the enemy front
  * while advancing with money to spare.
  */

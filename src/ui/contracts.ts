@@ -42,6 +42,8 @@ export interface SupportButtonState {
   secondsLeft: number;
   /** Aircraft that cannot fly now (scripted weather or night, FOUNDATIONS.md 4.7): why, or null. Not ready while set. */
   grounded: 'fog' | 'blizzard' | 'night' | null;
+  /** Charges left (the Shop's and those lent; each use spends one), or -1 when not limited. Not ready at 0. */
+  charges: number;
 }
 
 export interface ControlState {
@@ -245,12 +247,19 @@ export interface MissionCard {
   replayPercent?: Record<Difficulty, number>;
   /** Types lent for this mission only because the player has not bought them. */
   loans?: { kind: UnitKind; name: string; count: number }[];
+  /**
+   * The briefing's loadout: every call-in with charges held (`owned`) or lent for this mission (`loan`), and whether it
+   * is brought (lent ones always are).
+   */
+  callIns?: { kind: SupportKind; name: string; owned: number; loan: number; chosen: boolean }[];
 }
 
-/** One unit type or plane call-in in the Armoury. */
+/** One entry in the Shop: a call-in charge for sale, an extra, or a unit type (shown, never sold). */
 export interface ArmouryItemView {
   id: string;
-  type: 'unit' | 'support';
+  type: 'unit' | 'support' | 'extra';
+  /** Charges held (call-ins only). */
+  count?: number;
   /** For drawing its icon: a UnitKind when type is 'unit', a SupportKind when 'support'. */
   kind: UnitKind | SupportKind;
   /** Per-nation names, e.g. "Bren Gunner / MG34 Gunner". */
@@ -291,8 +300,12 @@ export interface MedalResultView {
   /** Medals before the difficulty and replay factors. */
   base: number;
   difficultyMul: number;
-  /** 100, 50, 25, ... */
+  /** 100, 50, then 25. */
   replayPercent: number;
+  /** The one-time campaign bonus this win paid on top of `medals`, when it did. */
+  campaignBonus?: number;
+  /** Upgrade points this win paid, when it did. */
+  points?: number;
 }
 
 export interface UpgradeView {
@@ -389,9 +402,11 @@ export interface CampaignView {
   upgrades: UpgradeView[];
   settings: SettingsView;
   difficulties: { id: Difficulty; name: string }[];
-  /** Medals to spend (the Quartermaster's pointsAvailable is the same number). */
+  /** Medals to spend (the Shop). pointsAvailable is the upgrade points (the Quartermaster). */
   medals?: number;
-  /** The Armoury, in its order: core roles, new units, plane call-ins. */
+  /** Most call-ins of the player's own brought to one mission (lent ones come on top). */
+  loadoutSlots?: number;
+  /** The Shop, in its order: call-in charges, extras, core roles, new units. */
   armoury?: ArmouryItemView[];
   /** Basic Training, the standalone tutorial on the title screen. */
   training?: TrainingView;
@@ -443,8 +458,10 @@ export interface AppApi {
    */
   loadMission?(id: number, onProgress?: (fraction: number) => void): Promise<boolean>;
   buyUpgrade(id: string): void;
-  /** Buy a unit type or plane call-in in the Armoury (optional so older stand-ins of the app still fit). */
+  /** Buy one call-in charge in the Shop (optional so older stand-ins of the app still fit). */
   buyArmoury?(id: string): void;
+  /** Put a call-in in or out of the loadout the player brings to missions (the briefing). */
+  toggleCallIn?(kind: SupportKind): void;
   /** Start Basic Training, the standalone tutorial (optional so older stand-ins of the app still fit). */
   startTraining?(): void;
   /** The player turned down the Basic Training offer on the title screen. */

@@ -4,7 +4,7 @@
  */
 import { CONFIG } from '../data/config';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
-import { SUPPORTS, SUPPORT_COST } from '../data/supports';
+import { SUPPORTS, UNLIMITED_SUPPORT_COST } from '../data/supports';
 import { UNITS } from '../data/units';
 import { releaseControl, setControlInput, takeControl } from './control';
 import { speak } from './specials';
@@ -113,11 +113,16 @@ function applyFollowAll(w: World, si: number): void {
 function applySupport(w: World, si: number, kind: SupportKind, x: number): void {
   if (!(kind in SUPPORTS) || !Number.isFinite(x)) return;
   if (!canCallSupport(w, si, kind)) return;
-  const cost = SUPPORT_COST[kind];
-  if (cost > 0) {
-    const side = w.state.sides[si];
-    side.supplies -= cost;
-    side.stats.suppliesSpent += cost;
+  // A call spends one charge and no money (owner, 2026-11-09); a side without charges (the AI) pays its own rule's
+  // price (UNLIMITED_SUPPORT_COST). A scripted raid, the director's, spends neither.
+  const side = w.state.sides[si];
+  if (side.supportCharges[kind] > 0) side.supportCharges[kind] -= 1;
+  else {
+    const cost = UNLIMITED_SUPPORT_COST[kind];
+    if (cost > 0) {
+      side.supplies -= cost;
+      side.stats.suppliesSpent += cost;
+    }
   }
   callSupport(w, si, kind, x);
 }

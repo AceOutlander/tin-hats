@@ -35,6 +35,8 @@ export interface SessionOptions {
   sound(): boolean;
   /** The battleEnded event was seen. Called once. */
   onEnded(): void;
+  /** One of the player's call-in charges was spent (a call accepted by the sim; a scripted raid spends none). */
+  onChargeUsed?(kind: SupportKind): void;
   /** The guided tips of this battle, if it has any (campaign missions only). */
   tutorial?: Tutorial | null;
 }
@@ -102,6 +104,8 @@ export class BattleSession {
   /** The whole second of the mission clock that last ticked (-1 = none yet). */
   private lastTick = -1;
   private viewControlled = -1;
+  /** The player's charges left per call-in at the last look (-1 = not limited), to report each one spent. */
+  private readonly chargesSeen = new Int32Array(SUPPORT_KINDS.length);
 
   constructor(
     readonly battle: Battle,
@@ -112,6 +116,8 @@ export class BattleSession {
     private readonly opts: SessionOptions,
   ) {
     this.hud.begin(battle);
+    const own = battle.state.sides[0].supportCharges;
+    for (let k = 0; k < SUPPORT_KINDS.length; k++) this.chargesSeen[k] = own[SUPPORT_KINDS[k]];
     const events = battle.events;
     for (let i = 0; i < events.count; i++) if (events.items[i].type === 'bossArrived' && events.items[i].side === 1) this.bossAtStart = true;
   }
@@ -145,6 +151,16 @@ export class BattleSession {
     this.view.afterStep();
     this.handleEvents();
     return n;
+  }
+
+  /** Report every charge of the player's spent since the last look (opts.onChargeUsed). */
+  private noteCharges(): void {
+    const own = this.battle.state.sides[0].supportCharges;
+    for (let k = 0; k < SUPPORT_KINDS.length; k++) {
+      const now = own[SUPPORT_KINDS[k]];
+      for (let n = this.chargesSeen[k]; n > now && now >= 0; n--) this.opts.onChargeUsed?.(SUPPORT_KINDS[k]);
+      this.chargesSeen[k] = now;
+    }
   }
 
   private handleEvents(): void {
@@ -218,7 +234,10 @@ export class BattleSession {
           if (e.source === 'unit' && e.side === 0 && e.unitId === this.viewControlled) this.tally.controlledShots++;
           break;
         case 'supportCalled':
-          if (e.support !== null && e.side === 0) this.tally.supportCalled[e.support]++;
+          if (e.support !== null && e.side === 0) {
+            this.tally.supportCalled[e.support]++;
+            this.noteCharges();
+          }
           break;
         case 'supportIncoming':
           if (e.support !== null && e.side === 0) this.tally.supportIncoming[e.support]++;
@@ -493,7 +512,7 @@ export class BattleSession {
   private beginTargeting(kind: SupportKind): void {
     if (this.ended) return;
     const side = this.battle.state.sides[0];
-    if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0) return;
+    if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0 || side.supportCharges[kind] === 0) return;
     // Grounded by the weather or the night: nothing to aim.
     if (airGrounded(this.battle.state, 0, kind) !== null) return;
     this.targeting = kind;

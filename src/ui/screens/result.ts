@@ -36,6 +36,18 @@ export function breakdown(m: MedalResultView): HTMLElement {
     el('dd', 'th-type th-score-mark', String(m.medals)),
   );
   box.append(factors);
+  if (m.campaignBonus !== undefined && m.campaignBonus > 0) {
+    const row = el('div', 'th-score-row');
+    row.dataset.testid = 'result-campaign-bonus';
+    add(row, el('dt', undefined, 'Campaign'), el('dd', 'th-type', 'Every mission cleared'), el('dd', 'th-type th-score-mark', `+${m.campaignBonus}`));
+    box.append(row);
+  }
+  if (m.points !== undefined && m.points > 0) {
+    const row = el('div', 'th-score-row');
+    row.dataset.testid = 'result-upgrade-points';
+    add(row, el('dt', undefined, 'Upgrades'), el('dd', 'th-type', 'Quartermaster points'), el('dd', 'th-type th-score-mark', `+${m.points}`));
+    box.append(row);
+  }
   return box;
 }
 
@@ -131,10 +143,10 @@ export const resultScreen: ScreenFactory = (ctx) => {
   add(actions, map, retry);
   const nextId = result && won ? result.nextMissionId : null;
   if (training && won) {
-    // Passed Basic Training: straight on to the Armoury, where the reward buys the first new unit.
+    // Passed Basic Training: straight on to the Shop, where the reward buys the first call-in charges.
     const armoury = button({
       testid: 'result-armoury',
-      label: 'Armoury',
+      label: 'Shop',
       className: 'th-btn-primary',
       onTap: () => {
         ctx.app.uiSound('click');

@@ -271,13 +271,13 @@ describe('app flow', () => {
 
     expect(app.campaign().upgrades[0].canBuy).toBe(false);
     const price = upgrades[0].costPerLevel;
-    app.save.medals = 2 * price;
+    app.save.points = 2 * price;
     expect(app.campaign().pointsAvailable).toBe(2 * price);
     app.buyUpgrade('hqIncome');
     expect(app.campaign().upgrades[0].level).toBe(1);
     expect(app.campaign().pointsAvailable).toBe(price);
     expect(loadSave(storage).data.upgrades).toEqual({ hqIncome: 1 });
-    expect(loadSave(storage).data.medals).toBe(price);
+    expect(loadSave(storage).data.points).toBe(price);
     app.refundAll();
     expect(app.campaign().pointsAvailable).toBe(2 * price);
 

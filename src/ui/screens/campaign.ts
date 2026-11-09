@@ -90,7 +90,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
   const qmPoints = el('span', 'th-points-num');
   qmPoints.dataset.testid = 'points-available';
   const qmSub = el('span', 'th-btn-sub');
-  add(qmSub, glyph('medal', 'th-icon th-icon-small'), qmPoints, el('span', undefined, ' to spend'));
+  add(qmSub, glyph('chevron', 'th-icon th-icon-small'), qmPoints, el('span', undefined, ' points'));
   const quartermaster = button({
     testid: 'quartermaster',
     className: 'th-btn-stack th-side-qm',
@@ -118,7 +118,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
   const armoury = button({
     testid: 'armoury',
     className: 'th-btn-stack th-side-qm',
-    content: [el('span', 'th-btn-label', 'Armoury'), armourySub],
+    content: [el('span', 'th-btn-label', 'Shop'), armourySub],
     onTap: () => {
       ctx.app.uiSound('click');
       ctx.go('armoury');

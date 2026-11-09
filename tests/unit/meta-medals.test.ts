@@ -1,9 +1,10 @@
 /**
- * Medals and the Armoury (src/meta/medals.ts): the score of a win, the replay decay per mission and difficulty,
- * Armoury purchases (plane call-ins), unit types unlocked by missions, what the player fields in a mission, the NEW
- * cards and hints, and the steps from save version 5 (upgrade points) to medals, from version 7 (units bought) to 8
- * and from version 9 to 10 (the British placeholder missions removed: what they earned stays). The missions are the
- * Stalingrad campaign's.
+ * Medals, upgrade points and the Shop (src/meta/medals.ts): the score of a win, the replay decay per mission and
+ * difficulty, the campaign bonus and upgrade points (owner, 2026-11-09: the economy pegged to Stick War: Legacy), call-in
+ * charges and the loadout, unit types unlocked by missions, what the player fields in a mission, the NEW cards and
+ * hints, and the steps from save version 5 (upgrade points) to medals, from version 7 (units bought) to 8, from 9 to 10
+ * (the British placeholder missions removed: what they earned stays) and from 10 to 11 (points and charges; their own
+ * no-value-lost test is in meta-save.test.ts). The missions are the Stalingrad campaign's.
  */
 import { describe, expect, it } from 'vitest';
 import { MEDALS } from '../../src/data/medals';
@@ -13,11 +14,16 @@ import type { MissionDef, SupportKind, UnitKind } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import { UPGRADES } from '../../src/data/upgrades';
 import {
+  addCharges,
   addMedals,
+  addPoints,
   applyRoster,
-  buyItem,
-  canBuyItem,
+  buyCharge,
+  canBuyCharge,
+  chargesOf,
   createMemoryStorage,
+  loadoutOptions,
+  toggleLoadout,
   defaultSave,
   loadSave,
   missionMedals,
@@ -28,7 +34,6 @@ import {
   unitsUnlocked,
   unlockingMission,
   withNews,
-  ownsItem,
   recordClear,
   recordWin,
   replayPercent,
@@ -56,15 +61,15 @@ describe('the score of a win', () => {
   // Dubno (assault) and Brest (survival).
   const def = missionMedals(1002);
 
-  it('pays 3 for a rough clear and 30 for a perfect one (owner, 2026-11-08)', () => {
+  it('pays 10 for a rough clear and 20 for a perfect one (the benchmark first win on Normal, owner 2026-11-09)', () => {
     const perfect = scoreWin('assault', def, { seconds: def.targetSeconds, lost: def.targetLost, hqFrac: 1 }, 'normal', 0);
     const rough = scoreWin('assault', def, { seconds: def.roughSeconds * 2, lost: def.roughLost * 2, hqFrac: 0.1 }, 'normal', 0);
     expect(perfect.score).toBe(1);
     expect(perfect.medals).toBe(MEDALS.perfect);
     expect(rough.score).toBe(0);
     expect(rough.medals).toBe(MEDALS.rough);
-    expect(MEDALS.rough).toBe(3);
-    expect(MEDALS.perfect).toBe(30);
+    expect(MEDALS.rough).toBe(10);
+    expect(MEDALS.perfect).toBe(20);
   });
 
   it('scores an assault on time and casualties, each against the mission target, and never on HQ health', () => {
@@ -92,13 +97,14 @@ describe('the score of a win', () => {
     expect(scoreWin('survival', s, { seconds: 10_000, lost: s.targetLost, hqFrac: 1 }, 'normal', 0).medals).toBe(intact.medals);
   });
 
-  it('pays more on harder difficulties, by the multipliers in data', () => {
+  it('pays more for a first win on a harder difficulty, as the benchmark 20, 30 and 40 do', () => {
     const stats = { seconds: def.targetSeconds, lost: def.targetLost, hqFrac: 1 };
     const normal = scoreWin('assault', def, stats, 'normal', 0).medals;
     expect(scoreWin('assault', def, stats, 'hard', 0).medals).toBe(Math.floor(normal * MEDALS.difficultyMul.hard));
     expect(scoreWin('assault', def, stats, 'insane', 0).medals).toBe(Math.floor(normal * MEDALS.difficultyMul.insane));
-    expect(MEDALS.difficultyMul.normal).toBeLessThan(MEDALS.difficultyMul.hard);
-    expect(MEDALS.difficultyMul.hard).toBeLessThan(MEDALS.difficultyMul.insane);
+    expect(MEDALS.difficultyMul).toEqual({ normal: 1, hard: 1.5, insane: 2 });
+    // A replay pays alike on every difficulty (the benchmark's 10 and 5).
+    expect(scoreWin('assault', def, stats, 'insane', 1).medals).toBe(scoreWin('assault', def, stats, 'normal', 1).medals);
   });
 
   it('has targets for every campaign mission, a rough mark beyond the target', () => {
@@ -120,15 +126,15 @@ describe('the score of a win', () => {
   });
 });
 
-describe('replays pay 50% less each time, per mission and difficulty', () => {
-  it('halves the medals on each win of the same mission on the same difficulty, rounded down', () => {
+describe('replays pay half, then a quarter for good, per mission and difficulty (the benchmark 20, 10, 5)', () => {
+  it('pays half on the second win of the same mission on the same difficulty and a quarter on every later one', () => {
     const save = defaultSave();
     const m = mission(1003);
     const def = missionMedals(1003);
     const stats = { seconds: def.targetSeconds + 17, lost: def.targetLost + 3, hqFrac: 1 };
     const base = scoreWin('assault', def, stats, 'normal', 0).base;
     const paid = [0, 1, 2, 3].map(() => recordWin(save, m, 'normal', stats).medals);
-    expect(paid).toEqual([base, Math.floor(base / 2), Math.floor(base / 4), Math.floor(base / 8)]);
+    expect(paid).toEqual([base, Math.floor(base / 2), Math.floor(base / 4), Math.floor(base / 4)]);
     expect(save.medals).toBe(paid.reduce((a, b) => a + b, 0));
     expect(winsOn(save, 1003, 'normal')).toBe(4);
   });
@@ -145,17 +151,126 @@ describe('replays pay 50% less each time, per mission and difficulty', () => {
   });
 
   it('gives the percentage the briefing shows', () => {
-    expect([0, 1, 2, 3, 4].map(replayPercent)).toEqual([100, 50, 25, 12, 6]);
+    expect([0, 1, 2, 3, 4].map(replayPercent)).toEqual([100, 50, 25, 25, 25]);
   });
 });
 
-describe('the Armoury', () => {
-  it('has riflemen and sappers free and sells only the plane call-ins (owner, 2026-11-09)', () => {
-    expect(MEDALS.free.sort()).toEqual(['rifle', 'sapper']);
-    const sold = MEDALS.armoury.map((a) => a.id as string).sort();
-    expect(sold).toEqual(['bomber', 'fighter', 'recon']);
-    for (const a of MEDALS.armoury) expect(a.price).toBeGreaterThan(0);
-    for (const u of MEDALS.units) expect(sold).not.toContain(u.kind);
+describe('the campaign bonus and upgrade points', () => {
+  const ids = MISSIONS.map((m) => m.id);
+  const stats = { seconds: 1, lost: 0, hqFrac: 1 };
+  const win = (save: ReturnType<typeof defaultSave>, id: number, d: 'normal' | 'hard' | 'insane') => {
+    recordClear(save, id, d);
+    return recordWin(save, mission(id), d, stats, ids);
+  };
+
+  it('pays the campaign bonus once per difficulty, on the win that clears the whole campaign there', () => {
+    const save = defaultSave();
+    for (const id of ids.slice(0, -1)) expect(win(save, id, 'normal').campaignBonus).toBe(0);
+    expect(win(save, ids[ids.length - 1], 'normal').campaignBonus).toBe(MEDALS.campaignBonus.normal);
+    expect(win(save, ids[ids.length - 1], 'normal').campaignBonus).toBe(0);
+    expect(win(save, ids[0], 'normal').campaignBonus).toBe(0);
+    // About twice the campaign's perfect first clears, as the benchmark's 500 over 12 x 20.
+    const firsts = ids.length * MEDALS.perfect;
+    expect(MEDALS.campaignBonus.normal / firsts).toBeGreaterThanOrEqual(1.5);
+    expect(MEDALS.campaignBonus.normal / firsts).toBeLessThanOrEqual(2.5);
+    expect(MEDALS.campaignBonus.hard).toBe(2 * MEDALS.campaignBonus.normal);
+    expect(MEDALS.campaignBonus.insane).toBe(3 * MEDALS.campaignBonus.normal);
+  });
+
+  it('pays upgrade points by the hardest difficulty a mission is won on, and none for a replay', () => {
+    const save = defaultSave();
+    const p = MEDALS.points.byDifficulty;
+    expect(win(save, 1001, 'normal').points).toBe(p.normal);
+    expect(win(save, 1001, 'normal').points).toBe(0);
+    expect(win(save, 1001, 'hard').points).toBe(p.hard - p.normal);
+    expect(win(save, 1001, 'normal').points).toBe(0);
+    // Hard first: the Hard points at once, and nothing more for Normal afterwards.
+    expect(win(save, 1002, 'hard').points).toBe(p.hard);
+    expect(win(save, 1002, 'normal').points).toBe(0);
+    expect(win(save, 1002, 'insane').points).toBe(p.insane - p.hard);
+    expect(save.points).toBe(p.hard + p.insane);
+  });
+
+  it('gives and takes upgrade points, never below zero', () => {
+    const save = defaultSave();
+    expect(addPoints(save, 7)).toBe(7);
+    expect(addPoints(save, -100)).toBe(0);
+  });
+});
+
+describe('the Shop: call-in charges', () => {
+  it('sells every call-in as charges, cheap ones to the price of a mission or two and big ones to about a campaign', () => {
+    const kinds = MEDALS.charges.map((c) => c.kind as string).sort();
+    expect(kinds).toEqual(['airStrike', 'artillery', 'bomber', 'fighter', 'katyusha', 'recon', 'smoke']);
+    const price = (k: SupportKind) => MEDALS.charges.find((c) => c.kind === k)?.price ?? 0;
+    // The benchmark's cheap spells cost about one first-clear level: smoke within one or two missions' medals.
+    expect(price('smoke')).toBeLessThanOrEqual(2 * MEDALS.rough);
+    expect(price('artillery')).toBeLessThanOrEqual(3 * MEDALS.perfect);
+    // Big summons cost about a whole campaign: the bomber between half and one and a half Normal runs.
+    const run = MISSIONS.length * MEDALS.perfect + MEDALS.campaignBonus.normal;
+    expect(price('bomber')).toBeGreaterThanOrEqual(run / 2);
+    expect(price('bomber')).toBeLessThanOrEqual(run * 1.5);
+    expect(price('smoke')).toBeLessThan(price('artillery'));
+    expect(price('artillery')).toBeLessThan(price('fighter'));
+    expect(price('fighter')).toBeLessThan(price('bomber'));
+  });
+
+  it('gives every new save starter charges of smoke and artillery, brought by default', () => {
+    const save = defaultSave();
+    expect(chargesOf(save, 'smoke')).toBeGreaterThanOrEqual(2);
+    expect(chargesOf(save, 'artillery')).toBeGreaterThanOrEqual(2);
+    expect(chargesOf(save, 'bomber')).toBe(0);
+    expect(save.loadout).toEqual(['smoke', 'artillery']);
+  });
+
+  it('buys one charge at a time for medals, up to the most a save holds', () => {
+    const save = defaultSave();
+    const recon = MEDALS.charges.find((c) => c.kind === 'recon');
+    if (!recon) throw new Error('no recon');
+    expect(canBuyCharge(save, 'recon')).toBe(false);
+    save.medals = recon.price * 2;
+    expect(buyCharge(save, 'recon')).toBe(true);
+    expect(buyCharge(save, 'recon')).toBe(true);
+    expect(buyCharge(save, 'recon')).toBe(false);
+    expect(save.medals).toBe(0);
+    expect(chargesOf(save, 'recon')).toBe(2);
+    // A call-in bought for the first time joins the loadout while it has room.
+    expect(save.loadout).toEqual(['smoke', 'artillery', 'recon']);
+    save.medals = 9999;
+    expect(buyCharge(save, 'lmg')).toBe(false);
+    expect(buyCharge(save, 'nonsense')).toBe(false);
+    addCharges(save, 'recon', 999);
+    expect(chargesOf(save, 'recon')).toBe(MEDALS.maxCharges);
+    expect(buyCharge(save, 'recon')).toBe(false);
+  });
+
+  it('brings the chosen call-ins with charges, up to the slots, and the lent ones on top', () => {
+    const save = defaultSave();
+    for (const c of MEDALS.charges) addCharges(save, c.kind, 2);
+    save.loadout = [];
+    for (const k of ['smoke', 'artillery', 'recon', 'fighter'] as const) expect(toggleLoadout(save, k)).toBe(true);
+    expect(toggleLoadout(save, 'bomber')).toBe(false);
+    expect(save.loadout).toHaveLength(MEDALS.loadoutSlots);
+    // 1003 lends the Katyusha: it comes on top of the four chosen, with the save's own charges and the lent ones.
+    const r = missionRoster(save, mission(1003));
+    expect(r.supports.sort()).toEqual(['artillery', 'fighter', 'katyusha', 'recon', 'smoke']);
+    expect(r.charges.katyusha).toBe(2 + (MEDALS.chargeLoans[1003]?.[0]?.count ?? 0));
+    expect(r.chargeLoans).toEqual({ katyusha: MEDALS.chargeLoans[1003]?.[0]?.count });
+    expect(applyRoster(mission(1003), r).start[0].supportCharges).toEqual(r.charges);
+    // A call-in with no charges is not offered; one only lent is, and always brought.
+    const bare = defaultSave();
+    bare.charges = {};
+    expect(loadoutOptions(bare, 1004)).toEqual([{ kind: 'airStrike', owned: 0, loan: 2, chosen: true }]);
+    expect(missionRoster(bare, mission(1001)).supports).toEqual([]);
+  });
+
+  it('lends charges in the missions designed around a call-in: the director offers it, or the mission introduces it', () => {
+    for (const m of MISSIONS) {
+      const offered = m.events.filter((e) => e.type === 'support' && e.side === 0 && e.enabled).map((e) => (e.type === 'support' ? e.kind : null));
+      const lent = (MEDALS.chargeLoans[m.id] ?? []).map((l) => l.kind as string);
+      for (const k of offered) expect(lent, `mission ${m.id}: ${k}`).toContain(k);
+      if (m.newSupport) expect(lent, `mission ${m.id}: ${m.newSupport}`).toContain(m.newSupport);
+    }
   });
 
   it('lists every player unit type once and no enemy-only one', () => {
@@ -165,25 +280,6 @@ describe('the Armoury', () => {
     expect(kinds).not.toContain('heavyTank');
     expect(kinds).not.toContain('lightTank');
     for (const u of MEDALS.units) expect(UNITS[u.kind].enemyOnly, u.kind).not.toBe(true);
-  });
-
-  it('buys plane call-ins with medals, once, and never a unit type', () => {
-    const save = defaultSave();
-    const recon = MEDALS.armoury.find((a) => a.id === 'recon');
-    if (!recon) throw new Error('no recon');
-    expect(ownsItem(save, 'rifle')).toBe(true);
-    expect(canBuyItem(save, 'recon')).toBe(false);
-    save.medals = recon.price;
-    expect(buyItem(save, 'recon')).toBe(true);
-    expect(save.medals).toBe(0);
-    expect(ownsItem(save, 'recon')).toBe(true);
-    save.medals = 9999;
-    expect(buyItem(save, 'recon')).toBe(false);
-    expect(buyItem(save, 'lmg')).toBe(false);
-    expect(buyItem(save, 'rifle')).toBe(false);
-    expect(buyItem(save, 'nonsense')).toBe(false);
-    expect(save.medals).toBe(9999);
-    expect(save.armoury).toEqual(['recon']);
   });
 
   it('gives and takes medals, never below zero', () => {
@@ -277,12 +373,13 @@ describe('what the player fields in a mission', () => {
   it('fields every unlocked type in every mission, replays included', () => {
     const save = defaultSave();
     const all = playerUnitKinds();
-    save.armoury = MEDALS.armoury.map((a) => a.id);
-    const planes = MEDALS.armoury.map((a) => a.id as SupportKind);
+    addCharges(save, 'bomber', 1);
+    save.loadout = ['bomber', 'smoke'];
     for (const m of [...MISSIONS, noMoney()]) {
       const r = missionRoster(save, m, all);
       for (const k of all) if (k !== 'sapper' || m.units[0].includes('sapper')) expect(r.units, `mission ${m.id}: ${k}`).toContain(k);
-      for (const k of planes) expect(r.supports, `mission ${m.id}: ${k}`).toContain(k);
+      // The loadout's call-ins come to every mission.
+      for (const k of save.loadout) expect(r.supports, `mission ${m.id}: ${k}`).toContain(k);
       expect(applyRoster(m, r).units[0]).toEqual(r.units);
     }
     // The first mission fields everything unlocked too; a mission with no money still has no sappers.
@@ -310,11 +407,13 @@ describe('what the player fields in a mission', () => {
     for (const k of r.units) expect(UNITS[k].trainable, k).toBe(true);
   });
 
-  it('adds owned plane call-ins to the mission own ones', () => {
+  it('brings the loadout call-ins with charges left, not the mission list (every call-in is medal-bought)', () => {
     const save = defaultSave();
-    expect(missionRoster(save, mission(1006)).supports).toEqual(['artillery', 'smoke', 'katyusha']);
-    save.armoury = ['recon', 'bomber'];
-    expect(missionRoster(save, mission(1006)).supports).toEqual(['artillery', 'smoke', 'katyusha', 'recon', 'bomber']);
+    expect(missionRoster(save, mission(1006)).supports).toEqual(['smoke', 'artillery']);
+    addCharges(save, 'recon', 1);
+    save.loadout.push('recon');
+    addCharges(save, 'smoke', -99);
+    expect(missionRoster(save, mission(1006)).supports).toEqual(['artillery', 'recon']);
   });
 
   it('applies the roster to a copy of the mission and leaves the data alone', () => {
@@ -323,7 +422,8 @@ describe('what the player fields in a mission', () => {
     const played = applyRoster(m, roster);
     expect(played.units[0]).toEqual(roster.units);
     expect(played.units[1]).toEqual(m.units[1]);
-    expect(played.supports[0]).toEqual(m.supports[0]);
+    expect(played.supports[0]).toEqual(roster.supports);
+    expect(played.supports[1]).toEqual(m.supports[1]);
     expect(m.start[0].forces).toEqual(mission(1009).start[0].forces);
     expect(mission(1009).units[0]).toContain('tank');
   });
@@ -392,7 +492,10 @@ describe('saves from before medals (version 5 and older)', () => {
   it('round-trips a current save unchanged, its legacy block included', () => {
     const save = defaultSave();
     save.medals = 123;
-    save.armoury = ['lmg', 'bomber'];
+    save.armoury = ['lmg'];
+    save.points = 7;
+    save.charges = { smoke: 1, bomber: 2 };
+    save.loadout = ['bomber'];
     save.wins = { '1002': { hard: 3 } };
     save.cleared = { '1001': ['normal'], '1002': ['hard'] };
     save.legacy = { cleared: { '1': ['normal'] }, wins: { '1': { normal: 2 } } };
@@ -414,11 +517,12 @@ describe('saves from before medals (version 5 and older)', () => {
 });
 
 describe('saves from when units were bought (version 7 to 8)', () => {
-  it('refunds every unit type bought at its price and keeps it unlocked; planes stay bought', () => {
+  it('refunds every unit type bought at its price and keeps it unlocked; planes stay bought (as charges since 11)', () => {
     const v7 = { version: 7, medals: 12, armoury: ['lmg', 'tank', 'bomber'], cleared: { '1': ['normal'] }, upgrades: {}, wins: {}, settings: {} };
     const data = sanitizeSave(v7, rules);
     expect(data?.medals).toBe(12 + 90 + 390);
-    expect(data?.armoury).toEqual(['lmg', 'tank', 'bomber']);
+    expect(data?.armoury).toEqual(['lmg', 'tank']);
+    expect(data?.charges.bomber).toBe(MEDALS.legacyPlaneMinCharges);
     if (!data) return;
     const ids = MISSIONS.map((m) => m.id);
     expect(unitsUnlocked(data, MISSIONS, (id) => isUnlocked(data, ids, id))).toEqual(['sapper', 'rifle', 'lmg', 'at', 'tank']);

@@ -15,13 +15,16 @@ import { STALINGRAD_MISSIONS } from '../data/missions/stalingrad';
 import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
-import type { CampaignId, Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
+import type { CampaignId, Difficulty, MissionDef, SupportKind, UpgradeDef, UpgradeLevels } from '../data/schema';
+import { MEDALS } from '../data/medals';
 import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import {
+  addCharges,
   addMedals,
+  addPoints,
   applyRoster,
-  buyItem,
+  buyCharge,
   buyUpgrade,
   cleanSetting,
   clearSave,
@@ -39,6 +42,7 @@ import {
   recordWin,
   refundAll,
   refundUpgrade,
+  toggleLoadout,
   writeSave,
   type MedalBreakdown,
   type SaveData,
@@ -127,6 +131,8 @@ export class App implements AppApi {
    * Armoury, with loans), and whether the Armoury applied: a restart starts the same mission the same way.
    */
   private launched: { mission: MissionDef; armoury: boolean } | null = null;
+  /** The call-in charges lent for the battle running now: spent before the save's own (MEDALS.chargeLoans). */
+  private lentCharges: Partial<Record<SupportKind, number>> = {};
   /** The medals of the last campaign win (for the result screen and the debug hooks). */
   lastMedals: MedalBreakdown | null = null;
   /** The guided tips of the current battle (null outside a battle, on the proving ground and under the bot). */
@@ -335,7 +341,10 @@ export class App implements AppApi {
     // player has unlocked counts every offered campaign.
     const p = this.progress();
     const shown = campaign ? withNews(mission, newsFor(this.save, p.all, p.progressed, mission)) : mission;
-    const played = armoury && campaign ? applyRoster(shown, missionRoster(this.save, mission, p.unlocked)) : shown;
+    // From the briefing: the units unlocked and the loadout's call-ins, with the save's charges and those lent.
+    const roster = armoury && campaign ? missionRoster(this.save, mission, p.unlocked) : null;
+    const played = roster ? applyRoster(shown, roster) : shown;
+    this.lentCharges = roster ? { ...roster.chargeLoans } : {};
     this.launched = { mission, armoury };
     this.lastMedals = null;
     const battle = createBattle({
@@ -356,6 +365,7 @@ export class App implements AppApi {
       hints: () => this.save.settings.hints,
       sound: () => this.loop.timeScale <= APP.soundMaxTimeScale,
       onEnded: () => this.battleEnded(),
+      onChargeUsed: roster ? (kind) => this.spendCharge(kind) : undefined,
       tutorial: this.tutorial,
     });
     this.pendingResult = null;
@@ -397,6 +407,17 @@ export class App implements AppApi {
     }
   }
 
+  /** One call-in charge was used in the battle: a lent one if any is left, else one of the save's (saved at once). */
+  private spendCharge(kind: SupportKind): void {
+    const lent = this.lentCharges[kind] ?? 0;
+    if (lent > 0) {
+      this.lentCharges[kind] = lent - 1;
+      return;
+    }
+    addCharges(this.save, kind, -1);
+    this.persist();
+  }
+
   private newSeed(): number {
     return Math.floor(this.random() * 0x7fffffff);
   }
@@ -423,15 +444,21 @@ export class App implements AppApi {
       const s = session.battle.state;
       const hq = s.sides[0].hq;
       const guarded = missionMedals(mission.id).structureWeight;
-      medals = recordWin(this.save, mission, session.difficulty, {
+      medals = recordWin(
+        this.save,
+        mission,
+        session.difficulty,
+        {
         seconds: s.time,
         lost: s.sides[0].stats.lost,
         hqFrac: hq && hq.maxHp > 0 ? Math.max(0, hq.hp) / hq.maxHp : 0,
         // The mission director's figures: side objectives, kills by kind, phase times, a defended building.
         ...directorScore(s),
         ...(guarded ? { structureFrac: structureHealth(s, guarded.ref) } : {}),
-      });
-      points = medals.medals;
+        },
+        ids,
+      );
+      points = medals.medals + medals.campaignBonus;
       this.lastMedals = medals;
       this.persist();
     }
@@ -683,9 +710,29 @@ export class App implements AppApi {
     if (buyUpgrade(this.save, this.upgradeDefs, id)) this.persist();
   }
 
-  /** Buy a unit type or plane call-in in the Armoury with medals. */
+  /** Buy one call-in charge in the Shop with medals. */
   buyArmoury(id: string): void {
-    if (buyItem(this.save, id)) this.persist();
+    if (buyCharge(this.save, id)) this.persist();
+  }
+
+  /** Put a call-in in or out of the loadout brought to missions (the briefing). */
+  toggleCallIn(kind: SupportKind): void {
+    if (toggleLoadout(this.save, kind)) this.persist();
+  }
+
+  /** Admin and debug: give charges of every call-in the Shop sells (negative takes them). */
+  giveCharges(n: number): void {
+    for (const c of MEDALS.charges) addCharges(this.save, c.kind, n);
+    this.persist();
+    this.ui?.refresh();
+  }
+
+  /** Admin and debug: give upgrade points (negative takes them, never below zero). Returns the new balance. */
+  givePoints(n: number): number {
+    const left = addPoints(this.save, n);
+    this.persist();
+    this.ui?.refresh();
+    return left;
   }
 
   refundUpgrade(id: string): void {

@@ -2,7 +2,7 @@
  * What the admin panel's DOM (src/ui/admin) asks of the app (src/app/admin.ts). Plain data both ways: the panel never
  * sees the simulation, the save or the view.
  */
-import type { Difficulty, TimeOfDay, UnitKind, WeatherKind } from '../../data/schema';
+import type { Difficulty, SupportKind, TimeOfDay, UnitKind, WeatherKind } from '../../data/schema';
 
 export type AdminSide = 'mine' | 'enemy';
 export type AdminTarget = AdminSide | 'all' | 'selected';
@@ -20,6 +20,8 @@ export type AdminCommand =
   | { type: 'unlockMissions' }
   | { type: 'jump'; missionId: number; difficulty: Difficulty }
   | { type: 'medals'; amount: number }
+  | { type: 'points'; amount: number }
+  | { type: 'charges'; amount: number }
   | { type: 'upgrade'; id: string; level: number }
   | { type: 'resetSave' }
   | { type: 'addSupplies'; amount: number }
@@ -80,6 +82,10 @@ export interface AdminSelected {
 
 export interface AdminInfo {
   medals: number;
+  /** Upgrade points to spend. */
+  points: number;
+  /** Call-in charges held, in Shop order. */
+  charges: { kind: SupportKind; count: number }[];
   missions: { id: number; title: string }[];
   upgrades: { id: string; name: string; level: number; max: number }[];
   unlockedAll: boolean;

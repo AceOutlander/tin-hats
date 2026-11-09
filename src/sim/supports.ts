@@ -9,7 +9,7 @@
  */
 import { CONFIG } from '../data/config';
 import type { Side, SupportDef, SupportKind } from '../data/schema';
-import { ANTI_AIR, PLANES, SUPPORTS, SUPPORT_COST, SUPPORT_KINDS, TOP_ATTACK_SUPPORTS, type PlaneDef } from '../data/supports';
+import { ANTI_AIR, PLANES, SUPPORTS, SUPPORT_KINDS, TOP_ATTACK_SUPPORTS, UNLIMITED_SUPPORT_COST, type PlaneDef } from '../data/supports';
 import { LAUNCH, launch, spawnSmoke } from './projectiles';
 import { airGrounded } from './sky';
 import { KIND_ANTI_AIR, weaponIndex } from './tables';
@@ -33,14 +33,16 @@ const PLANE_DEFS: readonly (PlaneDef | null)[] = SUPPORT_KINDS.map((kind) => PLA
 /** Per support index: 1 if its rounds come down from above (aircraft, and the Typhoon air strike). */
 const TOP_ATTACK: Uint8Array = Uint8Array.from(SUPPORT_KINDS, (kind) => (TOP_ATTACK_SUPPORTS.includes(kind) ? 1 : 0));
 
-/** True if the side may call this support right now (offered by the mission, off cooldown, battle running). */
+/** True if the side may call this support right now (offered by the mission, a charge left, off cooldown, battle running). */
 export function canCallSupport(w: World, si: number, kind: SupportKind): boolean {
   const side = w.state.sides[si];
   return (
     !w.state.over &&
     side.supportAvailable[kind] === true &&
     side.supportCooldown[kind] <= 0 &&
-    side.supplies >= SUPPORT_COST[kind] &&
+    // A charge left (the player's Shop charges, no money: owner, 2026-11-09); a side without charges (-1, the AI)
+    // pays its own rule's price instead.
+    (side.supportCharges[kind] > 0 || (side.supportCharges[kind] < 0 && side.supplies >= UNLIMITED_SUPPORT_COST[kind])) &&
     // One aircraft of a kind per side at a time (its run may outlast a short cooldown).
     w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE &&
     // No aircraft in fog or a blizzard, nor at night but for the nation's night flyers (FOUNDATIONS.md 4.7).

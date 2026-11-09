@@ -8,10 +8,11 @@
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MEDALS } from '../data/medals';
 import { META } from '../data/meta';
-import type { Difficulty, UnitKind, UpgradeDef, UpgradeLevels } from '../data/schema';
+import type { Difficulty, SupportKind, UnitKind, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { clampVolume } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
-import { costUpTo, maxLevel } from './campaign';
+import { maxLevel } from './campaign';
+import { missionPoints, starterCharges, starterLoadout } from './medals';
 
 /** The part of Storage the game uses. */
 export interface StorageLike {
@@ -86,14 +87,23 @@ export interface SaveData {
   version: number;
   /** Mission id (as text) to the difficulties it has been cleared on. */
   cleared: Record<string, Difficulty[]>;
-  /** Upgrade id to level. Absent = level 0. Levels are paid for in medals when bought, so they are not checked again. */
-  upgrades: UpgradeLevels;
-  /** Medals to spend (the Armoury and the Quartermaster). */
-  medals: number;
   /**
-   * Plane call-ins bought in the Armoury, unit types bought before version 8 (units were sold from v0.9.0 to v0.11.0)
-   * and unit types the removed British missions had unlocked (version 10): they all stay unlocked. Free types are
-   * never listed.
+   * Upgrade id to level. Absent = level 0. Levels are paid for when bought (in upgrade points since version 11, in
+   * medals before), so they are not checked again.
+   */
+  upgrades: UpgradeLevels;
+  /** Medals to spend (the Shop). */
+  medals: number;
+  /** Upgrade points to spend (the Quartermaster, version 11). */
+  points: number;
+  /** Call-in charges held, per call-in (version 11): each use in battle spends one. Absent = none. */
+  charges: Partial<Record<SupportKind, number>>;
+  /** The call-ins the player brings to a mission, chosen on the briefing (version 11; MEDALS.loadoutSlots at most). */
+  loadout: SupportKind[];
+  /**
+   * Unit types bought before version 8 (units were sold from v0.9.0 to v0.11.0) and unit types the removed British
+   * missions had unlocked (version 10): they all stay unlocked. Free types are never listed. (Plane call-ins bought
+   * here before version 11 became charges.)
    */
   armoury: string[];
   /** Mission id (as text) to wins per difficulty: the replay decay of the medals. */
@@ -151,6 +161,9 @@ export function defaultSave(): SaveData {
     cleared: {},
     upgrades: {},
     medals: 0,
+    points: 0,
+    charges: starterCharges(),
+    loadout: starterLoadout(),
     armoury: [],
     wins: {},
     lastMission: 0,
@@ -237,9 +250,60 @@ export function migrateToUnlocks(doc: Record<string, unknown>, defs: readonly Up
     const level = levels[def.id];
     if (typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
     const kept = Math.min(level, maxLevel(def));
-    medals += Math.max(0, kept * META.legacyUpgradeLevelMedals - costUpTo(def, kept));
+    let then = 0;
+    for (let n = 0; n < kept; n += 1) then += META.v8UpgradeLevelMedals[n] ?? 0;
+    medals += Math.max(0, kept * META.legacyUpgradeLevelMedals - then);
   }
   doc.medals = Math.min(MEDALS.maxMedals, medals);
+}
+
+/** The difficulties of one mission's cleared list in a stored document (anything else ignored). */
+function clearedList(raw: unknown): Difficulty[] {
+  return Array.isArray(raw) ? DIFFICULTY_LIST.filter((d) => raw.includes(d)) : [];
+}
+
+/**
+ * Upgrade points, call-in charges and the Shop (version 10 to 11, owner 2026-11-09: the economy pegged to Stick War:
+ * Legacy). Nobody loses value:
+ * - Upgrade levels bought with medals are all kept, and the medals stay spent on them. On top, the save gets in full the
+ *   upgrade points its progress would have earned under the new rule (MEDALS.points: each mission cleared, by its
+ *   hardest difficulty, the British placeholder clears in `legacy` included as far as they run without a gap, and
+ *   Basic Training if finished).
+ * - Every save gets the starter charges (MEDALS.charges[].starter), as a new save does.
+ * - Each plane call-in bought for good in the Armoury becomes charges worth at least its old price: ceil(old price /
+ *   charge price), and never fewer than MEDALS.legacyPlaneMinCharges (it could be used in every battle before). The
+ *   plane leaves the armoury list (unit types stay) and joins the loadout.
+ * - Medals are kept one for one (a win paid 3 to 30 before and 10 to 20 now: none is worth less).
+ */
+export function migrateToCharges(doc: Record<string, unknown>): void {
+  let points = 0;
+  const lists: unknown[] = [];
+  if (isRecord(doc.cleared)) lists.push(...Object.values(doc.cleared));
+  // The British clears as that campaign counted them: in its order, up to the first mission not cleared.
+  if (isRecord(doc.legacy)) lists.push(...legacyCleared(doc.legacy.cleared, META.legacyCampaign.ids).values());
+  for (const list of lists) points += missionPoints(clearedList(list));
+  if (isRecord(doc.training) && doc.training.done === true) points += MEDALS.points.training;
+  doc.points = Math.min(MEDALS.points.max, points);
+  const charges: Partial<Record<SupportKind, number>> = starterCharges();
+  const loadout: SupportKind[] = starterLoadout();
+  const armoury: unknown[] = [];
+  const converted: SupportKind[] = [];
+  for (const id of Array.isArray(doc.armoury) ? (doc.armoury as unknown[]) : []) {
+    const plane = MEDALS.legacyPlanes.find((p) => p.kind === id);
+    if (plane === undefined) {
+      armoury.push(id);
+      continue;
+    }
+    if (converted.includes(plane.kind)) continue;
+    converted.push(plane.kind);
+    const price = MEDALS.charges.find((c) => c.kind === plane.kind)?.price ?? plane.price;
+    const n = Math.max(MEDALS.legacyPlaneMinCharges, Math.ceil(plane.price / price));
+    charges[plane.kind] = Math.min(MEDALS.maxCharges, (charges[plane.kind] ?? 0) + n);
+    if (!loadout.includes(plane.kind)) loadout.push(plane.kind);
+  }
+  doc.armoury = armoury;
+  doc.charges = charges;
+  doc.loadout = loadout.slice(0, MEDALS.loadoutSlots);
 }
 
 /**
@@ -283,9 +347,8 @@ export function migrateRemoveBritish(doc: Record<string, unknown>): void {
   if (typeof doc.lastMission === 'number' && keys.has(String(doc.lastMission))) doc.lastMission = 0;
 }
 
-/** Ids a save's armoury list may hold: plane call-ins sold there, and unit types kept unlocked (bought before version 8, or unlocked by the British missions before version 10). */
+/** Ids a save's armoury list may hold: unit types kept unlocked (bought before version 8, or unlocked by the British missions before version 10). */
 function isArmouryId(id: string): boolean {
-  if (MEDALS.armoury.some((a) => a.id === id)) return true;
   return MEDALS.units.some((u) => u.kind === id) && !(MEDALS.free as readonly string[]).includes(id);
 }
 
@@ -351,6 +414,8 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   // 9 -> 10: the British placeholder missions are removed; what they earned stays and their progress is archived (see
   // migrateRemoveBritish).
   9: (doc) => migrateRemoveBritish(doc),
+  // 10 -> 11: upgrade points, call-in charges and the Shop (see migrateToCharges).
+  10: (doc) => migrateToCharges(doc),
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -441,6 +506,25 @@ function sanitizeMedals(doc: Record<string, unknown>, out: SaveData, missionIds:
     for (const id of doc.armoury) {
       if (typeof id === 'string' && isArmouryId(id) && !out.armoury.includes(id)) out.armoury.push(id);
     }
+  }
+  const points = doc.points;
+  if (typeof points === 'number' && Number.isFinite(points) && points > 0) out.points = Math.min(MEDALS.points.max, Math.floor(points));
+  // Charges and the loadout as stored (a damaged block keeps the starter ones): known call-ins only, whole counts.
+  if (isRecord(doc.charges)) {
+    const charges: Partial<Record<SupportKind, number>> = {};
+    for (const c of MEDALS.charges) {
+      const n = doc.charges[c.kind];
+      if (typeof n === 'number' && Number.isFinite(n) && n >= 1) charges[c.kind] = Math.min(MEDALS.maxCharges, Math.floor(n));
+    }
+    out.charges = charges;
+  }
+  if (Array.isArray(doc.loadout)) {
+    const loadout: SupportKind[] = [];
+    for (const kind of doc.loadout) {
+      const def = MEDALS.charges.find((c) => c.kind === kind);
+      if (def && !loadout.includes(def.kind) && loadout.length < MEDALS.loadoutSlots) loadout.push(def.kind);
+    }
+    out.loadout = loadout;
   }
   if (!isRecord(doc.wins)) return;
   for (const key of Object.keys(doc.wins)) {

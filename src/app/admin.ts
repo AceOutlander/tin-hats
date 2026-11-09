@@ -9,6 +9,7 @@
  */
 import { ADMIN, type AdminSquadDef } from '../data/admin';
 import { APP } from '../data/app';
+import { MEDALS } from '../data/medals';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { missionEra, unitDisplayName } from '../data/eras';
 import type { MissionEventDef, Side, UnitKind } from '../data/schema';
@@ -157,6 +158,8 @@ export class AdminController implements AdminApi {
     const app = this.app;
     return {
       medals: app.save.medals,
+      points: app.save.points,
+      charges: MEDALS.charges.map((c) => ({ kind: c.kind, count: app.save.charges[c.kind] ?? 0 })),
       // Every mission of every campaign on offer (the unlock adds the unreleased ones), so a jump can reach any.
       missions: app.offered.flatMap((c) => c.missions.map((m) => ({ id: m.id, title: m.title }))),
       upgrades: app.upgradeDefs.map((d) => ({ id: d.id, name: d.name, level: app.save.upgrades[d.id] ?? 0, max: maxLevel(d) })),
@@ -238,6 +241,12 @@ export class AdminController implements AdminApi {
         break;
       case 'medals':
         app.giveMedals(command.amount);
+        break;
+      case 'points':
+        app.givePoints(command.amount);
+        break;
+      case 'charges':
+        app.giveCharges(command.amount);
         break;
       case 'upgrade': {
         const def = app.upgradeDefs.find((d) => d.id === command.id);

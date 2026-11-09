@@ -76,7 +76,7 @@ describe('mission unlocks', () => {
   });
 });
 
-// Since medals, a clear only marks the mission cleared; the medals of a win are paid by recordWin (meta-medals.test.ts).
+// A clear only marks the mission cleared; the medals and upgrade points of a win are paid by recordWin (meta-medals.test.ts).
 describe('clearing', () => {
   it('says whether it was the first clear on any difficulty, and pays nothing itself', () => {
     const save = defaultSave();
@@ -105,25 +105,26 @@ describe('clearing', () => {
 describe('upgrades', () => {
   function richSave() {
     const save = defaultSave();
-    save.medals = 6;
+    save.points = 6;
     return save;
   }
 
-  it('cannot buy without medals', () => {
+  it('cannot buy without upgrade points (medals do not buy upgrades)', () => {
     const save = defaultSave();
+    save.medals = 9999;
     expect(canBuy(save, DEFS, 'hqIncome')).toBe(false);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(false);
     expect(save.upgrades).toEqual({});
   });
 
-  it('spends medals per level and stops at the top level', () => {
+  it('spends upgrade points per level and stops at the top level', () => {
     const save = richSave();
     expect(buyUpgrade(save, DEFS, 'rifleHealth')).toBe(true);
     expect(buyUpgrade(save, DEFS, 'rifleHealth')).toBe(true);
     expect(upgradeLevel(save, 'rifleHealth')).toBe(2);
     expect(pointsSpent(save, DEFS)).toBe(4);
     expect(pointsAvailable(save)).toBe(2);
-    expect(save.medals).toBe(2);
+    expect(save.points).toBe(2);
     expect(buyUpgrade(save, DEFS, 'rifleHealth')).toBe(false);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(true);
     expect(buyUpgrade(save, DEFS, 'hqIncome')).toBe(true);
@@ -152,9 +153,9 @@ describe('upgrades', () => {
     expect(pointsSpent(save, DEFS)).toBe(1);
   });
 
-  it('never reports negative medals, even for a tampered save', () => {
+  it('never reports negative points, even for a tampered save', () => {
     const save = defaultSave();
-    save.medals = -5;
+    save.points = -5;
     save.upgrades = { hqIncome: 3, rifleHealth: 2 };
     expect(pointsAvailable(save)).toBe(0);
   });

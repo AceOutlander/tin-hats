@@ -298,6 +298,12 @@ class PickView {
 /** What a grounded call-in button shows in place of its clock (FOUNDATIONS.md 4.7). */
 const GROUNDED_LABEL: Record<NonNullable<SupportButtonState['grounded']>, string> = { fog: 'Fog', blizzard: 'Storm', night: 'Night' };
 
+/** "x3" for the charges left on a call-in button, made once (the HUD must not allocate per frame); "" when not limited. */
+const CHARGE_TEXT: readonly string[] = Array.from({ length: 100 }, (_, n) => `×${n}`);
+function chargeText(n: number): string {
+  return n < 0 ? '' : CHARGE_TEXT[Math.min(n, CHARGE_TEXT.length - 1)];
+}
+
 /** One call-in: its button in the call-ins column, and its mini pip on the folded "Call-ins" toggle. */
 class SupportView {
   readonly node: HTMLButtonElement;
@@ -313,6 +319,9 @@ class SupportView {
   private readonly pipReady: FlagCell;
   private readonly pipActive: FlagCell;
   private readonly groundedFlag: FlagCell;
+  /** The charges left ("x3"; empty when not limited), and the button's look when none are left. */
+  private readonly count: TextCell;
+  private readonly outFlag: FlagCell;
   private rawName = '';
   private rawGrounded: SupportButtonState['grounded'] = null;
 
@@ -324,6 +333,10 @@ class SupportView {
     icon(SUPPORT_ICON[kind], b);
     this.name = new TextCell(el('span', 'th-sbtn-name', b));
     this.seconds = new TextCell(el('span', 'th-sbtn-sec', b));
+    const count = el('span', 'th-sbtn-count', b);
+    count.dataset.testid = `support-count-${kind}`;
+    this.count = new TextCell(count);
+    this.outFlag = new FlagCell(b, 'is-out');
     this.readyFlag = new FlagCell(b, 'is-ready');
     this.active = new FlagCell(b, 'is-active');
     this.groundedFlag = new FlagCell(b, 'is-grounded');
@@ -344,15 +357,18 @@ class SupportView {
       this.name.set(shortName(s.name, NAME_CHARS - 1));
       this.node.setAttribute('aria-label', s.grounded === null ? s.name : `${s.name}: grounded (${GROUNDED_LABEL[s.grounded].toLowerCase()})`);
     }
-    // Aircraft grounded by fog, a blizzard or the night: not ready, and the button says why.
-    this.ready = s.charge >= 1 && s.grounded === null;
+    // Aircraft grounded by fog, a blizzard or the night: not ready, and the button says why. No charges left: "Out".
+    const out = s.charges === 0;
+    this.ready = s.charge >= 1 && s.grounded === null && !out;
     this.readyFlag.set(this.ready);
     this.pipReady.set(this.ready);
     this.groundedFlag.set(s.grounded !== null);
+    this.outFlag.set(out);
+    this.count.set(chargeText(s.charges));
     if (!this.ready) {
-      this.sweep.set(s.grounded !== null ? 0 : s.charge);
-      this.pipSweep.set(s.grounded !== null ? 0 : s.charge);
-      this.seconds.set(s.grounded !== null ? GROUNDED_LABEL[s.grounded] : clockSeconds(s.secondsLeft));
+      this.sweep.set(s.grounded !== null || out ? 0 : s.charge);
+      this.pipSweep.set(s.grounded !== null || out ? 0 : s.charge);
+      this.seconds.set(out ? 'Out' : s.grounded !== null ? GROUNDED_LABEL[s.grounded] : clockSeconds(s.secondsLeft));
     }
     this.active.set(targeting === s.kind);
     this.pipActive.set(targeting === s.kind);

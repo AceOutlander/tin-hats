@@ -861,6 +861,26 @@
   visibility: hidden;
 }
 
+/* The charges left on a call-in (the Shop's and those lent), in the top-right corner; "Out" when none are left. */
+.th-sbtn-count {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: calc(var(--sbtn) * 0.22);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--th-paper);
+  pointer-events: none;
+}
+.th-sbtn-count:empty {
+  display: none;
+}
+.th-sbtn.is-out .th-sbtn-sec {
+  font-size: calc(var(--sbtn) * 0.26);
+  text-transform: uppercase;
+  color: var(--th-paper-dim);
+}
+
 /* Grounded by the weather or the night: a short word in place of the clock. */
 .th-sbtn.is-grounded .th-sbtn-sec {
   font-size: calc(var(--sbtn) * 0.26);

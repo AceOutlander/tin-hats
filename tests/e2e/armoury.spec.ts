@@ -1,15 +1,19 @@
 /**
- * Medals and the Armoury in the production build, on a phone in landscape with real touches: the debug hooks that
- * give and take medals, buying a plane call-in in the Armoury from the campaign map, units locked until their mission,
- * a mission's NEW UNIT card and its own units in battle, the replay line, and the medals breakdown on the victory screen.
+ * Medals and the Shop (the screen the Armoury was) in the production build, on a phone in landscape with real touches:
+ * the debug hooks that give and take medals, buying a call-in charge in the Shop from the campaign map, the Battle for
+ * Poland as a locked entry with its medal price, units locked until their mission, the briefing's loadout (the
+ * call-ins brought, lent ones included), the charge count on the battle's call-in buttons, a mission's NEW UNIT card
+ * and its own units in battle, the replay line, and the medals breakdown on the victory screen (owner, 2026-11-09:
+ * every call-in is medal-bought charges).
  * Any console error, page error or failed request fails the test (helpers.ts).
- * Pictures go to docs/screenshots/e2e-armoury-*.png.
+ * Pictures: docs/screenshots/shop.png, loadout.png, hud-charges.png and e2e-armoury-victory.png.
  */
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import type { DebugApi } from '../../src/app/debug';
 import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
-import { BATTLE_LOAD_MS, arrived, expect, lastResult, memorySave, open, playToEnd, savedGame, shot, state, tap, tapIn, test, type Hooked } from './helpers';
+import { BATTLE_LOAD_MS, SHOT_DIR, arrived, expect, lastResult, memorySave, open, playToEnd, savedGame, shot, state, tap, tapIn, test, type Hooked } from './helpers';
 
 /** The medals in the stored save (the shared StoredSave type predates them). */
 async function storedMedals(page: Page): Promise<number | undefined> {
@@ -17,7 +21,7 @@ async function storedMedals(page: Page): Promise<number | undefined> {
   return saved?.medals;
 }
 
-const RECON = MEDALS.armoury.find((a) => a.id === 'recon');
+const SMOKE = MEDALS.charges.find((c) => c.kind === 'smoke');
 
 test.describe('armoury', () => {
   test('gives and takes medals through the debug hooks, never below zero', async ({ page }) => {
@@ -26,40 +30,42 @@ test.describe('armoury', () => {
     expect(await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).giveMedals(120))).toBe(120);
     expect(await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).takeMedals(20))).toBe(100);
     expect(await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).takeMedals(500))).toBe(0);
-    expect((await savedGame(page))?.version).toBeGreaterThanOrEqual(6);
+    expect((await savedGame(page))?.version).toBeGreaterThanOrEqual(11);
   });
 
-  test('buys a plane call-in from the map; units are unlocked by missions and the battle follows', async ({ page }) => {
+  test('buys a call-in charge in the Shop, brings it on the briefing, and the battle shows the charges', async ({ page }) => {
     test.setTimeout(600_000);
-    if (!RECON) throw new Error('the Armoury sells no recon plane');
+    if (!SMOKE) throw new Error('the Shop sells no smoke');
     await open(page);
-    await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).giveMedals(n), RECON.price + 5);
+    await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).giveMedals(n), SMOKE.price + 5);
 
-    // --- The map's Armoury button opens the Armoury ---------------------------------------------------------------
+    // --- The map's Shop button opens the Shop ---------------------------------------------------------------------
     await tap(page, 'play');
-    await expect(arrived(page, 'campaign').getByTestId('armoury')).toBeVisible();
+    await expect(arrived(page, 'campaign').getByTestId('armoury')).toContainText('Shop');
     await tapIn(page, 'campaign', 'armoury');
-    await expect(arrived(page, 'armoury').getByTestId('medals-available')).toHaveText(String(RECON.price + 5));
-    // Riflemen and sappers are issued free, the first mission (always open) brings the DP gunner and the tank hunters,
-    // and every other unit type is listed, locked until its mission.
-    await expect(arrived(page, 'armoury').getByTestId('armoury-item-rifle')).toHaveAttribute('data-owned', 'true');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-item-sapper')).toHaveAttribute('data-owned', 'true');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-item-lmg')).toHaveAttribute('data-owned', 'true');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-item-assault')).toHaveAttribute('data-owned', 'false');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-assault')).toBeDisabled();
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-assault')).toContainText('Mission 3');
-    for (const item of MEDALS.armoury) await expect(arrived(page, 'armoury').getByTestId(`armoury-item-${item.id}`)).toBeAttached();
-    await page.waitForTimeout(400);
-    await shot(page, 'armoury-before');
+    const shop = arrived(page, 'armoury');
+    await expect(shop.getByTestId('medals-available')).toHaveText(String(SMOKE.price + 5));
+    // Every call-in is sold as charges; a new save holds the starter smoke and artillery.
+    for (const c of MEDALS.charges) await expect(shop.getByTestId(`armoury-item-${c.kind}`)).toBeAttached();
+    await expect(shop.getByTestId('armoury-count-smoke')).toHaveText(` ×${SMOKE.starter}`);
+    await expect(shop.getByTestId('armoury-buy-bomber')).toBeDisabled();
+    // The Battle for Poland: a locked entry with its medal price, and no way to buy it here.
+    await expect(shop.getByTestId('armoury-buy-poland')).toBeDisabled();
+    await expect(shop.getByTestId('armoury-buy-poland')).toContainText(String(MEDALS.polandPrice));
+    // Units are unlocked by missions: riflemen issued free, the assault troops locked until mission 3.
+    await expect(shop.getByTestId('armoury-item-rifle')).toHaveAttribute('data-owned', 'true');
+    await expect(shop.getByTestId('armoury-buy-assault')).toBeDisabled();
+    await expect(shop.getByTestId('armoury-buy-assault')).toContainText('Mission 3');
 
-    await tapIn(page, 'armoury', 'armoury-buy-recon');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-item-recon')).toHaveAttribute('data-owned', 'true');
-    await expect(arrived(page, 'armoury').getByTestId('medals-available')).toHaveText('5');
-    expect((await memorySave(page)).armoury).toEqual(['recon']);
+    await tapIn(page, 'armoury', 'armoury-buy-smoke');
+    await expect(shop.getByTestId('armoury-count-smoke')).toHaveText(` ×${SMOKE.starter + 1}`);
+    await expect(shop.getByTestId('medals-available')).toHaveText('5');
+    expect((await memorySave(page)).charges.smoke).toBe(SMOKE.starter + 1);
     expect(await storedMedals(page)).toBe(5);
-    await shot(page, 'armoury-after');
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(SHOT_DIR, 'shop.png') });
 
-    // --- Mission 3 (Volokolamsk) brings its own PPD Troopers, with a NEW UNIT card, and nothing on loan ------------
+    // --- Mission 3 (Volokolamsk): its PPD Troopers with a NEW UNIT card, the Katyusha lent, the loadout ------------
     await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).unlockAll());
     await tapIn(page, 'armoury', 'back');
     await tapIn(page, 'campaign', 'mission-pin-1003');
@@ -67,12 +73,28 @@ test.describe('armoury', () => {
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');
     await expect(page.getByTestId('briefing-loans')).toHaveCount(0);
     await expect(arrived(page, 'briefing').locator('.th-new-name').first()).toHaveText('PPD Trooper');
-    await shot(page, 'armoury-briefing-new');
+    const brief = arrived(page, 'briefing');
+    await expect(brief.getByTestId('loadout-smoke')).toHaveAttribute('aria-pressed', 'true');
+    await expect(brief.getByTestId('loadout-artillery')).toHaveAttribute('aria-pressed', 'true');
+    await expect(brief.getByTestId('loadout-katyusha')).toContainText('lent');
+    // Leave the artillery behind.
+    await tapIn(page, 'briefing', 'loadout-artillery');
+    await expect(brief.getByTestId('loadout-artillery')).toHaveAttribute('aria-pressed', 'false');
+    expect((await memorySave(page)).loadout).toEqual(['smoke']);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(SHOT_DIR, 'loadout.png') });
     await tap(page, 'begin');
     await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await expect(page.getByTestId('train-assault')).toBeVisible();
-    await expect(page.getByTestId('train-lmg')).toBeVisible();
-    await expect(page.getByTestId('support-recon')).toBeAttached();
+    await expect(page.getByTestId('support-smoke')).toBeAttached();
+    await expect(page.getByTestId('support-artillery')).toHaveCount(0);
+    const battle = await state(page);
+    expect(battle.supports.smoke.charges).toBe(SMOKE.starter + 1);
+    // The call-ins column shows each button's charges.
+    await tap(page, 'callins');
+    await expect(page.getByTestId('support-count-smoke')).toHaveText(`×${SMOKE.starter + 1}`);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(SHOT_DIR, 'hud-charges.png') });
   });
 
   test('a win shows its medals and score breakdown, and the replay is announced at half', async ({ page }) => {
@@ -92,6 +114,8 @@ test.describe('armoury', () => {
     expect(result?.pointsAwarded).toBeGreaterThanOrEqual(MEDALS.rough);
     await expect(page.getByTestId('result-points')).toContainText(`+${result?.pointsAwarded ?? 0}`);
     await expect(page.getByTestId('result-score')).toContainText('Casualties');
+    // The first win on Normal pays upgrade points too.
+    await expect(page.getByTestId('result-upgrade-points')).toContainText(`+${MEDALS.points.byDifficulty.normal}`);
     // An assault scores on time, a survival (Brest) on HQ health.
     await expect(page.getByTestId('result-score')).toContainText(MISSIONS[0].mode === 'assault' ? 'Time' : 'HQ health');
     await page.waitForTimeout(900);

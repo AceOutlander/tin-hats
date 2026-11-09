@@ -1,10 +1,12 @@
 /**
- * Medals and the Armoury over a SaveData: the score of a win and the medals it pays, the replay decay per mission
- * and difficulty, buying plane call-ins, the unit types each reached mission unlocks, which units the player may
- * field in a mission (every unlocked type, in every mission, plus any loans) and what a mission really brings that is
- * new. Pure functions; the ones that change a save change it in place.
+ * Medals, upgrade points and the Shop over a SaveData: the score of a win, the medals and upgrade points it pays, the
+ * replay decay per mission and difficulty, the campaign bonus, buying call-in charges and choosing the call-ins brought
+ * to a mission, the unit types each reached mission unlocks, which units the player may field in a mission (every
+ * unlocked type, in every mission, plus any loans) and what a mission really brings that is new. Pure functions; the
+ * ones that change a save change it in place.
  */
-import { MEDALS, type ArmouryItemDef, type LoanDef, type MissionMedalDef } from '../data/medals';
+import { DIFFICULTY_LIST } from '../data/difficulty';
+import { MEDALS, type ChargeDef, type ChargeLoanDef, type LoanDef, type MissionMedalDef } from '../data/medals';
 import type { Difficulty, MissionDef, MissionMode, SupportKind, UnitKind } from '../data/schema';
 import { UNITS } from '../data/units';
 import type { SaveData } from './save';
@@ -62,13 +64,18 @@ export interface MedalBreakdown {
   /** Medals before the difficulty and replay factors. */
   base: number;
   difficulty: Difficulty;
+  /** The difficulty's multiplier on a first win; 1 on a replay (the benchmark's replays pay alike on every difficulty). */
   difficultyMul: number;
   /** Earlier wins of this mission on this difficulty. */
   winsBefore: number;
-  /** 1, 0.5, 0.25, ... */
+  /** 1, 0.5, then 0.25 for every later win. */
   replayFactor: number;
   /** floor(base * difficultyMul * replayFactor). */
   medals: number;
+  /** The one-time campaign bonus this win paid on top (it cleared the whole campaign on this difficulty), else 0. */
+  campaignBonus: number;
+  /** Upgrade points this win paid (a first win on this difficulty or the first on a harder one), else 0. */
+  points: number;
 }
 
 export function missionMedals(missionId: number): MissionMedalDef {
@@ -82,9 +89,10 @@ function mark(value: number, best: number, worst: number): number {
   return Math.max(0, Math.min(1, 1 - t));
 }
 
-/** Medal factor of a replay: 1 for the first win on that difficulty, then 0.5, 0.25, ... */
+/** Medal factor of a replay: 1 for the first win on that difficulty, then 0.5, then 0.25 for every later win. */
 export function replayFactor(winsBefore: number): number {
-  return Math.pow(MEDALS.replayFactor, Math.max(0, Math.floor(winsBefore)));
+  const f = MEDALS.replayFactors;
+  return f[Math.min(f.length - 1, Math.max(0, Math.floor(winsBefore)))];
 }
 
 /** "50" for "Replay: 50% medals" (rounded down). */
@@ -150,7 +158,7 @@ export function scoreWin(mode: MissionMode, def: MissionMedalDef, stats: WinStat
     score = Math.min(1, score + total);
   }
   const base = Math.round(MEDALS.rough + (MEDALS.perfect - MEDALS.rough) * score);
-  const difficultyMul = MEDALS.difficultyMul[difficulty];
+  const difficultyMul = winsBefore <= 0 ? MEDALS.difficultyMul[difficulty] : 1;
   const factor = replayFactor(winsBefore);
   return {
     mode,
@@ -166,6 +174,8 @@ export function scoreWin(mode: MissionMode, def: MissionMedalDef, stats: WinStat
     winsBefore,
     replayFactor: factor,
     medals: Math.floor(base * difficultyMul * factor + 1e-9),
+    campaignBonus: 0,
+    points: 0,
   };
 }
 
@@ -174,27 +184,63 @@ export function winsOn(save: SaveData, missionId: number, difficulty: Difficulty
   return save.wins[String(missionId)]?.[difficulty] ?? 0;
 }
 
-/** Record a campaign win: score it, count it and pay its medals. */
-export function recordWin(save: SaveData, mission: MissionDef, difficulty: Difficulty, stats: WinStats): MedalBreakdown {
+/** Upgrade points a mission has paid once it has been won on these difficulties (the hardest counts). */
+export function missionPoints(difficulties: readonly Difficulty[]): number {
+  let most = 0;
+  for (const d of difficulties) most = Math.max(most, MEDALS.points.byDifficulty[d]);
+  return most;
+}
+
+/** The difficulties a mission has been won on (its win counts). */
+function wonOn(save: SaveData, missionId: number): Difficulty[] {
+  return DIFFICULTY_LIST.filter((d) => winsOn(save, missionId, d) > 0);
+}
+
+/**
+ * Record a campaign win: score it, count it and pay its medals and upgrade points. With `campaignIds` (every mission of
+ * its campaign), the first win that leaves the whole campaign cleared on this difficulty also pays the campaign bonus;
+ * recordClear must have recorded this clear first.
+ */
+export function recordWin(
+  save: SaveData,
+  mission: MissionDef,
+  difficulty: Difficulty,
+  stats: WinStats,
+  campaignIds: readonly number[] = [],
+): MedalBreakdown {
   const before = winsOn(save, mission.id, difficulty);
   const result = scoreWin(mission.mode, missionMedals(mission.id), stats, difficulty, before);
+  const pointsBefore = missionPoints(wonOn(save, mission.id));
   const key = String(mission.id);
   const wins = save.wins[key] ?? {};
   wins[difficulty] = Math.min(MEDALS.maxWins, before + 1);
   save.wins[key] = wins;
-  addMedals(save, result.medals);
+  result.points = Math.max(0, missionPoints(wonOn(save, mission.id)) - pointsBefore);
+  if (before === 0 && campaignIds.includes(mission.id) && campaignIds.every((id) => (save.cleared[String(id)] ?? []).includes(difficulty))) {
+    result.campaignBonus = MEDALS.campaignBonus[difficulty];
+  }
+  addMedals(save, result.medals + result.campaignBonus);
+  addPoints(save, result.points);
   return result;
 }
 
 /**
- * Basic Training was finished: the first time, it is recorded and pays MEDALS.trainingReward; after that it pays
- * nothing. Returns the medals paid.
+ * Basic Training was finished: the first time, it is recorded and pays MEDALS.trainingReward and the training's
+ * upgrade points; after that it pays nothing. Returns the medals paid.
  */
 export function completeTraining(save: SaveData): number {
   if (save.training.done) return 0;
   save.training.done = true;
   const before = save.medals;
+  addPoints(save, MEDALS.points.training);
   return addMedals(save, MEDALS.trainingReward) - before;
+}
+
+/** Give upgrade points (negative takes them, never below zero). Returns the new balance. */
+export function addPoints(save: SaveData, n: number): number {
+  const delta = Number.isFinite(n) ? Math.trunc(n) : 0;
+  save.points = Math.max(0, Math.min(MEDALS.points.max, save.points + delta));
+  return save.points;
 }
 
 /** Basic Training is offered on the title screen until it has been finished or the player turned it down. */
@@ -209,33 +255,112 @@ export function addMedals(save: SaveData, n: number): number {
   return save.medals;
 }
 
-// --- The Armoury (plane call-ins) ----------------------------------------------
+// --- The Shop: call-in charges -------------------------------------------------
 
-export function armouryItem(id: string): ArmouryItemDef | undefined {
-  return MEDALS.armoury.find((a) => a.id === id);
+/** The Shop's entry for a call-in, or undefined for one it does not sell. */
+export function chargeDef(kind: string): ChargeDef | undefined {
+  return MEDALS.charges.find((c) => c.kind === kind);
+}
+
+/** Charges of a call-in the save holds. */
+export function chargesOf(save: SaveData, kind: SupportKind): number {
+  return save.charges[kind] ?? 0;
+}
+
+/** The charges every new save starts with. */
+export function starterCharges(): Partial<Record<SupportKind, number>> {
+  const out: Partial<Record<SupportKind, number>> = {};
+  for (const c of MEDALS.charges) if (c.starter > 0) out[c.kind] = c.starter;
+  return out;
+}
+
+/** The loadout of a new save: the call-ins it has starter charges of. */
+export function starterLoadout(): SupportKind[] {
+  return MEDALS.charges.filter((c) => c.starter > 0).map((c) => c.kind).slice(0, MEDALS.loadoutSlots);
+}
+
+/** Give charges of a call-in (negative takes them; kept within 0..MEDALS.maxCharges). Returns the new count. */
+export function addCharges(save: SaveData, kind: SupportKind, n: number): number {
+  if (chargeDef(kind) === undefined) return chargesOf(save, kind);
+  const delta = Number.isFinite(n) ? Math.trunc(n) : 0;
+  const next = Math.max(0, Math.min(MEDALS.maxCharges, chargesOf(save, kind) + delta));
+  if (next > 0) save.charges[kind] = next;
+  else delete save.charges[kind];
+  return next;
+}
+
+export function canBuyCharge(save: SaveData, kind: string): boolean {
+  const def = chargeDef(kind);
+  return def !== undefined && save.medals >= def.price && chargesOf(save, def.kind) < MEDALS.maxCharges;
+}
+
+/**
+ * Buy one charge of a call-in for its price in medals. A call-in bought for the first time joins the loadout while it
+ * has a free slot. Returns false (and changes nothing) if it is not sold, too dear, or at the most a save may hold.
+ */
+export function buyCharge(save: SaveData, kind: string): boolean {
+  const def = chargeDef(kind);
+  if (def === undefined || !canBuyCharge(save, kind)) return false;
+  save.medals -= def.price;
+  addCharges(save, def.kind, 1);
+  if (!save.loadout.includes(def.kind) && save.loadout.length < MEDALS.loadoutSlots) save.loadout.push(def.kind);
+  return true;
+}
+
+/** The call-in charges a mission lends (the missions designed around a call-in). */
+export function chargeLoans(missionId: number): ChargeLoanDef[] {
+  return (MEDALS.chargeLoans[missionId] ?? []).filter((l) => chargeDef(l.kind) !== undefined && l.count > 0).map((l) => ({ ...l }));
+}
+
+/** One call-in the player can bring to a mission: the charges held, those lent, and whether it is in the loadout. */
+export interface LoadoutOption {
+  kind: SupportKind;
+  owned: number;
+  loan: number;
+  /** Brought: in the save's loadout with charges, or lent (lent ones always come). */
+  chosen: boolean;
+}
+
+/** The call-ins the player can bring to this mission, in Shop order: every one with charges held or lent. */
+export function loadoutOptions(save: SaveData, missionId: number): LoadoutOption[] {
+  const loans = chargeLoans(missionId);
+  const out: LoadoutOption[] = [];
+  let slots = MEDALS.loadoutSlots;
+  for (const c of MEDALS.charges) {
+    const owned = chargesOf(save, c.kind);
+    const loan = loans.find((l) => l.kind === c.kind)?.count ?? 0;
+    if (owned <= 0 && loan <= 0) continue;
+    let chosen = loan > 0;
+    if (!chosen && owned > 0 && save.loadout.includes(c.kind) && slots > 0) {
+      chosen = true;
+      slots -= 1;
+    }
+    out.push({ kind: c.kind, owned, loan, chosen });
+  }
+  return out;
+}
+
+/**
+ * Put a call-in in or out of the loadout. Lent call-ins always come and use no slot; a full loadout (MEDALS.loadoutSlots
+ * of the player's own) takes no more. Returns false when nothing changed.
+ */
+export function toggleLoadout(save: SaveData, kind: SupportKind): boolean {
+  if (chargeDef(kind) === undefined) return false;
+  const at = save.loadout.indexOf(kind);
+  if (at >= 0) {
+    save.loadout.splice(at, 1);
+    return true;
+  }
+  const held = save.loadout.filter((k) => chargesOf(save, k) > 0).length;
+  if (held >= MEDALS.loadoutSlots) return false;
+  // Kinds with no charges left free their slot.
+  save.loadout = save.loadout.filter((k) => chargesOf(save, k) > 0);
+  save.loadout.push(kind);
+  return true;
 }
 
 export function isFree(kind: UnitKind): boolean {
   return MEDALS.free.includes(kind);
-}
-
-/** Owned: a free unit type, or an Armoury item bought (unit types bought before version 8 included). */
-export function ownsItem(save: SaveData, id: string): boolean {
-  return (MEDALS.free as readonly string[]).includes(id) || save.armoury.includes(id);
-}
-
-export function canBuyItem(save: SaveData, id: string): boolean {
-  const item = armouryItem(id);
-  return item !== undefined && !ownsItem(save, id) && save.medals >= item.price;
-}
-
-/** Buy a plane call-in. Returns false (and changes nothing) if it is not for sale, owned, or too dear. */
-export function buyItem(save: SaveData, id: string): boolean {
-  const item = armouryItem(id);
-  if (item === undefined || !canBuyItem(save, id)) return false;
-  save.medals -= item.price;
-  save.armoury.push(item.id);
-  return true;
 }
 
 // --- Unit types unlocked by missions -------------------------------------------
@@ -302,14 +427,14 @@ export function unlockingMission(kind: UnitKind, missions: readonly MissionDef[]
 export interface Roster {
   /** Unit types the player may train. */
   units: UnitKind[];
-  /** Call-ins the player may use. */
+  /** Call-ins the player brings (the loadout, and those lent). */
   supports: SupportKind[];
+  /** Charges of each call-in brought: the player's own plus those lent. */
+  charges: Partial<Record<SupportKind, number>>;
+  /** Of those, the charges lent for this mission only (spent first, never kept). */
+  chargeLoans: Partial<Record<SupportKind, number>>;
   /** Types lent for this mission only, as free units at the start. */
   loans: LoanDef[];
-}
-
-function soldSupports(): SupportKind[] {
-  return MEDALS.armoury.map((a) => a.id);
 }
 
 /**
@@ -324,8 +449,9 @@ export function missionAllows(mission: MissionDef): UnitKind[] {
 
 /**
  * The player's roster in a mission: the unlocked types (see unitsUnlocked; this mission's own unlocks always count)
- * the mission allows, free ones only where the mission lists them (no sappers in a mission without money); the
- * mission's own call-ins plus bought planes; and loans for the types the mission lends that are not unlocked.
+ * the mission allows, free ones only where the mission lists them (no sappers in a mission without money); the call-ins
+ * of the loadout and those the mission lends, with their charges (owner, 2026-11-09: every call-in is medal-bought
+ * charges, in any mission); and loans for the types the mission lends that are not unlocked.
  */
 export function missionRoster(save: SaveData, mission: MissionDef, unlocked: readonly UnitKind[] = []): Roster {
   const listed = mission.units[0];
@@ -336,13 +462,20 @@ export function missionRoster(save: SaveData, mission: MissionDef, unlocked: rea
     const have = isFree(kind) ? listed.includes(kind) : own.includes(kind) || unlocked.includes(kind) || save.armoury.includes(kind);
     if (have) units.push(kind);
   }
-  const supports: SupportKind[] = [...mission.supports[0]];
-  for (const kind of soldSupports()) if (save.armoury.includes(kind) && !supports.includes(kind)) supports.push(kind);
+  const supports: SupportKind[] = [];
+  const charges: Partial<Record<SupportKind, number>> = {};
+  const lent: Partial<Record<SupportKind, number>> = {};
+  for (const o of loadoutOptions(save, mission.id)) {
+    if (!o.chosen) continue;
+    supports.push(o.kind);
+    charges[o.kind] = o.owned + o.loan;
+    if (o.loan > 0) lent[o.kind] = o.loan;
+  }
   const loans: LoanDef[] = [];
   for (const loan of missionMedals(mission.id).loans) {
     if (!units.includes(loan.kind) && fieldable(loan.kind) && loan.count > 0) loans.push({ ...loan });
   }
-  return { units, supports, loans };
+  return { units, supports, charges, chargeLoans: lent, loans };
 }
 
 /** The mission as the player gets it: side 0's units and call-ins from the roster, and the loans added to its start. */
@@ -354,7 +487,7 @@ export function applyRoster(mission: MissionDef, roster: Roster): MissionDef {
     ...mission,
     units: [[...roster.units], [...mission.units[1]]],
     supports: [[...roster.supports], [...mission.supports[1]]],
-    start: [{ ...start0, forces }, mission.start[1]],
+    start: [{ ...start0, forces, supportCharges: { ...roster.charges } }, mission.start[1]],
   };
 }
 
@@ -380,11 +513,11 @@ export function missionNews(mission: MissionDef, hadUnits: readonly UnitKind[], 
   return { units, support };
 }
 
-/** Call-ins the player had before this mission: those of every other reached mission, and bought planes. */
+/** Call-ins the player had before this mission: those of every other reached mission, and those it holds charges of. */
 export function supportsHad(save: SaveData, missions: readonly MissionDef[], reached: Reached, except: number): SupportKind[] {
   const out: SupportKind[] = [];
   for (const m of missions) if (m.id !== except && reached(m.id)) for (const s of m.supports[0]) if (!out.includes(s)) out.push(s);
-  for (const s of soldSupports()) if (save.armoury.includes(s) && !out.includes(s)) out.push(s);
+  for (const c of MEDALS.charges) if (chargesOf(save, c.kind) > 0 && !out.includes(c.kind)) out.push(c.kind);
   return out;
 }
 

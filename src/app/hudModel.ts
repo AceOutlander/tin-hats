@@ -138,7 +138,7 @@ export class HudModel {
       const kind = SUPPORT_KINDS[k];
       if (!me.supportAvailable[kind]) continue;
       key |= 1 << k;
-      const btn: SupportButtonState = { kind, name: this.era.supportNames[kind], charge: 1, secondsLeft: 0, grounded: null };
+      const btn: SupportButtonState = { kind, name: this.era.supportNames[kind], charge: 1, secondsLeft: 0, grounded: null, charges: -1 };
       st.supports.push(btn);
     }
     this.supportsKey = key;
@@ -266,6 +266,7 @@ export class HudModel {
       b.charge = left <= 0 || total <= 0 ? 1 : Math.max(0, 1 - left / total);
       // Fog, a blizzard or the night keeps the aircraft on the ground (FOUNDATIONS.md 4.7).
       b.grounded = airGrounded(s, 0, b.kind);
+      b.charges = me.supportCharges[b.kind];
     }
 
     // The phase's own clock first, then the mission's, then a phase's "hold out" objective as a countdown.

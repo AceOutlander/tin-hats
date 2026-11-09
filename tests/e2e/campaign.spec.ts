@@ -9,7 +9,7 @@ import { CONFIG } from '../../src/data/config';
 import { META } from '../../src/data/meta';
 import { MISSIONS } from '../../src/data/missions';
 import { MEDALS } from '../../src/data/medals';
-import { UPGRADES, UPGRADE_LEVEL_MEDALS } from '../../src/data/upgrades';
+import { UPGRADES, UPGRADE_LEVEL_POINTS } from '../../src/data/upgrades';
 import {
   BATTLE_LOAD_MS,
   arrived,
@@ -93,7 +93,9 @@ test.describe('campaign', () => {
     await expect.poll(() => pinState(page, FIRST)).toBe('cleared');
     expect(await pinState(page, SECOND), 'clearing mission 1 opens mission 2').toBe('open');
     expect(await pinState(page, MISSIONS[2].id)).toBe('locked');
-    expect(await pointsLeft(page, 'campaign')).toBe(award);
+    // The medals go to the Shop; the first win on Normal pays upgrade points for the Quartermaster.
+    expect((await memorySave(page)).medals).toBe(award);
+    expect(await pointsLeft(page, 'campaign')).toBe(MEDALS.points.byDifficulty.normal);
 
     // --- Clear it again on Hard: the pips grow, and a first win on Hard pays in full ---------------------------------
     await tap(page, `mission-pin-${FIRST}`);
@@ -113,15 +115,16 @@ test.describe('campaign', () => {
     expect((await savedGame(page))?.settings.difficulty, 'the briefing choice is remembered').toBe('hard');
     await tap(page, 'result-map');
     await expect.poll(() => pinState(page, FIRST)).toBe('cleared');
-    expect(await pointsLeft(page, 'campaign'), 'the medals of both first wins').toBe(award + hardAward);
+    expect((await memorySave(page)).medals, 'the medals of both first wins').toBe(award + hardAward);
+    expect(await pointsLeft(page, 'campaign'), 'the points of the hardest difficulty won').toBe(MEDALS.points.byDifficulty.hard);
     await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`).locator('.th-pip.is-on')).toHaveCount(2);
     await page.waitForTimeout(500);
     await shot(page, 'campaign-map-after-clear');
 
-    // --- Quartermaster: buy, run out of medals, refund a level, refund everything --------------------------------
+    // --- Quartermaster: buy, run out of upgrade points, refund a level, refund everything -------------------------
     // Keep exactly the price of levels 1 and 2 (the debug hook takes the rest), so running out is quick to reach.
-    const [L1, L2] = UPGRADE_LEVEL_MEDALS;
-    await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).takeMedals(n), award + hardAward - L1 - L2);
+    const [L1, L2] = UPGRADE_LEVEL_POINTS;
+    await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).takePoints(n), MEDALS.points.byDifficulty.hard - L1 - L2);
     await tap(page, 'quartermaster');
     await expect(arrived(page, 'quartermaster').getByTestId('upgrade-buy-hqHealth')).toBeVisible();
     expect(await pointsLeft(page, 'quartermaster')).toBe(L1 + L2);
@@ -134,14 +137,14 @@ test.describe('campaign', () => {
     await tap(page, 'upgrade-buy-hqHealth');
     await expect.poll(() => upgradeLevel(page, 'hqHealth')).toBe(2);
     expect(await pointsLeft(page, 'quartermaster')).toBe(0);
-    await expect(qm.getByTestId('upgrade-buy-hqHealth'), 'no medals left to buy the third level').toBeDisabled();
+    await expect(qm.getByTestId('upgrade-buy-hqHealth'), 'no points left to buy the third level').toBeDisabled();
     await expect(qm.getByTestId('upgrade-buy-rifleDamage')).toBeDisabled();
     await page.waitForTimeout(400);
     await shot(page, 'campaign-quartermaster-spent');
 
     await tap(page, 'upgrade-refund-hqHealth');
     await expect.poll(() => upgradeLevel(page, 'hqHealth')).toBe(1);
-    expect(await pointsLeft(page, 'quartermaster'), 'a refund gives the medals of that level back').toBe(L2);
+    expect(await pointsLeft(page, 'quartermaster'), 'a refund gives the points of that level back').toBe(L2);
     await tap(page, 'upgrade-buy-rifleDamage');
     await expect.poll(() => upgradeLevel(page, 'rifleDamage')).toBe(1);
     expect(await pointsLeft(page, 'quartermaster')).toBe(L2 - L1);
@@ -302,8 +305,10 @@ test.describe('campaign', () => {
       await tap(page, 'play');
       expect(await pinStates(page)).toEqual(['open', ...Array<string>(9).fill('locked')]);
       // Two missions cleared were four old points, one spent on the level kept: the three left become medals, plus the
-      // 10 the re-pricing of save version 8 gives back for a level 1 (it cost 20, now 10).
-      expect(await pointsLeft(page, 'campaign'), 'four points earned, one spent').toBe(3 * META.legacyPointMedals + META.legacyUpgradeLevelMedals - UPGRADE_LEVEL_MEDALS[0]);
+      // 10 the re-pricing of save version 8 gave back for a level 1 (it cost 20, then 10). Version 11 adds the upgrade
+      // points those clears earn today (mission 1 on Normal, mission 2 on Hard).
+      expect(migrated.medals, 'four points earned, one spent').toBe(3 * META.legacyPointMedals + META.legacyUpgradeLevelMedals - META.v8UpgradeLevelMedals[0]);
+      expect(await pointsLeft(page, 'campaign')).toBe(MEDALS.points.byDifficulty.normal + MEDALS.points.byDifficulty.hard);
     });
 
     test('takes back the points a save from before medals has spent but never earned', async ({ page }) => {
@@ -316,14 +321,16 @@ test.describe('campaign', () => {
       const clamped = await memorySave(page);
       const levels = Object.values(clamped.upgrades).reduce((sum, n) => sum + n, 0);
       expect(levels, 'one mission cleared is two points, so two levels at most').toBe(2);
-      // No points left over; the only medals are what the re-pricing of save version 8 gives back for the two levels
-      // kept (both on the first track: levels 1 and 2 cost 20 each then, 10 and 20 now).
-      const back = 2 * META.legacyUpgradeLevelMedals - UPGRADE_LEVEL_MEDALS[0] - UPGRADE_LEVEL_MEDALS[1];
+      // No old points left over; the only medals are what the re-pricing of save version 8 gave back for the two levels
+      // kept (both on the first track: levels 1 and 2 cost 20 each then, 10 and 20 after). Version 11 adds the upgrade
+      // points that clear earns today, on top of the levels kept.
+      const back = 2 * META.legacyUpgradeLevelMedals - META.v8UpgradeLevelMedals[0] - META.v8UpgradeLevelMedals[1];
+      expect(clamped.medals).toBe(back);
       await tap(page, 'play');
-      expect(await pointsLeft(page, 'campaign')).toBe(back);
+      expect(await pointsLeft(page, 'campaign')).toBe(MEDALS.points.byDifficulty.normal);
       await tap(page, 'quartermaster');
       await expect(arrived(page, 'quartermaster').getByTestId('upgrade-buy-hqHealth')).toBeVisible();
-      expect(await pointsLeft(page, 'quartermaster')).toBe(back);
+      expect(await pointsLeft(page, 'quartermaster')).toBe(MEDALS.points.byDifficulty.normal);
       // And the debug hook can still set a full set for a test, which the next load clamps again.
       await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).setUpgrades({ rifleHealth: 3, hqHealth: 3 }));
       expect((await memorySave(page)).upgrades).toEqual({ rifleHealth: 3, hqHealth: 3 });

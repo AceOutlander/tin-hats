@@ -110,6 +110,7 @@ const supports: SupportButtonState[] = supportDefs.map((s) => ({
   charge: s.charge,
   secondsLeft: (1 - s.charge) * s.cooldown,
   grounded: null,
+  charges: 3,
 }));
 
 function makeControl(kind: UnitKind): ControlState {

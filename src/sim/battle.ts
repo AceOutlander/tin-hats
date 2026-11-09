@@ -148,6 +148,13 @@ function fullCooldownRecord(mods: SideMods, own: Partial<Record<SupportKind, num
   return out;
 }
 
+/** Charges left per call-in: the side's own (SideStart.supportCharges; a kind it does not list has none), or -1 for each without one. */
+function chargesRecord(own: Partial<Record<SupportKind, number>> | undefined): Record<SupportKind, number> {
+  const out = new CooldownRecord();
+  for (const kind of SUPPORT_KINDS) out[kind] = own === undefined ? -1 : Math.max(0, Math.floor(own[kind] ?? 0));
+  return out;
+}
+
 function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
   const dir = side === 0 ? 1 : -1;
   const x = side === 0 ? CONFIG.hqInset : mission.length - CONFIG.hqInset;
@@ -199,6 +206,7 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     supportAvailable,
     supportCooldown: cooldownRecord(),
     supportCooldownFull: fullCooldownRecord(mods, start.supportCooldown),
+    supportCharges: chargesRecord(start.supportCharges),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
     holdLineX: 0,
     controlled: -1,

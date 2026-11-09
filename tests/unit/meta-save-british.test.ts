@@ -77,7 +77,7 @@ function appOn(storage: ReturnType<typeof createMemoryStorage>) {
 
 describe('save version 10: the British placeholder missions removed', () => {
   it('is the current version', () => {
-    expect(META.saveVersion).toBe(10);
+    expect(META.saveVersion).toBe(11);
     expect(META.legacyCampaign.ids).toEqual(BRITISH);
   });
 
@@ -85,11 +85,12 @@ describe('save version 10: the British placeholder missions removed', () => {
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v9()) }), RULES);
     expect(loaded.status).toBe('ok');
     const data = loaded.data;
-    expect(data.version).toBe(10);
+    expect(data.version).toBe(11);
     expect(data.medals).toBe(777);
     expect(data.upgrades).toEqual(UPGRADE_LEVELS);
     expect(pointsSpent(data, UPGRADES)).toBeGreaterThan(0);
-    for (const plane of ['bomber', 'recon']) expect(data.armoury).toContain(plane);
+    // The planes bought for good became charges in version 11 (worth at least what they cost).
+    for (const plane of ['bomber', 'recon'] as const) expect(data.charges[plane] ?? 0, plane).toBeGreaterThanOrEqual(MEDALS.legacyPlaneMinCharges);
     expect(data.training).toEqual({ done: true, skipped: false });
     expect(data.settings).toEqual(SETTINGS);
   });
@@ -124,7 +125,7 @@ describe('save version 10: the British placeholder missions removed', () => {
     // Version 8 gave back the units' prices and the upgrade re-pricing (each of the two first levels costs 10 less now).
     expect(data.medals).toBe(300 + refunds + 2 * (META.legacyUpgradeLevelMedals - 10));
     expect(data.upgrades).toEqual({ hqHealth: 1, hqIncome: 1 });
-    expect(data.armoury).toContain('bomber');
+    expect(data.charges.bomber ?? 0).toBeGreaterThanOrEqual(MEDALS.legacyPlaneMinCharges);
     for (const kind of BRITISH_KINDS) expect(data.armoury, kind).toContain(kind);
     expect(data.legacy?.cleared).toEqual(cleared());
     expect(data.training).toEqual({ done: false, skipped: false });
@@ -136,7 +137,7 @@ describe('save version 10: the British placeholder missions removed', () => {
   ])('brings a %s save with British clears all the way to version 10 without losing them', (_name, doc) => {
     const data = sanitizeSave(doc, RULES);
     if (!data) throw new Error('not loaded');
-    expect(data.version).toBe(10);
+    expect(data.version).toBe(11);
     // The upgrade bought with the points stays, and the clears and their wins are archived, not dropped.
     expect(data.upgrades.rifleHealth).toBe(2);
     expect(data.legacy?.cleared).toEqual({ '1': ['normal', 'hard'], '2': ['normal'], '3': ['normal'] });
@@ -160,7 +161,8 @@ describe('save version 10: the British placeholder missions removed', () => {
     const data = sanitizeSave(fresh, RULES);
     expect(data?.legacy).toBeUndefined();
     // The first British mission was always open: its types were the free ones.
-    expect(data?.armoury).toEqual(['bomber']);
+    expect(data?.armoury).toEqual([]);
+    expect(data?.charges.bomber).toBe(MEDALS.legacyPlaneMinCharges);
     expect(data?.medals).toBe(777);
   });
 
@@ -179,7 +181,7 @@ describe('save version 10: the British placeholder missions removed', () => {
     const data = sanitizeSave(doc, RULES);
     if (!data) throw new Error('not loaded');
     expect(doc).toEqual(copy);
-    expect(migrateSave(doc)?.version).toBe(10);
+    expect(migrateSave(doc)?.version).toBe(11);
     const storage = createMemoryStorage();
     writeSave(storage, data);
     expect(loadSave(storage, RULES)).toEqual({ data, status: 'ok' });
@@ -195,9 +197,9 @@ describe('save version 10: the British placeholder missions removed', () => {
     expect(view0.lastMission).toBe(0);
     expect(view0.medals).toBe(777);
     expect(view0.upgrades.find((u) => u.id === 'hqHealth')?.level).toBe(3);
-    // Every unit type is owned in the Armoury, and the bought planes too.
+    // Every unit type is owned in the Shop, and the bought planes are charges.
     for (const item of view0.armoury ?? []) if (item.type === 'unit') expect(item.owned, item.kind).toBe(true);
-    for (const plane of ['bomber', 'recon']) expect(view0.armoury?.find((a) => a.id === plane)?.owned).toBe(true);
+    for (const plane of ['bomber', 'recon']) expect(view0.armoury?.find((a) => a.id === plane)?.count ?? 0).toBeGreaterThanOrEqual(MEDALS.legacyPlaneMinCharges);
     // Brest brings nothing new to this player: the DP gunner and the tank hunters were unlocked in the British campaign.
     expect(view0.missions[0].newUnit).toBeNull();
     // From the briefing, with the Armoury's army: it fields every unlocked type and the bought planes.

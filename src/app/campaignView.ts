@@ -9,19 +9,20 @@ import { missionEra } from '../data/eras';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
 import { MEDALS } from '../data/medals';
-import type { CampaignId, Difficulty, FactionId, MissionDef, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
+import type { CampaignId, Difficulty, FactionId, MissionDef, SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from '../data/schema';
 import {
   canBuy,
-  canBuyItem,
+  canBuyCharge,
+  chargesOf,
   canRefund,
   isCleared,
   isFree,
   isUnlocked,
+  loadoutOptions,
   levelCost,
   maxLevel,
   missionRoster,
   newsFor,
-  ownsItem,
   playerUnitKinds,
   pointsAvailable,
   pointsSpent,
@@ -113,9 +114,12 @@ function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
     blurb: faction.unitBlurbs[kind],
   });
   const loans = missionRoster(save, m, p.unlocked).loans.map((l) => ({ kind: l.kind, name: faction.unitNames[l.kind], count: l.count }));
+  // The briefing's loadout: every call-in with charges held or lent for this mission (owner, 2026-11-09).
+  const callIns = loadoutOptions(save, m.id).map((o) => ({ kind: o.kind, name: faction.supportNames[o.kind], owned: o.owned, loan: o.loan, chosen: o.chosen }));
   return {
     replayPercent: replay,
     loans,
+    callIns,
     id: m.id,
     title: m.title,
     location: m.location,
@@ -186,6 +190,7 @@ export function buildCampaignView(
     settings: { ...save.settings },
     difficulties: DIFFICULTY_LIST.map((id) => ({ id, name: DIFFICULTIES[id].name })),
     medals: save.medals,
+    loadoutSlots: MEDALS.loadoutSlots,
     armoury: buildArmoury(save, nation, p.unlocked, missions),
     training: { done: save.training.done, offer: trainingOffered(save), reward: MEDALS.trainingReward },
   };
@@ -227,10 +232,11 @@ export function buildCampaignCards(
 }
 
 /**
- * The Armoury: every unit type (free, unlocked, or locked with the mission that unlocks it; units are not sold since
- * the owner's change of 2026-11-09), then the plane call-ins for sale. Names and blurbs are those of the nation the
- * player commands in the current campaign; other nations' names are never shown (owner, 2026-11-08). The British
- * names are the default (the proving ground); a campaign passes its own nation.
+ * The Shop (the screen the Armoury was): the call-in charges for sale with the count held, the extras (the Battle for
+ * Poland as a locked entry with its medal price: no purchase here), then every unit type (free, unlocked, or locked
+ * with the mission that unlocks it; units are not sold since the owner's change of 2026-11-09). Names and blurbs are
+ * those of the nation the player commands in the current campaign; other nations' names are never shown (owner,
+ * 2026-11-08). The British names are the default (the proving ground); a campaign passes its own nation.
  */
 export function buildArmoury(
   save: SaveData,
@@ -240,6 +246,35 @@ export function buildArmoury(
 ): ArmouryItemView[] {
   const own = FACTIONS[nation];
   const out: ArmouryItemView[] = [];
+  for (const c of MEDALS.charges) {
+    const kind: SupportKind = c.kind;
+    out.push({
+      id: kind,
+      type: 'support',
+      kind,
+      name: own.supportNames[kind],
+      blurb: APP.supportBlurbs[kind],
+      price: c.price,
+      isNew: false,
+      free: false,
+      owned: false,
+      count: chargesOf(save, kind),
+      canBuy: canBuyCharge(save, kind),
+    });
+  }
+  out.push({
+    id: 'poland',
+    type: 'extra',
+    kind: 'rifle',
+    name: APP.polandName,
+    blurb: APP.polandBlurb,
+    price: MEDALS.polandPrice,
+    isNew: false,
+    free: false,
+    owned: false,
+    canBuy: false,
+    lockedNote: APP.polandNote,
+  });
   for (const u of MEDALS.units) {
     if (!playerUnitKinds().includes(u.kind)) continue;
     const free = isFree(u.kind);
@@ -259,20 +294,6 @@ export function buildArmoury(
       lockedNote: owned ? undefined : by ? `Mission ${missions.indexOf(by) + 1}` : 'Coming later',
     });
   }
-  for (const item of MEDALS.armoury) {
-    out.push({
-      id: item.id,
-      type: item.type,
-      kind: item.id,
-      name: own.supportNames[item.id],
-      blurb: APP.supportBlurbs[item.id],
-      price: item.price,
-      isNew: item.isNew,
-      free: false,
-      owned: ownsItem(save, item.id),
-      canBuy: canBuyItem(save, item.id),
-    });
-  }
   return out;
 }
 
@@ -288,6 +309,8 @@ export function medalView(b: MedalBreakdown): MedalResultView {
     base: b.base,
     difficultyMul: b.difficultyMul,
     replayPercent: Math.floor(b.replayFactor * 100 + 1e-9),
+    ...(b.campaignBonus > 0 ? { campaignBonus: b.campaignBonus } : {}),
+    ...(b.points > 0 ? { points: b.points } : {}),
   };
 }
 

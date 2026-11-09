@@ -59,6 +59,10 @@ export interface AppTunables {
   notices: { airdrop: string; wave: string; boss: string; prepEnded: string; sideObjective: string };
   /** One line per support for the briefing's "new support" card. */
   supportBlurbs: Record<SupportKind, string>;
+  /** The Shop's locked entry for the paid Battle for Poland campaign (its medal price is MEDALS.polandPrice). */
+  polandName: string;
+  polandBlurb: string;
+  polandNote: string;
   /** Quartermaster level text: "+X% label" per stat. */
   statLabels: {
     sapperSpeed: string;
@@ -119,6 +123,9 @@ export const APP: AppTunables = {
     prepEnded: 'Here they come!',
     sideObjective: 'Side objective: {text}',
   },
+  polandName: 'Battle for Poland',
+  polandBlurb: 'September 1939: a ten-mission campaign as Poland, holding out against two invasions.',
+  polandNote: 'Coming later',
   supportBlurbs: {
     artillery: 'Calls a barrage of shells down on a spot you choose. Hurts everything caught in the open.',
     smoke: 'Lays a screen that blocks direct fire for a few seconds. Cover an advance with it.',
