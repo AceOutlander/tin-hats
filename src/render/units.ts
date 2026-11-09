@@ -51,6 +51,7 @@ import {
 import type { SpriteSpec } from '../art/types';
 import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type VehicleLook } from '../data/artLayout';
 import { FX_KEYS } from '../data/fx';
+import { BUILDING_LAYOUT } from '../data/looksBuilding';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
@@ -537,6 +538,8 @@ class TankView extends UnitViewBase {
       const w = tr.width / 2;
       if (this.x + L.length * 0.6 * this.s < tr.x - w || this.x - L.length * 0.6 * this.s > tr.x + w) continue;
       over = true;
+      // A building's span (its slot record): the tank passes in front of the facade or the rubble, with no lip to climb.
+      if (tr.building >= 0) continue;
       for (let e = -1; e <= 1; e += 2) {
         const lip = tr.x + e * w;
         hf = Math.max(hf, T.lipBump * Math.max(0, 1 - Math.abs(front - lip) / T.lipWidth));
@@ -1137,8 +1140,14 @@ export class UnitViews {
     const simX = u.prevX + (u.x - u.prevX) * alpha;
     const spread = doorSpreadAt(simX, u, state);
     let x = simX + (v.jitter + v.crowd) * spread;
+    // A building's men (its slot record, src/sim/buildings.ts): at the windows of their floor, or crouched in its
+    // rubble or behind a cover prop (as in a trench, but not packed into a pit).
+    const record = u.trenchId >= 0 && u.trench >= 0 && u.trench < state.trenches.length ? state.trenches[u.trench] : null;
+    const bld = record !== null && record.building >= 0 && record.building < state.buildings.length ? state.buildings[record.building] : null;
+    const atWindow = bld !== null && !bld.rubble;
+    if (bld !== null) x = simX;
     // A trench is drawn as one narrow pit seen end-on: its occupants are packed in toward its centre (view only).
-    const occupant = u.trenchId >= 0 && u.trench >= 0 && u.trench < state.trenches.length;
+    const occupant = record !== null && bld === null;
     v.packW += ((occupant ? 1 : 0) - v.packW) * (dt > 0 ? 1 - Math.exp(-dt / TRENCH_LAYOUT.packTime) : 0);
     if (v.packW > 1e-3 && u.trench >= 0 && u.trench < state.trenches.length) {
       const tr = state.trenches[u.trench];
@@ -1151,7 +1160,7 @@ export class UnitViews {
     v.lastX = x;
     v.x = x;
     v.simX = simX;
-    v.y = VIEW.groundY + VIEW.rowDy[v.row] * spread;
+    v.y = atWindow ? VIEW.groundY + BUILDING_LAYOUT.occupantDy - u.floor * BUILDING_LAYOUT.floorH : VIEW.groundY + VIEW.rowDy[v.row] * spread;
     if (v instanceof FigureView && v.hopAge < RENDER.apc.hopTime) {
       v.hopAge += dt;
       v.y -= apcHopLift(v.hopAge, v.hopDeck) * v.s;
@@ -1176,11 +1185,13 @@ export class UnitViews {
     // Trench: occupants, and infantry crossing a trench, step down onto the fire step behind the front parapet.
     let into = 0;
     if (!isVehicle(u.kind)) {
-      if (u.trenchId >= 0) into = 1;
+      if (u.trenchId >= 0) into = atWindow ? 0 : 1;
       else {
         const tr = state.trenches;
         const half = TRENCH_LAYOUT.pitW / 2;
         for (let t = 0; t < tr.length; t++) {
+          // Men walking through a building stay on their feet.
+          if (tr[t].building >= 0) continue;
           if (x > tr[t].x - half && x < tr[t].x + half) {
             into = 1;
             break;

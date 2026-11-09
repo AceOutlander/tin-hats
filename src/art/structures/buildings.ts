@@ -175,8 +175,8 @@ function wall(ctx: Ctx, st: BuildingStyle, x0: number, y0: number, x1: number, y
 /** One window: cut through the wall, then its frame and sill. */
 function windowAt(ctx: Ctx, st: BuildingStyle, x: number, damaged: boolean, rand: () => number): void {
   const w = L.windowW;
-  let top = L.lintelY;
-  let bottom = L.sillY;
+  let top: number = L.lintelY;
+  let bottom: number = L.sillY;
   if (st.window === 'tall') top -= 4;
   if (st.window === 'slit') {
     top = -36;
@@ -519,6 +519,30 @@ function paintRubbleBack(ctx: Ctx, look: BuildingLook, width: number): void {
   rebar(ctx, -half + width * 0.2, -L.rubbleBackH * 0.5, rand);
 }
 
+/**
+ * Feather a low cover piece into the ground band: below the crouching men's feet it fades out, and at both ends over
+ * `edge` wu, so it reads as a heap lying on the ground rather than a block.
+ */
+function fadeIntoGround(ctx: Ctx, half: number, edge: number): void {
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  const down = ctx.createLinearGradient(0, L.rubbleFrontDown * 0.55, 0, L.rubbleFrontDown);
+  down.addColorStop(0, 'rgba(0,0,0,0)');
+  down.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = down;
+  ctx.fillRect(-half - edge, 0, (half + edge) * 2, L.rubbleFrontDown + 1);
+  for (const dir of [-1, 1]) {
+    const x1 = dir * (half + edge);
+    const x0 = dir * (half - edge);
+    const side = ctx.createLinearGradient(x0, 0, x1, 0);
+    side.addColorStop(0, 'rgba(0,0,0,0)');
+    side.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = side;
+    ctx.fillRect(Math.min(x0, x1), 2, edge * 2, L.rubbleFrontDown);
+  }
+  ctx.restore();
+}
+
 /** The heap in front of the men in the rubble: they crouch behind it as behind a parapet. */
 function paintRubbleFront(ctx: Ctx, look: BuildingLook, width: number): void {
   const st = BUILDING_STYLES[look];
@@ -554,6 +578,39 @@ function paintRubbleFront(ctx: Ctx, look: BuildingLook, width: number): void {
     const x = -half + rand() * width;
     strokeLine(ctx, [x, -8 - rand() * 4, x + 14 + rand() * 10, -2 + rand() * 6], C.timberDark, 2);
   }
+  fadeIntoGround(ctx, half, 14);
+}
+
+/**
+ * A whole building in one sprite (the mission HQ buildings): `floors` floors and the roof (a broken top when damaged),
+ * its windows dark rather than cut out; or, `ruined`, its rubble.
+ */
+export function paintStack(ctx: Ctx, look: BuildingLook, width: number, slots: number, floors: number, damaged: boolean, ruined: boolean): void {
+  if (ruined) {
+    paintRubbleBack(ctx, look, width);
+    ctx.save();
+    ctx.translate(0, -8);
+    paintRubbleFront(ctx, look, width);
+    ctx.restore();
+    return;
+  }
+  for (let f = 0; f < floors; f++) {
+    ctx.save();
+    ctx.translate(0, -f * L.floorH);
+    paintFloor(ctx, look, width, slots, f === 0, damaged && f > 0);
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.translate(0, -floors * L.floorH);
+  if (damaged) paintBrokenTop(ctx, look, width);
+  else paintRoof(ctx, look, width);
+  ctx.restore();
+  // The windows and door, cut out above, are dark rooms here.
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.fillStyle = mix(C.void, C.inkSoft, 0.4);
+  ctx.fillRect(-width / 2, -floors * L.floorH, width, floors * L.floorH);
+  ctx.restore();
 }
 
 /** Every piece of one building type (look, width, slots per floor), for the battle's atlas. */
@@ -709,6 +766,7 @@ function paintPropFront(ctx: Ctx, look: CoverPropLook, width: number): void {
   } else {
     for (let i = 0; i < width / 12; i++) chunk(ctx, -half + rand() * width, -4 - rand() * 6, 4 + rand() * 4, rand, LUFT_DARK, LUFT_RIM);
   }
+  fadeIntoGround(ctx, half, 14);
 }
 
 /** A cover prop's two pieces: its body behind the men and the low cover in front of them. */

@@ -8,6 +8,8 @@ export const RENDER = {
   atlasMaxSize: 4096,
   /** Empty texture pixels between atlas frames, filled by repeating the frame's edge pixels. */
   atlasPadding: 2,
+  /** Texture pixels per wu of a battle's building and cover-prop pieces (big and plain, so below VIEW.textureScale). */
+  buildingTextureScale: 1.5,
 
   /** Camera. */
   camera: {

@@ -40,6 +40,7 @@ import { QualityGovernor, startQuality } from './quality';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { renderSprites } from './sprites';
 import { BuildSiteViews, type Placing } from './buildSites';
+import { BuildingViews } from './buildings';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
@@ -47,6 +48,8 @@ import { MenuStormView } from './weather/menuStorm';
 
 const ATLAS_GROUP = 'th/atlas';
 const BATTLE_GROUP = 'th/battle';
+/** The battle's buildings and cover props: big, plain pieces, baked at a lower texture scale (RENDER.buildingTextureScale). */
+const BUILDING_GROUP = 'th/buildings';
 
 class BattleScene extends Phaser.Scene {
   constructor(private readonly owner: BattleViewImpl) {
@@ -92,6 +95,7 @@ export class BattleViewImpl implements BattleView {
   private backdrop: BackdropView | null = null;
   private units: UnitViews | null = null;
   private structures: StructureViews | null = null;
+  private buildings: BuildingViews | null = null;
   private buildSites: BuildSiteViews | null = null;
   /** The build the player is placing in a prep phase (the ghost), or null. */
   private placing: Placing | null = null;
@@ -228,6 +232,7 @@ export class BattleViewImpl implements BattleView {
     this.units.blood.setEnabled(this.showBlood);
     this.units.hpReveal = this.hpReveal;
     this.structures = new StructureViews(scene, layers, reg);
+    this.buildings = new BuildingViews(scene, layers, reg);
     this.buildSites = new BuildSiteViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
@@ -358,6 +363,10 @@ export class BattleViewImpl implements BattleView {
     const specs = StructureViews.battleSpecs(state, earth, looks);
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
     this.structures.build(state, earth, looks);
+    if (this.buildings && state.buildings.length > 0) {
+      this.registry.addAtlas(BUILDING_GROUP, BuildingViews.battleSpecs(state), RENDER.buildingTextureScale, RENDER.atlasMaxSize);
+      this.buildings.build(state);
+    }
     this.units.reset(opts.visualSeed);
     this.units.setLooks(0, looks[0]);
     this.units.setLooks(1, looks[1]);
@@ -383,6 +392,7 @@ export class BattleViewImpl implements BattleView {
     this.battle = null;
     this.units?.reset(this.visualSeed);
     this.structures?.clear();
+    this.buildings?.clear();
     this.effects?.clear();
     this.weatherView?.clear();
     if (this.effects) {
@@ -391,6 +401,7 @@ export class BattleViewImpl implements BattleView {
       this.effects.ctx.sound.reset();
     }
     this.registry?.removeGroup(BATTLE_GROUP);
+    this.registry?.removeGroup(BUILDING_GROUP);
     if (this.nightTint) this.nightTint.visible = false;
     this.setControlled(-1);
     this.setTargeting(null);
@@ -487,6 +498,7 @@ export class BattleViewImpl implements BattleView {
       ctx.sound.setView(rig.centerX, viewW);
       this.structures.sync(state); // trenches, pillboxes and wire built in the prep phase
       this.structures.update(state, dt);
+      this.buildings?.update(state);
       this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
       this.weatherView?.update(dt, left, viewW, this.effects.enabled);

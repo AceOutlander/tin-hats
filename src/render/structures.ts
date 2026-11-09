@@ -19,13 +19,15 @@ import {
 } from '../art/structures';
 import { bigLoadSpec, cartSpecs, dumpStyleKey, dumpStyleSpecs, truckSpecs } from '../art/props/supplyLooks';
 import { hqGunKey, hqGunSpecs } from '../art/structures/hqGun';
+import { missionHqKey, missionHqSpecs } from '../art/structures/hqBuildings';
 import { hqStyleKey, hqStyleSpecs } from '../art/structures/hqStyles';
 import type { SpriteSpec } from '../art/types';
 import { FLAG_LAYOUT, PILLBOX_LAYOUT, TRENCH_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_SPRITES } from '../data/fx';
 import { HQ_GUN_LAYOUT } from '../data/looksGun';
-import { HQ_STYLE_LAYOUT } from '../data/looksHq';
+import { MISSION_HQ_LAYOUT, MISSION_HQ_STYLES, type MissionHqStyle } from '../data/looksBuilding';
+import { HQ_STYLE_LAYOUT, type HqStyleLayout } from '../data/looksHq';
 import { RENDER } from '../data/render';
 import type { DamageType, FactionId, Side } from '../data/schema';
 import type { HqGunStyle, HqStyle, SideLooks } from '../data/upgradeLooks';
@@ -41,6 +43,28 @@ import { WireWreck, pieceLag } from './wireRules';
 type Img = Phaser.GameObjects.Image;
 
 const S = RENDER.structure;
+
+/** An HQ's building: a Quartermaster style, or a mission's own HQ building (SideStart.hqLook). */
+type AnyHqStyle = HqStyle | MissionHqStyle;
+
+function isMissionHq(style: string): style is MissionHqStyle {
+  return (MISSION_HQ_STYLES as readonly string[]).includes(style);
+}
+
+function hqLayoutOf(style: AnyHqStyle): HqStyleLayout {
+  return isMissionHq(style) ? MISSION_HQ_LAYOUT[style] : HQ_STYLE_LAYOUT[style];
+}
+
+function hqKeyOf(style: AnyHqStyle, faction: FactionId, state: DamageState): string {
+  return isMissionHq(style) ? missionHqKey(style, faction, state) : hqStyleKey(style, faction, state);
+}
+
+/** The building a side's HQ is drawn as: the mission's look (HqState.look) or the side's upgrade look. */
+function hqStyleFor(state: BattleState, side: number, looks: readonly SideLooks[]): AnyHqStyle {
+  const look = state.sides[side].hq?.look ?? '';
+  if (look !== '' && (isMissionHq(look) || look in HQ_STYLE_LAYOUT)) return look as AnyHqStyle;
+  return lookStyle(looks[side], 'hq');
+}
 
 function dirOf(side: number): number {
   return side === 0 ? 1 : -1;
@@ -131,17 +155,17 @@ class HqView {
   dir = 1;
   faction: FactionId = 'british';
   /** Building and gun-position styles, from the side's upgrade looks. */
-  style: HqStyle;
+  style: AnyHqStyle;
   gunStyle: HqGunStyle;
   state: DamageState | '' = '';
   /** Show the ruin although the HQ still has health (the battle ended another way). */
   forcedRuin = false;
 
-  constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId, style: HqStyle, gunStyle: HqGunStyle) {
+  constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId, style: AnyHqStyle, gunStyle: HqGunStyle) {
     this.faction = faction;
     this.style = style;
     this.gunStyle = gunStyle;
-    this.img = addImage(scene, layers.byName.structures, reg.get(hqStyleKey(style, faction, 'intact')).frame);
+    this.img = addImage(scene, layers.byName.structures, reg.get(hqKeyOf(style, faction, 'intact')).frame);
     this.gun = addImage(scene, layers.byName.structures, reg.get(hqGunKey(gunStyle, faction, 'intact')).frame);
     this.flag = new FlagView(scene, layers.byName.structures, reg, FLAG_KEYS[FACTIONS[faction].look.flag]);
     this.flash = addImage(scene, layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
@@ -151,7 +175,7 @@ class HqView {
 
   /** World x of the gun position's base. */
   gunX(): number {
-    return this.artX + this.dir * HQ_STYLE_LAYOUT[this.style].gunNest.x;
+    return this.artX + this.dir * hqLayoutOf(this.style).gunNest.x;
   }
 
   destroy(): void {
@@ -225,7 +249,8 @@ export class StructureViews {
       if (!l) continue;
       const f = state.sides[side].faction;
       if (state.sides[side].hq) {
-        addAll(hqStyleSpecs(lookStyle(l, 'hq'), f));
+        const style = hqStyleFor(state, side, looks);
+        addAll(isMissionHq(style) ? missionHqSpecs(style, f) : hqStyleSpecs(style, f));
         addAll(hqGunSpecs(lookStyle(l, 'hqGun'), f));
       }
       if (state.dumps[side]) addAll(dumpStyleSpecs(lookStyle(l, 'dump'), f));
@@ -237,6 +262,8 @@ export class StructureViews {
     }
     const seen = new Set<number>();
     for (const t of state.trenches) {
+      // A building's slots are a trench record too; buildings.ts draws those.
+      if (t.building >= 0) continue;
       const w = Math.round(t.width);
       if (seen.has(w)) continue;
       seen.add(w);
@@ -316,6 +343,21 @@ export class StructureViews {
   private addTrench(t: TrenchState): void {
     const reg = this.reg;
     const gy = VIEW.groundY;
+    if (t.building >= 0) {
+      // A building's slot record: hidden stand-ins keep the views in step with state.trenches (buildings.ts draws it).
+      const stub = (layer: Phaser.GameObjects.Layer): Img => {
+        const img = addImage(this.scene, layer, reg.get(RENDER_KEYS.whiteTL).frame);
+        img.visible = false;
+        return img;
+      };
+      this.trenchBack.push(stub(this.layers.byName.trenchBack));
+      this.trenchFront.push(stub(this.layers.byName.trenchFront));
+      this.trenchStake.push(stub(this.layers.byName.trenchFront));
+      this.trenchPennant.push(stub(this.layers.byName.trenchFront));
+      this.trenchOwner.push(-2);
+      this.trenchFade.push(1);
+      return;
+    }
     const backKey = trenchKey('back', t.width, this.palette);
     const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(backKey).frame);
     setKey(back, reg, backKey, 1);
@@ -398,12 +440,12 @@ export class StructureViews {
     for (let side = 0; side < 2; side++) {
       const s = state.sides[side];
       if (!s.hq) continue;
-      const hv = new HqView(this.scene, this.layers, reg, s.faction, lookStyle(looks[side], 'hq'), lookStyle(looks[side], 'hqGun'));
+      const hv = new HqView(this.scene, this.layers, reg, s.faction, hqStyleFor(state, side, looks), lookStyle(looks[side], 'hqGun'));
       hv.dir = dirOf(side);
-      hv.artX = s.hq.doorX - hv.dir * HQ_STYLE_LAYOUT[hv.style].doorX;
+      hv.artX = s.hq.doorX - hv.dir * hqLayoutOf(hv.style).doorX;
       hv.img.x = hv.artX;
       hv.img.y = gy;
-      setKey(hv.img, reg, hqStyleKey(hv.style, hv.faction, 'intact'), hv.dir);
+      setKey(hv.img, reg, hqKeyOf(hv.style, hv.faction, 'intact'), hv.dir);
       hv.gun.x = hv.gunX();
       hv.gun.y = gy;
       setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, 'intact'), hv.dir);
@@ -449,7 +491,7 @@ export class StructureViews {
   hqFire(side: number, index: number, out: GunPoint): boolean {
     const hv = this.hqs[side];
     if (!hv) return false;
-    const pts = HQ_STYLE_LAYOUT[hv.style].fires;
+    const pts = hqLayoutOf(hv.style).fires;
     if (index < 0 || index >= pts.length) return false;
     out.x = hv.artX + hv.dir * pts[index].x;
     out.y = VIEW.groundY + pts[index].y;
@@ -460,7 +502,7 @@ export class StructureViews {
   /** Width (wu) of an HQ's building, for effects spread along it; 0 if that side has no HQ view. */
   hqBodyW(side: number): number {
     const hv = this.hqs[side];
-    return hv ? HQ_STYLE_LAYOUT[hv.style].bodyW : 0;
+    return hv ? hqLayoutOf(hv.style).bodyW : 0;
   }
 
   /** Show the ruin of an HQ that still has health (the battle ended another way). */
@@ -486,6 +528,7 @@ export class StructureViews {
     const trenches = state.trenches;
     for (let i = 0; i < trenches.length && i < this.trenchBack.length; i++) {
       const t = trenches[i];
+      if (t.building >= 0) continue;
       if (t.owner !== this.trenchOwner[i]) {
         this.trenchOwner[i] = t.owner;
         this.trenchFade[i] = this.trenchFade.length > 0 && this.time > 0 ? 0 : 1;
@@ -532,11 +575,11 @@ export class StructureViews {
       const st: DamageState = !hq.alive || hv.forcedRuin ? 'ruin' : frac > S.hqDamaged ? 'intact' : 'damaged';
       if (st !== hv.state) {
         hv.state = st;
-        setKey(hv.img, reg, hqStyleKey(hv.style, hv.faction, st), hv.dir);
+        setKey(hv.img, reg, hqKeyOf(hv.style, hv.faction, st), hv.dir);
         setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, st === 'ruin' ? 'ruin' : 'intact'), hv.dir);
         hv.flag.setVisible(st !== 'ruin');
       }
-      const L = HQ_STYLE_LAYOUT[hv.style];
+      const L = hqLayoutOf(hv.style);
       if (st !== 'ruin') hv.flag.update(hv.artX + hv.dir * L.flagTop.x, VIEW.groundY + L.flagTop.y, hv.dir, this.time + side * S.flagPhase);
       hv.flashTime -= dt;
       const on = hv.flashTime > 0 && hq.alive;
