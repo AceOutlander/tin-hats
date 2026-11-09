@@ -21,7 +21,7 @@ import {
 } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
 import type { FigureGearKeys } from './gear';
-import type { HeadgearKeys } from './parts';
+import type { ClothingKeys, HeadgearKeys } from './parts';
 import { hash01 } from './math';
 
 // ---------------------------------------------------------------------------
@@ -304,6 +304,8 @@ export class FigureAnim {
   crateKey: string | null = null;
   /** A cap worn instead of the helmet (setFigureHeadgear); null = the helmet. */
   headgear: HeadgearKeys | null = null;
+  /** Winter clothing worn over the body (setFigureClothing); null = the plain body. */
+  clothing: ClothingKeys | null = null;
   /** Sapper pushing the handcart (setFigurePushing). */
   pushing = false;
   /** Commander: seconds left of pointing forward with his free arm after an order (setFigurePointing). */
@@ -407,6 +409,7 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.gear = null;
   a.crateKey = null;
   a.headgear = null;
+  a.clothing = null;
   a.pushing = false;
   a.dead = false;
   a.deathVariant = DEATH_VARIANTS[0];

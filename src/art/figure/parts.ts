@@ -17,10 +17,23 @@ import { FACTIONS } from '../../data/factions';
 import { FIGURE, FIGURE_CRATE, FIGURE_KIND_LIST, FIGURE_LOADOUT, WEAPON_GEOM, type FigureKind, type HandItem, type WeaponModel } from '../../data/figure';
 import type { FactionId, HelmetShape } from '../../data/schema';
 import type { SpriteSpec } from '../types';
-import { FIGURE_GEAR_NATION, FIGURE_HEADGEAR, type FigureHeadgear } from '../../data/looksGear';
+import { FIGURE_CLOTHING, FIGURE_GEAR_NATION, FIGURE_HEADGEAR, type FigureClothing, type FigureHeadgear } from '../../data/looksGear';
 import { gearFigureSprites } from './gear';
 import { TAU } from './math';
-import { coatRollSpec, headgearKey, headgearRimKey, headgearSpec, sovietPackSpec, sovietPouchesSpec, sovietWeaponSpecs } from './soviet';
+import {
+  CLOTHING_PARTS,
+  type ClothingPart,
+  clothingCovers,
+  clothingKey,
+  clothingSpecs,
+  coatRollSpec,
+  headgearKey,
+  headgearRimKey,
+  headgearSpec,
+  sovietPackSpec,
+  sovietPouchesSpec,
+  sovietWeaponSpecs,
+} from './soviet';
 
 type Ctx = CanvasRenderingContext2D;
 type Paint = (ctx: Ctx) => void;
@@ -121,7 +134,7 @@ export function dot(ctx: Ctx, color: string, x: number, y: number, r: number): v
 }
 
 /** Tapered capsule along +x from 0 to L (union of two circles and the band between them). */
-function capsule(ctx: Ctx, L: number, r0: number, r1: number): void {
+export function capsule(ctx: Ctx, L: number, r0: number, r1: number): void {
   ctx.moveTo(0, -r0);
   ctx.lineTo(L, -r1);
   ctx.lineTo(L, r1);
@@ -772,6 +785,10 @@ export interface HeadgearKeys {
   readonly rim: string;
 }
 
+/** Winter clothing worn over the body (setFigureClothing): the sprite drawn in place of each body part, null where the
+ * body shows. */
+export type ClothingKeys = Readonly<Record<ClothingPart, string | null>>;
+
 /** Keys of everything that depends on the faction. */
 export interface FactionFigureKeys {
   helmet: string;
@@ -780,6 +797,8 @@ export interface FactionFigureKeys {
   coatRoll: string | null;
   /** Headgear the nation can wear instead of its helmet (FIGURE_HEADGEAR). */
   headgear: Partial<Record<FigureHeadgear, HeadgearKeys>>;
+  /** Clothing the nation can wear over its body (FIGURE_CLOTHING). */
+  clothing: Partial<Record<FigureClothing, ClothingKeys>>;
   pack: string;
   pouches: string;
   satchel: string;
@@ -808,11 +827,18 @@ function buildKeys(f: FactionId): FactionFigureKeys {
   }
   const headgear: Partial<Record<FigureHeadgear, HeadgearKeys>> = {};
   for (const id of FIGURE_HEADGEAR[f]) headgear[id] = { helmet: headgearKey(id), rim: headgearRimKey(id) };
+  const clothing: Partial<Record<FigureClothing, ClothingKeys>> = {};
+  for (const id of FIGURE_CLOTHING[f]) {
+    const keys = {} as Record<ClothingPart, string | null>;
+    for (const part of CLOTHING_PARTS) keys[part] = clothingCovers(id, part) ? clothingKey(id, part) : null;
+    clothing[id] = keys;
+  }
   return {
     helmet: `fig/${f}/helmet`,
     helmetRim: RIM_KEYS[FACTIONS[f].look.helmet],
     coatRoll: FIGURE_GEAR_NATION[f].coatRoll.length > 0 ? `fig/${f}/coatRoll` : null,
     headgear,
+    clothing,
     pack: `fig/${f}/pack`,
     pouches: `fig/${f}/pouches`,
     satchel: `fig/${f}/satchel`,
@@ -947,6 +973,9 @@ let cacheMap: Map<string, SpriteSpec> | null = null;
 /** The figure sprites without upgrade gear (body, rims, helmets, kit, weapons, items) for every faction. */
 export function baseFigureSprites(): SpriteSpec[] {
   const out = [...bodySpecs(), ...headgearRimSpecs(), ...weaponSpecs()];
+  const clothes = new Set<FigureClothing>();
+  for (const f of Object.keys(FACTIONS) as FactionId[]) for (const id of FIGURE_CLOTHING[f]) clothes.add(id);
+  out.push(...clothingSpecs([...clothes]));
   for (const f of Object.keys(FACTIONS) as FactionId[]) out.push(...factionSpecs(f));
   return out;
 }

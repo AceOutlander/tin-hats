@@ -31,7 +31,7 @@ import { UNITS } from '../../src/data/units';
 
 const B = FIGURE.bones;
 const DT = 1 / 60;
-const FACTIONS: readonly FactionId[] = ['british', 'german'];
+const FACTIONS: readonly FactionId[] = ['british', 'german', 'soviet'];
 
 interface State {
   name: string;

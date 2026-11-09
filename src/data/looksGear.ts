@@ -109,17 +109,44 @@ export const FIGURE_GEAR_NATION: Record<FactionId, FigureGearNation> = {
 
 /**
  * Headgear a figure can wear in place of its nation's helmet (setFigureHeadgear in src/art/figure): the Red Army's
- * pilotka side cap, the ushanka fur cap, and the SSh-40 worn over the ushanka in winter (NATIONS.md section 3, eras).
+ * pilotka side cap, the ushanka fur cap, the SSh-40 worn over the ushanka in winter, and the snow smock's white hood
+ * pulled over the helmet (NATIONS.md section 3, eras).
  * Which one a unit wears is the era and weather's call (FOUNDATIONS.md 5.1, not built yet); the art is ready.
  */
-export type FigureHeadgear = 'pilotka' | 'ushanka' | 'helmetUshanka';
-export const FIGURE_HEADGEAR_LIST: readonly FigureHeadgear[] = ['pilotka', 'ushanka', 'helmetUshanka'];
+export type FigureHeadgear = 'pilotka' | 'ushanka' | 'helmetUshanka' | 'snowHood';
+export const FIGURE_HEADGEAR_LIST: readonly FigureHeadgear[] = ['pilotka', 'ushanka', 'helmetUshanka', 'snowHood'];
 
 /** The headgear each nation can wear (anything else falls back to its helmet). */
 export const FIGURE_HEADGEAR: Record<FactionId, readonly FigureHeadgear[]> = {
   british: [],
   german: [],
   soviet: FIGURE_HEADGEAR_LIST,
+};
+
+/**
+ * Winter clothing a figure can wear over its body (setFigureClothing in src/art/figure): the Red Army's quilted
+ * telogreika jacket, and the two-piece white snow smock of ski troops, scouts and snipers (NATIONS.md section 3, eras;
+ * with the snowHood headgear). They replace the torso, arm and (smock) thigh sprites; the dark body shows at the hands,
+ * shins and boots, and the light rim still outlines the figure. Which units wear them is the era and weather's call
+ * (FOUNDATIONS.md 5.1, not built yet); the art is ready.
+ */
+export type FigureClothing = 'telogreika' | 'snowSmock';
+export const FIGURE_CLOTHING_LIST: readonly FigureClothing[] = ['telogreika', 'snowSmock'];
+
+/** The clothing each nation can wear (anything else falls back to the plain body). */
+export const FIGURE_CLOTHING: Record<FactionId, readonly FigureClothing[]> = {
+  british: [],
+  german: [],
+  soviet: FIGURE_CLOTHING_LIST,
+};
+
+/** Clothing look: cloth colours (near and far side), the stitching, and how much the padded cloth stands proud of the
+ * body (wu added to the limb radius). */
+export const FIGURE_CLOTHING_ART: Record<FigureClothing, { near: string; far: string; seam: string; grow: number; legs: boolean }> = {
+  // Quilted khaki cotton, darker than the tunic, with its sewn channels.
+  telogreika: { near: '#4d4a33', far: '#3a3828', seam: '#2a281c', grow: 0.3, legs: false },
+  // Off-white cotton over everything down to the knees (the dark valenki and shins still show).
+  snowSmock: { near: '#d6d4c8', far: '#b3b1a5', seam: '#9b998d', grow: 0.35, legs: true },
 };
 
 /** Colours of the Red Army's own kit and caps (the canvas pieces take the nation tint). */

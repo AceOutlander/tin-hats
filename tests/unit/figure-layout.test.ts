@@ -12,7 +12,7 @@ import {
 import { FIGURE_KIND_LIST } from '../../src/data/figure';
 import type { FactionId, UnitAction } from '../../src/data/schema';
 
-const FACTIONS: readonly FactionId[] = ['british', 'german'];
+const FACTIONS: readonly FactionId[] = ['british', 'german', 'soviet'];
 const ACTIONS: readonly UnitAction[] = ['idle', 'move', 'aim', 'fire', 'reload', 'throw', 'load', 'heal', 'deploy'];
 
 describe('figure layout and sprites', () => {
