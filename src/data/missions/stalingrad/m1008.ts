@@ -147,7 +147,7 @@ export const M1008: MissionDef = {
       lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
       sideObjectives: [
         { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { point: 'P2' } }, atEnd: true, bonus: 0.2 },
-        { id: 'tanks25', text: 'Twenty-five tanks', objective: { id: 'tanks25Dead', type: 'kill', side: 1, kinds: ['tank'], count: 25 }, bonus: 0.1 },
+        { id: 'tanks12', text: 'Twelve tanks', objective: { id: 'tanks12Dead', type: 'kill', side: 1, kinds: ['tank'], count: 12 }, bonus: 0.1 },
       ],
       next: 'halls',
     },
@@ -169,7 +169,15 @@ export const M1008: MissionDef = {
   events: [
     // The director's events: the opening barrage and Stukas on the yard, the Stuka on the foundry, the heavy bomb on the
     // machine shops, the Nebelwerfer at dusk.
-    { id: 'openingBarrage', type: 'barrage', when: { phase: 'bombers' }, side: 1, x: 8000, spread: 300, rounds: 8, duration: 5, weapon: 'artilleryShell', warning: 'Artillery!' },
+    { id: 'openingBarrage', type: 'barrage', when: { phase: 'bombers' }, side: 1, x: 8000, spread: 300, rounds: 8, duration: 20, weapon: 'artilleryShell', warning: 'Artillery!' },
+    // The far bank's guns (the intel's "artillery, smoke and Katyusha from the far bank") fire on each tank attack as
+    // it reaches the yard, one shell at a time, and the rocket batteries on the last push (DECISIONS 435).
+    { id: 'farBankYard1', type: 'barrage', when: { phase: 'bombers', delay: 220 }, side: 0, x: 8650, spread: 350, rounds: 10, duration: 30, weapon: 'artilleryShell', warning: 'The far bank is firing on the yard.' },
+    { id: 'farBankYard2', type: 'barrage', when: { phase: 'bombers', delay: 380 }, side: 0, x: 8650, spread: 350, rounds: 10, duration: 30, weapon: 'artilleryShell', warning: 'The far bank is firing on the yard.' },
+    { id: 'farBankHalls1', type: 'barrage', when: { phase: 'halls', delay: 240 }, side: 0, x: 8400, spread: 500, rounds: 8, duration: 24, weapon: 'artilleryShell', warning: 'The far bank is firing on the yard.' },
+    { id: 'farBankHalls2', type: 'barrage', when: { phase: 'halls', delay: 380 }, side: 0, x: 8400, spread: 500, rounds: 8, duration: 24, weapon: 'artilleryShell', warning: 'The far bank is firing on the yard.' },
+    { id: 'farBankHalls3', type: 'barrage', when: { phase: 'dark', delay: 80 }, side: 0, x: 8600, spread: 400, rounds: 10, duration: 30, weapon: 'artilleryShell', warning: 'The far bank is firing on the yard.' },
+    { id: 'farBankRockets', type: 'barrage', when: { phase: 'dark', delay: 335 }, side: 0, x: 11000, spread: 700, rounds: 12, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas from the far bank!' },
     { id: 'stukaYard', type: 'airRaid', when: { phase: 'bombers', delay: 2 }, side: 1, support: 'airStrike', x: 8000 },
     { id: 'stukaFoundry', type: 'airRaid', when: { phase: 'bombers', delay: 150 }, side: 1, support: 'airStrike', x: 5200 },
     { id: 'heavyBomb', type: 'barrage', when: { phase: 'halls', delay: 240 }, side: 1, x: 6300, spread: 60, rounds: 1, duration: 0, weapon: 'heavyBomb' },
@@ -178,7 +186,7 @@ export const M1008: MissionDef = {
     { id: 'smokeAgain', type: 'weather', when: { phase: 'dark' }, to: 'smoke', over: 60 },
     { id: 'dusk', type: 'time', when: { phase: 'dark' }, to: 'dusk', over: 120 },
     { id: 'night', type: 'time', when: { phase: 'dark', delay: 200 }, to: 'night', over: 60 },
-    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'dark', delay: 100 }, side: 1, x: 5200, spread: 300, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'dark', delay: 100 }, side: 1, x: 5200, spread: 300, rounds: 10, duration: 12, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
     {
       type: 'hint',
       when: { at: 3 },
@@ -201,7 +209,7 @@ export const M1008: MissionDef = {
     {
       type: 'hint',
       when: { at: 90 },
-      text: 'Fire the Katyusha Salvo on each wave while it is still bunched up in the settlement.',
+      text: 'The far bank fires on each panzer attack as it reaches the yard. Save your own call-ins for the attacks that get through.',
     },
     {
       type: 'wave',
@@ -242,7 +250,7 @@ export const M1008: MissionDef = {
       ],
       announce: 'Two flamethrowers and three PTRD teams are up from the cliffs.',
     },
-    { type: 'wave', when: { every: 120, from: 545, until: 840 }, side: 0, forces: [{ kind: 'at', count: 1, x: 4900 }] },
+    { type: 'wave', when: { every: 120, from: 545, until: 1200 }, side: 0, forces: [{ kind: 'at', count: 1, x: 4900 }] },
     {
       type: 'wave',
       when: { every: 140, from: 480, until: 760 },

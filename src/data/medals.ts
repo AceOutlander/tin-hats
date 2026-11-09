@@ -303,10 +303,8 @@ export const MEDALS: MedalTunables = {
     // 1007 lends only the brief's rocket battery for the last night since its tuning (DECISIONS 434): the far bank's
     // guns fire on the square for the tank attacks as scripted barrages, and the bot holds the house with no call-in.
     1007: [{ kind: 'katyusha', count: 1 }],
-    1008: [
-      { kind: 'artillery', count: 14 },
-      { kind: 'katyusha', count: 5 },
-    ],
+    // 1008 lends nothing since its tuning (DECISIONS 435): the far bank's guns fire on each tank attack in the yard and
+    // its rocket batteries on the last push as scripted barrages, and the mission introduces no call-in.
     1009: [
       { kind: 'artillery', count: 14 },
       { kind: 'katyusha', count: 6 },

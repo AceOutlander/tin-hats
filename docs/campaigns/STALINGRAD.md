@@ -913,7 +913,8 @@ Fixed 22 minutes.
 - **Player**: 3 sappers; 8 riflemen in T1; 8 PPSh troopers in B3; 2 DP and 1 Maxim in B2; 2 PTRD teams in B3;
   2 snipers; 2 T-34/76 dug in (`behaviour: 'guard'`, leash 0) at x 6,600; 450 Money. Supports: Katyusha (far bank),
   artillery, smoke.
-- **Loans**: 2 flamethrowers (phase 2); 2 mortar teams (start); 3 PTRD teams (phase 2, resend 120 s).
+- **Loans**: 2 flamethrowers (phase 2); 2 mortar teams (start); 3 PTRD teams (phase 2, resend 120 s to the last minute).
+  No lent call-in charges (DECISIONS 435): the far bank fires as scripted barrages.
 - **Enemy (no HQ, waves from the right)**:
   - Panzer III Ausf. J and L, Panzer IV Ausf. G (long 7.5 cm), StuG III F, riflemen, MG42 teams, MP40 troopers,
     pioneers with flamethrowers, Pak 40, mortars.
@@ -934,13 +935,16 @@ Fixed 22 minutes.
    - 240 s: building B3 takes a scripted heavy bomb (`barrage`, weapon `heavyBomb`) and loses a floor.
 3. **"Until dark"**: survive 360 s. Time to dusk over 120 s, then night.
    - Infantry waves every 40 s.
-   - Nebelwerfer at 100 s.
+   - Nebelwerfer at 100 s (10 rockets over 12 s).
+   - The far bank's guns fire on the yard as each tank attack reaches it (phase 1 at 220 s and 380 s, phase 2 at 240 s and
+     380 s, phase 3 at 80 s; 8 to 10 shells one at a time over 24 to 30 s), and its rocket batteries on the last push
+     (335 s); the PTRD resend runs until 1,200 s (DECISIONS 435).
    - 300 s: the last tank push.
 
 ### Side objectives
 
 - **The machine shops by night**: B3 still owned at the end (+20%).
-- **Twenty-five tanks** (+10%).
+- **Twelve tanks** (+10%; was twenty-five, more than the 17 the day brings, DECISIONS 435).
 
 ### Medals
 

@@ -59,7 +59,7 @@ of `tests/unit/sim-budget.test.ts`). This is the foundation the later jobs build
 | 1005 Volga | special | landing (hold 180 s), high bank, station, hold the station | pointLost (landing), Nebelwerfer, Stukas, a 45 s prep at phase 4; battalion ashore (fewer than two boat loads hit, `ferryLoads`), nail factory |
 | 1006 Kurgan | hold | foot, slope, water tanks + summit, summit hold | destroy (the water tanks, buildings), 45 s prep at phase 4 with a zone, Stukas, Nebelwerfer, banner, AI hold on the summit; both tanks by 12 min, no assault gun survives |
 | 1007 Pavlov's House | survival | take the house, day one, night one, day two, last night | capture with a 180 s deadline, prep after phase 0, pointLost (day one), Stuka raid, Katyusha for the last night, artillery cooldown 90 s; the trench stays open, no German inside; house health in the score |
-| 1008 Tractor Factory | survival (scored as the brief's delay) | 3 x 420 s under the clock | enemyReached x 2,000 count 6, barrage, Stukas, heavy bomb, Nebelwerfer; machine shops at dark (`atEnd`), 25 tanks; kill bonus |
+| 1008 Tractor Factory | survival (scored as the brief's delay) | 3 x 420 s under the clock | enemyReached x 2,000 count 6, barrage, Stukas, heavy bomb, Nebelwerfer, the far bank's barrages on each tank attack (DECISIONS 435); machine shops at dark (`atEnd`), 12 tanks; kill bonus |
 | 1009 Uranus | assault | Siren, steppe, Kalach bridge, Sovetsky | side 0's free barrages and Katyusha, Il-2 and Po-2 from phase 2, disguise, forward spawns, green flares on the objective; the bridge in 180 s (`withinPhase`), fifteen tanks |
 | 1010 Ring | assault (surrender) | guns, Gumrak, ruins, Univermag | five free barrages, frozen tanks, German artillery cooldown 180 s, nests (hold postures), Nebelwerfer, last counter-attack, surrender at 25% with the closing words; Pitomnik in 8 min, Gumrak without a tank lost, under 28 min |
 
@@ -415,7 +415,7 @@ Every new save (and every save converted to version 11) starts with 3 smoke and 
 | 1005 Volga | (none) (DECISIONS 432; was artillery 11, Katyusha 3) |
 | 1006 Mamayev Kurgan | (none) (DECISIONS 433; was artillery 8, smoke 5, Katyusha 4) |
 | 1007 Pavlov's House | Katyusha 1 (DECISIONS 434; was artillery 6, Katyusha 1) |
-| 1008 Tractor Factory | artillery 14, Katyusha 5 |
+| 1008 Tractor Factory | (none) (DECISIONS 435; was artillery 14, Katyusha 5) |
 | 1009 Uranus | artillery 14, Katyusha 6, smoke 5, Il-2 3, Po-2 5 |
 | 1010 Ring | artillery 9, Katyusha 3, Il-2 6, Pe-2 3, Po-2 10, smoke 2 |
 
