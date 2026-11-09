@@ -8,10 +8,13 @@ import type { MissionDef } from '../../schema';
  * water tanks the Germans turned into blockhouses (pillboxes 1 and 2) with a trench between them (trench 5). When the
  * summit falls the 295th Infantry Division comes back at it four times; then the western slope and the German HQ.
  *
- * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): the phases are trench captures, the
- * hold on the summit is the counter-attack waves that follow its capture, the water tanks are pillboxes, the loans
- * are scripted waves, and StuG III Ausf. F and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and,
- * by look, the StuG III Ausf. F; the `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1006): a hold in four phases. Take the
+ * railway cutting (trench 2 for P1), then the two shell-hole positions on the slope (trenches 3 and 4), then destroy
+ * the water tanks (pillboxes 1 and 2) and take the summit between them (trench 5 for P2), then a 45 s prep phase and
+ * hold the summit for 360 s against
+ * four counter-attacks. The Stukas and the Nebelwerfer are scripted; the loans are scripted waves, and StuG III Ausf. F
+ * and Panzer III J are the `tank` kind (drawn as the era's Panzer III Ausf. L and, by look, the StuG III Ausf. F; the
+ * `lightTank` kind is the 1939 to 1941 Panzer III Ausf. E).
  */
 export const M1006: MissionDef = {
   id: 1006,
@@ -44,7 +47,7 @@ export const M1006: MissionDef = {
   },
   theatre: 'italy',
   timeOfDay: 'overcast',
-  mode: 'assault',
+  mode: 'hold',
   length: 14000,
   // The unlock order (DECISIONS 295): the sniper, for the duels on the hill (the city's sniper movement of autumn
   // 1942), and the AA gun crews under the Stukas that came over every few minutes.
@@ -116,7 +119,66 @@ export const M1006: MissionDef = {
   ],
   wire: [{ id: 1, x: 8600, width: 140, owner: 1 }],
   timer: null,
+  // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 6).
+  phases: [
+    {
+      id: 'foot',
+      title: 'The foot of the hill',
+      objectives: [{ id: 'cutting', type: 'capture', point: { trench: 2 }, text: 'Take the railway cutting' }],
+      sideObjectives: [
+        {
+          id: 'waterTanks',
+          text: 'Both water tanks by 12 minutes',
+          objective: { id: 'tanksFast', type: 'destroy', structures: [{ pillbox: 1 }, { pillbox: 2 }] },
+          within: 720,
+          bonus: 0.15,
+        },
+      ],
+      next: 'slope',
+    },
+    {
+      id: 'slope',
+      title: 'The slope',
+      objectives: [
+        { id: 'slope1', type: 'capture', point: { trench: 3 }, text: 'Take the first shell holes' },
+        { id: 'slope2', type: 'capture', point: { trench: 4 }, text: 'Take the upper shell holes' },
+      ],
+      next: 'tanks',
+    },
+    {
+      id: 'tanks',
+      title: 'The water tanks',
+      // The summit trench between the tanks is taken with them, so the hold (and its counter-attacks) starts on it.
+      objectives: [
+        { id: 'waterTanksDown', type: 'destroy', structures: [{ pillbox: 1 }, { pillbox: 2 }], text: 'Water tanks destroyed' },
+        { id: 'summitTaken', type: 'capture', point: { trench: 5 }, text: 'Take the summit' },
+      ],
+      next: 'summit',
+    },
+    {
+      id: 'summit',
+      title: 'Hold the summit',
+      prep: {
+        seconds: 45,
+        zone: { from: 9500, to: 11300 },
+        buildables: ['wire', 'foxhole'],
+      },
+      objectives: [{ id: 'summitHeld', type: 'hold', point: { trench: 5 }, seconds: 360, text: 'Hold the summit' }],
+      sideObjectives: [
+        // The phase brings five German vehicles: every one of them burnt (counted from here, as the mission's kills).
+        { id: 'noStug', text: 'No assault gun survives', objective: { id: 'phase4Armour', type: 'kill', side: 1, kinds: ['tank'], count: 5 }, bonus: 0.1 },
+      ],
+      next: null,
+    },
+  ],
   events: [
+    // The director's events: the Stukas, the Nebelwerfer on the slope, the banner when they come back.
+    { id: 'stukaFoot', type: 'airRaid', when: { phase: 'foot', delay: 120 }, side: 1, support: 'airStrike', x: 2600 },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'tanks', delay: 60 }, side: 1, x: 6300, spread: 200, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
+    // On the summit the 295th comes back in the four scripted attacks; the rest of its army waits behind the crest.
+    { id: 'summitHold', type: 'posture', when: { phase: 'summit' }, side: 1, posture: 'hold' },
+    { id: 'comingBack', type: 'banner', when: { phase: 'summit', delay: 18 }, text: 'They are coming back!', sound: 'alarm' },
+    { id: 'stukaSummit', type: 'airRaid', when: { phase: 'summit', delay: 120 }, side: 1, support: 'airStrike', x: 10500 },
     {
       type: 'hint',
       when: { at: 3 },
@@ -174,7 +236,7 @@ export const M1006: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 2, delay: 150 },
+      when: { phase: 'slope', delay: 150 },
       side: 1,
       forces: [{ kind: 'rifle', count: 8, behaviour: 'assault' }],
       announce: 'German counter-attack down the slope!',
@@ -194,7 +256,7 @@ export const M1006: MissionDef = {
       when: { trenchCapturedBy: 0, trenchId: 4, delay: 10 },
       text: 'Flamethrowers burn out the water tanks. Keep riflemen around them: a hit from behind sets the fuel alight.',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 4, delay: 60 }, text: 'Rocket mortars on the slope!' },
+    { type: 'announce', when: { phase: 'tanks', delay: 60 }, text: 'Rocket mortars on the slope!' },
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 5 }, text: 'The summit is ours. Dig in!' },
     {
       type: 'wave',
@@ -209,7 +271,7 @@ export const M1006: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 20 },
+      when: { phase: 'summit', delay: 20 },
       side: 1,
       forces: [
         { kind: 'tank', count: 2, behaviour: 'assault', look: 'stug3f' },
@@ -217,10 +279,10 @@ export const M1006: MissionDef = {
       ],
       announce: 'They are coming back!',
     },
-    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 5, delay: 120 }, text: 'Stukas on the summit!' },
+    { type: 'announce', when: { phase: 'summit', delay: 120 }, text: 'Stukas on the summit!' },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 180 },
+      when: { phase: 'summit', delay: 180 },
       side: 1,
       forces: [
         { kind: 'flame', count: 2, behaviour: 'assault' },
@@ -230,7 +292,7 @@ export const M1006: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 280 },
+      when: { phase: 'summit', delay: 280 },
       side: 1,
       forces: [
         { kind: 'tank', count: 3, behaviour: 'assault' },
@@ -240,13 +302,13 @@ export const M1006: MissionDef = {
     },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 30 },
+      when: { phase: 'summit', delay: 30 },
       text: 'Assault guns: PTRD Teams in the summit trench, and a Katyusha Salvo on each attack while it forms on the western slope.',
     },
     {
       type: 'announce',
-      when: { trenchCapturedBy: 0, trenchId: 5, delay: 380 },
-      text: 'The summit held. Follow them down the western slope.',
+      when: { phase: 'summit', delay: 300 },
+      text: 'One more minute and the summit is ours for good. Keep the PTRD teams in the trench.',
     },
     {
       type: 'hint',
