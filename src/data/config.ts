@@ -63,7 +63,8 @@ export const CONFIG: GameConfig = {
   // The King Tiger escort: tougher and steadier than the line.
   veteran: { hpMul: 1.4, accuracyMul: 1.25 },
 
-  maxUnits: 160,
+  // Shared by both sides: two full armies (2 x popCap) plus headroom for scripted waves and survival attackers.
+  maxUnits: 216,
   maxProjectiles: 128,
   maxSmokes: 8,
   maxEvents: 256,
