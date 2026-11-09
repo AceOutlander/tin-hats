@@ -105,3 +105,29 @@ export const WATER: WaterTunables = {
   ferryHitShare: 0.3,
   ferryHitRadius: 90,
 };
+
+/** Boxes and tile sizes of the obstacle and water art (src/art/structures/obstacles.ts, src/render/obstacles.ts). */
+export const OBSTACLE_ART = {
+  /** An end-on tank trap or road block piece, centred; pieces stand this far apart across a belt. */
+  pieceBox: { w: 70, h: 110, ox: 35, oy: 60 },
+  piecePitch: 44,
+  /** A sandbag wall tile (origin: left edge on the ground line); four bags wide. */
+  wallTileW: 64,
+  wallBox: { w: 64, h: 100, ox: 0, oy: 50 },
+  /** The low course of bags along a sandbagged building's front. */
+  lowTileW: 60,
+  lowBox: { w: 60, h: 24, ox: 0, oy: 20 },
+  /** A minefield's warning sign and one mine. */
+  signBox: { w: 16, h: 40, ox: 8, oy: 38 },
+  mineBox: { w: 12, h: 6, ox: 6, oy: 4 },
+  /** Mines drawn per 100 wu of a field the player can see, at full density. */
+  minesPer100: 5,
+  /** A bridge deck tile (origin: left edge on the ground line), and a blown span's broken end. */
+  deckTileW: 96,
+  deckBox: { w: 96, h: 220, ox: 0, oy: 100 },
+  brokenBox: { w: 50, h: 190, ox: 0, oy: 100 },
+  /** The ferry boat (origin: its middle on the waterline) and the depth row offset it crosses on. */
+  boatW: 150,
+  boatBox: { w: 170, h: 50, ox: 85, oy: 30 },
+  boatDy: 24,
+} as const;

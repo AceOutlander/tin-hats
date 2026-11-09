@@ -66,6 +66,12 @@ function hqStyleFor(state: BattleState, side: number, looks: readonly SideLooks[
   return lookStyle(looks[side], 'hq');
 }
 
+/** True if trench record i is a sandbag wall built in a prep phase (src/render/obstacles.ts draws it). */
+function sandbagWall(state: BattleState, i: number): boolean {
+  for (const sb of state.sandbags) if (sb.building < 0 && sb.trench === i) return true;
+  return false;
+}
+
 function dirOf(side: number): number {
   return side === 0 ? 1 : -1;
 }
@@ -311,7 +317,7 @@ export class StructureViews {
     const reg = this.reg;
     const gy = VIEW.groundY;
     // Trench back walls first (DEPTH.trenchBack), then fronts (DEPTH.trenchFront).
-    for (const t of state.trenches) this.addTrench(t);
+    for (let i = 0; i < state.trenches.length; i++) this.addTrench(state.trenches[i], sandbagWall(state, i));
     for (let side = 0; side < 2; side++) {
       const d = state.dumps[side];
       // A side that can never have sappers (a mission that lives on airdrops, as the old Arnhem did) has no use for a dump.
@@ -335,16 +341,17 @@ export class StructureViews {
    * state's lists): anything past the lists' views gets one. Cheap when nothing changed.
    */
   sync(state: BattleState): void {
-    for (let i = this.trenchBack.length; i < state.trenches.length; i++) this.addTrench(state.trenches[i]);
+    for (let i = this.trenchBack.length; i < state.trenches.length; i++) this.addTrench(state.trenches[i], sandbagWall(state, i));
     for (let i = this.pillboxes.length; i < state.pillboxes.length; i++) this.addPillbox(state.pillboxes[i]);
     for (let i = this.wireIds.length; i < state.wires.length; i++) this.addWire(state.wires[i]);
   }
 
-  private addTrench(t: TrenchState): void {
+  private addTrench(t: TrenchState, wall: boolean): void {
     const reg = this.reg;
     const gy = VIEW.groundY;
-    if (t.building >= 0) {
-      // A building's slot record: hidden stand-ins keep the views in step with state.trenches (buildings.ts draws it).
+    if (t.building >= 0 || wall) {
+      // A building's slot record, or a sandbag wall's: hidden stand-ins keep the views in step with state.trenches
+      // (buildings.ts and obstacles.ts draw them).
       const stub = (layer: Phaser.GameObjects.Layer): Img => {
         const img = addImage(this.scene, layer, reg.get(RENDER_KEYS.whiteTL).frame);
         img.visible = false;

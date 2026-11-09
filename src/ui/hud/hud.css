@@ -1010,6 +1010,39 @@
   text-decoration: line-through;
 }
 
+/* "Clear" (FOUNDATIONS.md 4.6 and 4.8): the same tab, stacked above "Deploy at" when both show. */
+.th-clear {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 3px);
+  max-width: calc(100% - 12px);
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  color: var(--th-brass);
+  font-size: var(--fs-s);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-clear.is-stacked {
+  bottom: calc(100% + 36px);
+}
+
+.th-clear[hidden] {
+  display: none;
+}
+
+.th-clear.is-busy {
+  opacity: 0.6;
+}
+
 /* Buttons give up a few pixels (never below 54) before the bar starts to scroll. */
 .th-tbtn {
   flex: 0 1 auto;

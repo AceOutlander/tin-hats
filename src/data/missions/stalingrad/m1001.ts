@@ -7,7 +7,7 @@ import type { MissionDef } from '../../schema';
  * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1001): the ring barracks (B1), the garrison
  * club (B2, a former church) and the Kholm Gate (B3) are buildings of two floors (FOUNDATIONS.md 4.3), the HQ is a
  * casemate of the ring barracks (`hqLook`), a 60 s prep phase of wire and sandbag walls comes first (FOUNDATIONS.md
- * 4.8; the test bot wires the bridge foot and sandbags the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
+ * 4.8; the test bot wires the bridge foot and puts a sandbag wall behind the gate), and the three phases are the mission director's (FOUNDATIONS.md 3: 240 s each, under the one 720 s
  * clock to nightfall). The opening barrage, the Nebelwerfer salvo, the Karl siege mortar and the 21 cm mortars are
  * scripted barrages (side 1 has no HQ, so no commander calls anything); the side objectives are the brief's. The ground
  * is the brief's sectors (FOUNDATIONS.md 4.1): cobbles, the Kholm Gate's rubble, the Mukhavets (water, 4.4) under
@@ -112,10 +112,11 @@ export const M1001: MissionDef = {
     seconds: 60,
     buildables: ['wire', 'sandbags'],
     zone: { from: 900, to: 3500 },
+    // The bot wires the bridge foot and sandbags behind the gate (a wall in front of it would pull the hold line out of
+    // the buildings).
     bot: [
       { kind: 'wire', x: 3440 },
       { kind: 'sandbags', x: 2700 },
-      { kind: 'sandbags', x: 3330 },
     ],
   },
   timer: { seconds: 720, onExpire: 'win', label: 'Until nightfall' },
