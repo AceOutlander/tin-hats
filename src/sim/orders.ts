@@ -18,6 +18,9 @@ import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
 import { rallyFor } from './points';
+import { clearJob } from './clear';
+import { clampVehicle, inEnemyRoadBlock } from './obstacles';
+import { riverClamp } from './water';
 import { GROUND_INV_CELL, GROUND_MODES, orderFor, type World } from './world';
 
 /*
@@ -252,6 +255,11 @@ function walk(w: World, u: UnitState, dir: number): boolean {
     const limit = w.limit[u.side];
     if ((nx - limit) * dir > 0) nx = (u.x - limit) * dir > 0 ? u.x : limit;
   }
+  // Vehicles stop at the other side's tank traps and road blocks and at the river bank (FOUNDATIONS.md 4.4 and 4.8).
+  if (u.def.class === 'vehicle' && nx !== u.x) {
+    if (s.obstacles.length > 0) nx = clampVehicle(w, u, nx);
+    if (g !== null && g.blocked > 0) nx = riverClamp(g, u.x, nx);
+  }
   const margin = CONFIG.mapMargin;
   if (nx < margin) nx = margin;
   else if (nx > s.length - margin) nx = s.length - margin;
@@ -313,6 +321,16 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
       }
       return;
     }
+    // A Clear job (src/sim/clear.ts): walk to its spot and work there.
+    const job = clearJob(w, u.site);
+    if (job !== null) {
+      u.goalX = job.x;
+      if (walk(w, u, dir)) {
+        u.velX = 0;
+        u.facing = dir;
+      }
+      return;
+    }
     u.site = -1;
     u.task = TASK_TO_DUMP;
   }
@@ -352,6 +370,7 @@ export function moveUnits(w: World): void {
   const s = w.state;
   const units = s.units;
   const anyWire = s.wires.length > 0;
+  const anyBlock = s.obstacles.length > 0;
   const prep = inPrep(s);
   if (w.doorTimer[0] > 0) w.doorTimer[0] -= w.dt;
   if (w.doorTimer[1] > 0) w.doorTimer[1] -= w.dt;
@@ -365,6 +384,8 @@ export function moveUnits(w: World): void {
 
     if (u.inside) {
       u.velX = 0;
+      // Waiting for a ferry, or on it (src/sim/water.ts moves them).
+      if (u.ferry >= 0) continue;
       if (u.carrier >= 0) {
         // Riding in an APC: wherever it goes.
         const c = units[u.carrier];
@@ -401,6 +422,7 @@ export function moveUnits(w: World): void {
       const mx = w.ctrlMove[u.side];
       u.moveSpeed = u.def.speed * (mx > 0 ? mx : mx < 0 ? -mx : 1);
       if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
+      else if (anyBlock && u.def.class === 'infantry' && inEnemyRoadBlock(w, u)) u.moveSpeed *= CONFIG.wireSlow;
       walk(w, u, dir);
       if (anyWire && u.def.crushesWire && u.velX !== 0) crushWire(w, u);
       continue;
@@ -418,6 +440,7 @@ export function moveUnits(w: World): void {
     const retreating = u.behaviour === 'army' && orderFor(side, u.kind) === 'fallBack';
     u.moveSpeed = retreating ? u.def.speed * CONFIG.fallBackSpeedMul : u.def.speed;
     if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
+    else if (anyBlock && u.def.class === 'infantry' && inEnemyRoadBlock(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     const arrived = walk(w, u, dir);
     if (anyWire && u.def.crushesWire && u.velX !== 0) crushWire(w, u);
     if (arrived && retreating && u.rally < 0 && side.hq && side.hq.alive) enterHq(w, u);

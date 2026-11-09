@@ -67,7 +67,7 @@ export interface TheatrePalette {
 }
 
 /** How a ground is drawn. snow, deepSnow, rubble and steppe bring their own colours (GROUND_PALETTES in src/data/ground.ts). */
-export type GroundStyle = 'grass' | 'sand' | 'dry' | 'mud' | 'beach' | 'cobble' | 'forest' | 'snow' | 'deepSnow' | 'rubble' | 'steppe';
+export type GroundStyle = 'grass' | 'sand' | 'dry' | 'mud' | 'beach' | 'cobble' | 'forest' | 'snow' | 'deepSnow' | 'rubble' | 'steppe' | 'water';
 
 export type ForegroundItem =
   | 'tuft'

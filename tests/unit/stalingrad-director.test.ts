@@ -18,6 +18,9 @@ function structureExists(m: MissionDef, ref: StructureRef): boolean {
   if ('pillbox' in ref) return m.pillboxes.some((p) => p.id === ref.pillbox);
   if ('wire' in ref) return m.wire.some((w) => w.id === ref.wire);
   if ('building' in ref) return (m.buildings ?? []).some((b) => b.id === ref.building);
+  if ('bridge' in ref) return (m.bridges ?? []).some((b) => b.id === ref.bridge);
+  if ('obstacle' in ref) return (m.obstacles ?? []).some((o) => o.id === ref.obstacle);
+  if ('minefield' in ref) return (m.minefields ?? []).some((f) => f.id === ref.minefield);
   return ref.hq === 0 || m.start[1].hasHq;
 }
 

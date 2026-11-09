@@ -682,6 +682,83 @@ export interface WireDef {
   owner: Side;
 }
 
+/**
+ * A vehicle obstacle (FOUNDATIONS.md 4.8; src/sim/obstacles.ts): the other side's vehicles cannot pass it until it is
+ * cleared by sappers, blown apart by explosive splash or worked loose by the vehicles held at it. tankTrap = steel
+ * "hedgehogs" (infantry walk through); roadBlock = a barricade of logs and wire that also slows the other side's
+ * infantry like wire.
+ */
+export interface ObstacleDef {
+  id: number;
+  x: number;
+  width: number;
+  /** The side that built it; only the other side is stopped. */
+  owner: Side;
+  kind: ObstacleKind;
+}
+
+export type ObstacleKind = 'tankTrap' | 'roadBlock';
+
+/**
+ * A minefield (FOUNDATIONS.md 4.6; src/sim/mines.ts). The other side's units moving in it roll, per 10 wu moved,
+ * density x MINES.chance[mines][class] on the battle RNG; a blast hurts the one who set it off and lowers the density.
+ * Explosive splash and sappers' Clear jobs thin it out. Its owner always sees it; the other side once it is marked, a
+ * mine has gone off under one of its men, its own rounds have set mines off there, or its recon plane has passed over.
+ */
+export interface MinefieldDef {
+  id: number;
+  x: number;
+  width: number;
+  owner: Side;
+  /** ap = anti-personnel (barely scratch a tank), at = anti-tank (ignore infantry), mixed = both. */
+  mines: MineKind;
+  /** 0..1. */
+  density: number;
+  /** Warning signs: the other side sees it from the start. */
+  marked: boolean;
+}
+
+export type MineKind = 'ap' | 'at' | 'mixed';
+
+/**
+ * A bridge over a river (FOUNDATIONS.md 4.4; src/sim/water.ts). While it stands its span [x0, x1] is road for
+ * everyone (vehicles cross, nobody wades); a fallen bridge leaves the water below. `point` names the capture point that
+ * holds it (its owner follows the point). A wired bridge is blown by the `demolish` event unless the other side holds
+ * its point (the wires are cut then). A bridge with `standing: false` is put across later by the `bridge` event (a
+ * pontoon).
+ */
+export interface BridgeDef {
+  id: number;
+  x0: number;
+  x1: number;
+  /** Multiplier on WATER.bridgeHp. Default 1. */
+  hpMul?: number;
+  /** Starting owner; -1 = nobody. A bridge with a `point` takes the point's owner. */
+  owner: Side | -1;
+  /** The capture point on the bridge (MissionDef.capturePoints). */
+  point?: string;
+  /** Charges laid by `side`; wired = ready to blow. */
+  demolition?: { side: Side; wired: boolean };
+  /** Default true. False: not there until a `bridge` event puts it up. */
+  standing?: boolean;
+  /** How it is drawn: a girder bridge (default) or a pontoon bridge. */
+  look?: 'bridge' | 'pontoon';
+}
+
+/**
+ * A ferry (CapturePointDef.ferry, FOUNDATIONS.md 4.4 and 4.5): units deploying at the point, or at a point beyond it,
+ * board at `from` on the home bank and cross together, a boat every `batchEvery` seconds; a round of the other side
+ * that lands on the boat while it crosses sinks `hitShare` of its load (the men chosen on the battle RNG).
+ */
+export interface FerryDef {
+  /** Where the boat puts out from (wu, on the side's own bank). */
+  from: number;
+  /** Seconds the crossing takes. Default WATER.ferryCross. */
+  crossSeconds?: number;
+  /** Share of the load lost when the boat is hit (0..1). Default WATER.ferryHitShare. */
+  hitShare?: number;
+}
+
 /** A group of units placed at mission start or spawned by an event. */
 export interface ForceDef {
   kind: UnitKind;
@@ -777,7 +854,15 @@ export interface SideStart {
  * "destroyed" and a 0..1 health; later features add their own kinds here ({ building }, { bridge }, { minefield }).
  * A trench counts as destroyed (lost) once the other side holds it.
  */
-export type StructureRef = { trench: number } | { pillbox: number } | { wire: number } | { hq: Side } | { building: number };
+export type StructureRef =
+  | { trench: number }
+  | { pillbox: number }
+  | { wire: number }
+  | { hq: Side }
+  | { building: number }
+  | { bridge: number }
+  | { obstacle: number }
+  | { minefield: number };
 
 /**
  * Something a side owns and the director can test: a trench, a building (MissionDef.buildings, by its slot record), or
@@ -854,6 +939,10 @@ export interface CapturePointDef {
   contestRadius: number;
   /** The point is this trench or building: it changes hands with it (the trench way), not by its own timer. */
   structure?: PointStructureRef;
+  /** A ferry landing (FOUNDATIONS.md 4.4): deployments arrive together, a boat every this many seconds (with `ferry`). */
+  batchEvery?: number;
+  /** The ferry that serves the landing (with batchEvery). */
+  ferry?: FerryDef;
 }
 
 /**
@@ -936,6 +1025,10 @@ export type MissionEventDef = { id?: string } & (
       owner: Side | -1;
     }
   | { type: 'endMission'; when: MissionTrigger; winner: Side; text: string }
+  /** Blow a wired bridge (FOUNDATIONS.md 4.4): nothing happens if it is down, not wired, or its wires were cut. */
+  | { type: 'demolish'; when: MissionTrigger; bridge: number }
+  /** Put a bridge across (a pontoon the engineers have built): its span becomes road again. */
+  | { type: 'bridge'; when: MissionTrigger; bridge: number }
 );
 
 /**
@@ -970,7 +1063,9 @@ export type LossDef =
   | { type: 'structureLost'; structures: StructureRef[] }
   | { type: 'lost'; count: number; kinds?: UnitKind[] }
   /** Side 1 infantry inside the point's span (a building or trench) while side 0 holds it (1007: no German inside). */
-  | { type: 'contested'; point: PointRef };
+  | { type: 'contested'; point: PointRef }
+  /** `count` boat loads of the ferry at this capture point have been hit on the way over (1005). */
+  | { type: 'ferryLoads'; point: string; count: number };
 
 /**
  * An optional objective that pays a medal bonus (FOUNDATIONS.md 7.1), watched from its phase's start to the end of
@@ -1114,6 +1209,12 @@ export interface MissionDef {
   buildings?: BuildingDef[];
   /** Cover props: wagons, wrecks (FOUNDATIONS.md 4.3). Absent = none. */
   props?: CoverPropDef[];
+  /** Tank traps and road blocks (FOUNDATIONS.md 4.8). Absent = none. */
+  obstacles?: ObstacleDef[];
+  /** Minefields (FOUNDATIONS.md 4.6). Absent = none. */
+  minefields?: MinefieldDef[];
+  /** Bridges over the water sectors (FOUNDATIONS.md 4.4). Absent = none. */
+  bridges?: BridgeDef[];
   /**
    * The ground in sectors, left to right (FOUNDATIONS.md 4.1 and 4.2): speeds, cover, the crest's range bonus, the
    * ground art and the minimap. Absent = even ground, exactly as before.
@@ -1157,5 +1258,8 @@ export interface MissionPrepDef {
   bot?: { kind: BuildableId; x: number }[];
 }
 
-/** What a prep phase can build (src/data/prep.ts). Tank traps wait for a vehicle blocker in the sim. */
-export type BuildableId = 'wire' | 'foxhole' | 'trench' | 'pillbox';
+/**
+ * What a prep phase can build (src/data/prep.ts): tankTrap and roadBlock stop the enemy's vehicles, sandbags is a
+ * sandbag wall on open ground or sandbags in the windows of a building the side holds, minefield an AP field.
+ */
+export type BuildableId = 'wire' | 'foxhole' | 'trench' | 'pillbox' | 'tankTrap' | 'roadBlock' | 'sandbags' | 'minefield';

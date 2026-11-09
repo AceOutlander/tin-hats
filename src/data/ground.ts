@@ -29,6 +29,8 @@ export interface GroundDef {
   art: GroundStyle | 'theatre';
   /** Drawn instead in a winter mission (MissionDef.climate 'winter'): steppe and fields under snow. */
   winterArt?: GroundStyle;
+  /** Vehicles cannot drive onto it (a river): they stop at its edge unless a bridge spans it (FOUNDATIONS.md 4.4). */
+  vehicleBarrier?: boolean;
 }
 
 /** Width of one cell of the sim's ground tables in wu. */
@@ -56,8 +58,8 @@ export const GROUND: Record<GroundId, GroundDef> = {
   rubble: flat('rubble', 'Rubble', 0.7, 0.55, 'rubble', 0.85),
   slopeUp: { id: 'slopeUp', label: 'Slope', infantry: 0.85, vehicle: 0.8, infantryDown: 1.1, vehicleDown: 1, bulletCover: 1, art: 'theatre', winterArt: 'snow' },
   slopeDown: { id: 'slopeDown', label: 'Slope', infantry: 1.1, vehicle: 1, infantryDown: 0.85, vehicleDown: 0.8, bulletCover: 1, art: 'theatre', winterArt: 'snow' },
-  // Wading or paddling; vehicles stop at the bank once bridges exist (FOUNDATIONS.md 4.4). Until then they wade too.
-  water: flat('water', 'River', 0.35, 0.35, 'mud'),
+  // Wading or paddling (the ford); vehicles stop at the bank, and cross only on a bridge (FOUNDATIONS.md 4.4).
+  water: { ...flat('water', 'River', 0.35, 0.35, 'water'), vehicleBarrier: true },
 };
 
 export const GROUND_IDS = Object.keys(GROUND) as GroundId[];
@@ -115,6 +117,17 @@ export const GROUND_PALETTES: Partial<Record<GroundStyle, GroundPalette>> = {
     soil: '#5c5146',
     soilDark: '#3e362f',
   },
+  // A river (FOUNDATIONS.md 4.4): grey-green water under a dull sky, mid-toned so the waders still read black on it.
+  water: {
+    ground: '#7d8c8a',
+    groundLight: '#9fadaa',
+    groundDark: '#55625f',
+    track: '#8e9c99',
+    tuft: '#5d6a52',
+    pebble: '#b8c4c1',
+    soil: '#4a5552',
+    soilDark: '#333c3a',
+  },
   steppe: {
     ground: '#a99c6c',
     groundLight: '#c2b583',
@@ -140,6 +153,7 @@ export const GROUND_MINIMAP: Record<GroundStyle, string> = {
   deepSnow: '#7d8589',
   rubble: '#4a4439',
   steppe: '#57502f',
+  water: '#2f4248',
 };
 
 /** Capture points, forward spawns and rally Fall Back (FOUNDATIONS.md 4.5). */

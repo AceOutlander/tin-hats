@@ -45,6 +45,10 @@ export interface GroundField {
   cover: Float32Array;
   /** Per cell: range multiplier for weapons fired from there (SectorDef.heightBonus). */
   height: Float32Array;
+  /** Per cell: 1 where vehicles cannot drive on (water no standing bridge spans, FOUNDATIONS.md 4.4), else 0. */
+  block: Uint8Array;
+  /** Cells that block vehicles (0 = none anywhere: walk() skips the test). */
+  blocked: number;
 }
 
 /** Entries per cell in GroundField.speed. */
@@ -59,6 +63,8 @@ function blankGround(length: number): GroundField {
     speed: new Float32Array(count * GROUND_MODES).fill(1),
     cover: new Float32Array(count).fill(1),
     height: new Float32Array(count).fill(1),
+    block: new Uint8Array(count),
+    blocked: 0,
   };
 }
 
@@ -79,6 +85,35 @@ function writeGround(f: GroundField, from: number, to: number, id: GroundId): vo
     f.speed[o + 4] = ski ?? def.infantry;
     f.speed[o + 5] = ski ?? def.infantryDown;
     f.cover[c] = def.bulletCover;
+    const bar = def.vehicleBarrier === true ? 1 : 0;
+    f.blocked += bar - f.block[c];
+    f.block[c] = bar;
+  }
+}
+
+/**
+ * A standing bridge over [x0, x1) (FOUNDATIONS.md 4.4): its cells move everyone at road speed and let vehicles on. A
+ * fallen one (`standing` false) gives the cells back their own ground. The ground ids (and so the art) stay the river's.
+ */
+export function writeBridge(f: GroundField, x0: number, x1: number, standing: boolean): void {
+  const road = GROUND.road;
+  for (let c = 0; c < f.count; c++) {
+    const mid = (c + 0.5) * GROUND_CELL;
+    if (mid < x0 || mid >= x1) continue;
+    const id = GROUND_IDS[f.ground[c]];
+    const def = standing ? road : GROUND[id];
+    const ski = standing ? undefined : SKI_GROUND[id];
+    const o = c * GROUND_MODES;
+    f.speed[o] = def.infantry;
+    f.speed[o + 1] = def.infantryDown;
+    f.speed[o + 2] = def.vehicle;
+    f.speed[o + 3] = def.vehicleDown;
+    f.speed[o + 4] = ski ?? def.infantry;
+    f.speed[o + 5] = ski ?? def.infantryDown;
+    f.cover[c] = def.bulletCover;
+    const bar = def.vehicleBarrier === true ? 1 : 0;
+    f.blocked += bar - f.block[c];
+    f.block[c] = bar;
   }
 }
 
@@ -241,6 +276,8 @@ export const CMD_CANCEL_BUILD = 9;
 export const CMD_READY = 10;
 /** "Deploy at": `unit` = DEPLOY_AUTO, DEPLOY_HQ or a capture point index. */
 export const CMD_DEPLOY = 11;
+/** A sappers' Clear job on the enemy minefield or obstacle nearest `x`. */
+export const CMD_CLEAR = 12;
 
 /** A queued command, flattened so the queue can be pooled. Only the fields of its `type` are meaningful. */
 export interface QueuedCommand {

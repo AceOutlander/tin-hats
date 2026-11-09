@@ -7,9 +7,12 @@
  * the prep phase ends go on being built. Nothing here runs for a mission without `prep`.
  */
 import { CONFIG } from '../data/config';
+import { MINES } from '../data/obstacles';
 import { PREP } from '../data/prep';
 import type { BuildableId, MissionDef, MissionPrepDef, Side } from '../data/schema';
 import { KIND_SAPPER } from './tables';
+import { addMinefield } from './mines';
+import { addObstacle } from './obstacles';
 import { addTrench } from './trenches';
 import type { BattleState, BuildSiteState, PrepState } from './types';
 import { createMount, resetMount } from './units';
@@ -107,9 +110,26 @@ function clearOf(s: BattleState, x: number, half: number): boolean {
   for (const p of s.pillboxes) if (p.alive && near(p.x, CONFIG.pillboxWidth / 2)) return false;
   for (const w of s.wires) if (w.alive && near(w.x, w.width / 2)) return false;
   for (const site of s.sites) if (near(site.x, site.width / 2)) return false;
+  for (const o of s.obstacles) if (o.alive && near(o.x, o.width / 2)) return false;
+  for (const f of s.minefields) if (f.alive && near(f.x, f.width / 2)) return false;
   for (const side of s.sides) if (side.hq && near(side.hq.x, CONFIG.hqWidth / 2)) return false;
   for (const d of s.dumps) if (d && near(d.x, CONFIG.dumpSpread / 2)) return false;
   return true;
+}
+
+/**
+ * Sandbags placed on a building side `si` holds go into its windows: the index in state.buildings of the standing
+ * building (not a cover prop) whose footprint holds x and that has no sandbags yet, or -1.
+ */
+export function sandbagBuilding(s: BattleState, si: number, x: number): number {
+  for (let i = 0; i < s.buildings.length; i++) {
+    const b = s.buildings[i];
+    if (b.prop || b.rubble || b.owner !== si || Math.abs(x - b.x) > b.width / 2) continue;
+    for (const sb of s.sandbags) if (sb.building === i) return -1;
+    for (const site of s.sites) if (site.kind === 'sandbags' && site.x === b.x) return -1;
+    return i;
+  }
+  return -1;
 }
 
 /** Why a build at x would be dropped, or null if it would be placed. The HUD shows the ghost red when not null. */
@@ -120,7 +140,7 @@ export function buildProblem(s: BattleState, si: number, kind: BuildableId, x: n
   const def = PREP.buildables[kind];
   const half = def.width / 2;
   if (!Number.isFinite(x) || x - half < p.zoneFrom || x + half > p.zoneTo) return 'zone';
-  if (!clearOf(s, x, half)) return 'blocked';
+  if (!(kind === 'sandbags' && sandbagBuilding(s, si, x) >= 0) && !clearOf(s, x, half)) return 'blocked';
   if (s.sides[si].supplies < def.cost) return 'money';
   let mine = 0;
   for (const site of s.sites) if (site.side === si) mine++;
@@ -135,12 +155,16 @@ export function applyBuild(w: World, si: number, kind: BuildableId, x: number): 
   const side = s.sides[si];
   side.supplies -= def.cost;
   side.stats.suppliesSpent += def.cost;
-  const site: BuildSiteState = { id: w.nextSiteId++, kind, side: si as Side, x, width: def.width, progress: 0, worker: -1, workerId: -1, cost: def.cost };
+  // Sandbags on a building go in its windows: the site is the building's footprint.
+  const bi = kind === 'sandbags' ? sandbagBuilding(s, si, x) : -1;
+  const at = bi >= 0 ? s.buildings[bi].x : x;
+  const width = bi >= 0 ? s.buildings[bi].width : def.width;
+  const site: BuildSiteState = { id: w.nextSiteId++, kind, side: si as Side, x: at, width, progress: 0, worker: -1, workerId: -1, cost: def.cost };
   s.sites.push(site);
   const e = w.events.emit('buildStarted');
   e.side = si;
   e.targetIndex = site.id;
-  e.x = x;
+  e.x = at;
   e.text = kind;
 }
 
@@ -243,7 +267,25 @@ function finish(w: World, site: BuildSiteState): void {
   const s = w.state;
   const def = PREP.buildables[site.kind];
   let index: number;
-  if (def.makes === 'trench') {
+  let target: 'trench' | 'pillbox' | 'wire' | 'building' | 'ground' = def.makes === 'trench' || def.makes === 'pillbox' || def.makes === 'wire' ? def.makes : 'ground';
+  if (def.makes === 'obstacle') {
+    index = addObstacle(w, { id: 1000 + site.id, x: site.x, width: def.width, owner: site.side, kind: def.obstacle ?? 'tankTrap' });
+  } else if (def.makes === 'minefield') {
+    index = addMinefield(w, { id: 1000 + site.id, x: site.x, width: def.width, owner: site.side, mines: 'ap', density: MINES.prepDensity, marked: false });
+  } else if (def.makes === 'sandbags') {
+    // Into the windows of the building it was placed on (if the side still holds it), else a sandbag wall.
+    const bi = s.buildings.findIndex((b) => !b.prop && !b.rubble && b.x === site.x && b.owner === site.side);
+    if (bi >= 0) {
+      const b = s.buildings[bi];
+      s.sandbags.push({ trench: b.trench, building: bi, x: b.x, width: b.width, side: site.side });
+      target = 'building';
+      index = bi;
+    } else {
+      index = addTrench(w, { id: 1000 + site.id, x: site.x, width: def.width, slots: def.slots ?? 3, owner: site.side });
+      s.sandbags.push({ trench: index, building: -1, x: site.x, width: def.width, side: site.side });
+      target = 'trench';
+    }
+  } else if (def.makes === 'trench') {
     index = addTrench(w, { id: 1000 + site.id, x: site.x, width: def.width, slots: def.slots ?? 3, owner: site.side });
   } else if (def.makes === 'pillbox') {
     const gun = createMount();
@@ -260,5 +302,5 @@ function finish(w: World, site: BuildSiteState): void {
   e.targetIndex = index;
   e.x = site.x;
   e.text = site.kind;
-  e.target = def.makes;
+  e.target = target;
 }

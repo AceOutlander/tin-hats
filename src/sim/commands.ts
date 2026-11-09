@@ -11,11 +11,13 @@ import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
 import { applyBuild, applyCancelBuild, applyReady } from './prep';
+import { applyClear } from './clear';
 import { resolveDeploy } from './points';
 import { DEPLOY_AUTO, DEPLOY_HQ } from './types';
 import {
   CMD_BUILD,
   CMD_CANCEL_BUILD,
+  CMD_CLEAR,
   CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
@@ -175,6 +177,9 @@ export function applyCommands(w: World): void {
         break;
       case CMD_DEPLOY:
         applyDeploy(w, c.side, c.unit);
+        break;
+      case CMD_CLEAR:
+        applyClear(w, c.side, c.x);
         break;
       default:
         break;

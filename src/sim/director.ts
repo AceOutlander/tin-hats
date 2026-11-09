@@ -34,6 +34,7 @@ import { inPrep, missionTime, startPhasePrep } from './prep';
 import { LAUNCH, launch } from './projectiles';
 import { PLANE_NONE, SUPPORT_COUNT, callSupport } from './supports';
 import { KIND_DEFS, weaponIndex } from './tables';
+import { demolishBridge, ferryLoadsLost, raiseBridge } from './water';
 import type { BattleState, DirectorState, EndReason, ObjectiveState, SideObjectiveState, TimerState, UnitState } from './types';
 import type { World } from './world';
 
@@ -118,6 +119,19 @@ export function structureGone(s: BattleState, ref: StructureRef, by: Side): bool
     for (const wire of s.wires) if (wire.id === ref.wire) return !wire.alive;
     return false;
   }
+  // Obstacles and water (FOUNDATIONS.md 4.4, 4.6, 4.8): a bridge down, an obstacle or minefield gone.
+  if ('bridge' in ref) {
+    for (const b of s.bridges) if (b.id === ref.bridge) return !b.standing;
+    return false;
+  }
+  if ('obstacle' in ref) {
+    for (const o of s.obstacles) if (o.id === ref.obstacle) return !o.alive;
+    return false;
+  }
+  if ('minefield' in ref) {
+    for (const f of s.minefields) if (f.id === ref.minefield) return !f.alive;
+    return false;
+  }
   const hq = s.sides[ref.hq].hq;
   return hq !== null && !hq.alive;
 }
@@ -141,6 +155,18 @@ export function structureHealth(s: BattleState, ref: StructureRef): number {
   }
   if ('wire' in ref) {
     for (const wire of s.wires) if (wire.id === ref.wire) return wire.alive ? 1 : 0;
+    return 0;
+  }
+  if ('bridge' in ref) {
+    for (const b of s.bridges) if (b.id === ref.bridge) return b.standing && b.maxHp > 0 ? Math.max(0, b.hp) / b.maxHp : 0;
+    return 0;
+  }
+  if ('obstacle' in ref) {
+    for (const o of s.obstacles) if (o.id === ref.obstacle) return o.alive && o.maxHp > 0 ? Math.max(0, o.hp) / o.maxHp : 0;
+    return 0;
+  }
+  if ('minefield' in ref) {
+    for (const f of s.minefields) if (f.id === ref.minefield) return f.alive ? f.density : 0;
     return 0;
   }
   const hq = s.sides[ref.hq].hq;
@@ -296,6 +322,8 @@ function lossHappened(s: BattleState, loss: LossDef, base: number[], k: number):
       return deaths(s, 0, loss.kinds) - base[k] >= loss.count;
     case 'contested':
       return pointOwner(s, loss.point) === 0 && infantryInside(s, loss.point, 1) > 0;
+    case 'ferryLoads':
+      return ferryLoadsLost(s, loss.point) >= loss.count;
   }
 }
 
@@ -311,6 +339,8 @@ function lossText(loss: LossDef): string {
       return 'Too many men were lost.';
     case 'contested':
       return 'The enemy got inside.';
+    case 'ferryLoads':
+      return 'Too many boats were lost.';
   }
 }
 
@@ -767,6 +797,12 @@ export function fireDirectorEvent(w: World, ev: MissionEventDef): void {
       endBattle(w, ev.winner, 'scripted');
       break;
     }
+    case 'demolish':
+      demolishBridge(w, ev.bridge);
+      break;
+    case 'bridge':
+      raiseBridge(w, ev.bridge);
+      break;
     default:
       break;
   }
