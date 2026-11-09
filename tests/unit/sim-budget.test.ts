@@ -11,6 +11,7 @@
 import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/data/config';
+import { getMission } from '../../src/data/missions';
 import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { ForceDef, MissionDef, UnitKind } from '../../src/data/schema';
 import { createBattle, type Battle } from '../../src/sim';
@@ -142,5 +143,32 @@ describe('sim time budget, heavy battle', () => {
     expect(mean).toBeLessThan(BUDGET_MEAN_MS);
     expect(p95).toBeLessThan(BUDGET_P95_MS);
     expect(max).toBeLessThan(BUDGET_MAX_MS);
+  });
+});
+
+describe('sim time budget, the longest campaign map with the mission director', () => {
+  // Operation Uranus (1009) is 30,000 wu with four phases, scripted barrages, a Katyusha raid and side objectives: the
+  // director's checks (objectives, losses, side objectives, triggers) run every tick there, on top of the battle.
+  it(`keeps 1009 played by the bot against the AI under ${BUDGET_MEAN_MS} ms mean per tick`, () => {
+    const m = getMission(1009);
+    if (!m) throw new Error('mission 1009 missing');
+    const play = (): number[] => {
+      const b = createBattle({ mission: m, difficulty: 'normal', seed: 2, upgrades: {}, commanders: ['bot', 'ai'] });
+      const out: number[] = [];
+      for (let i = 0; i < 9000 && !b.state.over; i++) {
+        const t0 = performance.now();
+        b.step();
+        out.push(performance.now() - t0);
+      }
+      return out;
+    };
+    play(); // warm the JIT up
+    const best = play();
+    const again = play();
+    for (let i = 0; i < Math.min(best.length, again.length); i++) best[i] = Math.min(best[i], again[i]);
+    const mean = best.reduce((x, y) => x + y, 0) / best.length;
+    console.log(`sim budget 1009: ${best.length} ticks, mean ${mean.toFixed(3)} ms`);
+    expect(best.length).toBe(9000);
+    expect(mean).toBeLessThan(BUDGET_MEAN_MS);
   });
 });
