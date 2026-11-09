@@ -85,8 +85,8 @@ export interface AppDeps {
   /** The campaigns and their missions. Default: DEFAULT_CAMPAIGNS (or `missions` as the British campaign). */
   campaigns?: readonly CampaignPlay[];
   /**
-   * Offer the campaigns still being built (`released: false`) on the select screen: the dev server and ?debug=1 do,
-   * the live site does not (the admin panel's unlock shows them for its session). Default false.
+   * Offer the campaigns still being built (`released: false`) on the select screen: the dev server and ?unreleased=1
+   * do, the live site does not (the admin panel's unlock shows them for its session). Default false.
    */
   showUnreleased?: boolean;
   /** Quartermaster upgrades. Default: every upgrade in src/data/upgrades.ts. */

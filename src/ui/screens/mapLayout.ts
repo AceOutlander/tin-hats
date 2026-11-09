@@ -50,7 +50,7 @@ function placePins(lons: readonly number[], lats: readonly number[], size: MapSi
 /**
  * Pick the map size and pin positions for a view. Small phones get the full-size
  * map (they pan). Bigger screens get the largest map, no smaller than the fit
- * floor, on which every pin is on screen at once. proj is the campaign's map projection (default the British map).
+ * floor, on which every pin is on screen at once. `proj` is the campaign's map projection (default the British map).
  */
 export function layoutPins(
   lons: readonly number[],
