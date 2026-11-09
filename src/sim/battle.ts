@@ -410,6 +410,7 @@ class BattleImpl implements Battle, World {
 
     computeFronts(this); // hold lines, needed to place the starting formation
     placeStartingForces(this);
+    updateBuildings(this); // the men placed in buildings
     computeFronts(this);
     // The first phase begins with the forces in place (garrisons own their trenches).
     startDirector(this);
