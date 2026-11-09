@@ -64,7 +64,7 @@ export const M09: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
-      text: 'No sappers and no income here. Supplies come only from the airdrops, so spend each one on what the line needs.',
+      text: 'No sappers and no income here. Money comes only from the airdrops, so spend each one on what the line needs.',
     },
     {
       type: 'hint',

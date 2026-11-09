@@ -276,7 +276,7 @@ describe('mission events in the battle', () => {
     const { app, view } = scripted(events);
     const hud = () => app.session?.hud.state;
     runTo(app, view, 5.5);
-    expect(hud()?.banner).toBe('Airdrop: +80 supplies');
+    expect(hud()?.banner).toBe('Airdrop: +80 money');
     runTo(app, view, 9.5);
     expect(hud()?.banner).toBe(APP.notices.wave);
     runTo(app, view, 14.5);

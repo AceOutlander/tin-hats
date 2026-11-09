@@ -74,7 +74,7 @@ export const resultScreen: ScreenFactory = (ctx) => {
         ['Trained', formatCount(result.unitsTrained)],
         ['Lost', formatCount(result.unitsLost)],
         ['Kills', formatCount(result.enemiesKilled)],
-        ['Supplies', formatCount(result.suppliesGathered)],
+        ['Money', formatCount(result.suppliesGathered)],
       ]
     : [];
   for (const [label, value] of rows) {

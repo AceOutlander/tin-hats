@@ -215,7 +215,7 @@ describe('the guided steps in Basic Training', () => {
     r.session.dispatch({ type: 'dismissTip' });
     r.run(TUTORIAL.gapSeconds + 0.5);
     expect(r.tip()?.target).toBe('supplies');
-    expect(r.tip()?.text).toMatch(/Supplies/);
+    expect(r.tip()?.text).toMatch(/Money/);
     expect(r.tutorial.activeId).toBe('supplies');
   });
 

@@ -224,7 +224,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'hqIncome',
     name: 'Requisition Orders',
-    description: 'The HQ draws more supplies from the rear.',
+    description: 'The HQ draws more money from the rear.',
     unit: null,
     levels: levels((i) => [{ stat: 'hqIncome', mul: HQ_INCOME[i] }]),
     costPerLevel: UPGRADE_LEVEL_MEDALS[0],

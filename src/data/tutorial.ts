@@ -14,7 +14,7 @@ import type { Order, SupportKind, UnitKind } from './schema';
 /**
  * What a tip points at. The ids are the data-testid of a HUD control (`train-sapper`, `order-advance`, `order-scope`
  * (the "Orders for" chip of the per-unit-type orders), `support-smoke`, `minimap`, and `fire` and `release` while a
- * unit is under direct control) plus `supplies` (the supplies readout in the top bar) and `field` (nothing to
+ * unit is under direct control) plus `supplies` (the money readout in the top bar) and `field` (nothing to
  * highlight: the bubble floats above the bottom bar).
  */
 export type TipTarget =
@@ -149,7 +149,7 @@ export const TUTORIAL: TutorialTunables = {
     // Money and sappers.
     {
       id: 'supplies',
-      text: 'Supplies buy troops. Your Sappers carry them from the dump to your HQ.',
+      text: 'Money buys troops. Your Sappers carry it from the dump to your HQ, in boxes.',
       target: 'supplies',
       after: ['welcome'],
       when: [],
@@ -158,7 +158,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'trainSapper',
-      text: 'Train a Sapper: more Sappers, more supplies. Tap the Sapper button.',
+      text: 'Train a Sapper: more Sappers, more money. Tap the Sapper button.',
       target: 'train-sapper',
       after: ['supplies'],
       when: [{ t: 'supplies', min: 50 }],

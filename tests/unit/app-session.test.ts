@@ -99,7 +99,7 @@ describe('BattleSession', () => {
     const { session } = setup();
     for (let i = 0; i < 70; i++) session.step();
     session.fill(false, false);
-    expect(session.hud.state.hint).toContain('Sappers carry supplies');
+    expect(session.hud.state.hint).toContain('Sappers carry boxes');
     // The second hint (16 s) has come and gone by 33 s; the third arrives at 38 s.
     for (let i = 0; i < 30 * 31; i++) session.step();
     session.fill(false, false);

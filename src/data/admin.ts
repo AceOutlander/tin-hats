@@ -88,7 +88,7 @@ export const ADMIN: AdminTunables = {
       id: 'battle',
       label: 'Battle',
       entries: [
-        { id: 'supplies', label: 'Supplies' },
+        { id: 'supplies', label: 'Money' },
         { id: 'instantTrain', label: 'Training' },
         { id: 'instantBuild', label: 'Instant building', pending: 'Arrives with the prep phase (job 6)' },
         { id: 'prep', label: 'Prep phase', pending: 'Arrives with the prep phase (job 6)' },

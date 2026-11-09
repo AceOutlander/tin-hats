@@ -233,7 +233,7 @@ class TrainView {
     this.name = new TextCell(el('span', 'th-tbtn-name', b));
     const price = el('span', 'th-tbtn-price', b);
     const cost = el('span', 'th-tbtn-cost', price);
-    icon('crate', cost);
+    icon('money', cost);
     this.cost = new TextCell(el('span', '', cost));
     const pop = el('span', 'th-tbtn-pop', price);
     icon('helmet', pop);
@@ -493,7 +493,7 @@ class HudView implements Hud {
 
     const supplies = el('div', 'th-res th-supplies', top);
     supplies.dataset.tip = 'supplies';
-    icon('crate', supplies);
+    icon('money', supplies);
     const supCol = el('div', 'th-res-col', supplies);
     this.supplies = new TextCell(el('span', 'th-supplies-num', supCol, '0'));
     this.income = el('span', 'th-supplies-inc', supCol);
