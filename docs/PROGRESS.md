@@ -46,7 +46,7 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 ## Latest state (2026-11-09 ~00:55 UTC; read this first)
 
-Live as **Beta v0.9.0** (main): new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
+Live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
 missions lend 2 of every expected type not bought, every bought type usable in every mission), the playtest follow-ups
 (fire-like flame, gas mask, cap 100 everywhere with maxUnits 216, short button labels, collapsible call-ins), cheap lag
 wins (Show FPS, body cap, countClusters sweep, budget tests), the campaign map theme "Roll of Honour", the version
@@ -57,7 +57,7 @@ Running when paused for the usage limit (resume scheduled 8:15 pm local, task ti
 - Admin panel: worktree C:\dev\tin-hats-admin, branch admin-panel (agent was told to wrap up the core). Ship as v0.10.0.
 - Upgrades for the new units + upgrade visuals audit: worktree C:\dev\tin-hats-upgrades, branch upgrades (2 commits:
   generated tracks, looks and a readability pass; screenshots and final checks pending). Ship with v0.10.0.
-Next: the briefing Intel panel and first-use tips fix (QUEUE "Next bug fix"), then Stalingrad fully on its branch
+Next: FIRST the design change "units unlocked by missions again" (QUEUE), then Stalingrad fully on its branch
 (with Money and the prep phase), never live until the owner says push. Owner rule: at most two jobs at once.
 Leftover: branch followups has an uncommitted missions.spec update (finish with the next job); the deeper performance
 work is queued at low priority.
