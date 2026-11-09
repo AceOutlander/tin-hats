@@ -91,12 +91,13 @@ function buildLayer(p: Plan): MusicPart[] {
 function combatLayer(p: Plan): MusicPart[] {
   const n = beats(p);
   const reps = n / (2 * BAR);
-  const snare = tile(hits(p.snare, { vel: 0.7 }), 2 * BAR, reps).filter((e) => e.at < n - BAR);
+  // The snare and the stabs grow through the section (the section's climb to its second half, the fill on top).
+  const snare = swell(tile(hits(p.snare, { vel: 0.7 }), 2 * BAR, reps).filter((e) => e.at < n - BAR), 0.84, 1.1);
   const fill = swell(hits('X.xxX.xxX.xxRRRR', { at: n - BAR, vel: 0.7 }), 0.75, 1.1);
   return [
     part('strings', bass(p.chords, p.drive, { step: 0.25, vel: 0.44, shift: 12 }), fifths(p.chords, rep('X..X..X.|X..X..X.', reps), { vel: 0.36, lo: 57, len: 0.9 })),
     part('snare', snare, fill),
-    part('brass', onRoots(p.chords, rep(p.stabs, reps), { step: 0.5, vel: 0.64, range: [38, 50] }).map((e) => ({ ...e, len: 0.35, art: 'stab' as const }))),
+    part('brass', swell(onRoots(p.chords, rep(p.stabs, reps), { step: 0.5, vel: 0.64, range: [38, 50] }), 0.86, 1.1).map((e) => ({ ...e, len: 0.35, art: 'stab' as const }))),
     part('timpani', onRoots(p.chords, rep(p.timp, reps), { step: 0.5, vel: 0.6, range: TIMP })),
     // Ricochets: a short high anvil twice in two bars.
     part('anvil', tile(hits('.......o........|...........o....', { vel: 0.26, note: 86 }), 2 * BAR, reps)),

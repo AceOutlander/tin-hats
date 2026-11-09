@@ -99,9 +99,10 @@ function buildLayer(p: Plan): MusicPart[] {
 function combatLayer(p: Plan): MusicPart[] {
   const n = beats(p);
   const reps = n / (2 * BAR);
-  const snare = tile(hits(p.snare, { vel: 0.62 }), 2 * BAR, reps).filter((e) => e.at < n - BAR);
-  const fill = swell(hits('g.g.x.g.x.x.xxxx', { at: n - BAR, vel: 0.62 }), 0.7, 1.1);
-  const chops = ostinato(p.chords, [-1, 1, -1, 2, -1, 3, -1, 2], { step: 0.5, vel: 0.46, shift: 12, accents: [3], accent: 1.2, len: 0.6 });
+  // The running snare and the chords grow through the section into the fill (light, but never standing still).
+  const snare = swell(tile(hits(p.snare, { vel: 0.62 }), 2 * BAR, reps).filter((e) => e.at < n - BAR), 0.8, 1.12);
+  const fill = swell(hits('g.g.x.g.x.x.xxxx', { at: n - BAR, vel: 0.66 }), 0.8, 1.15);
+  const chops = swell(ostinato(p.chords, [-1, 1, -1, 2, -1, 3, -1, 2], { step: 0.5, vel: 0.46, shift: 12, accents: [3], accent: 1.2, len: 0.6 }), 0.85, 1.12);
   const pluck = bass(p.chords, 'X.x.5.x.', { step: 0.5, vel: 0.5 });
   const out: MusicPart[] = [part('snare', snare, fill), part('strings', chops, pluck), part('pad', held(p.chords, { vel: 0.3, voices: [1, 2] }))];
   if (p.tanks) {

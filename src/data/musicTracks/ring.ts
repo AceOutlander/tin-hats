@@ -6,7 +6,8 @@
  * While calm the theme is frozen: the bells play it at half speed over the pad and string harmonics, nothing else
  * moving. In the fight it is full: low brass in octaves and the strings above them, a choir, the strings pulsing in
  * eighths with a run up into every second bar, timpani rolls swelling into the downbeats and a snare roll into every
- * four-bar phrase, no backbeat. When the pocket strikes back (tense) the theme's head becomes the ostinato itself, in
+ * four-bar phrase, no backbeat; each section has its own pulse, timpani and snare figure, so a long finale does not
+ * sit on one rhythm, and most climb to the brass in their second half. When the pocket strikes back (tense) the theme's head becomes the ostinato itself, in
  * the low strings at double speed, under a high tremolo. The prep layer is the frozen front before the guns: pad,
  * choir, a bell every two bars, a far timpani roll. "The Univermag" is in E major, the theme in the major colour; the
  * quiet section is the silence after the guns. The victory sting is the whole theme in E major and an open fifth held
@@ -48,6 +49,13 @@ interface Plan {
   chords: ChordSpan[];
   /** The section's colour for the tense ostinato on the theme's head. */
   colour: Colour;
+  /**
+   * The fight's rhythm, its own in every section: the strings' pulse (one bar of eighths, X harder, . a rest), the
+   * timpani (two bars of eighths) and the snare (four bars of quarters).
+   */
+  pulse: string;
+  timp: string;
+  snare: string;
   build: readonly Lead[];
   combat: readonly Lead[];
   tense: readonly Lead[];
@@ -56,12 +64,15 @@ interface Plan {
 
 const beats = (p: Plan): number => spanBeats(p.chords);
 
-/** The strings pulsing: the chord's upper tones struck together on every eighth, beats one and three harder. */
+/** The strings pulsing: the chord's upper tones struck together on the eighths of the section's pulse (X harder). */
 function pulse(p: Plan, vel: number, to = beats(p)): MusicEvent[] {
   const out: MusicEvent[] = [];
-  for (let t = 0; t < to - 1e-9; t += 0.5) {
+  const cells = [...p.pulse];
+  for (let i = 0, t = 0; t < to - 1e-9; i++, t += 0.5) {
+    const cell = cells[i % cells.length];
+    if (cell === '.') continue;
     const c = chordAt(p.chords, t);
-    const k = Math.abs(t % 2) < 1e-9 ? 1.3 : 1;
+    const k = cell === 'X' ? 1.3 : 1;
     for (const v of [3, 2, 1]) out.push({ at: t, len: 0.4, note: c.notes[v] + 12, vel: Math.min(1, vel * k), art: 'short' });
   }
   return out;
@@ -112,8 +123,8 @@ function combatLayer(p: Plan): MusicPart[] {
     part('strings', swell(pulse(p, 0.34), 0.85, 1.1), runs(p, 0.42)),
     part('brass', unison(p, 0.32)),
     part('choir', held(p.chords, { vel: 0.36, voices: [1, 2, 3] })),
-    part('timpani', onRoots(p.chords, rep('X.......|....R---', n / (2 * BAR)), { step: 0.5, vel: 0.62, range: TIMP })),
-    part('snare', tile(hits('F...........R---', { step: 1, vel: 0.5 }), 4 * BAR, n / (4 * BAR))),
+    part('timpani', onRoots(p.chords, rep(p.timp, n / (2 * BAR)), { step: 0.5, vel: 0.62, range: TIMP })),
+    part('snare', tile(hits(p.snare, { step: 1, vel: 0.5 }), 4 * BAR, n / (4 * BAR))),
     ...leads(p.combat),
   ];
 }
@@ -193,6 +204,9 @@ const PLANS: Plan[] = [
     name: 'The terms refused',
     role: 'intro',
     colour: 'minor',
+    pulse: 'X.x.X.x.',
+    timp: 'X.......|....R---',
+    snare: 'F...........R---',
     chords: prog(BAR, [[1, Em5], [1, Em5], [1, C], [1, C], [1, Am], [1, Am], [1, Bsus4], [1, B]]),
     build: [
       { inst: 'bell', form: { tonic: 76, at: 0, augment: 2, vel: 0.42 } },
@@ -206,9 +220,18 @@ const PLANS: Plan[] = [
     name: 'Seven thousand guns',
     role: 'main',
     colour: 'harmonic',
+    pulse: 'XxxxXxxx',
+    timp: 'X...X...|X...R---',
+    snare: 'F.......F...R---',
     chords: prog(BAR, [[1, Em], [1, C], [1, G], [1, D], [1, Em], [1, C], [1, Am], [1, B]]),
     build: [{ inst: 'bell', form: { tonic: 76, at: 0, invert: true, augment: 2, vel: 0.4 } }, { inst: 'bell', form: { tonic: 76, at: 24, take: 4, vel: 0.34 } }],
-    combat: [...octaves(0, 0.84, { colour: H }, true), { inst: 'strings', form: { tonic: 76, at: 16, colour: H, vel: 0.4 } }, { inst: 'horn', form: { tonic: 64, at: 16, invert: true, vel: 0.54 } }],
+    // Strings and horn first, the brass in octaves in the second half: the section climbs to its loudest.
+    combat: [
+      { inst: 'strings', form: { tonic: 76, at: 0, colour: H, vel: 0.4 } },
+      { inst: 'horn', form: { tonic: 64, at: 0, invert: true, vel: 0.5 } },
+      { inst: 'horn', form: { tonic: 64, at: 12, colour: H, vel: 0.5 }, answer: true },
+      ...octaves(16, 0.86, { colour: H }, true),
+    ],
     tense: [{ inst: 'horn', form: { tonic: 64, at: 16, take: 5, colour: H, vel: 0.42 } }],
     prep: [{ inst: 'bell', form: { tonic: 88, at: 16, take: 4, vel: 0.28 } }],
   },
@@ -216,9 +239,12 @@ const PLANS: Plan[] = [
     name: 'Gumrak',
     role: 'main',
     colour: 'phrygian',
+    pulse: 'X.xxX.xx',
+    timp: 'X.....X.|....R---',
+    snare: 'F...F.......R---',
     chords: prog(BAR, [[1, Em5], [1, FonE], [1, Em5], [1, FonE], [1, Am], [1, G], [1, FonE], [1, B]]),
     build: [{ inst: 'bell', form: { tonic: 76, at: 0, augment: 2, colour: PH, vel: 0.4 } }],
-    combat: [...octaves(0, 0.86, { colour: PH, augment: 2, take: 6 }), { inst: 'strings', form: { tonic: 76, at: 16, invert: true, colour: PH, vel: 0.4 } }],
+    combat: [{ inst: 'strings', form: { tonic: 76, at: 0, invert: true, colour: PH, vel: 0.4 } }, ...octaves(16, 0.86, { colour: PH, augment: 2, take: 6 })],
     tense: [{ inst: 'horn', form: { tonic: 64, at: 0, invert: true, augment: 2, take: 5, colour: PH, vel: 0.4 } }],
     prep: [{ inst: 'horn', form: { tonic: 64, at: 8, take: 4, colour: PH, augment: 2, vel: 0.3 } }],
   },
@@ -226,6 +252,9 @@ const PLANS: Plan[] = [
     name: 'The ruins',
     role: 'main',
     colour: 'dorian',
+    pulse: 'Xx.xXx.x',
+    timp: 'X.......|X...R---',
+    snare: 'F...........R---',
     chords: prog(BAR, [[1, Em], [1, Cm], [1, Em], [1, Cm], [1, Am], [1, D5], [1, Bsus4], [1, B]]),
     build: [{ inst: 'bell', form: { tonic: 76, at: 0, retrograde: true, augment: 2, vel: 0.4 } }],
     combat: [
@@ -241,6 +270,9 @@ const PLANS: Plan[] = [
     name: 'The Univermag',
     role: 'main',
     colour: 'major',
+    pulse: 'XxxxXxxx',
+    timp: 'X...X...|X.X.R---',
+    snare: 'F...F...F...R---',
     chords: prog(BAR, [[1, E], [1, A], [1, Csm], [1, B5], [1, C], [1, D], [1, E], [1, Bsus4]]),
     build: [
       { inst: 'bell', form: { tonic: 76, at: 0, augment: 2, colour: MAJ, vel: 0.42 } },
@@ -260,6 +292,9 @@ const PLANS: Plan[] = [
     name: 'The guns fall silent',
     role: 'quiet',
     colour: 'minor',
+    pulse: 'X.x.X.x.',
+    timp: '',
+    snare: '',
     chords: prog(BAR, [[1, Esus2], [1, Esus2], [1, Cmaj7], [1, Am], [1, Bsus4], [1, Bsus4]]),
     build: [{ inst: 'horn', form: { tonic: 64, at: 4, augment: 2, take: 6, vel: 0.34 } }],
     combat: [{ inst: 'brass', form: { tonic: 40, at: 8, augment: 2, take: 5, vel: 0.58 } }],

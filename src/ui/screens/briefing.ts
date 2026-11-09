@@ -200,6 +200,10 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         return;
       }
       const id = mission.id;
+      // A tap before the preload's tick: Begin's own load starts the render, and the preload must not follow it (a
+      // later loadMission call takes over, and Begin's wait would then end without starting the battle).
+      if (preload !== 0) window.clearTimeout(preload);
+      preload = 0;
       if (starter?.start(id, () => ctx.app.startMission(id, difficulty))) ctx.app.uiSound('confirm');
     },
   });

@@ -56,6 +56,11 @@ function treads(chords: readonly ChordSpan[], cells: string, o: { step: number; 
 
 /** The tread clank: the anvil every third sixteenth for two bars (32 steps, the cycle starting again on the bar). */
 const CLANK = `${'o..'.repeat(10)}o.`;
+/**
+ * The same clank in the fight, every third stroke harder (a slower wheel turning inside the fast one): an even high
+ * strike three times a second would grate over a long fight.
+ */
+const CLANK_FIGHT = [...CLANK].map((c, i) => (c === 'o' ? (i % 9 === 0 ? 'X' : 'x') : c)).join('');
 
 interface Plan {
   name: string;
@@ -101,7 +106,7 @@ function combatLayer(p: Plan): MusicPart[] {
   const fill = swell(hits('X...X...X.X.RRRR', { at: n - BAR, vel: 0.72 }), 0.8, 1.1);
   return [
     part('strings', treads(p.chords, p.tracks, { step: 0.25, vel: 0.46, lo: 40 }), shimmer(p, 0.12)),
-    part('anvil', tile(hits(CLANK, { vel: 0.44, note: p.anvilNote }), 2 * BAR, reps)),
+    part('anvil', tile(hits(CLANK_FIGHT, { vel: 0.36, note: p.anvilNote }), 2 * BAR, reps)),
     part('snare', snare, fill),
     part('timpani', onRoots(p.chords, rep(p.timp, reps), { step: 0.5, vel: 0.64, range: TIMP })),
     // The engines: a low brass drone on the roots under the theme.

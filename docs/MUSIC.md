@@ -68,15 +68,15 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
   in 19.4 s, Dunkirk 27.3 MB in 20.8 s.
 - `brest` ("Four in the Morning", D minor, 112 BPM): Brest Fortress at dawn, the one summer morning. Its groove is a
   3 + 3 + 2 grouping under every layer. A single high violin tremolo over distant timpani (the four-bar opening), a cold
-  pulse of open fifths struck together (build), a driving snare with low brass stabs in the grouping and the motif on
-  unison brass (combat), the high tremolo in octaves over a low pedal (tense), a ticking rim in the grouping over a
+  pulse of open fifths struck together (build), a driving snare with low brass stabs in the grouping, both growing through the section, and the
+  motif on unison brass (combat), the high tremolo in octaves over a low pedal (tense), a ticking rim in the grouping over a
   string pedal that climbs a step every two bars (prep), the muted horn (darker horn settings) alone with the motif and
   its answer over choir and smoke (quiet, six bars); the defeat sting ends on a bare D-A fifth. 27.2 MB, 360 s
   distinct, rendered in 14.0 s (longest graph build 24 ms). Mix (army over it, full / phone): build 18.9 / 19.2, combat
   12.2 / 16.3, tense 15.0 / 19.0 LU.
 - `dubno` ("Iron in the Rye", A minor, 132 BPM): the tank battle, heavy and mechanical. The tracks: a low string
   ostinato in sixteenths grinding on the root and the semitone above it, accented every third step against the bar,
-  with the anvil clanking on the same three-step cycle (combat); idling in eighths under a heat shimmer of high strings
+  with the anvil clanking on the same three-step cycle, every third clank harder (combat); idling in eighths under a heat shimmer of high strings
   on a narrower, quicker tremolo (build); a half-time backbeat and pounding timpani under the motif augmented to six
   bars on unison brass in octaves (combat); the treads breaking up under a high semitone shimmer and a ticking anvil
   (tense); the engines warming (prep); choir and wind at dusk (quiet). 26.5 MB, 349 s distinct, rendered in 12.9 s
@@ -111,7 +111,7 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
   Its sections follow the mission's days and nights. By day a solo high string line sings the theme over a soft pad
   and a plucked bass note a bar; by night a clock ticks (a rim on one and three, a dry knock on the hand drum on two and
   four) under string harmonics and the theme on a single muted horn (build). The fight stays light and driving: a
-  running snare of ghost notes, short string chords on the off-beats over a plucked bass, horn and high strings trading
+  running snare of ghost notes and short string chords on the off-beats, both growing through the section, over a plucked bass, horn and high strings trading
   the theme; only "Day two: the tanks" adds low brass and timpani (combat). The clock twice as fast under trembling
   harmonics (tense); the night's work on mines and wire, harmonics, a pluck and a spade on the fourth beat (prep). The
   quiet section, "A home again", is the one place the theme turns major (B major) on the horn, over a humming choir
@@ -135,12 +135,13 @@ notes), `step` (scale steps). Orchestration is the part you put it in.
   Univermag", which is in E major). While calm the theme is frozen: the bells play it at half speed over the pad and
   string harmonics, a far timpani roll at each phrase end (build). In the fight it is full: low brass in octaves with
   the strings above, a choir, the strings pulsing in eighths with a run up into every second bar, timpani rolls
-  swelling into the downbeats and a snare roll into every four-bar phrase, no backbeat (combat). The theme's head as
+  swelling into the downbeats and a snare roll into every four-bar phrase, no backbeat, each section on its own pulse,
+  timpani and snare figure, and three of them holding the brass in octaves back for their second half (combat). The theme's head as
   the ostinato itself, at double speed in the low strings under a high tremolo (tense); the frozen front before the
   guns, pad and choir low, a bell every two bars (prep); the silence after the guns (quiet, six bars). The victory sting
   is the whole theme in E major and an open fifth held into the wind. Fuller low brass, the largest hall (2.7 s,
   brightHz 5600). 27.1 MB, 356 s distinct, rendered in 12.7 s (longest graph build 13 ms). Mix: build 18.4 / 18.1,
-  combat 11.7 / 15.0, tense 14.1 / 16.7 LU.
+  combat 11.2 / 15.0, tense 14.1 / 16.7 LU.
 - The eight later tracks share their small writing helpers (`leads`, `rep`, `spanBeats`, `windBand`) in
   `musicTracks/sovietParts.ts`. Render times are from one machine under load (the same track varies by up to 4 s from
   run to run); all are a third of the 45 s budget or less.
