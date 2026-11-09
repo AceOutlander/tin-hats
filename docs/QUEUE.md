@@ -20,6 +20,42 @@ Armoury (Armoury prices raised: old types x2, new types x3). Notes: the Money re
 are now built on the `stalingrad` branch and go live with Stalingrad. Queued for later (specs below): smarter medics;
 the later Panzer III and the Maus; deeper performance work (low priority, the lag was mostly the owner's computer).
 
+## NEXT, before Stalingrad goes live: medal economy, realistic artillery, tank cannons (owner, 2026-11-09)
+
+Owner: "Three changes. Fit them in after the current job, and before Stalingrad goes live, since they affect its balance:"
+
+"## 1. Medal economy pegged to Stick War: Legacy
+- Use Stick War: Legacy's economy as the fairness benchmark. Research how many gems a typical level pays, what typical gem purchases cost, and how many levels a purchase takes. Copy those proportions (missions of play per purchase), not the exact numbers and not its grind.
+- Like that game, permanent upgrades use their own upgrade points, earned per mission (a few per first clear), not medals. Bring back separate upgrade points for the Quartermaster upgrades.
+- Medals are for extras, like future cosmetics, one-off boosts and the Poland unlock (2,999 medals or $5.99). Reprice them by the benchmark and tell me the numbers, including how many missions Poland takes to earn.
+- Saves convert fairly: nobody loses value they already earned.
+
+## 2. Realistic artillery
+- The guns are kilometres away and never shown on the battlefield. Shells come from far off-screen.
+- After a barrage is called in, there's a delay of a few seconds before the first shell lands, and shells keep arriving one by one over several seconds, not all at once.
+- Each shell gives an incoming whistle that rises as it falls, then hits steeply from high above the top of the screen. Show a faint target marker for the player's own barrages only.
+- Shells scatter around the target area, so they're not pinpoint. Enemy barrages get the whistle too, as the warning to take cover.
+
+## 3. Tank cannons
+- Much longer reload, but each shot hits much harder, with a far bigger explosion and blast radius that throws infantry and wrecks fortifications.
+- A visible muzzle flash, a heavy boom and a big dust cloud on impact.
+- Rebalance anti-tank counters and the balance tests, so tanks feel powerful between shots but are vulnerable while reloading."
+
+Owner's addition to change 1: "all call-ins are medal-based, like Stick War: Legacy's spells.
+- The bomber, fighter, recon plane, Typhoon, smoke screen and artillery barrage are bought as charges with medals in a Shop on the campaign map. Each use in battle spends one charge. Cooldowns still apply between uses.
+- They no longer cost in-battle money.
+- I choose which call-ins to bring before a mission, and the battle screen shows how many charges of each I have.
+- Price charges by the Stick War: Legacy benchmark: cheap ones like smoke within reach after a mission or two, and the big ones like the bomber worth saving up for.
+- Give every new save a few starter charges of smoke and artillery, so players learn them.
+- The enemy AI isn't limited by medals. It uses call-ins by its own rules per difficulty.
+- If a mission is designed around a call-in, give a charge on loan for that mission, like units.
+- The admin panel can give charges."
+
+Notes: build these on the `stalingrad` branch (they change its balance and its save version), after the core merge and
+before the Stalingrad mission playtest and tuning pass, so missions are tuned once on the final rules. The Soviet call-ins
+(Katyusha, Il-2, Po-2...) follow the same charge rules. Report the medal and point prices, and how many missions Poland
+takes. Poland stays out of the public repo (payment rule): price it in data only.
+
 ## DONE (v0.12.0): units unlocked by missions again (owner, 2026-11-09; DECISIONS 280)
 
 "Change of design: soldiers are unlocked by mission progress again, not bought with medals. The medal prices for units are too high and unbalanced.
