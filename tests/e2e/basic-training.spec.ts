@@ -176,6 +176,20 @@ test.describe('Basic Training', () => {
     await tap(page, 'order-hold');
     await lessonEnds(page, 'holdForward');
 
+    // Capture points and Deploy: the trench just taken is a point; Deploy, the training bar's first button, is tapped
+    // from Front past the HQ to it.
+    await waitForLesson(page, 'deploy');
+    await expectGlow(page, '[data-testid="deploy-at"]');
+    const forward = BASIC_TRAINING.capturePoints?.[0].label ?? '?';
+    await expect(page.getByTestId('deploy-at')).toHaveAttribute('aria-label', `Deploy: ${forward} (front)`);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(SHOT_DIR, 'stalingrad-basic-training.png') });
+    await tap(page, 'deploy-at');
+    await expect(page.getByTestId('deploy-at')).toHaveAttribute('aria-label', 'Deploy: HQ');
+    await tap(page, 'deploy-at');
+    await expect(page.getByTestId('deploy-at')).toHaveAttribute('aria-label', `Deploy: ${forward}`);
+    await lessonEnds(page, 'deploy');
+
     // Per-unit-type orders: the "Orders for" chip, then one type, then an order for it alone.
     await waitForLesson(page, 'kindOrder');
     await expectGlow(page, '[data-testid="order-scope"]');
@@ -270,13 +284,22 @@ test.describe('Basic Training', () => {
     expect(save.cleared).toEqual({});
     await tapIn(page, 'result', 'result-armoury');
     await expect(arrived(page, 'armoury')).toBeVisible();
-    // The reward is there to spend; units are unlocked by the missions, not bought (v0.12.0, DECISIONS 280), so the
-    // Bren Gunner waits for mission 2 however many medals the course paid.
-    await expect(arrived(page, 'armoury').getByTestId('medals-available')).toHaveText(String(MEDALS.trainingReward));
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toBeDisabled();
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toContainText('Mission 2');
+    // The reward is there to spend: units are unlocked by the missions, never bought, and medals buy call-in charges
+    // (DECISIONS 413), so the reward buys a barrage on top of the save's three starter charges; the lent one the course
+    // used never touched them.
+    const shop = arrived(page, 'armoury');
+    await expect(shop.getByTestId('medals-available')).toHaveText(String(MEDALS.trainingReward));
+    const artillery = MEDALS.charges.find((c) => c.kind === 'artillery');
+    if (!artillery) throw new Error('no artillery charge in the Shop');
+    await expect(shop.getByTestId('armoury-count-artillery')).toContainText(String(artillery.starter));
+    await expect(shop.getByTestId('armoury-buy-artillery')).toBeEnabled();
     await page.waitForTimeout(600);
     await picture(page, '10-armoury');
+    await tapIn(page, 'armoury', 'armoury-buy-artillery');
+    await expect(shop.getByTestId('armoury-count-artillery')).toContainText(String(artillery.starter + 1));
+    await expect(shop.getByTestId('medals-available')).toHaveText(String(MEDALS.trainingReward - artillery.price));
+    const medalsLeft = (await memorySave(page)).medals;
+    expect(medalsLeft).toBe(MEDALS.trainingReward - artillery.price);
 
     // Back on the title the offer is gone; the button stays for a replay, which pays nothing more.
     await tapIn(page, 'armoury', 'back');
@@ -300,7 +323,7 @@ test.describe('Basic Training', () => {
     expect(s.winner).toBe(0);
     await expect(arrived(page, 'result')).toBeVisible({ timeout: 30_000 });
     await expect(arrived(page, 'result').getByTestId('result-points')).toHaveCount(0);
-    expect((await memorySave(page)).medals).toBe(MEDALS.trainingReward);
+    expect((await memorySave(page)).medals).toBe(medalsLeft);
   });
 
   test('quits back to the title screen it was started from, paying nothing', async ({ page }) => {

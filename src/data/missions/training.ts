@@ -5,9 +5,11 @@ import type { Difficulty, FactionId, MissionDef } from '../schema';
  * in MISSIONS and campaignOf gives null), so a win never counts as a clear; finishing it once pays MEDALS.trainingReward.
  * The guided steps that walk a new player through it are in src/data/tutorial.ts.
  *
- * A training ground in England, 6000 wu (FOUNDATIONS.md: tutorials are 6,000 to 9,000). From the player's side: the
- * HQ, a trench of our own in front of it, an empty trench to take, an old enemy pillbox (the practice target for the call-in), a trench held by a few men of the mock
- * enemy, and the mock enemy's HQ. The mock enemy is weak on purpose: a thin HQ, a trickle of income, a handful of
+ * A training ground behind the lines, 6000 wu (FOUNDATIONS.md: tutorials are 6,000 to 9,000), played as the Red Army
+ * (it ships with Stalingrad, the only campaign: DECISIONS 438). From the player's side: the HQ, a trench of our own in
+ * front of it, an empty trench to take (also a capture point, so the Deploy lesson has a forward point to send new men
+ * to), an old enemy pillbox (the practice target for the call-in), a trench held by a few men of the mock enemy, and
+ * the mock enemy's HQ. The mock enemy is weak on purpose: a thin HQ, a trickle of income, a handful of
  * riflemen, and it never attacks while the lesson is on, so the course takes 5 to 10 minutes and cannot be lost by
  * a player who follows the tips.
  */
@@ -22,15 +24,15 @@ export const BASIC_TRAINING: MissionDef = {
   id: BASIC_TRAINING_ID,
   key: 'basicTraining',
   title: 'Basic Training',
-  location: 'Training ground, England',
+  location: 'Training ground, behind the lines',
   date: '1940s',
-  mapPos: { lon: -1.8, lat: 51.2 },
+  mapPos: { lon: 37.6, lat: 55.8 },
   briefing: [
     'Welcome to the training ground. Short tips show you the ropes, one at a time.',
     'Ahead of you: an empty trench to take, an old pillbox to shell, and a mock enemy that will not put up much of a fight.',
   ],
   objective: 'Follow the tips, then destroy the mock enemy HQ.',
-  theatre: 'france',
+  theatre: 'russiaSummer',
   timeOfDay: 'day',
   mode: 'assault',
   length: 6000,
@@ -43,9 +45,12 @@ export const BASIC_TRAINING: MissionDef = {
   supports: [['artillery'], []],
   start: [
     {
-      faction: 'british',
+      faction: 'soviet',
       hasHq: true,
       supplies: 200,
+      // Call-ins are medal-bought charges (DECISIONS 413): the course lends its own two barrages (one for the lesson,
+      // one spare), so it never spends the save's charges and no call-in costs money.
+      supportCharges: { artillery: 2 },
       hqHpMul: 1.5,
       incomeMul: 1.3,
       sappers: 2,
@@ -77,6 +82,8 @@ export const BASIC_TRAINING: MissionDef = {
   pillboxes: [{ id: 1, x: 3900, side: 1, hpMul: 0.08 }],
   wire: [],
   // The course opens with a short prep phase: the first lesson is building (the student wires the ground ahead).
+  // The empty trench is a capture point: once taken, new men can deploy there (the Deploy lesson).
+  capturePoints: [{ id: 'P1', x: 2100, width: 300, label: 'Forward trench', owner: -1, captureTime: 0, spawn: true, contestRadius: 600, structure: { trench: 2 } }],
   prep: { seconds: 45, buildables: ['wire', 'foxhole'], bot: [{ kind: 'wire', x: 1250 }] },
   timer: null,
   events: [],
@@ -99,10 +106,10 @@ export const BASIC_TRAINING: MissionDef = {
 };
 
 /**
- * Basic Training played as a nation: the player side is the nation of the campaign on show (British until the
- * campaign select screen exists); the mock enemy is always German.
+ * Basic Training played as a nation: the player side is the nation of the campaign on show (the Red Army for
+ * Stalingrad); the mock enemy is always German.
  */
-export function trainingMission(nation: FactionId = 'british'): MissionDef {
+export function trainingMission(nation: FactionId = 'soviet'): MissionDef {
   const [own, enemy] = BASIC_TRAINING.start;
   if (nation === own.faction) return BASIC_TRAINING;
   return { ...BASIC_TRAINING, start: [{ ...own, faction: nation }, enemy] };

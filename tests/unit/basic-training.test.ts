@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../../src/app/app';
 import { BattleSession } from '../../src/app/session';
 import { TipMemory, Tutorial, isTraining, stepsFor, trainingSteps } from '../../src/app/tutorial';
-import { campaignOf } from '../../src/data/campaigns';
+import { CAMPAIGNS, campaignOf } from '../../src/data/campaigns';
 import { FACTIONS, nationCallsIn, nationFields } from '../../src/data/factions';
 import { MEDALS } from '../../src/data/medals';
 import { UPGRADES } from '../../src/data/upgrades';
@@ -126,6 +126,10 @@ class Student {
       case 'finalAttack':
         if (!did(id)) session.dispatch({ type: 'order', order: 'advance' });
         break;
+      case 'deploy':
+        // Front, then the HQ, then the forward trench: a tap a second until it says so, as the tip asks.
+        if (s.sides[0].deploy < 0) session.dispatch({ type: 'deploy' });
+        break;
       case 'kindOrder':
         if (!did(id)) session.dispatch({ type: 'order', order: 'hold', kind: 'lmg' });
         break;
@@ -200,13 +204,34 @@ describe('the training ground', () => {
     expect(m.events).toEqual([]);
   });
 
-  it('is played as the British today, and as any nation by data', () => {
+  it('lends its own call-in charges: a barrage spends one of them, never money nor the save', () => {
+    expect(BASIC_TRAINING.start[0].supportCharges).toEqual({ artillery: 2 });
+    const b = createBattle({ mission: BASIC_TRAINING, difficulty: 'normal', seed: 1, upgrades: {}, commanders: ['human', 'ai'] });
+    for (let i = 0; i < 60 * 30 && b.state.prep !== null; i++) b.step();
+    const me = b.state.sides[0];
+    expect(me.supportCharges.artillery).toBe(2);
+    const money = me.supplies;
+    b.command(0, { type: 'support', kind: 'artillery', x: BASIC_TRAINING.pillboxes[0].x });
+    b.step();
+    expect(me.supportCharges.artillery).toBe(1);
+    expect(me.supplies).toBeGreaterThanOrEqual(money);
+  });
+
+  it('makes the empty trench a capture point, so Deploy can send new men there', () => {
+    expect(BASIC_TRAINING.capturePoints).toEqual([expect.objectContaining({ spawn: true, owner: -1, structure: { trench: 2 } })]);
+    const label = BASIC_TRAINING.capturePoints?.[0].label ?? '';
+    expect(TUTORIAL.steps.find((s) => s.id === 'deploy')?.text).toContain(label);
+  });
+
+  it('is played as the Red Army, the nation of Stalingrad it ships with, and as any nation by data (DECISIONS 438)', () => {
     expect(trainingMission()).toBe(BASIC_TRAINING);
-    expect(BASIC_TRAINING.start[0].faction).toBe('british');
-    const soviet = trainingMission('soviet');
-    expect(soviet.start[0].faction).toBe('soviet');
-    expect(soviet.start[1]).toEqual(BASIC_TRAINING.start[1]);
-    expect(BASIC_TRAINING.start[0].faction).toBe('british');
+    expect(BASIC_TRAINING.start[0].faction).toBe('soviet');
+    expect(BASIC_TRAINING.start[1].faction).toBe('german');
+    expect(trainingMission(CAMPAIGNS.stalingrad.nation)).toBe(BASIC_TRAINING);
+    const british = trainingMission('british');
+    expect(british.start[0].faction).toBe('british');
+    expect(british.start[1]).toEqual(BASIC_TRAINING.start[1]);
+    expect(BASIC_TRAINING.start[0].faction).toBe('soviet');
     for (const nation of ['british', 'soviet'] as const) {
       expect(FACTIONS[nation]).toBeDefined();
       for (const kind of BASIC_TRAINING.units[0]) expect(nationFields(nation, kind), `${nation} ${kind}`).toBe(true);
@@ -224,7 +249,8 @@ describe('the course', () => {
     expect(new Set(ids).size).toBe(ids.length);
     const targets = new Set<TipTarget>(steps.map((s) => s.target));
     // Money and sappers; training units; the three army orders; per-unit-type orders; direct control; call-ins.
-    for (const t of ['supplies', 'train-sapper', 'train-rifle', 'order-hold', 'order-advance', 'order-fallBack', 'order-scope', 'fire', 'support-artillery'] as const) {
+    // And capture points with Deploy, the training bar's first button.
+    for (const t of ['supplies', 'train-sapper', 'train-rifle', 'order-hold', 'order-advance', 'order-fallBack', 'order-scope', 'fire', 'support-artillery', 'deploy-at'] as const) {
       expect(targets.has(t), t).toBe(true);
     }
     // Trenches and cover, direct control, building in a prep phase, and the medals, Armoury and Quartermaster screens.
@@ -238,6 +264,19 @@ describe('the course', () => {
       expect(filled.length, s.id).toBeGreaterThan(10);
       if (s.target.startsWith('train-')) expect(BASIC_TRAINING.units[0], s.id).toContain(s.target.slice(6));
       if (s.target.startsWith('support-')) expect(BASIC_TRAINING.supports[0], s.id).toContain(s.target.slice(8));
+    }
+  });
+
+  it('teaches the rules of today: call-ins spend charges, not money, and medals buy charges, not upgrades', () => {
+    const text = (id: string) => TUTORIAL.steps.find((s) => s.id === id)?.text ?? '';
+    expect(text('callIn')).toMatch(/charge/);
+    expect(text('armoury')).toMatch(/medals/);
+    expect(text('armoury')).toMatch(/charges/);
+    expect(text('quartermaster')).toMatch(/upgrade points/);
+    for (const s of TUTORIAL.steps) {
+      if (/call|charge/i.test(s.text)) expect(s.text, s.id).not.toMatch(/money|supplies|costs?\b/i);
+      expect(s.text, s.id).not.toMatch(/medals?\b[^.]*\b(upgrade|Quartermaster)/i);
+      expect(s.text, s.id).not.toMatch(/\bArmoury\b/);
     }
   });
 
@@ -274,6 +313,9 @@ describe('the course', () => {
     expect(s.time).toBeLessThanOrEqual(BASIC_TRAINING.expectedMinutes[1] * 60);
     // Each thing he was asked to do was done for real.
     expect(r.session.tally.supportCalled.artillery).toBeGreaterThanOrEqual(1);
+    expect(s.sides[0].supportCharges.artillery).toBe(1);
+    expect(s.sides[0].deploy, 'new men deploy at the forward trench').toBe(0);
+    expect(s.points[0].owner).toBe(0);
     expect(s.sides[0].kindOrders.lmg).toBe('hold');
     expect(s.trenches.filter((t) => t.owner === 0).length).toBeGreaterThanOrEqual(2);
   });
@@ -363,7 +405,7 @@ describe('the course', () => {
       student.second();
     }
     expect(texts.get('medals')).toContain(`${MEDALS.trainingReward} medals`);
-    expect(texts.get('callIn')).toContain(FACTIONS.british.supportNames.artillery);
+    expect(texts.get('callIn')).toContain(FACTIONS.soviet.supportNames.artillery);
     for (const text of texts.values()) expect(text).not.toMatch(/[{}]/);
   });
 });
@@ -442,10 +484,14 @@ describe('Basic Training in the app', () => {
   it('pays its reward on the first pass only, records it in the save, and offers the Armoury next', () => {
     const { app, storage } = makeApp();
     expect(app.campaign().training).toEqual({ done: false, offer: true, reward: MEDALS.trainingReward });
+    const charges = { ...app.save.charges };
     app.startTraining();
+    expect(app.session?.mission.start[0].faction).toBe(CAMPAIGNS.stalingrad.nation);
     pass(app);
     expect(app.save.medals).toBe(MEDALS.trainingReward);
     expect(app.save.training.done).toBe(true);
+    // The course's barrage was lent: the save's own charges are untouched.
+    expect(app.save.charges).toEqual(charges);
     expect(app.lastResult).toMatchObject({ won: true, training: true, pointsAwarded: MEDALS.trainingReward, nextMissionId: null, missionId: BASIC_TRAINING_ID });
     expect(app.lastMedals).toBeNull();
     // Recorded in the stored save, not as a campaign clear.

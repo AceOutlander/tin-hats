@@ -28,7 +28,9 @@ export type TipTarget =
   | `order-${Order}`
   | `support-${SupportKind}`
   | `build-${BuildableId}`
-  | 'prep-ready';
+  | 'prep-ready'
+  /** The "Deploy at" button, the training bar's first (shown when the mission has spawn points). */
+  | 'deploy-at';
 
 /** A fact about the battle or about what the player has done, which must hold. All numbers are minimums. */
 export type TutorialCond =
@@ -58,6 +60,8 @@ export type TutorialCond =
   | { t: 'entrenched'; min: number }
   /** Trenches the player owns right now. */
   | { t: 'trenches'; min: number }
+  /** New men are set to deploy at a capture point of the player's choosing (not Front or the HQ) right now. */
+  | { t: 'deployPoint' }
   /** An enemy is close to the player's HQ, or the HQ has been hurt. */
   | { t: 'threat' }
   /** The army has been cut down to a fraction of its best size. */
@@ -204,7 +208,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'cover',
-      text: 'Men in a trench are hard to hit. Fight from trenches and cover when you can.',
+      text: 'Men in a trench or a building are hard to hit. Fight from cover when you can.',
       target: 'field',
       after: ['hold'],
       when: [{ t: 'any', of: [{ t: 'entrenched', min: 2 }, { t: 'idle', min: 10 }] }],
@@ -239,12 +243,22 @@ export const TUTORIAL: TutorialTunables = {
       done: [{ t: 'armyOrder', order: 'hold' }],
       seconds: 16,
     },
+    // Capture points and Deploy: the trench just taken is a capture point, and new men can come in there.
+    {
+      id: 'deploy',
+      text: 'That trench is a capture point. Tap Deploy until it says Forward trench: new men arrive there.',
+      target: 'deploy-at',
+      after: ['holdForward'],
+      when: [],
+      done: [{ t: 'deployPoint' }],
+      seconds: 20,
+    },
     // Per-unit-type orders.
     {
       id: 'kindOrder',
       text: 'Each unit type can have its own orders: tap here, pick a type, then tap an order.',
       target: 'order-scope',
-      after: ['holdForward'],
+      after: ['deploy'],
       when: [],
       done: [{ t: 'kindOrdered', min: 1 }],
       seconds: 20,
@@ -272,7 +286,7 @@ export const TUTORIAL: TutorialTunables = {
     // Call-ins.
     {
       id: 'callIn',
-      text: 'Call in the {name}: tap it, then tap the old pillbox ahead. It is your practice target.',
+      text: 'Call in the {name}: tap it, then tap the old pillbox ahead. Each call spends one charge.',
       target: 'support-artillery',
       after: ['control'],
       when: [],
@@ -281,7 +295,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'fallBack',
-      text: 'In trouble? FALL BACK pulls everyone into the HQ, where its machine gun covers them. Try it.',
+      text: 'In trouble? FALL BACK pulls everyone back to a point you hold, or into the HQ. Try it.',
       target: 'order-fallBack',
       after: ['callIn'],
       when: [],
@@ -310,7 +324,7 @@ export const TUTORIAL: TutorialTunables = {
     },
     {
       id: 'armoury',
-      text: 'Spend medals in the Shop, on the campaign map: call-in charges. Each call-in you use spends one.',
+      text: 'Spend medals in the Shop on call-in charges. Each briefing lets you pick which ones to bring.',
       target: 'field',
       after: ['medals'],
       when: [],

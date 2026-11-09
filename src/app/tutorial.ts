@@ -180,6 +180,8 @@ export class Tutorial {
   private armyOrder: Order = 'hold';
   private entrenched = 0;
   private trenches = 0;
+  /** New men deploy at a capture point the player chose (SideState.deploy is a point index, not Front or the HQ). */
+  private deployPoint = false;
 
   constructor(
     mission: MissionDef,
@@ -272,6 +274,7 @@ export class Tutorial {
     const me = state.sides[0];
     this.supplies = me.supplies;
     this.armyOrder = me.order;
+    this.deployPoint = me.deploy >= 0;
     let army = 0;
     for (let i = 0; i < UNIT_KINDS.length; i++) {
       const kind = UNIT_KINDS[i];
@@ -425,6 +428,8 @@ export class Tutorial {
         return this.entrenched >= c.min;
       case 'trenches':
         return this.trenches >= c.min;
+      case 'deployPoint':
+        return this.deployPoint;
       case 'called':
         return this.called[c.support] >= c.min;
       case 'threat':
