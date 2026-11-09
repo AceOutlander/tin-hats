@@ -61,6 +61,8 @@ export const RENDER = {
     /** Seconds a tank husk stays before fading, and its fade. */
     huskLinger: 20,
     huskFade: 2,
+    /** Most bodies and husks lying still at once; past it the one closest to its fade starts fading early. */
+    maxBodies: 40,
     /** Health pips: count, size of one pip (wu), gap, height above the head (wu). */
     pips: 4,
     pipW: 5,

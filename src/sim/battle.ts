@@ -298,6 +298,10 @@ class BattleImpl implements Battle, World {
   readonly slotUnit: Int32Array;
   readonly trenchInside: Int32Array;
   readonly cluster = new Uint8Array(CONFIG.maxUnits);
+  readonly clusterOrder: [Int32Array, Int32Array] = [new Int32Array(CONFIG.maxUnits), new Int32Array(CONFIG.maxUnits)];
+  readonly clusterLen = new Int32Array(2);
+  readonly clusterX = new Float64Array(CONFIG.maxUnits);
+  readonly clusterMark = new Uint8Array(CONFIG.maxUnits);
   readonly leadCount = new Int32Array(2);
   readonly ctrlMove = new Float64Array(2);
   readonly ctrlFire = new Uint8Array(2);

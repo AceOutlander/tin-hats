@@ -39,26 +39,67 @@ function holdLineOf(w: World, side: number): void {
   s.sides[side].holdLineX = line;
 }
 
-/** For every unit on the field, how many of its side (itself included) stand within clusterRadius. */
-function countClusters(w: World): void {
+/**
+ * For every unit on the field, how many of its side (itself included) stand within clusterRadius
+ * (|dx| <= radius; 0 for units not on the field). A sorted sweep: each side's units on the field
+ * stay in w.clusterOrder in last tick's x order, so the insertion sort is close to O(n), and two
+ * pointers bound each unit's window. The distance test is the same subtraction an all-pairs count
+ * uses, so the result is identical to one.
+ */
+export function countClusters(w: World): void {
   const s = w.state;
   const units = s.units;
+  const n = s.unitCount;
   const radius = CONFIG.clusterRadius;
   const cluster = w.cluster;
-  for (let i = 0; i < s.unitCount; i++) {
-    const u = units[i];
-    if (!u.alive || u.inside) {
-      cluster[i] = 0;
-      continue;
+  const xs = w.clusterX;
+  const mark = w.clusterMark;
+  for (let i = 0; i < n; i++) {
+    cluster[i] = 0;
+    mark[i] = 0;
+    xs[i] = units[i].x;
+  }
+  for (let side = 0; side < 2; side++) {
+    const order = w.clusterOrder[side];
+    // Last tick's members still on the field keep their order; newcomers go on the end.
+    let len = 0;
+    const prev = w.clusterLen[side];
+    for (let k = 0; k < prev; k++) {
+      const i = order[k];
+      if (i >= n || mark[i] !== 0) continue;
+      const u = units[i];
+      if (!u.alive || u.inside || u.side !== side) continue;
+      mark[i] = 1;
+      order[len++] = i;
     }
-    let n = 0;
-    for (let j = 0; j < s.unitCount; j++) {
-      const v = units[j];
-      if (!v.alive || v.inside || v.side !== u.side) continue;
-      const d = v.x > u.x ? v.x - u.x : u.x - v.x;
-      if (d <= radius) n++;
+    for (let i = 0; i < n; i++) {
+      if (mark[i] !== 0) continue;
+      const u = units[i];
+      if (!u.alive || u.inside || u.side !== side) continue;
+      mark[i] = 1;
+      order[len++] = i;
     }
-    cluster[i] = n > 255 ? 255 : n;
+    w.clusterLen[side] = len;
+    for (let k = 1; k < len; k++) {
+      const v = order[k];
+      const x = xs[v];
+      let j = k - 1;
+      while (j >= 0 && xs[order[j]] > x) {
+        order[j + 1] = order[j];
+        j--;
+      }
+      order[j + 1] = v;
+    }
+    let lo = 0;
+    let hi = 0;
+    for (let k = 0; k < len; k++) {
+      const x = xs[order[k]];
+      while (x - xs[order[lo]] > radius) lo++;
+      if (hi < k) hi = k;
+      while (hi + 1 < len && xs[order[hi + 1]] - x <= radius) hi++;
+      const c = hi - lo + 1;
+      cluster[order[k]] = c > 255 ? 255 : c;
+    }
   }
 }
 

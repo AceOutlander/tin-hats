@@ -15,6 +15,8 @@ export default defineConfig(
     'test-results/',
     'playwright-report/',
     'public/',
+    // Local scratch of measurement jobs (ignored by git too).
+    '.perf/',
   ]),
   js.configs.recommended,
   tseslint.configs.recommended,

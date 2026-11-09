@@ -177,6 +177,9 @@ describe('frame probe', () => {
     expect(r.hud.avg).toBeCloseTo(1, 5);
     expect(r.js.avg).toBeCloseTo(10, 5);
     expect(r.draw.avg).toBeCloseTo(3, 5);
+    expect(r.work.avg).toBeCloseTo(13, 5);
+    expect(r.hitches).toBe(0);
+    expect(r.slowWork).toBe(0);
     expect(r.stepsPerFrame).toBe(1);
     p.reset();
     expect(p.report().frames).toBe(0);
@@ -200,6 +203,29 @@ describe('frame probe', () => {
     expect(r.render.p95).toBeCloseTo(1, 5);
     expect(r.render.avg).toBeCloseTo(1.19, 5);
     expect(r.interval.avg).toBeGreaterThan(90);
+    // Frames 3..100 came 100 ms after the one before (the probe has no interval for the first two, as the clock starts
+    // at 0 here): a hitch each, though none cost over 33 ms of work.
+    expect(r.hitches).toBe(98);
+    expect(r.slowWork).toBe(0);
+    expect(r.work.max).toBeCloseTo(24, 5);
+  });
+
+  it('counts the frames whose own work runs over a missed 30 fps frame', () => {
+    const p = new FramePerf();
+    let t = 0;
+    for (let i = 0; i < 10; i++) {
+      const cost = i % 2 === 0 ? 40 : 5;
+      p.beginFrame(t, true);
+      p.beginRender(t);
+      p.endRender(t + cost);
+      p.endFrame(t + cost);
+      p.beginDraw(t + cost);
+      p.endDraw(t + cost);
+      t += 16;
+    }
+    const r = p.report();
+    expect(r.slowWork).toBe(5);
+    expect(r.hitches).toBe(0);
   });
 });
 

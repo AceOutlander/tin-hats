@@ -50,7 +50,7 @@ describe('save data', () => {
     recordClear(save, 1, 'hard');
     recordClear(save, 2, 'normal');
     save.upgrades = { sapperDrill: 2, riflemanHealth: 3 };
-    save.settings = { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 0, sfxVolume: 72, reduceFlash: true, showBlood: false };
+    save.settings = { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 0, sfxVolume: 72, reduceFlash: true, showBlood: false, showFps: true };
     expect(writeSave(storage, save)).toBe(true);
 
     const loaded = loadSave(storage);
@@ -181,9 +181,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     settings: { muted: true, difficulty: 'hard', hints: false },
   };
 
-  it('is behind the current version, 6 (medals and the Armoury joined the save in version 6)', () => {
-    expect(META.saveVersion).toBe(6);
-    expect(defaultSave().version).toBe(6);
+  it('is behind the current version, 7 ("Show FPS" joined the settings in version 7)', () => {
+    expect(META.saveVersion).toBe(7);
+    expect(defaultSave().version).toBe(7);
   });
 
   it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
@@ -196,6 +196,7 @@ describe('version 3: the volume sliders and reduce flashing', () => {
       sfxVolume: META.defaultSfxVolume,
       reduceFlash: false,
       showBlood: true,
+      showFps: false,
     });
     for (const v of [META.defaultMusicVolume, META.defaultAmbienceVolume, META.defaultSfxVolume]) {
       expect(Number.isInteger(v) && v >= 0 && v <= 100).toBe(true);
@@ -205,7 +206,7 @@ describe('version 3: the volume sliders and reduce flashing', () => {
   it('migrates a version 2 save step by step and keeps what the player had set', () => {
     const migrated = migrateSave(v2);
     expect(migrated?.version).toBe(META.saveVersion);
-    expect(migrated?.settings).toEqual({ ...v2.settings, musicVolume: META.defaultMusicVolume, ambienceVolume: META.defaultAmbienceVolume, sfxVolume: META.defaultSfxVolume, reduceFlash: false, showBlood: true });
+    expect(migrated?.settings).toEqual({ ...v2.settings, musicVolume: META.defaultMusicVolume, ambienceVolume: META.defaultAmbienceVolume, sfxVolume: META.defaultSfxVolume, reduceFlash: false, showBlood: true, showFps: false });
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v2) }));
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
@@ -336,11 +337,11 @@ describe('version 5: "Show blood"', () => {
   it('turns blood on for a version 4 save and keeps everything else as it was', () => {
     const migrated = migrateSave(v4({}));
     expect(migrated?.version).toBe(META.saveVersion);
-    expect(migrated?.settings).toEqual({ ...v4({}).settings, showBlood: true });
+    expect(migrated?.settings).toEqual({ ...v4({}).settings, showBlood: true, showFps: false });
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v4({})) }));
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
-    expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: true });
+    expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: true, showFps: false });
     expect(loaded.data.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
     expect(loaded.data.upgrades).toEqual({ rifleHealth: 1 });
     expect(loaded.data.lastMission).toBe(2);
@@ -380,6 +381,80 @@ describe('version 5: "Show blood"', () => {
 
   it('does not change the document it migrates', () => {
     const doc = v4({});
+    const copy = structuredClone(doc);
+    migrateSave(doc);
+    expect(doc).toEqual(copy);
+  });
+});
+
+describe('version 7: "Show FPS"', () => {
+  /** A save as version 6 wrote it: medals, the Armoury and every setting but "showFps". */
+  const v6 = (settings: Record<string, unknown>) => ({
+    version: 6,
+    cleared: { '1': ['normal'] },
+    upgrades: {},
+    lastMission: 1,
+    medals: 7,
+    armoury: ['lmg'],
+    wins: { '1': { normal: 1 } },
+    settings: { muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: false, ...settings },
+  });
+
+  it('is off in a fresh save', () => {
+    expect(META.defaultShowFps).toBe(false);
+    expect(defaultSettings().showFps).toBe(false);
+    expect(defaultSave().settings.showFps).toBe(false);
+  });
+
+  it('turns the readout off for a version 6 save and keeps everything else as it was', () => {
+    const migrated = migrateSave(v6({}));
+    expect(migrated?.version).toBe(META.saveVersion);
+    expect(migrated?.settings).toEqual({ ...v6({}).settings, showFps: false });
+    const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v6({})) }));
+    expect(loaded.status).toBe('ok');
+    expect(loaded.data.version).toBe(META.saveVersion);
+    expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: false, showFps: false });
+    expect(loaded.data.cleared).toEqual({ '1': ['normal'] });
+    expect(loaded.data.lastMission).toBe(1);
+    expect(loaded.data.medals).toBe(7);
+    expect(loaded.data.armoury).toEqual(['lmg']);
+    expect(loaded.data.wins).toEqual({ '1': { normal: 1 } });
+  });
+
+  it('turns the readout off for every older save, whatever an older copy of the game wrote there', () => {
+    // A version 6 save has no "showFps"; anything found there is from before the setting existed.
+    expect(sanitizeSave(v6({ showFps: true }))?.settings.showFps).toBe(false);
+    for (const version of [1, 2, 3, 4, 5]) {
+      expect(sanitizeSave({ version, cleared: {}, upgrades: {}, settings: { muted: false, difficulty: 'normal', hints: true, showFps: true } })?.settings.showFps).toBe(false);
+    }
+  });
+
+  it('migrates a version 6 save without settings without failing', () => {
+    expect(sanitizeSave({ ...v6({}), settings: undefined })?.settings).toEqual(defaultSettings());
+    expect(sanitizeSave({ ...v6({}), settings: 'fast' })?.settings).toEqual(defaultSettings());
+  });
+
+  it('round-trips the readout turned on', () => {
+    const storage = createMemoryStorage();
+    const save = defaultSave();
+    save.settings.showFps = true;
+    expect(writeSave(storage, save)).toBe(true);
+    const loaded = loadSave(storage);
+    expect(loaded.status).toBe('ok');
+    expect(loaded.data.settings.showFps).toBe(true);
+  });
+
+  it('accepts only true or false, anything else is the default (off)', () => {
+    const doc = (v: unknown) => ({ version: 7, settings: { showFps: v } });
+    expect(sanitizeSave(doc(true))?.settings.showFps).toBe(true);
+    expect(sanitizeSave(doc(false))?.settings.showFps).toBe(false);
+    for (const bad of ['on', 0, 1, null, {}, [], undefined]) expect(sanitizeSave(doc(bad))?.settings.showFps).toBe(false);
+    expect(cleanSetting('showFps', true)).toBe(true);
+    expect(cleanSetting('showFps', 'yes')).toBe(false);
+  });
+
+  it('does not change the document it migrates', () => {
+    const doc = v6({});
     const copy = structuredClone(doc);
     migrateSave(doc);
     expect(doc).toEqual(copy);
@@ -519,6 +594,8 @@ function nearlyRight(rand: () => number): unknown {
             ambienceVolume: junk(rand, 2),
             sfxVolume: junk(rand, 2),
             reduceFlash: junk(rand, 2),
+            showBlood: junk(rand, 2),
+            showFps: junk(rand, 2),
           }
         : junk(rand, 1),
   };
@@ -554,7 +631,8 @@ function expectUsable(data: SaveData, rules: { missionIds: readonly number[]; up
   }
   expect(typeof data.settings.reduceFlash).toBe('boolean');
   expect(typeof data.settings.showBlood).toBe('boolean');
-  expect(Object.keys(data.settings).sort()).toEqual(['ambienceVolume', 'difficulty', 'hints', 'musicVolume', 'muted', 'reduceFlash', 'sfxVolume', 'showBlood']);
+  expect(typeof data.settings.showFps).toBe('boolean');
+  expect(Object.keys(data.settings).sort()).toEqual(['ambienceVolume', 'difficulty', 'hints', 'musicVolume', 'muted', 'reduceFlash', 'sfxVolume', 'showBlood', 'showFps']);
   expect(Object.getPrototypeOf(data.upgrades)).toBe(Object.prototype);
   expect(Object.getPrototypeOf(data.cleared)).toBe(Object.prototype);
   expect(Number.isInteger(data.medals)).toBe(true);

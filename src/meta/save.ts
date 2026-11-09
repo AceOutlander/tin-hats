@@ -34,6 +34,8 @@ export interface SaveSettings {
   reduceFlash: boolean;
   /** A small dark pool under each soldier killed by gunfire (on by default). */
   showBlood: boolean;
+  /** A small frame-rate readout (fps and frame times) in a corner of the battle (off by default). */
+  showFps: boolean;
 }
 
 /** The volume settings, by key. */
@@ -51,6 +53,7 @@ export function defaultSettings(): SaveSettings {
     sfxVolume: META.defaultSfxVolume,
     reduceFlash: META.defaultReduceFlash,
     showBlood: META.defaultShowBlood,
+    showFps: META.defaultShowFps,
   };
 }
 
@@ -230,6 +233,11 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   },
   // 5 -> 6: medals and the Armoury (see migrateToMedals).
   5: (doc) => migrateToMedals(doc),
+  // 6 -> 7: "Show FPS" joins the settings, off (its default) for every older save.
+  6: (doc) => {
+    if (!isRecord(doc.settings)) return;
+    doc.settings = { ...doc.settings, showFps: META.defaultShowFps };
+  },
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -337,6 +345,7 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
     for (const key of VOLUME_KEYS) settings[key] = cleanSetting(key, s[key]);
     settings.reduceFlash = cleanSetting('reduceFlash', s.reduceFlash);
     settings.showBlood = cleanSetting('showBlood', s.showBlood);
+    settings.showFps = cleanSetting('showFps', s.showFps);
   }
   return out;
 }

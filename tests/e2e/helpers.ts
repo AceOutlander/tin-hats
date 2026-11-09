@@ -75,6 +75,7 @@ export interface StoredSave {
     sfxVolume: number;
     reduceFlash: boolean;
     showBlood: boolean;
+    showFps: boolean;
   };
 }
 

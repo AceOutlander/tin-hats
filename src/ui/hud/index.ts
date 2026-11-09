@@ -14,6 +14,7 @@ import {
   FRAC,
   clockSeconds,
   formatClock,
+  formatFps,
   formatIncome,
   hpLevel,
   incomeTenths,
@@ -471,6 +472,11 @@ class HudView implements Hud {
 
   private readonly pausedFlag: FlagCell;
   private paused = false;
+
+  // "Show FPS" readout.
+  private readonly fpsText: TextCell;
+  private readonly fpsOn: FlagCell;
+  private fpsSeq = -1;
   private readonly mutedFlag: FlagCell;
 
   constructor(parent: HTMLElement, app: AppApi, opts: HudOptions) {
@@ -712,6 +718,10 @@ class HudView implements Hud {
     this.pausedFlag = new FlagCell(root, 'is-paused');
     this.mutedFlag = new FlagCell(root, 'is-muted');
 
+    // The frame-rate readout: under the top bar on the right, clear of the buttons; it never takes a touch.
+    this.fpsText = new TextCell(el('div', 'th-fps', root));
+    this.fpsOn = new FlagCell(root, 'has-fps');
+
     document.addEventListener('pointerdown', this.onAnyDown, true);
     document.addEventListener('pointerup', this.onAnyUp, true);
     window.addEventListener('keydown', this.onKeyDown);
@@ -817,6 +827,13 @@ class HudView implements Hud {
       this.onLayout();
     }
     if (control !== null) this.applyControl(control);
+
+    const fps = s.fps;
+    this.fpsOn.set(fps !== null);
+    if (fps !== null && fps.seq !== this.fpsSeq) {
+      this.fpsSeq = fps.seq;
+      this.fpsText.set(formatFps(fps.fps, fps.avgMs, fps.worstMs));
+    }
 
     if (s.paused !== this.paused) {
       this.paused = s.paused;
