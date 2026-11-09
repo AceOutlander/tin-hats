@@ -5,11 +5,13 @@ import type { MissionDef } from '../../schema';
  * 13th Guards Rifle Division crosses to the central landing under fire, clears the houses along the high bank and
  * takes the central railway station against the 71st Infantry Division.
  *
- * Built with today's engine (docs/campaigns/STALINGRAD_BUILD.md, mission 1005): the river has no water yet, so trained
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1005): a special mission of four phases.
+ * Hold the landing (trench 1 for P1) for 180 s, lost if it falls; take the high bank (the riverside blocks, trench 3
+ * for P2, with a Nebelwerfer salvo on them); take the station (trench 4 for B5; the Stukas come with daylight); then a
+ * 45 s prep phase and hold the station for 240 s against three counter-attacks. The river has no water yet, so trained
  * units walk across from the east bank; the boats are free reinforcement waves landing at the landing stage, one load
- * at a time, and the barrage on the river is a smaller load. The houses, the station and the nail factory are
- * trenches; the win is the German HQ beyond the station. Flares, the ferry's batching of trained units, the night to
- * day changes, the Stukas from daylight, the station hold's prep phase and its timer wait for their features.
+ * at a time, and the barrage on the river is a smaller load. Flares, the ferry's batching of trained units and the
+ * night to day changes wait for their features.
  */
 export const M1005: MissionDef = {
   id: 1005,
@@ -44,7 +46,7 @@ export const M1005: MissionDef = {
   // Stand-ins until the stalingrad theatre (autumn ruins) exists (STALINGRAD_BUILD.md).
   theatre: 'holland',
   timeOfDay: 'night',
-  mode: 'assault',
+  mode: 'special',
   length: 12000,
   // The unlock order (DECISIONS 295): the ROKS-3, for the houses on the bank. The sniper comes with Mamayev Kurgan.
   newUnit: 'flame',
@@ -107,7 +109,45 @@ export const M1005: MissionDef = {
   pillboxes: [],
   wire: [],
   timer: null,
+  // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 5).
+  phases: [
+    {
+      id: 'landing',
+      title: 'The landing',
+      objectives: [{ id: 'landing', type: 'hold', point: { trench: 1 }, seconds: 180, text: 'Hold the landing' }],
+      lose: [{ type: 'pointLost', point: { trench: 1 } }],
+      sideObjectives: [
+        // Two boat loads are about ten men: the battalion ashore with fewer lost than that on the way.
+        { id: 'ashore', text: 'The whole battalion ashore', failIf: { type: 'lost', count: 10 }, until: 'bank', bonus: 0.1 },
+        { id: 'nails', text: 'The nail factory', objective: { id: 'nailFactory', type: 'capture', point: { trench: 5 } }, bonus: 0.1 },
+      ],
+      next: 'bank',
+    },
+    {
+      id: 'bank',
+      title: 'The high bank',
+      objectives: [{ id: 'bank', type: 'capture', point: { trench: 3 }, text: 'Take the riverside blocks' }],
+      next: 'station',
+    },
+    {
+      id: 'station',
+      title: 'The station',
+      objectives: [{ id: 'station', type: 'capture', point: { trench: 4 }, text: 'Take the station' }],
+      next: 'holdStation',
+    },
+    {
+      id: 'holdStation',
+      title: 'Hold the station',
+      prep: { seconds: 45, buildables: ['wire', 'foxhole'] },
+      objectives: [{ id: 'stationHeld', type: 'hold', point: { trench: 4 }, seconds: 240, text: 'Hold the station' }],
+      next: null,
+    },
+  ],
   events: [
+    // The director's events: the Nebelwerfer on the high bank, the Stukas once it is light.
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'bank', delay: 120 }, side: 1, x: 7400, spread: 220, rounds: 10, duration: 3, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },
+    { id: 'stukasDawn', type: 'airRaid', when: { phase: 'station', delay: 130 }, side: 1, support: 'airStrike', x: 7400 },
+    { id: 'stukasStation', type: 'airRaid', when: { phase: 'holdStation', delay: 90 }, side: 1, support: 'airStrike', x: 10000 },
     // Phase 1, "The landing".
     { type: 'announce', when: { at: 1 }, text: 'The landing: the first boats are grinding onto the sand.' },
     {
@@ -199,19 +239,19 @@ export const M1005: MissionDef = {
     // Phase 3, "The station".
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 6 },
+      when: { phase: 'station', delay: 6 },
       side: 0,
       forces: [{ kind: 'at', count: 3, trenchId: 3, behaviour: 'garrison' }],
       announce: 'Three PTRD teams have come up to the high bank.',
     },
     {
       type: 'hint',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 10 },
+      when: { phase: 'station', delay: 10 },
       text: 'Mortars on the station, the Katyusha on its reserves; then the riflemen go in behind the grenades.',
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 90 },
+      when: { phase: 'station', delay: 90 },
       side: 1,
       forces: [
         { kind: 'tank', count: 2, x: 11400, behaviour: 'assault' },
@@ -221,7 +261,7 @@ export const M1005: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 3, delay: 200 },
+      when: { phase: 'station', delay: 200 },
       side: 1,
       forces: [
         { kind: 'tank', count: 1, x: 11400, behaviour: 'assault', look: 'stug3f' },
@@ -233,14 +273,14 @@ export const M1005: MissionDef = {
     { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 4 }, text: 'The station is ours. Hold it.' },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 30 },
+      when: { phase: 'holdStation', delay: 30 },
       side: 1,
       forces: [{ kind: 'rifle', count: 6, behaviour: 'assault' }],
       announce: 'Counter-attack on the station!',
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 120 },
+      when: { phase: 'holdStation', delay: 120 },
       side: 1,
       forces: [
         { kind: 'tank', count: 2, behaviour: 'assault' },
@@ -250,7 +290,7 @@ export const M1005: MissionDef = {
     },
     {
       type: 'wave',
-      when: { trenchCapturedBy: 0, trenchId: 4, delay: 200 },
+      when: { phase: 'holdStation', delay: 200 },
       side: 1,
       forces: [
         { kind: 'rifle', count: 6, behaviour: 'assault' },
