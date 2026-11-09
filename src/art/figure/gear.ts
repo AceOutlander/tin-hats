@@ -7,7 +7,7 @@
  *   setFigureGear(anim, { health: 2, damage: 1 });   // once, when the unit's view is set up (after resetFigureAnim)
  */
 import { FACTIONS } from '../../data/factions';
-import { FIGURE, FIGURE_KINDS, type FigureKind } from '../../data/figure';
+import { FIGURE, FIGURE_KINDS, FIGURE_LOADOUT, WEAPON_GEOM, type FigureKind, type WeaponModel } from '../../data/figure';
 import {
   FIGURE_GEAR_ART as A,
   FIGURE_GEAR_NATION,
@@ -173,6 +173,37 @@ export function setFigureHeadgear(anim: FigureAnim, id: FigureHeadgear | null): 
  */
 export function setFigureClothing(anim: FigureAnim, id: FigureClothing | null): void {
   anim.clothing = id && FIGURE_CLOTHING[anim.faction].includes(id) ? (FACTION_FIGURE_KEYS[anim.faction].clothing[id] ?? null) : null;
+}
+
+const WEAPON_KEYS = new Map<WeaponModel, { weapon: string | null; bipod: string | null; plate: string | null }>();
+
+/**
+ * Carry an era weapon in place of the nation's (the PPD-40 in 1941, the PzB 39 before the Panzerschreck; src/data/eras.ts),
+ * or null for the nation's own. Its muzzle and bipod geometry come with it. Remembered until resetFigureAnim; allocation
+ * free after the first call for a model.
+ */
+export function setFigureWeapon(anim: FigureAnim, model: WeaponModel | null): void {
+  const m = model ?? FIGURE_LOADOUT[anim.faction].weapon[anim.kind];
+  anim.model = m;
+  anim.geom = WEAPON_GEOM[m];
+  anim.weaponVisible = m !== 'none' && m !== 'crate';
+  if (model === null) {
+    anim.weaponKeys = null;
+    return;
+  }
+  let keys = WEAPON_KEYS.get(m);
+  if (!keys) {
+    const g = WEAPON_GEOM[m];
+    const none = m === 'none' || m === 'crate';
+    keys = { weapon: none ? null : `fig/weapon/${m}`, bipod: g.bipodLen > 0 ? `fig/weapon/${m}Bipod` : null, plate: g.baseplate ? `fig/weapon/${m}Plate` : null };
+    WEAPON_KEYS.set(m, keys);
+  }
+  anim.weaponKeys = keys;
+}
+
+/** Hold this sprite for the anti-tank "rocket" hand item (the Tank Hunters' bottle), or null for the nation's round. */
+export function setFigureRocketItem(anim: FigureAnim, key: string | null): void {
+  anim.rocketKey = key;
 }
 
 /** The key a sapper draws instead of his nation's crate while carrying (null = the nation's crate). */

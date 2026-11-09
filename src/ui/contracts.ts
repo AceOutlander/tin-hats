@@ -5,12 +5,14 @@
  * below and reports what the player did through AppApi. The app glue builds
  * these models from the simulation and the save data.
  */
-import type { BuildableId, Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { CampaignMapDef } from '../data/campaignMap';
+import type { BuildableId, CampaignId, Difficulty, FactionId, FactionLook, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
 import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
 
-export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
+/** 'campaigns' is the campaign select screen; 'campaign' the chosen campaign's map. */
+export type ScreenId = 'title' | 'campaigns' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
 
 export interface TrainButtonState {
   kind: UnitKind;
@@ -38,6 +40,8 @@ export interface SupportButtonState {
   /** 0..1, 1 = ready. */
   charge: number;
   secondsLeft: number;
+  /** Aircraft that cannot fly now (scripted weather or night, FOUNDATIONS.md 4.7): why, or null. Not ready while set. */
+  grounded: 'fog' | 'blizzard' | 'night' | null;
 }
 
 export interface ControlState {
@@ -78,6 +82,17 @@ export interface MinimapState {
   unitCount: number;
   /** Faction colours for side 0 and side 1. */
   colors: [string, string];
+  /**
+   * The ground's sectors (MissionDef.sectors, FOUNDATIONS.md 4.1): wu ranges and their shading, set when the battle
+   * begins; absent or empty = one plain ground colour.
+   */
+  sectorFrom?: Float32Array;
+  sectorTo?: Float32Array;
+  sectorColor?: string[];
+  /** Capture points (FOUNDATIONS.md 4.5): x and owner (-1 nobody) of the first pointCount entries. */
+  pointX?: Float32Array;
+  pointOwner?: Int8Array;
+  pointCount?: number;
 }
 
 /** A guided tutorial tip: a bubble that points at one control, which pulses while the tip is up. */
@@ -120,6 +135,24 @@ export interface HudState {
   fps: FpsState | null;
   /** The prep phase of a defensive mission while it runs, or null. */
   prep: PrepHudState | null;
+  /**
+   * The mission director's line under the objective plate (FOUNDATIONS.md 3.4): the phase and its first unfinished
+   * objective with progress ("Phase 2/3 · Hold the crossroads · Tanks destroyed 7 / 12"); null for a one-phase mission.
+   */
+  phaseLine?: string | null;
+  /** The side objectives begun so far, for the pause screen (not the battle HUD: phone space). */
+  sideObjectives?: { text: string; status: 'open' | 'done' | 'failed' }[];
+  /**
+   * The training bar's "Deploy at" chip (FOUNDATIONS.md 4.5): where trained units walk out, or null when the mission
+   * offers no spawn point to the player. The object is reused; `label` changes when the choice or its place does.
+   */
+  deploy?: { label: string; closed: boolean } | null;
+  /**
+   * The training bar's "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): the enemy minefield the player can see, or enemy tank
+   * trap or road block, nearest the middle of the view, at x; busy while sappers already work on it. Null when there is
+   * none in view or no sapper to send. The object is reused.
+   */
+  clear?: { label: string; x: number; busy: boolean } | null;
 }
 
 /** One build the prep phase offers. */
@@ -181,17 +214,25 @@ export type HudAction =
   /** Prep phase: take back the build placed last (its money comes back). */
   | { type: 'undoBuild' }
   /** Prep phase: start the attack now. */
-  | { type: 'ready' };
+  | { type: 'ready' }
+  /** The "Deploy at" chip: on to the next choice (the front, the HQ, each spawn point). */
+  | { type: 'deploy' }
+  /** The "Clear" chip: a sapper goes to clear the minefield or obstacle it names. */
+  | { type: 'clear' };
 
 export interface MissionCard {
   id: number;
   title: string;
   location: string;
   date: string;
+  /** 'YYYY-MM-DD', when the mission has a date: the campaign map shows the front line of that day. */
+  dateIso?: string;
   theatre: TheatreId;
   mapPos: { lon: number; lat: number };
   briefing: string[];
   objective: string;
+  /** The briefing's intelligence: the enemy's forces and ours, a few short lines each. */
+  intel?: MissionIntel;
   unlocked: boolean;
   cleared: Record<Difficulty, boolean>;
   newUnit: { kind: UnitKind; name: string; blurb: string } | null;
@@ -241,6 +282,10 @@ export interface MedalResultView {
   casualties: ScorePartView;
   /** Survival missions only: HQ health 0..1 against the target. */
   hq: ScorePartView | null;
+  /** A defended building's health 0..1 (fixed scoring with a structure weight), when the mission counts one. */
+  structure?: ScorePartView | null;
+  /** What side objectives and the kill bonus added to the 0..1 score (before it is capped at 1), when any did. */
+  bonus?: number;
   /** Medals before the difficulty and replay factors. */
   base: number;
   difficultyMul: number;
@@ -302,7 +347,37 @@ export interface PanelDropsState {
   version: number;
 }
 
+/** One campaign on the campaign select screen. */
+export interface CampaignCardView {
+  id: CampaignId;
+  title: string;
+  /** Its dates, e.g. 'June 1941 to February 1943'. */
+  subtitle: string;
+  /** The one-line pitch. */
+  pitch: string;
+  nation: FactionId;
+  /** The nation's name, e.g. 'Red Army' (the flag's label for a screen reader). */
+  nationName: string;
+  flag: FactionLook['flag'];
+  /** Missions cleared (on any difficulty), of `total`. */
+  cleared: number;
+  total: number;
+  /** The next mission to play (the first open one not cleared), or null when all are cleared. */
+  next: { id: number; number: number; title: string } | null;
+  locked: boolean;
+  /** Why a locked campaign is locked, e.g. 'Opens after mission 1010'. */
+  lockNote?: string;
+  /** The campaign on the map now (chosen last, or that of the mission last played). */
+  current: boolean;
+}
+
 export interface CampaignView {
+  /** The campaign on the map, its name and its situation map (absent: the British map, as before campaigns). */
+  campaignId?: CampaignId;
+  campaignTitle?: string;
+  map?: CampaignMapDef;
+  /** Every campaign offered, for the select screen, in its order. */
+  campaigns?: CampaignCardView[];
   missions: MissionCard[];
   /** The mission last started (0 or absent when none): the map opens on it when it is unlocked. */
   lastMission?: number;
@@ -349,11 +424,15 @@ export interface ResultView {
   medals?: MedalResultView | null;
   /** A Basic Training battle (not a campaign mission); `pointsAwarded` is its one-time reward. */
   training?: boolean;
+  /** The mission's side objectives and whether each was earned (absent when it has none). */
+  sideObjectives?: { text: string; done: boolean; bonus: number }[];
 }
 
 /** Implemented by src/app, called by the UI. */
 export interface AppApi {
   campaign(): CampaignView;
+  /** Put a campaign on the map (the campaign select screen; optional so older stand-ins of the app still fit). */
+  selectCampaign?(id: CampaignId): void;
   startMission(id: number, difficulty: Difficulty): void;
   /**
    * Make a mission's battle music before its battle (Basic Training's too, by its id): the start buttons wait on it,

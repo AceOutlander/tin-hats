@@ -1,19 +1,16 @@
 import type { MissionDef } from '../schema';
-import { M01 } from './m01';
-import { M02 } from './m02';
-import { M03 } from './m03';
-import { M04 } from './m04';
-import { M05 } from './m05';
-import { M06 } from './m06';
-import { M07 } from './m07';
-import { M08 } from './m08';
-import { M09 } from './m09';
-import { M10 } from './m10';
+import { STALINGRAD_MISSIONS } from './stalingrad';
 
-/** Every mission, in campaign order. Each lives in its own file (m01.ts to m10.ts). */
-export const MISSIONS: readonly MissionDef[] = [M01, M02, M03, M04, M05, M06, M07, M08, M09, M10];
+/**
+ * Every campaign mission, campaign by campaign in select-screen order (src/data/campaigns.ts CAMPAIGN_IDS), each in
+ * its own play order. Today that is Stalingrad, 1001 to 1010 (src/data/missions/stalingrad). The ten British
+ * placeholder missions (ids 1 to 10) were removed for the Stalingrad release (owner, docs/QUEUE.md); saves keep what
+ * they earned there (save version 10, src/meta/save.ts). The proving ground (./sandbox.ts) and Basic Training
+ * (./training.ts) are not campaign missions and are not listed.
+ */
+export const MISSIONS: readonly MissionDef[] = [...STALINGRAD_MISSIONS];
 
-/** The mission with this id, or undefined if it does not exist (yet). */
+/** The campaign mission with this id, or undefined if it does not exist (yet). */
 export function getMission(id: number): MissionDef | undefined {
   for (const mission of MISSIONS) {
     if (mission.id === id) return mission;

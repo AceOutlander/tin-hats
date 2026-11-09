@@ -9,12 +9,13 @@
  */
 import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
+import { CAMPAIGNS } from '../data/campaigns';
 import { DIFFICULTY_LIST } from '../data/difficulty';
-import { MISSIONS } from '../data/missions';
+import { STALINGRAD_MISSIONS } from '../data/missions/stalingrad';
 import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
-import type { Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
+import type { CampaignId, Difficulty, MissionDef, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import {
@@ -29,6 +30,7 @@ import {
   isUnlocked,
   loadSave,
   maxLevel,
+  missionMedals,
   missionRoster,
   newsFor,
   withNews,
@@ -43,9 +45,9 @@ import {
   type StorageLike,
 } from '../meta';
 import type { BattleView, WeatherMode } from '../render/contracts';
-import { createBattle } from '../sim';
+import { createBattle, directorScore, structureHealth } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
-import { buildCampaignView, buildResult, progressOf } from './campaignView';
+import { buildCampaignCards, buildCampaignView, buildResult, progressOf } from './campaignView';
 import { FpsMeter } from './fpsMeter';
 import { GameLoop } from './loop';
 import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
@@ -53,16 +55,37 @@ import { MusicIntensity } from './musicIntensity';
 import { BattleSession } from './session';
 import { TipMemory, Tutorial, isTraining } from './tutorial';
 
-/** The campaign map track, and the screens it plays on (and behind Settings opened from one of them). */
-export const MAP_MUSIC: MusicTrackName = 'map';
+/**
+ * The first campaign's map track (each campaign's map plays its own, `Campaign.mapMusic`; Stalingrad is the only one
+ * today), and the screens a map track plays on (and behind Settings opened from one of them).
+ */
+export const MAP_MUSIC: MusicTrackName = CAMPAIGNS.stalingrad.mapMusic;
 const MAP_SCREENS: readonly ScreenId[] = ['campaign', 'briefing', 'quartermaster', 'armoury'];
+/** The menu screens the title storm and the menu theme play behind (and Settings opened from them). */
+const STORM_SCREENS: readonly ScreenId[] = ['title', 'campaigns'];
+
+/** One campaign as the app plays it: its id (src/data/campaigns.ts) and its missions in order. */
+export interface CampaignPlay {
+  id: CampaignId;
+  missions: readonly MissionDef[];
+}
+
+/** Every campaign there is, in select-screen order (src/data/campaigns.ts CAMPAIGN_IDS). */
+export const DEFAULT_CAMPAIGNS: readonly CampaignPlay[] = [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }];
 
 export interface AppDeps {
   view: BattleView;
   audio: GameAudio;
   storage: StorageLike | null;
-  /** Campaign order. Default: every mission in src/data/missions. */
+  /** One campaign's order (played as the Stalingrad campaign; the tests use it). Ignored when `campaigns` is given. */
   missions?: readonly MissionDef[];
+  /** The campaigns and their missions. Default: DEFAULT_CAMPAIGNS (or `missions` as the Stalingrad campaign). */
+  campaigns?: readonly CampaignPlay[];
+  /**
+   * Offer the campaigns still being built (`released: false`) on the select screen: the dev server and ?unreleased=1
+   * do, the live site does not (the admin panel's unlock shows them for its session). Default false.
+   */
+  showUnreleased?: boolean;
   /** Quartermaster upgrades. Default: every upgrade in src/data/upgrades.ts. */
   upgradeDefs?: readonly UpgradeDef[];
   /** Clock for the frame-time averages. */
@@ -73,7 +96,10 @@ export interface AppDeps {
 
 export class App implements AppApi {
   readonly loop: GameLoop;
-  readonly missions: readonly MissionDef[];
+  /** Every campaign the game has, offered or not (a save keeps the progress of each). */
+  readonly campaigns: readonly CampaignPlay[];
+  /** The campaign on the map: chosen on the select screen, or that of the mission last played. */
+  campaignId: CampaignId;
   readonly upgradeDefs: readonly UpgradeDef[];
   save: SaveData;
   session: BattleSession | null = null;
@@ -116,8 +142,10 @@ export class App implements AppApi {
   readonly fps = new FpsMeter();
   /** Picks the battle-music layer from the battle (null outside a battle). */
   musicIntensity: MusicIntensity | null = null;
-  /** The campaign map track is on. */
-  private mapMusic = false;
+  /** The campaign map track that is on, or null. */
+  private mapMusic: MusicTrackName | null = null;
+  /** Offer unreleased campaigns (AppDeps.showUnreleased). */
+  private readonly showUnreleased: boolean;
   /** A battle let go of the menu theme's buffer: the title renders it again. */
   private menuReleased = false;
   /** Counts battle-music loads; a load whose number is no longer current was let go of or taken over. */
@@ -132,10 +160,13 @@ export class App implements AppApi {
     this.audio = deps.audio;
     this.storage = deps.storage;
     this.tips = new TipMemory(deps.storage);
-    this.missions = deps.missions ?? MISSIONS;
+    this.campaigns = deps.campaigns ?? (deps.missions ? [{ id: 'stalingrad', missions: deps.missions }] : DEFAULT_CAMPAIGNS);
+    this.showUnreleased = deps.showUnreleased ?? false;
     this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
     this.random = deps.random ?? Math.random;
-    this.save = loadSave(deps.storage, { missionIds: this.missions.map((m) => m.id), upgradeDefs: this.upgradeDefs }).data;
+    this.save = loadSave(deps.storage, this.saveRules).data;
+    // The map opens on the campaign of the mission last played, else on the first one offered.
+    this.campaignId = (this.campaignFor(this.save.lastMission) ?? this.offered[0] ?? this.campaigns[0]).id;
     this.storm = new MenuStormDirector(this.view, this.audio, () => this.ui);
     this.applySettings();
 
@@ -170,6 +201,45 @@ export class App implements AppApi {
     });
   }
 
+  // --- campaigns -------------------------------------------------------------
+
+  /** The campaigns the select screen offers: the released ones, and the rest where unreleased ones may show. */
+  get offered(): readonly CampaignPlay[] {
+    const all = this.showUnreleased || this.adminUnlocked;
+    return this.campaigns.filter((c) => all || CAMPAIGNS[c.id].released);
+  }
+
+  /** The campaign on the map. */
+  get current(): CampaignPlay {
+    return this.offered.find((c) => c.id === this.campaignId) ?? this.offered[0] ?? this.campaigns[0];
+  }
+
+  /** The campaign on the map, in order. */
+  get missions(): readonly MissionDef[] {
+    return this.current.missions;
+  }
+
+  /** The offered campaign a mission belongs to, or null (the proving ground, Basic Training, an unoffered campaign). */
+  campaignFor(missionId: number): CampaignPlay | null {
+    return this.offered.find((c) => c.missions.some((m) => m.id === missionId)) ?? null;
+  }
+
+  /** What a stored save is checked against: every campaign's missions, each in its own order, and the upgrades. */
+  get saveRules(): { missionIds: number[]; campaigns: number[][]; upgradeDefs: readonly UpgradeDef[] } {
+    const campaigns = this.campaigns.map((c) => c.missions.map((m) => m.id));
+    return { missionIds: campaigns.flat(), campaigns, upgradeDefs: this.upgradeDefs };
+  }
+
+  /** Put another offered campaign on the map (the campaign select screen). */
+  selectCampaign(id: CampaignId): void {
+    if (this.offered.some((c) => c.id === id)) this.campaignId = id;
+  }
+
+  /** The track the current campaign's map plays. */
+  get mapTrack(): MusicTrackName {
+    return CAMPAIGNS[this.current.id].mapMusic;
+  }
+
   /** Hand every saved setting to the audio, the view and the storm (at start and after a reset). */
   private applySettings(): void {
     const s = this.save.settings;
@@ -198,23 +268,27 @@ export class App implements AppApi {
       this.loadToken++;
       this.audio.releaseBattleMusic();
     }
-    // The campaign map track: on the map, the briefing and the Quartermaster (and behind Settings from them).
-    const map = MAP_SCREENS.includes(screen) || (screen === 'settings' && this.mapMusic);
-    if (!map && this.mapMusic) {
-      this.mapMusic = false;
+    // The campaign map track: on the map, the briefing and the Quartermaster (and behind Settings from them). Each
+    // campaign's map plays its own track.
+    const map = MAP_SCREENS.includes(screen) || (screen === 'settings' && this.mapMusic !== null);
+    const track = this.mapTrack;
+    if (this.mapMusic !== null && (!map || this.mapMusic !== track)) {
+      this.mapMusic = null;
       this.audio.stopMusic();
     }
-    if (screen === 'title' && this.menuReleased) {
+    const storm = STORM_SCREENS.includes(screen);
+    if (storm && this.menuReleased) {
       this.menuReleased = false;
       this.audio.prepareMusic(MENU_MUSIC);
     }
-    if (screen === 'title') this.storm.start();
+    // The title storm and the menu theme: on the title and the campaign select (and behind Settings from them).
+    if (storm) this.storm.start();
     else if (!(screen === 'settings' && this.storm.running)) this.storm.stop();
-    if (map && !this.mapMusic) {
-      this.mapMusic = true;
+    if (map && this.mapMusic === null) {
+      this.mapMusic = track;
       // Rendered the first time the map opens (and again after a battle, which lets go of it).
-      this.audio.prepareMusic(MAP_MUSIC);
-      this.audio.startMusic(MAP_MUSIC);
+      this.audio.prepareMusic(track);
+      this.audio.startMusic(track);
     }
   }
 
@@ -230,8 +304,11 @@ export class App implements AppApi {
    * the briefing does; without it the mission's own roster is used (the debug hooks and tests drive missions that way).
    */
   beginMission(id: number, difficulty: Difficulty, seed: number = this.newSeed(), armoury = false): boolean {
-    const mission = this.missions.find((m) => m.id === id);
-    if (!mission) return false;
+    const campaign = this.campaignFor(id);
+    const mission = campaign?.missions.find((m) => m.id === id);
+    if (!campaign || !mission) return false;
+    // The battle's campaign goes on the map: quitting or winning comes back to it.
+    this.campaignId = campaign.id;
     this.launch(mission, difficulty, seed, armoury);
     return true;
   }
@@ -248,15 +325,16 @@ export class App implements AppApi {
     // The battle music held stays for prepareBattleMusic below: this mission's track (a restart, a replay, or the one
     // loaded for it) plays again from the top; any other is let go of there.
     this.endSession(true);
-    const campaign = this.missions.some((m) => m.id === mission.id);
+    const campaign = this.campaignFor(mission.id) !== null;
     // The map opens on the mission last played (the sandbox grounds are not part of the campaign).
     if (campaign && this.save.lastMission !== mission.id) {
       this.save.lastMission = mission.id;
       this.persist();
     }
-    // "New:" hints and tips only for what this mission really unlocks for this player (owner, 2026-11-09).
-    const p = progressOf(this.save, this.missions, this.unlockedAll);
-    const shown = campaign ? withNews(mission, newsFor(this.save, this.missions, p.progressed, mission)) : mission;
+    // "New:" hints and tips only for what this mission really unlocks for this player (owner, 2026-11-09); what the
+    // player has unlocked counts every offered campaign.
+    const p = this.progress();
+    const shown = campaign ? withNews(mission, newsFor(this.save, p.all, p.progressed, mission)) : mission;
     const played = armoury && campaign ? applyRoster(shown, missionRoster(this.save, mission, p.unlocked)) : shown;
     this.launched = { mission, armoury };
     this.lastMedals = null;
@@ -289,7 +367,8 @@ export class App implements AppApi {
     // The battle music: the map track and the menu theme let go of their buffers (only the mission's music is held in
     // a battle), and the mission's track, rendered before the battle (loadMission), starts. Nothing renders from here
     // on: a battle started without a load (the debug hooks) plays without music.
-    this.audio.releaseMusic(MAP_MUSIC);
+    this.audio.releaseMusic(this.mapTrack);
+    if (this.mapMusic !== null && this.mapMusic !== this.mapTrack) this.audio.releaseMusic(this.mapMusic);
     this.audio.releaseMusic(MENU_MUSIC);
     this.menuReleased = true;
     this.musicIntensity = new MusicIntensity();
@@ -337,16 +416,20 @@ export class App implements AppApi {
     }
     // Only campaign missions count: a win on the sandbox grounds must leave the save alone. So does a battle the admin
     // panel ended, and a win on a mission only the admin panel's unlock had opened.
-    const ids = this.missions.map((m) => m.id);
+    const ids = (this.campaignFor(mission.id)?.missions ?? []).map((m) => m.id);
     const admin = adminEnded || (this.adminUnlocked && !isUnlocked(this.save, ids, mission.id));
     if (session.battle.state.winner === 0 && ids.includes(mission.id) && !admin) {
       recordClear(this.save, mission.id, session.difficulty);
       const s = session.battle.state;
       const hq = s.sides[0].hq;
+      const guarded = missionMedals(mission.id).structureWeight;
       medals = recordWin(this.save, mission, session.difficulty, {
         seconds: s.time,
         lost: s.sides[0].stats.lost,
         hqFrac: hq && hq.maxHp > 0 ? Math.max(0, hq.hp) / hq.maxHp : 0,
+        // The mission director's figures: side objectives, kills by kind, phase times, a defended building.
+        ...directorScore(s),
+        ...(guarded ? { structureFrac: structureHealth(s, guarded.ref) } : {}),
       });
       points = medals.medals;
       this.lastMedals = medals;
@@ -461,8 +544,25 @@ export class App implements AppApi {
 
   // --- AppApi --------------------------------------------------------------
 
+  /** How the save's progress stands, over every offered campaign (what is unlocked counts all of them). */
+  private progress(): ReturnType<typeof progressOf> {
+    return progressOf(
+      this.save,
+      this.missions,
+      this.unlockedAll,
+      this.offered.map((c) => c.missions),
+    );
+  }
+
   campaign(): CampaignView {
-    return buildCampaignView(this.save, this.missions, this.upgradeDefs, this.unlockedAll);
+    const c = this.current;
+    const def = CAMPAIGNS[c.id];
+    const view = buildCampaignView(this.save, c.missions, this.upgradeDefs, this.unlockedAll, def.nation, this.offered.map((o) => o.missions));
+    view.campaignId = c.id;
+    view.campaignTitle = def.title;
+    view.map = def.map;
+    view.campaigns = buildCampaignCards(this.save, this.offered, c.id);
+    return view;
   }
 
   /**
@@ -473,7 +573,7 @@ export class App implements AppApi {
    * rejects. The track already held (a replay, a restart) resolves at once. `onProgress` hears 0..1.
    */
   loadMission(id: number, onProgress?: (fraction: number) => void): Promise<boolean> {
-    const mission = id === BASIC_TRAINING_ID ? trainingMission() : this.missions.find((m) => m.id === id);
+    const mission = id === BASIC_TRAINING_ID ? trainingMission() : this.campaignFor(id)?.missions.find((m) => m.id === id);
     if (!mission) return Promise.resolve(true);
     const token = ++this.loadToken;
     const report = onProgress ? (ready: number, total: number): void => onProgress(total > 0 ? Math.min(1, ready / total) : 1) : undefined;
@@ -499,7 +599,7 @@ export class App implements AppApi {
       return;
     }
     const chosen = DIFFICULTY_LIST.includes(difficulty) ? difficulty : this.save.settings.difficulty;
-    if (!this.missions.some((m) => m.id === id)) return;
+    if (this.campaignFor(id) === null) return;
     if (this.save.settings.difficulty !== chosen) {
       this.save.settings.difficulty = chosen;
       this.persist();
@@ -509,10 +609,10 @@ export class App implements AppApi {
 
   /**
    * Start Basic Training, the standalone tutorial: its own training ground, outside every campaign, played as the
-   * nation of the campaign on show (the British until the campaign select screen exists), always on Normal.
+   * nation of the campaign on the map (the one last chosen or played), always on Normal.
    */
   startTraining(): void {
-    this.launch(trainingMission(), BASIC_TRAINING_DIFFICULTY, this.newSeed());
+    this.launch(trainingMission(CAMPAIGNS[this.current.id].nation), BASIC_TRAINING_DIFFICULTY, this.newSeed());
   }
 
   /** The player turned down the Basic Training offer on the title screen: it is not offered again (the button stays). */
@@ -531,7 +631,10 @@ export class App implements AppApi {
     this.ui?.refresh();
   }
 
-  /** The admin panel's unlock: every mission open for this session, and nothing about it written to the save. */
+  /**
+   * The admin panel's unlock: every campaign (the unreleased ones too) and every mission open for this session, and
+   * nothing about it written to the save.
+   */
   adminUnlockMissions(): void {
     this.adminUnlocked = true;
     this.unlockAll();

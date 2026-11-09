@@ -3,7 +3,7 @@ import { App } from '../../src/app/app';
 import { buildCampaignView, describeEffect, describeLevel } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
 import { MEDALS } from '../../src/data/medals';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import { SANDBOX } from '../../src/data/missions/sandbox';
 import type { UpgradeDef } from '../../src/data/schema';
 import { createMemoryStorage, defaultSave, defaultSettings, loadSave, writeSave } from '../../src/meta';
@@ -98,7 +98,7 @@ describe('app flow', () => {
     const s = app.session?.battle.state;
     expect(s?.sides[0].order).toBe('advance');
     expect(s?.sides[0].queue.rifle).toBe(1);
-    expect(s?.sides[0].supplies).toBeLessThan(M01.start[0].supplies + 500);
+    expect(s?.sides[0].supplies).toBeLessThan(FIELD.start[0].supplies + 500);
     app.dispatch({ type: 'minimap', frac: 0.4 });
     expect(view.camera.jumps).toEqual([0.4]);
   });
@@ -322,9 +322,9 @@ describe('app flow', () => {
 describe('campaign view', () => {
   it('describes mission cards and the new unit', () => {
     const save = defaultSave();
-    const view = buildCampaignView(save, [M01], []);
+    const view = buildCampaignView(save, [FIELD], []);
     const card = view.missions[0];
-    expect(card.title).toBe(M01.title);
+    expect(card.title).toBe(FIELD.title);
     expect(card.newUnit?.kind).toBe('rifle');
     expect(card.newUnit?.name).toBe('Rifleman');
     expect(card.newSupport).toBeNull();

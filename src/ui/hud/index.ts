@@ -291,6 +291,9 @@ class PickView {
   }
 }
 
+/** What a grounded call-in button shows in place of its clock (FOUNDATIONS.md 4.7). */
+const GROUNDED_LABEL: Record<NonNullable<SupportButtonState['grounded']>, string> = { fog: 'Fog', blizzard: 'Storm', night: 'Night' };
+
 /** One call-in: its button in the call-ins column, and its mini pip on the folded "Call-ins" toggle. */
 class SupportView {
   readonly node: HTMLButtonElement;
@@ -305,7 +308,9 @@ class SupportView {
   private readonly pipSweep: FracCell;
   private readonly pipReady: FlagCell;
   private readonly pipActive: FlagCell;
+  private readonly groundedFlag: FlagCell;
   private rawName = '';
+  private rawGrounded: SupportButtonState['grounded'] = null;
 
   constructor(parent: HTMLElement, pipParent: HTMLElement, kind: SupportKind) {
     this.kind = kind;
@@ -317,6 +322,7 @@ class SupportView {
     this.seconds = new TextCell(el('span', 'th-sbtn-sec', b));
     this.readyFlag = new FlagCell(b, 'is-ready');
     this.active = new FlagCell(b, 'is-active');
+    this.groundedFlag = new FlagCell(b, 'is-grounded');
     b.addEventListener('animationend', () => b.classList.remove('is-deny'));
     const pip = el('span', 'th-pip', pipParent);
     pip.dataset.kind = kind;
@@ -328,18 +334,21 @@ class SupportView {
   }
 
   apply(s: SupportButtonState, targeting: SupportKind | null): void {
-    if (s.name !== this.rawName) {
+    if (s.name !== this.rawName || s.grounded !== this.rawGrounded) {
       this.rawName = s.name;
+      this.rawGrounded = s.grounded;
       this.name.set(shortName(s.name, NAME_CHARS - 1));
-      this.node.setAttribute('aria-label', s.name);
+      this.node.setAttribute('aria-label', s.grounded === null ? s.name : `${s.name}: grounded (${GROUNDED_LABEL[s.grounded].toLowerCase()})`);
     }
-    this.ready = s.charge >= 1;
+    // Aircraft grounded by fog, a blizzard or the night: not ready, and the button says why.
+    this.ready = s.charge >= 1 && s.grounded === null;
     this.readyFlag.set(this.ready);
     this.pipReady.set(this.ready);
+    this.groundedFlag.set(s.grounded !== null);
     if (!this.ready) {
-      this.sweep.set(s.charge);
-      this.pipSweep.set(s.charge);
-      this.seconds.set(clockSeconds(s.secondsLeft));
+      this.sweep.set(s.grounded !== null ? 0 : s.charge);
+      this.pipSweep.set(s.grounded !== null ? 0 : s.charge);
+      this.seconds.set(s.grounded !== null ? GROUNDED_LABEL[s.grounded] : clockSeconds(s.secondsLeft));
     }
     this.active.set(targeting === s.kind);
     this.pipActive.set(targeting === s.kind);
@@ -383,6 +392,11 @@ class HudView implements Hud {
   // Objective, banners, hint.
   private readonly objText: TextCell;
   private readonly objTime: HTMLElement;
+  /** The mission director's phase line under the plate, and whether there is one. */
+  private readonly phaseText: TextCell;
+  private readonly hasPhase: FlagCell;
+  /** The pause screen's side objectives (FOUNDATIONS.md 3.4). */
+  private readonly pauseObjectives: HTMLElement;
   private lastClock = -1;
   private readonly hasTimer: FlagCell;
   private readonly urgent: FlagCell;
@@ -415,6 +429,17 @@ class HudView implements Hud {
   // Bottom bar.
   private readonly trainWrap: HTMLElement;
   private readonly trainBar: HTMLElement;
+  /** The "Deploy at" chip on the training bar (FOUNDATIONS.md 4.5): hidden unless the mission has spawn points. */
+  private readonly deployButton: HTMLButtonElement;
+  private readonly deployText: TextCell;
+  private readonly deployClosed: FlagCell;
+  private deployShown: boolean | null = null;
+  /** The "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): above "Deploy at" when both show. */
+  private readonly clearButton: HTMLButtonElement;
+  private readonly clearText: TextCell;
+  private readonly clearBusy: FlagCell;
+  private readonly clearStacked: FlagCell;
+  private clearShown: boolean | null = null;
   private readonly trainViews: TrainView[] = [];
   private readonly supportViews: SupportView[] = [];
   // Call-ins: a "Call-ins" toggle with a mini pip per call-in, which opens the column of call-in buttons above it.
@@ -542,6 +567,8 @@ class HudView implements Hud {
     this.objTime = el('span', 'th-obj-time', obj);
     this.hasTimer = new FlagCell(obj, 'has-timer');
     this.urgent = new FlagCell(obj, 'is-urgent');
+    this.phaseText = new TextCell(el('div', 'th-obj-phase', center));
+    this.hasPhase = new FlagCell(center, 'has-phase');
 
     const target = el('div', 'th-target', center);
     const targetText = el('div', 'th-target-text', target);
@@ -639,6 +666,21 @@ class HudView implements Hud {
     const trainBar = el('div', 'th-train', trainWrap);
     trainBar.dataset.interactive = '';
     this.trainBar = trainBar;
+    // "Deploy at": a tab on the training bar's top edge; each tap steps to the next spawn point (the front, the HQ...).
+    const deploy = button('th-hbtn th-deploy', 'deploy-at', 'Deploy at', trainWrap);
+    deploy.hidden = true;
+    this.deployText = new TextCell(el('span', 'th-deploy-text', deploy));
+    this.deployClosed = new FlagCell(deploy, 'is-closed');
+    this.deployButton = deploy;
+    onTap(deploy, () => this.app.dispatch({ type: 'deploy' }));
+    // "Clear": a sapper goes to clear the enemy minefield or obstacle in view.
+    const clear = button('th-hbtn th-clear', 'clear-job', 'Send a sapper to clear it', trainWrap);
+    clear.hidden = true;
+    this.clearText = new TextCell(el('span', 'th-deploy-text', clear));
+    this.clearBusy = new FlagCell(clear, 'is-busy');
+    this.clearStacked = new FlagCell(clear, 'is-stacked');
+    this.clearButton = clear;
+    onTap(clear, () => this.app.dispatch({ type: 'clear' }));
     icon('chevLeft', el('span', 'th-more th-more-l', trainWrap));
     icon('chevRight', el('span', 'th-more th-more-r', trainWrap));
     trainBar.addEventListener('scroll', this.onTrainScroll, { passive: true });
@@ -707,6 +749,7 @@ class HudView implements Hud {
     const overlay = el('div', 'th-pause', root);
     const panel = el('div', 'th-pause-panel', overlay);
     el('div', 'th-pause-title', panel, 'Paused');
+    this.pauseObjectives = el('div', 'th-pause-objectives', panel);
     const pauseMute = button('th-hbtn th-pbtn th-pbtn-quiet', 'pause-mute', 'Sound', panel);
     icon('soundOn', pauseMute, 'th-ico-on');
     icon('soundOff', pauseMute, 'th-ico-off');
@@ -781,6 +824,9 @@ class HudView implements Hud {
       this.objText.set(s.objective);
       this.urgent.set(false);
     }
+    const phaseLine = s.phaseLine ?? null;
+    this.hasPhase.set(phaseLine !== null);
+    if (phaseLine !== null) this.phaseText.set(phaseLine);
 
     this.ownHq.set(s.hqHp, s.hqMaxHp);
     const enemyHp = s.enemyHqHp;
@@ -790,6 +836,27 @@ class HudView implements Hud {
     const train = s.train;
     if (!this.trainMatches(train)) this.rebuildTrain(train);
     for (let i = 0; i < train.length; i++) this.trainViews[i].apply(train[i]);
+    const deploy = s.deploy ?? null;
+    const showDeploy = deploy !== null && train.length > 0;
+    if (showDeploy !== this.deployShown) {
+      this.deployShown = showDeploy;
+      this.deployButton.hidden = !showDeploy;
+    }
+    if (deploy !== null && showDeploy) {
+      this.deployText.set(deploy.label);
+      this.deployClosed.set(deploy.closed);
+    }
+    const clear = s.clear ?? null;
+    const showClear = clear !== null && train.length > 0;
+    if (showClear !== this.clearShown) {
+      this.clearShown = showClear;
+      this.clearButton.hidden = !showClear;
+    }
+    if (clear !== null && showClear) {
+      this.clearText.set(clear.label);
+      this.clearBusy.set(clear.busy);
+      this.clearStacked.set(showDeploy);
+    }
 
     // Army scope lights the army order. A kind scope lights the order that kind obeys: its own, or the
     // army's together with Follow army while it has none.
@@ -849,7 +916,10 @@ class HudView implements Hud {
     if (s.paused !== this.paused) {
       this.paused = s.paused;
       this.pausedFlag.set(s.paused);
-      if (s.paused) this.releaseInputs();
+      if (s.paused) {
+        this.releaseInputs();
+        this.showPauseObjectives(s.sideObjectives ?? []);
+      }
     }
     this.mutedFlag.set(s.muted);
 
@@ -1410,6 +1480,15 @@ class HudView implements Hud {
     if (down === this.sentFire) return;
     this.sentFire = down;
     this.app.dispatch({ type: 'fire', down });
+  }
+
+  /** The side objectives on the pause screen: each line, ticked when earned, struck through when failed. */
+  private showPauseObjectives(list: { text: string; status: 'open' | 'done' | 'failed' }[]): void {
+    const box = this.pauseObjectives;
+    box.replaceChildren();
+    if (list.length === 0) return;
+    el('div', 'th-pause-objectives-title', box, 'Side objectives');
+    for (const so of list) el('div', `th-pause-objective is-${so.status}`, box, so.text);
   }
 
   /** Let go of everything held: stick to centre, fire up. Used on pause, loss of control, blur and hide. */

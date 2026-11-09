@@ -1,7 +1,7 @@
 /** Fakes for the view, the audio and the UI, so the app controller runs in Node. */
 import type { AudioBus, GameAudio, MixStats } from '../../src/audio';
 import type { MissionDef } from '../../src/data/schema';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import type { AttachOptions, BattleCamera, BattleView, RenderStats } from '../../src/render/contracts';
 import { HpReveal } from '../../src/render/hpReveal';
 import type { Battle } from '../../src/sim';
@@ -333,9 +333,9 @@ export function createFakeUi(): FakeUi {
   return ui;
 }
 
-/** Mission 1 with the numbers changed so a battle ends within a few simulated seconds. */
+/** The test field (./fixtures.ts) with the numbers changed so a battle ends within a few simulated seconds. */
 export function quickMission(id: number, playerWins: boolean): MissionDef {
-  const m: MissionDef = structuredClone(M01);
+  const m: MissionDef = structuredClone(FIELD);
   m.id = id;
   m.key = `quick${id}`;
   m.events = [];

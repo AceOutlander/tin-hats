@@ -349,6 +349,11 @@ export const TUTORIAL: TutorialTunables = {
       at: { text: 'New: {name}. Tap its button to train one.' },
       tank: { text: 'New: {name}. Tap its button to train one.' },
       conscript: { text: 'New: {name}. One tap trains a whole squad at once.' },
+      // The new units of job 7, which the Stalingrad missions unlock (DECISIONS 334).
+      flame: { text: 'New: {name}. Tap its button to train one.' },
+      commander: { text: 'New: {name}. Tap its button to train one.' },
+      aa: { text: 'New: {name}. Tap its button to train one.' },
+      apc: { text: 'New: {name}. Tap its button to train one.' },
     },
   },
   newSupport: {

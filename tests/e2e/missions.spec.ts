@@ -8,7 +8,7 @@
  */
 import type { Page } from '@playwright/test';
 import { APP } from '../../src/data/app';
-import { FACTIONS } from '../../src/data/factions';
+import { missionEra } from '../../src/data/eras';
 import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
@@ -67,7 +67,7 @@ function expectedTexts(m: MissionDef, window: number): { hints: string[]; announ
     else if (e.type === 'wave') {
       if (e.announce !== undefined) out.announcements.push(e.announce);
       else if (e.side === 1 && m.mode === 'survival') out.plainWave = true;
-    } else if (e.side === 0) out.airdrop = true;
+    } else if (e.type === 'airdrop' && e.side === 0) out.airdrop = true;
   }
   return out;
 }
@@ -113,8 +113,10 @@ for (const m of MISSIONS) {
     const newUnits = [...(m.newUnit ? [m.newUnit] : []), ...(m.unlocks ?? [])];
     const cards = newUnits.length + (m.newSupport ? 1 : 0);
     await expect(briefing.locator('.th-new')).toHaveCount(cards);
-    if (newUnits.length > 0) await expect(briefing.locator('.th-new-name').first()).toHaveText(FACTIONS.british.unitNames[newUnits[0]]);
-    if (m.newSupport) await expect(briefing.locator('.th-new-name').last()).toHaveText(FACTIONS.british.supportNames[m.newSupport]);
+    // In the names of the player's nation at the mission's date (the Red Army's, in 1941 to 1943).
+    const era = missionEra(m, m.start[0].faction);
+    if (newUnits.length > 0) await expect(briefing.locator('.th-new-name').first()).toHaveText(era.names[newUnits[0]]);
+    if (m.newSupport) await expect(briefing.locator('.th-new-name').last()).toHaveText(era.supportNames[m.newSupport]);
     await expect(briefing.getByTestId('difficulty-normal')).toHaveAttribute('aria-pressed', 'true');
     if (cards >= 2) {
       await page.waitForTimeout(2800); // let the typewriter finish
@@ -122,6 +124,12 @@ for (const m of MISSIONS) {
     }
     await tap(page, 'begin');
     await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
+    // A defensive mission opens with its prep phase (tests/e2e/prep.spec.ts plays one): Ready starts the battle.
+    if (m.prep) {
+      await expect(page.getByTestId('prep-panel')).toBeVisible({ timeout: 20_000 });
+      await tap(page, 'prep-ready');
+      await expect.poll(async () => (await state(page)).prep?.active ?? false, { timeout: 10_000 }).toBe(false);
+    }
     await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
 
     // --- The HUD describes this mission ---------------------------------------------------------------------------

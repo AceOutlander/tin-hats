@@ -1,22 +1,23 @@
-import type { MissionDef } from '../schema';
+/**
+ * Test missions that belong to no campaign. The game's own missions are the Stalingrad campaign's (src/data/missions);
+ * these are the plain grounds the sim, session and app tests were written against.
+ */
+import type { MissionDef } from '../../src/data/schema';
 
 /**
- * Mission 1: Arras, 1940. The tutorial. An open field, riflemen and sappers
- * only on both sides, no trenches or pillboxes. The German command post is
- * weakly held: a competent player wins in three to four minutes.
+ * The test field: an open French field in daylight, riflemen and sappers only on both sides, no trenches, pillboxes or
+ * wire, a weakly held enemy command post. Its rules are those of the removed British mission 1 (Arras), so the tests
+ * built on it keep testing the same battle; it is a fixture, not a mission of the game (id 950, outside every
+ * campaign). Its scripted hints are the plain "how to play" lines a first battle shows.
  */
-export const M01: MissionDef = {
-  id: 1,
-  key: 'arras',
-  title: 'Counter-attack at Arras',
-  location: 'Arras, France',
+export const FIELD: MissionDef = {
+  id: 950,
+  key: 'testField',
+  title: 'Test field',
+  location: 'A field in France',
   date: 'May 1940',
   mapPos: { lon: 2.78, lat: 50.29 },
-  briefing: [
-    'The panzers have broken through and the army is falling back to the coast. Someone has to buy it time.',
-    'A German command post has set up in the fields south of Arras. Its infantry screen is thin and it is not dug in.',
-    'Put your sappers to work, raise a company of riflemen, and knock that command post out.',
-  ],
+  briefing: ['A plain field for the tests: an enemy command post, thinly held and not dug in.'],
   objective: 'Destroy the German command post.',
   theatre: 'france',
   timeOfDay: 'day',
@@ -101,6 +102,5 @@ export const M01: MissionDef = {
     firstAttackAfter: 105,
   },
   expectedMinutes: [3, 4],
-  /* Urgent and uncertain, France 1940, on the British campaign theme. */
   music: 'arras',
 };

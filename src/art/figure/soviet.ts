@@ -7,10 +7,10 @@
  * and coat roll upright from the chest joint, the pouches upright from the hip.
  */
 import { FIGURE, WEAPON_GEOM } from '../../data/figure';
-import { FIGURE_CLOTHING_ART, FIGURE_GEAR_ART, SOVIET_KIT_COLORS as K, type FigureClothing, type FigureHeadgear } from '../../data/looksGear';
+import { FIGURE_CLOTHING_ART, FIGURE_GEAR_ART, ROMANIAN_COLORS, SOVIET_KIT_COLORS as K, type FigureClothing, type FigureHeadgear } from '../../data/looksGear';
 import type { SpriteSpec } from '../types';
 import { TAU } from './math';
-import { capsule, dot, fillPath, line, makeSpec, mix, paintBipod, poly, rrect, solid, ssh40Path } from './parts';
+import { capsule, dot, fillPath, line, makeSpec, mix, paintBipod, poly, rrect, solid, ssh40Path, stahlhelmPath } from './parts';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -335,6 +335,27 @@ function capStar(ctx: Ctx, x: number, y: number, r: number): void {
   ctx.stroke();
 }
 
+/**
+ * The French-pattern Adrian helmet of the Romanian look (NATIONS.md section 8): a round dome under a narrow crest, a
+ * peak at the front and a longer one sloping down at the back, the narrow brim between them.
+ */
+function adrianPath(ctx: Ctx): void {
+  ctx.moveTo(8.8, -2.4);
+  ctx.quadraticCurveTo(7.2, -3.3, 5.4, -3.6);
+  ctx.bezierCurveTo(5.2, -8.8, -5.0, -9.0, -5.4, -3.6);
+  ctx.quadraticCurveTo(-7.2, -2.9, -9.0, -1.2);
+  ctx.quadraticCurveTo(-8.8, -0.5, -7.8, -0.8);
+  ctx.quadraticCurveTo(0.0, -2.9, 7.8, -1.8);
+  ctx.quadraticCurveTo(8.8, -1.8, 8.8, -2.4);
+  ctx.closePath();
+  // The crest along the crown.
+  ctx.moveTo(-3.8, -7.6);
+  ctx.quadraticCurveTo(0.0, -10.9, 3.8, -7.6);
+  ctx.lineTo(3.1, -7.3);
+  ctx.quadraticCurveTo(0.0, -9.7, -3.1, -7.3);
+  ctx.closePath();
+}
+
 /** Head-space bounds per headgear: x0, x1, y0, y1. */
 const HEADGEAR_BOX: Record<FigureHeadgear, readonly [number, number, number, number]> = {
   // The cap sits high on the head; the box reaches down to the head joint so the anchor lies inside the sprite.
@@ -342,13 +363,34 @@ const HEADGEAR_BOX: Record<FigureHeadgear, readonly [number, number, number, num
   ushanka: [-7.8, 7.6, -10.4, 5.2],
   helmetUshanka: [-8.6, 7.8, -10.4, 5.4],
   snowHood: [-8.8, 7.6, -11.4, 6.2],
+  helmetCover: [-9.4, 8.0, -10.8, 3.4],
+  adrian: [-9.6, 9.4, -11.2, 0.6],
 };
 
 function headgearOutline(ctx: Ctx, id: FigureHeadgear): void {
   if (id === 'pilotka') pilotkaPath(ctx);
   else if (id === 'ushanka') ushankaPath(ctx);
   else if (id === 'snowHood') snowHoodPath(ctx);
+  else if (id === 'helmetCover') stahlhelmPath(ctx);
+  else if (id === 'adrian') adrianPath(ctx);
   else helmetUshankaPath(ctx);
+}
+
+/** The German winter look: the Stahlhelm under a white cloth snow cover, its tie cord round the skirt. */
+function paintHelmetCover(ctx: Ctx): void {
+  const A = FIGURE_CLOTHING_ART.snowSmock;
+  solid(ctx, A.near, () => stahlhelmPath(ctx), A.seam, 0.4);
+  line(ctx, A.seam, 0.45, [5.4, -4.2, 0.0, -4.8, -5.8, -4.2]);
+  line(ctx, A.seam, 0.4, [-0.6, -9.4, -1.4, -5.0]);
+  line(ctx, mix(A.seam, '#000000', 0.25), 0.5, [-6.6, -0.4, -3.6, -1.2, 3.8, -2.2]);
+}
+
+/** The Romanian look: the Adrian helmet in khaki-brown, its crest and brim edges catching the light. */
+function paintAdrian(ctx: Ctx): void {
+  const R = ROMANIAN_COLORS;
+  solid(ctx, R.tint, () => adrianPath(ctx), mix(R.tintDark, '#000000', 0.4), 0.35);
+  line(ctx, mix(R.tint, '#ffffff', 0.25), 0.45, [3.6, -7.0, 0.0, -8.0, -3.6, -7.0]);
+  line(ctx, R.tintDark, 0.45, [7.6, -2.3, 0.0, -3.2, -7.6, -1.4]);
 }
 
 function paintPilotka(ctx: Ctx, tint: string, dark: string): void {
@@ -410,7 +452,7 @@ function paintHelmetUshanka(ctx: Ctx, helmet: SpriteSpec): void {
 }
 
 export function headgearKey(id: FigureHeadgear): string {
-  return `fig/soviet/headgear/${id}`;
+  return `fig/headgear/${id}`;
 }
 
 export function headgearRimKey(id: FigureHeadgear): string {
@@ -440,6 +482,8 @@ export function headgearSpec(key: string, id: FigureHeadgear, tint: string, dark
     if (id === 'pilotka') paintPilotka(ctx, tint, dark);
     else if (id === 'ushanka') paintUshanka(ctx, tint, dark);
     else if (id === 'snowHood') paintSnowHood(ctx);
+    else if (id === 'helmetCover') paintHelmetCover(ctx);
+    else if (id === 'adrian') paintAdrian(ctx);
     else paintHelmetUshanka(ctx, helmet);
   });
 }
@@ -554,7 +598,7 @@ export function clothingCovers(id: FigureClothing, part: ClothingPart): boolean 
 }
 
 export function clothingKey(id: FigureClothing, part: ClothingPart): string {
-  return `fig/soviet/clothing/${id}/${part}`;
+  return `fig/clothing/${id}/${part}`;
 }
 
 function partShape(part: ClothingPart): { len: number; r: readonly number[]; torso: boolean; far: boolean } {

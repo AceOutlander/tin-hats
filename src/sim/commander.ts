@@ -9,16 +9,17 @@
  * reactions to what it sees), pick the order from relative strength with
  * hysteresis, and call in supports.
  */
-import { AI, AI_PLANES, AI_RECOVERY } from '../data/ai';
+import { AI, AI_CLEAR, AI_PLANES, AI_RECOVERY } from '../data/ai';
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { canTrain } from './commands';
+import { pointOwner } from './director';
 import { buildProblem, inPrep, missionTime } from './prep';
 import { canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, KIND_SQUAD } from './tables';
 import type { CommanderKind, SideState } from './types';
-import { CMD_BUILD, CMD_ORDER, CMD_READY, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
+import { CMD_BUILD, CMD_CLEAR, CMD_ORDER, CMD_READY, CMD_SUPPORT, CMD_TRAIN, type AiState, type World } from './world';
 
 /** Build the commander memory for a side, or null for human and idle commanders. */
 export function createAi(w: World, kind: CommanderKind): AiState | null {
@@ -250,6 +251,26 @@ function build(w: World, si: number, ai: AiState): void {
  * Fall Back -> out: as soon as the HQ is no longer threatened or the garrison is strong enough;
  *   straight to Advance when it is clearly stronger.
  */
+/**
+ * How the current phase reads to the test bot: attack while an objective still needs ground taken (capture, a hold of
+ * a point it does not own, reach, destroy, the enemy HQ, a surrender), defend when what is left is holding out (survive,
+ * hold a point it owns, kills that the enemy brings to it). A phase with no objectives (an old mission) is none: the
+ * bot plays it as it always did (it attacks an enemy HQ and holds against a side without one).
+ */
+function phaseStance(w: World): 'attack' | 'defend' | 'none' {
+  const d = w.state.director;
+  const objectives = w.phases[d.phase].objectives;
+  if (objectives.length === 0) return 'none';
+  for (let i = 0; i < objectives.length; i++) {
+    if (d.objectives[i].done) continue;
+    const o = objectives[i];
+    if (o.type === 'survive' || o.type === 'kill') continue;
+    if (o.type === 'hold' && pointOwner(w.state, o.point) === 0) continue;
+    return 'attack';
+  }
+  return 'defend';
+}
+
 function decideOrder(w: World, si: number, ai: AiState): void {
   const side = w.state.sides[si];
   // On the mission clock: a prep phase does not count toward the plan's first attack.
@@ -259,15 +280,23 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   const capped = side.pop >= fullArmyPop(side) * AI.popCapAttackFrac;
   // With no enemy HQ to take (survival) there is nothing to attack, and sheltering in the HQ only
   // hands the trench to the waves: hold the line until the clock runs out.
-  const survival = w.state.sides[1 - si].hq === null;
-  const mayAttack = !survival && time >= ai.plan.firstAttackAfter / ai.aggression;
+  // The test bot reads the phase (a phase it only has to hold out is played like survival), and the mission script
+  // may steer either commander (posture events): hold = no Advance, counterattack = Advance now.
+  const stance = ai.bot ? phaseStance(w) : 'none';
+  const survival = stance === 'defend' || (stance === 'none' && w.state.sides[1 - si].hq === null);
+  const posture = w.state.director.posture[si];
+  const mayAttack = !survival && posture !== 'hold' && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
   const broken = AI.minAttackStrength * AI.regroupFrac;
   // Racing a clock that loses the battle (side 0 under a deadline): no more waiting.
-  const timer = w.state.timer;
+  const timer = w.state.director.timer ?? w.state.timer;
   const rushing = si === 0 && timer !== null && timer.onExpire === 'lose' && timer.secondsLeft <= AI_RECOVERY.deadlineRush;
   let next: Order = order;
-  if (survival) {
+  if (posture === 'counterattack' && SV.field > 0) {
+    next = 'advance';
+  } else if (survival) {
+    next = 'hold';
+  } else if (posture === 'hold' && order === 'advance') {
     next = 'hold';
   } else if (order === 'hold') {
     if (SV.hqThreat && SV.group < SV.foe * AI.retreatRatio) {
@@ -428,6 +457,49 @@ function callSupports(w: World, si: number, ai: AiState): void {
   }
 }
 
+/**
+ * Minefields and obstacles in the way (FOUNDATIONS.md 4.6 and 4.8): the nearest enemy minefield the side can see, or
+ * enemy tank trap or road block, ahead of its leading unit within AI.supportReach. The artillery shells a field once
+ * the supports above have passed it over (blasts break mines), and with sappers to spare (AI_CLEAR) one goes to clear
+ * it while it lies behind the enemy's front. The AI and the test bot alike; nothing happens on a field without any.
+ */
+function clearTheWay(w: World, si: number, ai: AiState): void {
+  const s = w.state;
+  if (s.minefields.length === 0 && s.obstacles.length === 0) return;
+  const dir = si === 0 ? 1 : -1;
+  const lead = w.armedFront[si];
+  let bestX = NaN;
+  let bestD = Infinity;
+  let field = false;
+  for (let k = 0; k < s.minefields.length; k++) {
+    const f = s.minefields[k];
+    if (!f.alive || f.owner === si || !f.known[si]) continue;
+    const near = f.x - (dir * f.width) / 2;
+    const d = (near - lead) * dir;
+    if (d < -f.width || d > AI.supportReach || d >= bestD) continue;
+    bestD = d;
+    bestX = f.x;
+    field = true;
+  }
+  for (let k = 0; k < s.obstacles.length; k++) {
+    const o = s.obstacles[k];
+    if (!o.alive || o.owner === si) continue;
+    const near = o.x - (dir * o.width) / 2;
+    const d = (near - lead) * dir;
+    if (d < -o.width || d > AI.supportReach || d >= bestD) continue;
+    bestD = d;
+    bestX = o.x;
+    field = false;
+  }
+  if (!Number.isFinite(bestX)) return;
+  if (field && s.time - ai.lastSupportTime >= AI.supportGap && canCallSupport(w, si, 'artillery')) issueSupport(w, si, ai, 'artillery', bestX);
+  const side = s.sides[si];
+  if (side.alive.sapper < AI_CLEAR.minSappers) return;
+  for (const job of s.clears) if (job.side === si) return;
+  if ((w.front[1 - si] - bestX) * dir < AI_CLEAR.frontMargin) return;
+  w.commands.push(si, CMD_CLEAR).x = bestX;
+}
+
 function think(w: World, si: number, ai: AiState): void {
   const side = w.state.sides[si];
   const hq = side.hq;
@@ -436,6 +508,7 @@ function think(w: World, si: number, ai: AiState): void {
   build(w, si, ai);
   decideOrder(w, si, ai);
   callSupports(w, si, ai);
+  clearTheWay(w, si, ai);
 }
 
 /** Let each AI or bot commander think when its interval comes round. Both sides read the same state. */
@@ -453,12 +526,12 @@ export function runCommanders(w: World): void {
 }
 
 /**
- * The test bot in a prep phase: the next build of the mission's plan (MissionDef.prep.bot), one per think, as money
+ * The test bot in a prep phase: the next build of its plan (MissionDef.prep.bot, or the phase's), one per think, as money
  * allows (a build that can never be placed is skipped); Ready once the whole plan is placed and built.
  */
 function prepBuild(w: World, si: number, ai: AiState): void {
   const s = w.state;
-  const plan = w.mission.prep?.bot ?? [];
+  const plan = w.prepDef?.bot ?? [];
   while (ai.prepNext < plan.length) {
     const step = plan[ai.prepNext];
     const problem = buildProblem(s, si, step.kind, step.x);

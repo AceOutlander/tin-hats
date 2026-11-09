@@ -1,8 +1,10 @@
 /**
- * Campaign screen: the situation map with ten mission pins and a route, the
- * selected mission's card, and the way into the Quartermaster and Settings.
+ * Campaign screen: the chosen campaign's situation map (src/data/campaignMap.ts) with its mission pins, the route and,
+ * where the campaign has them, the front line of the selected mission's date; the selected mission's card, and the way
+ * into the briefing, the Armoury, the Quartermaster and Settings.
  */
-import { CAMPAIGN_MAP_VIEW, mapX, mapY } from '../../data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapProjection } from '../../data/campaignMap';
+import { STALINGRAD_MAP } from '../../data/campaignMapStalingrad';
 import { boxPan, clampPan, layoutPins, type PinBox } from './mapLayout';
 import type { MissionCard } from '../contracts';
 import { add, button, clear, el, setStencil, stencil } from '../shell/dom';
@@ -39,17 +41,20 @@ export const campaignScreen: ScreenFactory = (ctx) => {
   world.append(canvas);
 
   const head = el('div', 'th-map-head');
+  /** Back goes to the campaign select when there is a choice of campaigns, else to the title. */
+  const backTo = (): 'campaigns' | 'title' => ((ctx.view().campaigns?.length ?? 0) > 1 ? 'campaigns' : 'title');
   const back = button({
     testid: 'back',
     className: 'th-btn-icon',
-    aria: 'Back to title',
+    aria: backTo() === 'campaigns' ? 'Back to the campaigns' : 'Back to title',
     content: [glyph('back')],
     onTap: () => {
       ctx.app.uiSound('click');
-      ctx.go('title');
+      ctx.go(backTo());
     },
   });
-  add(head, back, stencil('h1', 'CAMPAIGN', 'th-map-title'));
+  const mapTitle = stencil('h1', 'CAMPAIGN', 'th-map-title');
+  add(head, back, mapTitle);
   add(map, world, head);
 
   // --- Side panel --------------------------------------------------------
@@ -125,6 +130,10 @@ export const campaignScreen: ScreenFactory = (ctx) => {
 
   // --- State -------------------------------------------------------------
   let missions: MissionCard[] = [];
+  let mapDef: CampaignMapDef = STALINGRAD_MAP;
+  let proj: MapProjection = projection(mapDef.bounds);
+  /** The date of the front line painted last (the selected mission's), so a new selection repaints only when it changes. */
+  let paintedFront: string | null = null;
   const pinEls = new Map<number, HTMLButtonElement>();
   let pins: MapPin[] = [];
   let mapW = 0;
@@ -228,6 +237,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
       missions.map((m) => m.mapPos.lat),
       viewW,
       viewH,
+      proj,
     );
     mapW = lay.size.w;
     mapH = lay.size.h;
@@ -240,8 +250,8 @@ export const campaignScreen: ScreenFactory = (ctx) => {
       id: m.id,
       x: lay.xs[i],
       y: lay.ys[i],
-      ax: mapX(m.mapPos.lon) * mapW,
-      ay: mapY(m.mapPos.lat) * mapH,
+      ax: proj.x(m.mapPos.lon) * mapW,
+      ay: proj.y(m.mapPos.lat) * mapH,
       state: pinState(m),
     }));
     for (const pin of pins) {
@@ -251,7 +261,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
         node.style.top = `${Math.round(pin.y)}px`;
       }
     }
-    paintCampaignMap(canvas, mapW, mapH, pins);
+    paint();
     laidOut = true;
   }
 
@@ -287,10 +297,23 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     if (label) label.textContent = m.unlocked ? (state === 'cleared' ? 'Replay' : 'Start') : 'Locked';
   }
 
+  /** The front a mission shows: its own date's line (null for a map without fronts). */
+  function frontKey(): string | null {
+    return frontOn(mapDef, selected()?.dateIso)?.date ?? null;
+  }
+
+  function paint(): void {
+    paintedFront = frontKey();
+    paintCampaignMap(canvas, mapW, mapH, pins, mapDef, selected()?.dateIso);
+    map.dataset.front = paintedFront ?? '';
+  }
+
   function select(id: number, animate: boolean): void {
     ctx.session.missionId = id;
     updatePins();
     renderCard();
+    // The front line moves with the selected mission's date.
+    if (laidOut && frontKey() !== paintedFront) paint();
     if (laidOut && !fitsAll) centreOn(id, animate);
   }
 
@@ -298,6 +321,12 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     const view = ctx.view();
     const sameSet = missions.length === view.missions.length && missions.every((m, i) => m.id === view.missions[i].id);
     missions = view.missions;
+    if (view.map && view.map !== mapDef) {
+      mapDef = view.map;
+      proj = projection(mapDef.bounds);
+    }
+    setStencil(mapTitle, (view.campaignTitle ?? 'Campaign').toUpperCase());
+    map.dataset.campaign = view.campaignId ?? '';
     if (!missions.some((m) => m.id === ctx.session.missionId)) {
       // The map opens on the mission last played, if it is still open, else on the next one to do.
       const last = missions.find((m) => m.id === view.lastMission);
@@ -400,7 +429,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
       settle(false);
     },
     back() {
-      ctx.go('title');
+      ctx.go(backTo());
     },
     key(ev) {
       const dir = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;

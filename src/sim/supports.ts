@@ -8,10 +8,12 @@
  * unharmed); smoke is an ordinary cloud.
  */
 import { CONFIG } from '../data/config';
-import type { SupportDef, SupportKind } from '../data/schema';
+import type { Side, SupportDef, SupportKind } from '../data/schema';
 import { ANTI_AIR, PLANES, SUPPORTS, SUPPORT_COST, SUPPORT_KINDS, TOP_ATTACK_SUPPORTS, type PlaneDef } from '../data/supports';
 import { LAUNCH, launch, spawnSmoke } from './projectiles';
+import { airGrounded } from './sky';
 import { KIND_ANTI_AIR, weaponIndex } from './tables';
+import { spotMinefields } from './mines';
 import type { UnitState } from './types';
 import type { World } from './world';
 
@@ -40,7 +42,9 @@ export function canCallSupport(w: World, si: number, kind: SupportKind): boolean
     side.supportCooldown[kind] <= 0 &&
     side.supplies >= SUPPORT_COST[kind] &&
     // One aircraft of a kind per side at a time (its run may outlast a short cooldown).
-    w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE
+    w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE &&
+    // No aircraft in fog or a blizzard, nor at night but for the nation's night flyers (FOUNDATIONS.md 4.7).
+    airGrounded(w.state, si as Side, kind) === null
   );
 }
 
@@ -159,6 +163,8 @@ function reveal(w: World, si: number, k: number): void {
   e.x = w.strikeX[si * SUPPORT_COUNT + k];
   e.value = def.spread * w.mods[si].supportReach[k];
   e.x2 = def.duration * w.mods[si].supportTime[k];
+  // The observer marks the minefields he flies over (FOUNDATIONS.md 4.6).
+  if (w.state.minefields.length > 0) spotMinefields(w, si, e.x, e.value);
 }
 
 /** Advance aircraft k of side si to `t` seconds after its call: enter, drop its rounds or look, leave. */

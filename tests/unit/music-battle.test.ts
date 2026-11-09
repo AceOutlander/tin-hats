@@ -248,7 +248,10 @@ describe('the battle track format', () => {
       expect(BATTLE_TRACK_NAMES, `${m.key} names ${m.music}`).toContain(m.music);
       expect(BATTLE_TRACKS[m.music]).toBeDefined();
     }
-    expect(MISSIONS[0].music).toBe('arras');
+    // The British placeholder missions are gone, but their ten tracks stay for the campaigns to come (docs/QUEUE.md).
+    for (const name of ['arras', 'dunkirk', 'crusader', 'alamein', 'primosole', 'cassino', 'sword', 'hill112', 'arnhem', 'reichswald']) {
+      expect(BATTLE_TRACK_NAMES, name).toContain(name);
+    }
   });
 });
 

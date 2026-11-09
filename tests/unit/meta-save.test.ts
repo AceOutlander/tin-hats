@@ -110,7 +110,9 @@ describe('save data', () => {
       '"settings":{"muted":"yes","difficulty":"insane","hints":false}}';
     const data = sanitizeSave(JSON.parse(damaged));
     expect(data).not.toBeNull();
-    expect(data?.cleared).toEqual({ '1': ['normal'] });
+    // The British clear is archived by version 10 (those missions are gone); the junk around it is dropped.
+    expect(data?.cleared).toEqual({});
+    expect(data?.legacy?.cleared).toEqual({ '1': ['normal'] });
     expect(data?.upgrades).toEqual({ good: 2, tooHigh: META.maxUpgradeLevel });
     // A version 1 save has no volumes: they come in at their defaults.
     expect(data?.settings).toEqual({ ...defaultSettings(), muted: META.defaultMuted, difficulty: 'insane', hints: false });
@@ -154,19 +156,21 @@ describe('migration', () => {
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v1) }));
     expect(loaded.status).toBe('ok');
     // Medals (version 6): 2 cleared missions earned 4 points, 2 were spent, so 2 points become medals, plus what the
-    // re-pricing of version 8 gives back; nothing is bought (mission 2 unlocks the Bren gun again); each cleared mission
-    // and difficulty counts as one win.
+    // re-pricing of version 8 gives back; each cleared mission and difficulty counts as one win. Version 10 removed the
+    // British missions: their clears and wins are archived, and the types they unlocked stay (missions 1 to 3 reached:
+    // the Bren gunner and the assault troops).
     expect(loaded.data).toEqual({
       version: META.saveVersion,
-      cleared: v1.cleared,
+      cleared: {},
       upgrades: v1.upgrades,
       medals: 2 * META.legacyPointMedals + reprice(v1.upgrades),
-      armoury: [],
-      wins: { '1': { normal: 1, hard: 1 }, '2': { normal: 1 } },
+      armoury: ['lmg', 'assault'],
+      wins: {},
       lastMission: 0,
       // Basic Training (version 8): not finished and not turned down, so its reward is still to be earned.
       training: { done: false, skipped: false },
       settings: { ...defaultSettings(), ...v1.settings },
+      legacy: { cleared: v1.cleared, wins: { '1': { normal: 1, hard: 1 }, '2': { normal: 1 } } },
     });
   });
 
@@ -207,9 +211,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     settings: { muted: true, difficulty: 'hard', hints: false },
   };
 
-  it('is behind the current version, 9 (units unlocked by missions again in 8, Basic Training in 9)', () => {
-    expect(META.saveVersion).toBe(9);
-    expect(defaultSave().version).toBe(9);
+  it('is behind the current version, 10 (units unlocked by missions again in 8, Basic Training in 9, the British missions removed in 10)', () => {
+    expect(META.saveVersion).toBe(10);
+    expect(defaultSave().version).toBe(10);
   });
 
   it('starts a fresh save on the default volumes from the data, with flashing as normal', () => {
@@ -236,7 +240,9 @@ describe('version 3: the volume sliders and reduce flashing', () => {
     const loaded = loadSave(createMemoryStorage({ [META.saveKey]: JSON.stringify(v2) }));
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
-    expect(loaded.data.lastMission).toBe(1);
+    // The last mission was a British one (removed in version 10): the map opens on the campaign's first.
+    expect(loaded.data.lastMission).toBe(0);
+    expect(loaded.data.legacy?.cleared).toEqual(v2.cleared);
     expect(loaded.data.settings).toEqual({ ...defaultSettings(), muted: true, difficulty: 'hard', hints: false });
     // A version 1 save goes through both steps.
     const v1 = { version: 1, cleared: {}, upgrades: {}, settings: { muted: false, difficulty: 'insane', hints: true } };
@@ -316,9 +322,10 @@ describe('version 4: the menu mix moved the default volumes', () => {
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
     expect(loaded.data.settings).toEqual({ ...defaultSettings(), reduceFlash: true });
-    // Everything else in the save is untouched.
-    expect(loaded.data.cleared).toEqual({ '1': ['normal'] });
-    expect(loaded.data.lastMission).toBe(1);
+    // Everything else in the save is kept (the British clear archived by version 10).
+    expect(loaded.data.cleared).toEqual({});
+    expect(loaded.data.legacy?.cleared).toEqual({ '1': ['normal'] });
+    expect(loaded.data.lastMission).toBe(0);
   });
 
   it('keeps every slider the player moved, each on its own', () => {
@@ -368,9 +375,11 @@ describe('version 5: "Show blood"', () => {
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
     expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: true, showFps: false });
-    expect(loaded.data.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
+    // The British clears archived by version 10, the upgrade kept.
+    expect(loaded.data.cleared).toEqual({});
+    expect(loaded.data.legacy?.cleared).toEqual({ '1': ['normal'], '2': ['hard'] });
     expect(loaded.data.upgrades).toEqual({ rifleHealth: 1 });
-    expect(loaded.data.lastMission).toBe(2);
+    expect(loaded.data.lastMission).toBe(0);
   });
 
   it('turns blood on for every older save, whatever an older copy of the game wrote there', () => {
@@ -440,12 +449,14 @@ describe('version 7: "Show FPS"', () => {
     expect(loaded.status).toBe('ok');
     expect(loaded.data.version).toBe(META.saveVersion);
     expect(loaded.data.settings).toEqual({ muted: true, difficulty: 'hard', hints: false, musicVolume: 35, ambienceVolume: 60, sfxVolume: 90, reduceFlash: true, showBlood: false, showFps: false });
-    expect(loaded.data.cleared).toEqual({ '1': ['normal'] });
-    expect(loaded.data.lastMission).toBe(1);
+    // The British clear and win archived by version 10.
+    expect(loaded.data.cleared).toEqual({});
+    expect(loaded.data.lastMission).toBe(0);
     // The Bren gun bought at version 6 comes back as medals at version 8 and stays unlocked.
     expect(loaded.data.medals).toBe(7 + (MEDALS.unitRefunds.lmg ?? 0));
     expect(loaded.data.armoury).toEqual(['lmg']);
-    expect(loaded.data.wins).toEqual({ '1': { normal: 1 } });
+    expect(loaded.data.wins).toEqual({});
+    expect(loaded.data.legacy).toEqual({ cleared: { '1': ['normal'] }, wins: { '1': { normal: 1 } } });
   });
 
   it('turns the readout off for every older save, whatever an older copy of the game wrote there', () => {
@@ -618,13 +629,20 @@ function nearlyRight(rand: () => number): unknown {
     version: rand() < 0.8 ? META.saveVersion : junk(rand, 2),
     cleared:
       rand() < 0.8
-        ? { '1': rand() < 0.7 ? ['normal', 'hard'] : junk(rand, 2), '2': ['normal'], '3': junk(rand, 2), [String(Math.floor(rand() * 20))]: ['hard'] }
+        ? {
+            '1001': rand() < 0.7 ? ['normal', 'hard'] : junk(rand, 2),
+            '1002': ['normal'],
+            '1003': junk(rand, 2),
+            [String(rand() < 0.5 ? Math.floor(rand() * 20) : 1000 + Math.floor(rand() * 20))]: ['hard'],
+          }
         : junk(rand, 1),
     upgrades: rand() < 0.8 ? { rifleHealth: junk(rand, 2), hqIncome: Math.floor(rand() * 9) - 2, sapperDrill: 3, ghost: 1 } : junk(rand, 1),
     lastMission: junk(rand, 2),
     medals: rand() < 0.6 ? Math.floor(rand() * 500) : junk(rand, 2),
     armoury: rand() < 0.6 ? ['lmg', 'tank', 'lmg', 'heavyTank', 'bomber', 'rifle'] : junk(rand, 2),
-    wins: rand() < 0.6 ? { '1': { normal: 2, hard: junk(rand, 2) }, '3': junk(rand, 2), '77': { insane: 1 } } : junk(rand, 1),
+    wins: rand() < 0.6 ? { '1001': { normal: 2, hard: junk(rand, 2) }, '1003': junk(rand, 2), '1': { normal: 1 }, '77': { insane: 1 } } : junk(rand, 1),
+    legacy:
+      rand() < 0.5 ? { cleared: { '1': ['normal'], '2': junk(rand, 2), '55': ['hard'] }, wins: { '1': { normal: junk(rand, 2) }, '3': junk(rand, 2) } } : junk(rand, 1),
     settings:
       rand() < 0.8
         ? {
@@ -693,11 +711,30 @@ function expectUsable(data: SaveData, rules: { missionIds: readonly number[]; up
   expect(Object.keys(data.training).sort()).toEqual(['done', 'skipped']);
   expect(typeof data.training.done).toBe('boolean');
   expect(typeof data.training.skipped).toBe('boolean');
-  expect(Object.keys(data).sort()).toEqual(['armoury', 'cleared', 'lastMission', 'medals', 'settings', 'training', 'upgrades', 'version', 'wins']);
+  // The archived British progress, when there is any: their ids only, valid difficulties and counts, never empty.
+  if (data.legacy !== undefined) {
+    const british = Array.from({ length: 10 }, (_, i) => String(i + 1));
+    expect(Object.keys(data.legacy).sort()).toEqual(['cleared', 'wins']);
+    expect(Object.keys(data.legacy.cleared).length + Object.keys(data.legacy.wins).length).toBeGreaterThan(0);
+    for (const [id, list] of Object.entries(data.legacy.cleared)) {
+      expect(british).toContain(id);
+      expect(list.length).toBeGreaterThan(0);
+      for (const d of list) expect(DIFFICULTY_LIST).toContain(d);
+    }
+    for (const [id, per] of Object.entries(data.legacy.wins)) {
+      expect(british).toContain(id);
+      for (const [d, n] of Object.entries(per)) {
+        expect(DIFFICULTY_LIST as readonly string[]).toContain(d);
+        expect(Number.isInteger(n) && (n as number) >= 1).toBe(true);
+      }
+    }
+  }
+  expect(Object.keys(data).filter((k) => k !== 'legacy').sort()).toEqual(['armoury', 'cleared', 'lastMission', 'medals', 'settings', 'training', 'upgrades', 'version', 'wins']);
 }
 
 describe('random garbage in storage', () => {
-  const rules = { missionIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], upgradeDefs: UPGRADES };
+  // The game's own missions (Stalingrad, 1001 to 1010).
+  const rules = { missionIds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010], upgradeDefs: UPGRADES };
 
   it('never throws and always gives a usable save, whatever JSON it finds', () => {
     const rand = rng(20240601);
@@ -725,10 +762,11 @@ describe('random garbage in storage', () => {
   it('never throws on text that is not JSON, or JSON cut off or damaged', () => {
     const rand = rng(77);
     const good = defaultSave();
-    recordClear(good, 1, 'normal');
-    recordClear(good, 2, 'hard');
+    recordClear(good, 1001, 'normal');
+    recordClear(good, 1002, 'hard');
     good.upgrades = { rifleHealth: 2 };
-    good.lastMission = 2;
+    good.lastMission = 1002;
+    good.legacy = { cleared: { '1': ['normal'], '2': ['hard'] }, wins: { '1': { normal: 1 } } };
     const goodText = JSON.stringify(good);
     for (let i = 0; i < 2000; i++) {
       let text: string;

@@ -17,7 +17,7 @@ import { RENDER } from '../data/render';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
 import { BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import { getStalingradMission } from '../data/missions/stalingrad';
-import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
+import type { CampaignId, Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import type { SaveData } from '../meta';
@@ -154,8 +154,12 @@ export interface DebugMission {
 
 export interface DebugApi {
   ready: boolean;
-  /** The campaign in order. */
+  /** The campaign on the map, in order. */
   missions(): DebugMission[];
+  /** The campaigns the select screen offers, in its order, and the one on the map. */
+  campaigns(): { offered: CampaignId[]; current: CampaignId };
+  /** Put an offered campaign on the map (as its card on the select screen does). False if it is not offered. */
+  selectCampaign(id: CampaignId): boolean;
   /** Open every mission on the campaign map. Records no clear and awards nothing. */
   unlockAll(): void;
   /** Replace the upgrade levels (unknown upgrades dropped, levels capped; the points are not checked). Saved. */
@@ -191,7 +195,7 @@ export interface DebugApi {
    * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
    */
   startSandbox(seed?: number, mirror?: boolean): boolean;
-  /** Start a Stalingrad mission (1001 to 1010) on its own, never saved: the campaign is not on the map yet. */
+  /** Start a Stalingrad mission (1001 to 1010) on its own, outside the campaign, never saved (startMission plays it as a campaign mission). */
   startStalingrad(id: number, difficulty?: Difficulty, seed?: number): boolean;
   /** Start Basic Training, as the title screen's button does. */
   startTraining(): boolean;
@@ -376,6 +380,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     },
 
     unlockAll: () => app.unlockAll(),
+    campaigns: () => ({ offered: app.offered.map((c) => c.id), current: app.current.id }),
+    selectCampaign(id) {
+      if (!app.offered.some((c) => c.id === id)) return false;
+      app.selectCampaign(id);
+      ui.refresh();
+      return true;
+    },
     setUpgrades: (levels) => app.setUpgrades(levels),
     save: () => structuredClone(app.save),
     medals: () => app.save.medals,

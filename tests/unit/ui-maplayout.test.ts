@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CAMPAIGN_MAP_VIEW } from '../../src/data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, projection } from '../../src/data/campaignMap';
+import { STALINGRAD_MAP } from '../../src/data/campaignMapStalingrad';
+import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { boxPan, clampPan, clearLabels, labelBounds, labelHitsRect, layoutPins, mapSizeFor, relaxPins, type LabelBox, type Obstacle } from '../../src/ui/screens/mapLayout';
 
-// Approximate positions of the ten missions: Arras, Dunkirk, Crusader, Alamein, Primosole,
-// Cassino, Sword Beach, Hill 112, Arnhem, Reichswald.
-const LONS = [2.78, 2.38, 24.0, 28.95, 15.07, 13.81, -0.29, -0.46, 5.9, 6.05];
-const LATS = [50.29, 51.03, 31.6, 30.83, 37.27, 41.49, 49.3, 49.11, 51.98, 51.7];
+// The ten Stalingrad missions' markers (the campaign the map shows): Brest, Dubno, Volokolamsk, Klin, the four in the
+// city, the Serafimovich bridgehead and Pitomnik.
+const LONS = STALINGRAD_MISSIONS.map((m) => m.mapPos.lon);
+const LATS = STALINGRAD_MISSIONS.map((m) => m.mapPos.lat);
 
 function minPairDistance(xs: readonly number[], ys: readonly number[]): number {
   let min = Infinity;
@@ -115,19 +117,27 @@ describe('map lettering and pins', () => {
     expect(clearLabels([label(0, 0)], [wall], 20, 4, 3)[0]).toEqual({ dx: 0, dy: 0 });
   });
 
-  it('clears every real map label of every pin in the campaign layout', async () => {
-    const { MAP_LABELS, mapX, mapY } = await import('../../src/data/campaignMap');
+  it('clears every real map label of every pin in the campaign layout', () => {
+    const MAP_LABELS = STALINGRAD_MAP.labels;
+    const proj = projection(STALINGRAD_MAP.bounds);
+    const mapX = (lon: number): number => proj.x(lon);
+    const mapY = (lat: number): number => proj.y(lat);
     for (const [viewW, viewH] of [[568, 320], [844, 390], [1000, 412]] as const) {
-      const layout = layoutPins(LONS, LATS, viewW - 200, viewH);
+      const layout = layoutPins(LONS, LATS, viewW - 200, viewH, proj);
       const u = layout.size.w / CAMPAIGN_MAP_VIEW.minWidthPx;
-      // Rough label sizes: the real painter measures its font, this uses the average letter width.
+      // Rough label sizes: the real painter (src/ui/screens/mapPaint.ts) measures its font, this uses the average letter
+      // width with the painter's sizes and spacing per kind; a town's name sits just right of its dot.
+      const SIZE = { country: 11.5, region: 7.6, city: 7.4, river: 7.6, sea: 9.4 } as const;
+      const SPACING = { country: 3.4, region: 1.6, city: 0.2, river: 1.8, sea: 2.6 } as const;
       const boxes = MAP_LABELS.map((l): LabelBox => {
-        const px = (l.kind === 'country' ? 11.5 : l.kind === 'region' ? 7.6 : 9.4) * u;
-        const spacing = (l.kind === 'country' ? 3.4 : l.kind === 'region' ? 1.6 : 2.6) * u;
-        return { x: mapX(l.lon) * layout.size.w, y: mapY(l.lat) * layout.size.h, hw: (l.text.length * (px * 0.62 + spacing)) / 2, hh: px * 0.6, angle: ((l.angle ?? 0) * Math.PI) / 180 };
+        const px = SIZE[l.kind] * u;
+        const spacing = SPACING[l.kind] * u;
+        const hw = (l.text.length * (px * 0.62 + spacing)) / 2;
+        const dx = l.kind === 'city' ? hw + 4 * u : 0;
+        return { x: mapX(l.lon) * layout.size.w + dx, y: mapY(l.lat) * layout.size.h, hw, hh: px * 0.6, angle: ((l.angle ?? 0) * Math.PI) / 180 };
       });
       const pins = layout.xs.map((x, i) => pin(x, layout.ys[i]));
-      const shifts = clearLabels(boxes, pins, 70, 4, 3);
+      const shifts = clearLabels(boxes, pins, CAMPAIGN_MAP_VIEW.labelMaxShiftPx, 4, 3);
       boxes.forEach((b, i) => {
         const moved = { ...b, x: b.x + shifts[i].dx, y: b.y + shifts[i].dy };
         for (const p of pins) expect(labelHitsRect(moved, p, 0), `${MAP_LABELS[i].text} at ${viewW}x${viewH}`).toBe(false);

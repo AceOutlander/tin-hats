@@ -1,11 +1,24 @@
+import type { CampaignMapDef } from './campaignMap';
+import { STALINGRAD_MAP } from './campaignMapStalingrad';
+import type { MusicTrackName } from './music';
+import { STALINGRAD_MUSIC } from './musicCampaigns';
 import type { CampaignDef, CampaignId } from './schema';
+
+/** A campaign with what its screens need: the situation map it is played on and the track that map plays. */
+export interface Campaign extends CampaignDef {
+  /** The campaign map (src/data/campaignMap.ts): bounds, shapes, rivers, labels and front lines. */
+  map: CampaignMapDef;
+  /** The between-missions track (src/data/music.ts), on the map, the briefing and the Quartermaster. */
+  mapMusic: MusicTrackName;
+}
 
 /**
  * The campaigns (docs/campaigns/FOUNDATIONS.md section 6), in select-screen order. Mission ids have four digits by
- * campaign (Stalingrad 1001 to 1010); 'british' is today's campaign (ids 1 to 10), kept until the new campaigns
- * replace it. The campaign map, theme and map music of each campaign come with the campaign select job.
+ * campaign (Stalingrad 1001 to 1010). Stalingrad is the only campaign today: the ten British placeholder missions were
+ * removed with its release (owner, docs/QUEUE.md "The current missions are placeholders"). With one campaign on offer
+ * Play goes straight to its map; the select screen shows once a second campaign joins this list.
  */
-export const CAMPAIGN_IDS: readonly CampaignId[] = ['stalingrad', 'british'];
+export const CAMPAIGN_IDS: readonly CampaignId[] = ['stalingrad'];
 
 function range(first: number, last: number): number[] {
   const out: number[] = [];
@@ -13,7 +26,7 @@ function range(first: number, last: number): number[] {
   return out;
 }
 
-export const CAMPAIGNS: Record<CampaignId, CampaignDef> = {
+export const CAMPAIGNS: Record<CampaignId, Campaign> = {
   stalingrad: {
     id: 'stalingrad',
     nation: 'soviet',
@@ -23,19 +36,11 @@ export const CAMPAIGNS: Record<CampaignId, CampaignDef> = {
     missionIds: range(1001, 1010),
     unlock: { always: true },
     card: 'From the first morning at Brest to the ruins on the Volga.',
-    // Being built on the stalingrad branch: it must not reach the live site (owner, docs/QUEUE.md).
-    released: false,
-  },
-  british: {
-    id: 'british',
-    nation: 'british',
-    title: 'The Line',
-    subtitle: 'May 1940 to February 1945',
-    missionRange: { first: 1, last: 10 },
-    missionIds: range(1, 10),
-    unlock: { always: true },
-    card: 'The British campaign: from Arras in 1940 to the Reichswald.',
+    // The game's only campaign since the British placeholders went (it ships with their removal). A campaign still
+    // being built sets this false: it then shows only on the dev server, with ?unreleased=1, or after the admin unlock.
     released: true,
+    map: STALINGRAD_MAP,
+    mapMusic: STALINGRAD_MUSIC.map,
   },
 };
 

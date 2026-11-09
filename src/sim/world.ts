@@ -3,10 +3,16 @@
  * that takes the World; the Battle class in battle.ts owns it. Nothing in
  * here is part of the public API.
  */
+import { GROUND, GROUND_CELL, GROUND_IDS, SKI_GROUND } from '../data/ground';
 import type {
   BuildableId,
+  FactionId,
+  GroundId,
   MissionAiPlan,
   MissionDef,
+  MissionEventDef,
+  MissionPrepDef,
+  PhaseDef,
   Order,
   Side,
   SupportKind,
@@ -19,6 +25,131 @@ import type { EventQueue } from './events';
 import type { Rng } from './rng';
 import { KIND_COUNT, KIND_INDEX } from './tables';
 import type { BattleConfig, BattleState, Behaviour, SideState } from './types';
+
+/**
+ * The battlefield's ground as per-cell tables (FOUNDATIONS.md 4.2), one cell per GROUND_CELL wu, built once when the
+ * battle is created (buildGroundField) and rewritten only by setGround (rubble). Null for a mission with no sectors:
+ * every reader then skips the lookup, so such a battle plays exactly as before.
+ */
+export interface GroundField {
+  /** Cells: ceil(length / GROUND_CELL). */
+  count: number;
+  /** Per cell: index into GROUND_IDS. */
+  ground: Uint8Array;
+  /**
+   * Per cell, speed multipliers [cell * GROUND_MODES + mode * 2 + way]: mode 0 infantry, 1 vehicles, 2 ski troops;
+   * way 0 moving toward +x, 1 toward -x (a slope climbs one way and descends the other).
+   */
+  speed: Float32Array;
+  /** Per cell: multiplier on bullet damage to infantry in the open (forest and rubble cover). */
+  cover: Float32Array;
+  /** Per cell: range multiplier for weapons fired from there (SectorDef.heightBonus). */
+  height: Float32Array;
+  /** Per cell: 1 where vehicles cannot drive on (water no standing bridge spans, FOUNDATIONS.md 4.4), else 0. */
+  block: Uint8Array;
+  /** Cells that block vehicles (0 = none anywhere: walk() skips the test). */
+  blocked: number;
+}
+
+/** Entries per cell in GroundField.speed. */
+export const GROUND_MODES = 6;
+export const GROUND_INV_CELL = 1 / GROUND_CELL;
+
+function blankGround(length: number): GroundField {
+  const count = Math.max(1, Math.ceil(length / GROUND_CELL));
+  return {
+    count,
+    ground: new Uint8Array(count).fill(GROUND_IDS.indexOf('grass')),
+    speed: new Float32Array(count * GROUND_MODES).fill(1),
+    cover: new Float32Array(count).fill(1),
+    height: new Float32Array(count).fill(1),
+    block: new Uint8Array(count),
+    blocked: 0,
+  };
+}
+
+/** Write one ground over the cells whose centres lie in [from, to). */
+function writeGround(f: GroundField, from: number, to: number, id: GroundId): void {
+  const def = GROUND[id];
+  const gi = GROUND_IDS.indexOf(id);
+  const ski = SKI_GROUND[id];
+  for (let c = 0; c < f.count; c++) {
+    const mid = (c + 0.5) * GROUND_CELL;
+    if (mid < from || mid >= to) continue;
+    f.ground[c] = gi;
+    const o = c * GROUND_MODES;
+    f.speed[o] = def.infantry;
+    f.speed[o + 1] = def.infantryDown;
+    f.speed[o + 2] = def.vehicle;
+    f.speed[o + 3] = def.vehicleDown;
+    f.speed[o + 4] = ski ?? def.infantry;
+    f.speed[o + 5] = ski ?? def.infantryDown;
+    f.cover[c] = def.bulletCover;
+    const bar = def.vehicleBarrier === true ? 1 : 0;
+    f.blocked += bar - f.block[c];
+    f.block[c] = bar;
+  }
+}
+
+/**
+ * A standing bridge over [x0, x1) (FOUNDATIONS.md 4.4): its cells move everyone at road speed and let vehicles on. A
+ * fallen one (`standing` false) gives the cells back their own ground. The ground ids (and so the art) stay the river's.
+ */
+export function writeBridge(f: GroundField, x0: number, x1: number, standing: boolean): void {
+  const road = GROUND.road;
+  for (let c = 0; c < f.count; c++) {
+    const mid = (c + 0.5) * GROUND_CELL;
+    if (mid < x0 || mid >= x1) continue;
+    const id = GROUND_IDS[f.ground[c]];
+    const def = standing ? road : GROUND[id];
+    const ski = standing ? undefined : SKI_GROUND[id];
+    const o = c * GROUND_MODES;
+    f.speed[o] = def.infantry;
+    f.speed[o + 1] = def.infantryDown;
+    f.speed[o + 2] = def.vehicle;
+    f.speed[o + 3] = def.vehicleDown;
+    f.speed[o + 4] = ski ?? def.infantry;
+    f.speed[o + 5] = ski ?? def.infantryDown;
+    f.cover[c] = def.bulletCover;
+    const bar = def.vehicleBarrier === true ? 1 : 0;
+    f.blocked += bar - f.block[c];
+    f.block[c] = bar;
+  }
+}
+
+/**
+ * The ground tables for a mission's sectors (MissionDef.sectors), or null when it has none. Ground no sector covers is
+ * even (every multiplier 1); a sector's heightBonus applies over its cells.
+ */
+export function buildGroundField(mission: MissionDef): GroundField | null {
+  const sectors = mission.sectors;
+  if (!sectors || sectors.length === 0) return null;
+  const f = blankGround(mission.length);
+  for (const sec of sectors) {
+    writeGround(f, sec.from, sec.to, sec.ground);
+    const bonus = sec.heightBonus ?? 1;
+    for (let c = 0; c < f.count; c++) {
+      const mid = (c + 0.5) * GROUND_CELL;
+      if (mid >= sec.from && mid < sec.to) f.height[c] = bonus;
+    }
+  }
+  return f;
+}
+
+/**
+ * Change the ground over [from, to) for the rest of the battle (a building falling to rubble, FOUNDATIONS.md 4.3).
+ * A battle with no ground tables gets them first (even ground elsewhere).
+ */
+export function setGround(w: World, from: number, to: number, id: GroundId): void {
+  if (w.ground === null) w.ground = blankGround(w.state.length);
+  writeGround(w.ground, from, to, id);
+}
+
+/** The cell of the ground tables under world x (clamped to the field). */
+export function groundCell(f: GroundField, x: number): number {
+  const c = (x * GROUND_INV_CELL) | 0;
+  return c < 0 ? 0 : c >= f.count ? f.count - 1 : c;
+}
 
 /** The order a unit of this kind obeys: its kind's override if one is set, else the army order. */
 export function orderFor(side: SideState, kind: UnitKind): Order {
@@ -143,6 +274,10 @@ export const CMD_BUILD = 8;
 export const CMD_CANCEL_BUILD = 9;
 /** Prep phase: ready, end it now. */
 export const CMD_READY = 10;
+/** "Deploy at": `unit` = DEPLOY_AUTO, DEPLOY_HQ or a capture point index. */
+export const CMD_DEPLOY = 11;
+/** A sappers' Clear job on the enemy minefield or obstacle nearest `x`. */
+export const CMD_CLEAR = 12;
 
 /** A queued command, flattened so the queue can be pooled. Only the fields of its `type` are meaningful. */
 export interface QueuedCommand {
@@ -301,6 +436,13 @@ export interface ReserveGroup {
   left: number;
   /** Veterans (ForceDef.veteran). */
   veteran: boolean;
+  /** ForceDef.look ('' = the era's) and ForceDef.nation ('' = the side's own, or its roster nation for the kind). */
+  look: string;
+  faction: FactionId | '';
+  /** ForceDef.leash, or -1 for the default. */
+  leash: number;
+  /** ForceDef.tags has skis. */
+  skis: boolean;
 }
 
 /** Per-side memory of the AI commander (also used by the test bot). */
@@ -361,6 +503,15 @@ export interface World {
   eventFired: Uint8Array;
   /** Per mission event: battle time of its next firing (repeating events and delayed triggers). */
   eventNext: Float64Array;
+  /** The mission's phases (MissionDef.phases, or the one made from its mode and timer: normalPhases). */
+  phases: PhaseDef[];
+  /**
+   * Every scripted event the director watches: MissionDef.events (same indices: the admin panel fires them by index),
+   * then each phase's onEnter events with a phase trigger. eventFired and eventNext are indexed like this list.
+   */
+  missionEvents: MissionEventDef[];
+  /** The prep phase being run (the mission's, or the current phase's), for the test bot's build plan; null for none. */
+  prepDef: MissionPrepDef | null;
   /** Scripted reinforcements waiting for room under the population cap (only sides with an HQ). */
   reserve: ReserveGroup[];
   nextUnitId: number;
@@ -389,8 +540,10 @@ export interface World {
   trenchHalf: Float64Array;
   /** Per slot: world x. */
   slotX: Float64Array;
-  /** Per slot: pool index of the unit holding or walking to it, -1 if free. */
+  /** Per slot: pool index of the unit holding or walking to it, -1 if free, SLOT_SEALED if it is gone (a fallen floor). */
   slotUnit: Int32Array;
+  /** Per slot: its floor (0 = ground; always 0 in a trench). */
+  slotFloor: Int8Array;
   /** Scratch, per trench and side: infantry standing inside it this tick ([trench * 2 + side]). */
   trenchInside: Int32Array;
   /** Per unit pool index: units of its side (itself included) within config.clusterRadius, 0 if not on the field. */
@@ -442,4 +595,11 @@ export interface World {
   speechCount: Int32Array;
   /** Id the next build site gets. */
   nextSiteId: number;
+  /** The ground tables (MissionDef.sectors), or null for even ground everywhere. */
+  ground: GroundField | null;
+  /**
+   * Per side: index into state.points of its hold-line capture point, -1 when the hold line is a trench, the HQ's
+   * line or the map edge (structures.ts).
+   */
+  holdPoint: Int32Array;
 }

@@ -26,6 +26,22 @@ function newCard(kindLabel: string, icon: Element, name: string, blurb: string):
   return card;
 }
 
+/** The intelligence summary: two short lists, the enemy's forces and ours, side by side where there is room. */
+function intelBlock(intel: NonNullable<MissionCard['intel']>): HTMLElement {
+  const box = el('div', 'th-intel');
+  box.dataset.testid = 'briefing-intel';
+  const column = (label: string, lines: readonly string[], side: 'enemy' | 'friendly'): HTMLElement => {
+    const col = el('div', 'th-intel-col');
+    col.dataset.side = side;
+    const list = el('ul', 'th-type th-intel-list');
+    for (const line of lines) list.append(el('li', undefined, line));
+    add(col, el('div', 'th-intel-label', label), list);
+    return col;
+  };
+  add(box, column('Enemy intelligence', intel.enemy, 'enemy'), column('Our forces', intel.friendly, 'friendly'));
+  return box;
+}
+
 function findMission(ctx: ScreenCtx): MissionCard | undefined {
   const missions = ctx.view().missions;
   return missions.find((m) => m.id === ctx.session.missionId) ?? missions[0];
@@ -50,8 +66,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const orders = el('div', 'th-type th-orders');
   const objective = el('div', 'th-objective');
   add(objective, el('span', 'th-objective-label', 'Objective'), el('span', 'th-type th-objective-text', mission ? mission.objective : ''));
-  // The objective comes first so it is on screen at once even on the shortest phones; the orders type out below it.
-  add(sheet, sheetHead, title, meta, objective, orders);
+  // The objective comes first so it is on screen at once even on the shortest phones, then the intelligence (the
+  // enemy's forces and ours, a few short lines each); the orders type out below them.
+  add(sheet, sheetHead, title, meta, objective, mission && mission.intel ? intelBlock(mission.intel) : null, orders);
 
   // Typewriter: every paragraph is laid out in full (so nothing reflows) and revealed a character at a time.
   const typed: Text[] = [];

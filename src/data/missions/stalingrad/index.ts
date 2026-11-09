@@ -12,8 +12,8 @@ import { M1010 } from './m1010';
 
 /**
  * The Stalingrad campaign's missions (docs/campaigns/STALINGRAD.md), in play order, ids 1001 to 1010. Each lives in
- * its own file (m1001.ts to m1010.ts). Not yet in MISSIONS or the campaign map: the integrator wires the campaign
- * (src/data/campaigns.ts lists the ids).
+ * its own file (m1001.ts to m1010.ts). MISSIONS (../index.ts) lists them, and src/data/campaigns.ts gives the
+ * campaign its map and card.
  */
 export const STALINGRAD_MISSIONS: readonly MissionDef[] = [M1001, M1002, M1003, M1004, M1005, M1006, M1007, M1008, M1009, M1010];
 

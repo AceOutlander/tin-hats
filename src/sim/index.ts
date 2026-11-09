@@ -33,9 +33,11 @@ export {
 } from './balanceRuns';
 export { SIM_FEATURES } from './features';
 export { buildProblem, inPrep, missionTime } from './prep';
+export { directorScore, normalPhases, pointOwner, structureHealth, type DirectorScore } from './director';
+export { airGrounded, flareLit, scriptsWeather, timeBlend, visibilityOf, weatherBlend } from './sky';
 export { orderCost, orderPop } from './tables';
 export { Rng } from './rng';
-export { TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';
+export { DEPLOY_AUTO, DEPLOY_HQ, TARGET_HQ, TARGET_NONE, TARGET_PILLBOX, TARGET_UNIT } from './types';
 export type {
   AdminAction,
   AiReport,
@@ -43,25 +45,33 @@ export type {
   BattleConfig,
   BattleResult,
   BattleState,
+  BarrageState,
   BuildSiteState,
+  BuildingState,
   Behaviour,
+  CapturePointState,
   Command,
   CommanderKind,
+  DirectorState,
   DumpState,
   EndReason,
   EntityKind,
   EventBuffer,
+  FlareState,
   HqState,
   MountState,
+  ObjectiveState,
   PillboxState,
   PrepState,
   ProjectileState,
   SideCheats,
+  SideObjectiveState,
   SideState,
   SideStats,
   SimEvent,
   SimEventType,
   SimFeatures,
+  SkyState,
   SmokeState,
   TimerState,
   TrenchState,

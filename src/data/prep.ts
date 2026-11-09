@@ -7,7 +7,7 @@
  * at once. A site still unfinished when the attack starts goes on being built, but gives no protection until done.
  */
 
-import type { BuildableId } from './schema';
+import type { BuildableId, ObstacleKind } from './schema';
 
 export type { BuildableId };
 
@@ -21,8 +21,14 @@ export interface BuildableDef {
   cost: number;
   /** Footprint on the ground in wu (the ghost, the site and the finished structure). */
   width: number;
-  /** The structure it becomes. */
-  makes: 'wire' | 'trench' | 'pillbox';
+  /**
+   * The structure it becomes: obstacle = a tank trap or road block (`obstacle`); sandbags = sandbags in the windows of
+   * a building the side holds when placed on one, else a sandbag wall (a slot record of `slots`); minefield = an AP
+   * field (MINES.prepDensity, unmarked).
+   */
+  makes: 'wire' | 'trench' | 'pillbox' | 'obstacle' | 'sandbags' | 'minefield';
+  /** For makes 'obstacle'. */
+  obstacle?: ObstacleKind;
   /** Trench slots, for a foxhole or trench. */
   slots?: number;
   /** Multiplier on the base pillbox health, for a pillbox. */
@@ -33,7 +39,7 @@ export interface PrepTunables {
   /** Countdown when a mission does not give its own. */
   defaultSeconds: number;
   buildables: Record<BuildableId, BuildableDef>;
-  /** In the build menu's order. */
+  /** In the build menu's order, for a prep phase that does not list its own (the four of the first prep missions). */
   order: readonly BuildableId[];
   /** A sapper works when he stands within this of the site's centre. */
   workReach: number;
@@ -43,6 +49,8 @@ export interface PrepTunables {
   frontGap: number;
   /** Most sites a side may have at once (built or not, a sanity cap). */
   maxSites: number;
+  /** A prep phase at a later phase's start: its zone reaches this far behind side 0's front (FOUNDATIONS.md 7.3). */
+  phaseZoneDepth: number;
 }
 
 export const PREP: PrepTunables = {
@@ -52,10 +60,16 @@ export const PREP: PrepTunables = {
     foxhole: { id: 'foxhole', name: 'Foxhole', seconds: 20, cost: 60, width: 60, makes: 'trench', slots: 3 },
     trench: { id: 'trench', name: 'Trench', seconds: 30, cost: 100, width: 140, makes: 'trench', slots: 7 },
     pillbox: { id: 'pillbox', name: 'Pillbox', seconds: 60, cost: 250, width: 70, makes: 'pillbox', hpMul: 0.8 },
+    // Obstacles and mines (FOUNDATIONS.md 4.6 and 4.8): offered only by missions that list them.
+    tankTrap: { id: 'tankTrap', name: 'Tank Traps', seconds: 15, cost: 60, width: 80, makes: 'obstacle', obstacle: 'tankTrap' },
+    roadBlock: { id: 'roadBlock', name: 'Road Block', seconds: 20, cost: 50, width: 70, makes: 'obstacle', obstacle: 'roadBlock' },
+    sandbags: { id: 'sandbags', name: 'Sandbags', seconds: 12, cost: 40, width: 60, makes: 'sandbags', slots: 3 },
+    minefield: { id: 'minefield', name: 'AP Mines', seconds: 20, cost: 80, width: 200, makes: 'minefield' },
   },
   order: ['wire', 'foxhole', 'trench', 'pillbox'],
   workReach: 24,
   gap: 20,
   frontGap: 60,
   maxSites: 16,
+  phaseZoneDepth: 1800,
 };

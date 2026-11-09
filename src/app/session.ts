@@ -9,10 +9,10 @@ import { APP } from '../data/app';
 import { PREP } from '../data/prep';
 import type { BuildableId, Difficulty, MissionDef, SupportKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
-import { buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
+import { airGrounded, buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
 import type { BattleCamera, PlacingGhost } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
-import { HudModel, type HpShownQuery } from './hudModel';
+import { HudModel, nextDeploy, type HpShownQuery } from './hudModel';
 import { playBossWarning, playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
 import type { Tutorial } from './tutorial';
 
@@ -180,6 +180,23 @@ export class BattleSession {
           break;
         case 'bossArrived':
           if (e.side === 1) this.bossWarning();
+          break;
+        // The mission director: a new phase is announced with a horn; a scripted banner with its own sound.
+        case 'phaseStarted':
+          if (e.text !== null) this.showBanner(e.text);
+          if (sound) playWaveWarning(this.audio);
+          break;
+        case 'banner':
+          if (e.text !== null) this.showBanner(e.text);
+          if (sound) {
+            if (e.value === 2) playBossWarning(this.audio);
+            else playWaveWarning(this.audio);
+          }
+          break;
+        case 'objectiveDone':
+          // A side objective earned is worth a short notice (never over another banner); the phase's own objectives
+          // show on the phase line.
+          if (e.value === 1 && e.text !== null && !this.bannerUp()) this.showBanner(APP.notices.sideObjective.replace('{text}', e.text));
           break;
         case 'airdrop':
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
@@ -419,6 +436,14 @@ export class BattleSession {
         this.endPlacing();
         this.battle.command(0, { type: 'ready' });
         return true;
+      case 'deploy':
+        this.battle.command(0, { type: 'deploy', at: nextDeploy(this.battle.state) });
+        return true;
+      case 'clear': {
+        const chip = this.hud.state.clear;
+        if (chip && !chip.busy) this.battle.command(0, { type: 'clear', x: chip.x });
+        return true;
+      }
       case 'dismissTip':
         return true;
       default:
@@ -469,6 +494,8 @@ export class BattleSession {
     if (this.ended) return;
     const side = this.battle.state.sides[0];
     if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0) return;
+    // Grounded by the weather or the night: nothing to aim.
+    if (airGrounded(this.battle.state, 0, kind) !== null) return;
     this.targeting = kind;
     this.view.setTargeting(kind);
   }

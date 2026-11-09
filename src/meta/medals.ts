@@ -17,6 +17,25 @@ export interface WinStats {
   lost: number;
   /** Own HQ health at the end, 0..1. */
   hqFrac: number;
+  /** Seconds on the mission clock (prep phases left out) and when each phase began (src/sim/director.ts directorScore). */
+  missionSeconds?: number;
+  phaseStarts?: Record<string, number>;
+  /** Every side objective begun, and whether it was earned. */
+  sideObjectives?: { id: string; text: string; bonus: number; done: boolean }[];
+  /** Enemy units that died, per kind (the kill bonus). */
+  enemyLost?: Partial<Record<UnitKind, number>>;
+  /** The defended structure's 0..1 health at the end (MissionMedalDef.structureWeight). */
+  structureFrac?: number;
+}
+
+/** What a win earned on top of its score: side objectives and the kill bonus, as shares of the 0..1 score. */
+export interface ScoreBonus {
+  /** Each side objective begun, its bonus and whether it was earned. */
+  objectives: { text: string; bonus: number; done: boolean }[];
+  /** Enemy units of the bonus kinds destroyed, the count the bonus starts above, and what they added. */
+  kills: { value: number; above: number; score: number } | null;
+  /** The total added (side objectives earned plus kills), before the score is capped at 1. */
+  total: number;
 }
 
 /** One part of the score: the figure, its target, and the 0..1 mark it earned. */
@@ -34,6 +53,10 @@ export interface MedalBreakdown {
   casualties: ScorePart;
   /** Survival missions only (value and target as 0..1 fractions). */
   hq: ScorePart | null;
+  /** A defended structure's health (fixed scoring with MissionMedalDef.structureWeight; 0..1 fractions), or null. */
+  structure: ScorePart | null;
+  /** Side objectives and the kill bonus, or null when the mission has neither. */
+  bonus: ScoreBonus | null;
   /** 0..1 overall. */
   score: number;
   /** Medals before the difficulty and replay factors. */
@@ -69,21 +92,62 @@ export function replayPercent(winsBefore: number): number {
   return Math.floor(replayFactor(winsBefore) * 100 + 1e-9);
 }
 
-/** Score a win and work out its medals. */
+/** How a mission mode scores when its medal targets do not say: assault and special on time, the rest fixed. */
+export function defaultScoring(mode: MissionMode): 'timed' | 'fixed' {
+  return mode === 'assault' || mode === 'special' ? 'timed' : 'fixed';
+}
+
+/**
+ * Score a win and work out its medals (FOUNDATIONS.md 7.1). Timed: time (from MissionMedalDef.timedFrom's phase if
+ * given) and casualties. Fixed: casualties, HQ health and, with structureWeight, a defended structure's health. Then
+ * the side objectives earned and the kill bonus are added and the score is capped at 1, so a perfect run pays what it
+ * always did and the bonuses make up for a rougher one.
+ */
 export function scoreWin(mode: MissionMode, def: MissionMedalDef, stats: WinStats, difficulty: Difficulty, winsBefore: number): MedalBreakdown {
   const casualties: ScorePart = { value: stats.lost, target: def.targetLost, score: mark(stats.lost, def.targetLost, def.roughLost) };
   let time: ScorePart | null = null;
   let hq: ScorePart | null = null;
+  let structure: ScorePart | null = null;
   let score: number;
-  if (mode === 'survival') {
+  if ((def.scoring ?? defaultScoring(mode)) === 'fixed') {
     const hqFrac = Math.max(0, Math.min(1, stats.hqFrac));
     hq = { value: hqFrac, target: MEDALS.hqPerfect, score: mark(hqFrac, MEDALS.hqPerfect, MEDALS.hqRough) };
     const w = MEDALS.weights.survival;
-    score = w.casualties * casualties.score + w.hq * hq.score;
+    const sw = def.structureWeight ? def.structureWeight.weight : 0;
+    if (def.structureWeight) {
+      const frac = Math.max(0, Math.min(1, stats.structureFrac ?? 0));
+      structure = { value: frac, target: 1, score: frac };
+    }
+    if (def.hqHealthWeight === undefined && sw === 0) {
+      // The survival formula, as it always was.
+      score = w.casualties * casualties.score + w.hq * hq.score;
+    } else {
+      const hqWeight = def.hqHealthWeight ?? w.hq;
+      score = (1 - hqWeight - sw) * casualties.score + hqWeight * hq.score + (structure ? sw * structure.score : 0);
+    }
   } else {
-    time = { value: stats.seconds, target: def.targetSeconds, score: mark(stats.seconds, def.targetSeconds, def.roughSeconds) };
+    const start = def.timedFrom !== undefined ? stats.phaseStarts?.[def.timedFrom] : undefined;
+    const seconds = start !== undefined && stats.missionSeconds !== undefined ? Math.max(0, stats.missionSeconds - start) : stats.seconds;
+    time = { value: seconds, target: def.targetSeconds, score: mark(seconds, def.targetSeconds, def.roughSeconds) };
     const w = MEDALS.weights.assault;
     score = w.time * time.score + w.casualties * casualties.score;
+  }
+  let bonus: ScoreBonus | null = null;
+  const sides = stats.sideObjectives ?? [];
+  if (sides.length > 0 || def.killBonus) {
+    let total = 0;
+    for (const so of sides) if (so.done) total += so.bonus;
+    let kills: ScoreBonus['kills'] = null;
+    if (def.killBonus) {
+      const kb = def.killBonus;
+      let n = 0;
+      for (const kind of kb.kinds) n += stats.enemyLost?.[kind] ?? 0;
+      const add = Math.min(kb.max, Math.max(0, n - kb.above) * kb.per);
+      kills = { value: n, above: kb.above, score: add };
+      total += add;
+    }
+    bonus = { objectives: sides.map((so) => ({ text: so.text, bonus: so.bonus, done: so.done })), kills, total };
+    score = Math.min(1, score + total);
   }
   const base = Math.round(MEDALS.rough + (MEDALS.perfect - MEDALS.rough) * score);
   const difficultyMul = MEDALS.difficultyMul[difficulty];
@@ -93,6 +157,8 @@ export function scoreWin(mode: MissionMode, def: MissionMedalDef, stats: WinStat
     time,
     casualties,
     hq,
+    structure,
+    bonus,
     score,
     base,
     difficulty,
@@ -197,10 +263,13 @@ export function missionUnlocks(mission: MissionDef): UnitKind[] {
 }
 
 /**
- * The unit types a save has unlocked, in the Armoury's order: the free ones, those bought before version 8, and those
+ * The unit types a save has unlocked, in the Armoury's order: the free ones, those its armoury list keeps (bought before
+ * version 8, or unlocked by the removed British missions: save version 10), and those
  * every reached mission unlocks, in any campaign (owner, 2026-11-09: once unlocked, a type fields in every mission,
  * replays and other campaigns included, as the player's own nation's version). `except` leaves one mission's own
  * unlocks out (what the player had before it); `free` false leaves the free types out unless a mission lists them.
+ * A nation's signature kind (the Soviet conscripts) is not in the Armoury's list: it comes after the others, once a
+ * reached mission lists it (each mission that fields it lists it, so a replay does not call it new again).
  */
 export function unitsUnlocked(
   save: SaveData,
@@ -212,8 +281,15 @@ export function unitsUnlocked(
   const got = new Set<string>();
   if (free) for (const kind of MEDALS.free) got.add(kind);
   for (const id of save.armoury) got.add(id);
-  for (const m of missions) if (m.id !== except && reached(m.id)) for (const kind of missionUnlocks(m)) got.add(kind);
-  return playerUnitKinds().filter((k) => got.has(k));
+  const signature: UnitKind[] = [];
+  for (const m of missions) {
+    if (m.id === except || !reached(m.id)) continue;
+    for (const kind of missionUnlocks(m)) {
+      got.add(kind);
+      if (!MEDALS.units.some((u) => u.kind === kind) && !signature.includes(kind)) signature.push(kind);
+    }
+  }
+  return [...playerUnitKinds().filter((k) => got.has(k)), ...signature];
 }
 
 /** The first mission (in the order given) whose unlocks include this type, or null. */
@@ -293,7 +369,7 @@ export interface MissionNews {
 /**
  * What this mission really unlocks for this player: its newUnit and unlocks the player did not have before it, and
  * its newSupport unless the player already had it. `hadUnits` is unitsUnlocked with this mission left out and the free
- * types only where another mission lists them (so mission 1 still introduces riflemen on a first play).
+ * types only where another mission lists them (so a first mission that lists them still introduces them on a first play).
  */
 export function missionNews(mission: MissionDef, hadUnits: readonly UnitKind[], hadSupports: readonly SupportKind[]): MissionNews {
   const units: UnitKind[] = [];

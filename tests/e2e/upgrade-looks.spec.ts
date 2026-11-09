@@ -46,7 +46,7 @@ test.describe('upgrade looks', () => {
       const levels: Record<string, number> = {};
       for (const u of UPGRADES) levels[u.id] = level;
       await setUpgrades(page, levels);
-      await startMission(page, 1, 3);
+      await startMission(page, 1002, 3);
       await expect.poll(async () => (await state(page)).inBattle).toBe(true);
       await page.waitForTimeout(1500);
       await shot(page, `upgrade-looks-stage${level}`);

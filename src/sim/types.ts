@@ -16,16 +16,21 @@ import type {
   Difficulty,
   FactionId,
   MissionDef,
+  MineKind,
   MissionMode,
+  ObjectiveDef,
+  ObstacleKind,
   Order,
   Side,
   SupportKind,
+  TimeOfDay,
   UnitAction,
   UnitDef,
   UnitKind,
   UpgradeDef,
   UpgradeLevels,
   WeaponDef,
+  WeatherKind,
 } from '../data/schema';
 
 // ---------------------------------------------------------------------------
@@ -97,7 +102,17 @@ export type Command =
   /** Take back an unfinished build site of this side by its id; its money comes back in full. */
   | { type: 'cancelBuild'; site: number }
   /** End the prep phase now (the "Ready" button). */
-  | { type: 'ready' };
+  | { type: 'ready' }
+  /**
+   * Where trained units walk out (the "Deploy at" chip, FOUNDATIONS.md 4.5): 'auto' = the forward-most owned,
+   * uncontested spawn point (the default), 'hq' = the HQ door, or an index into state.points. Sappers always use the HQ.
+   */
+  | { type: 'deploy'; at: 'auto' | 'hq' | number }
+  /**
+   * A sappers' Clear job (FOUNDATIONS.md 4.6 and 4.8) on the enemy minefield this side can see, or the enemy tank trap
+   * or road block, nearest world x (within CLEAR_PICK). Dropped when there is none or a job is already on it.
+   */
+  | { type: 'clear'; x: number };
 
 /**
  * An admin panel action (src/sim/admin.ts). Not a command: battle.admin() applies it at once, between ticks, so it
@@ -126,7 +141,11 @@ export type AdminAction =
   /** Units of `kind` walk out until the side's population reaches its cap. */
   | { type: 'fillArmy'; side: Side; kind: UnitKind }
   /** Fire the mission's scripted event with this index now (a one-shot event will not fire again). */
-  | { type: 'fireEvent'; index: number };
+  | { type: 'fireEvent'; index: number }
+  /** The mission director moves to the phase with this id now, after putting its PhaseDef.assume in place. */
+  | { type: 'jumpPhase'; phase: string }
+  /** Scripted weather and time of day change now, over `over` seconds (default 0), as the weather and time events. */
+  | { type: 'sky'; weather?: WeatherKind; time?: TimeOfDay; over?: number };
 
 /** What an AI commander is up to, for the admin panel's debug view. Null from battle.inspectAi for a human side. */
 export interface AiReport {
@@ -177,17 +196,27 @@ export type EndReason =
   | 'timerExpired'
   /** Both HQs fell in the same tick; `winner` is -1. */
   | 'draw'
+  /** The mission director's last phase was completed; side 0 wins. */
+  | 'objectives'
+  /** A phase's loss condition happened (a point lost, the enemy through, a structure lost); side 1 wins. */
+  | 'objectiveFailed'
+  /** The enemy gave up (a surrender objective); side 0 wins. */
+  | 'surrender'
+  /** A scripted endMission event ended it; `winner` is the side it named. */
+  | 'scripted'
   /** The admin panel ended it (AdminAction 'end'); `winner` is the side it chose. */
   | 'admin';
 
 /** Kinds of thing an event or a weapon mount can point at. */
-export type EntityKind = 'none' | 'unit' | 'hq' | 'pillbox' | 'trench' | 'wire' | 'ground';
+export type EntityKind = 'none' | 'unit' | 'hq' | 'pillbox' | 'trench' | 'wire' | 'ground' | 'building';
 
 /** Numeric target codes used by MountState.targetType. */
 export const TARGET_NONE = 0;
 export const TARGET_UNIT = 1;
 export const TARGET_HQ = 2;
 export const TARGET_PILLBOX = 3;
+/** Damage queue only (no mount aims at one): the walls of state.buildings[targetIndex]. */
+export const TARGET_BUILDING = 4;
 
 /** One weapon on a unit, an HQ or a pillbox, and what it is doing. */
 export interface MountState {
@@ -232,6 +261,10 @@ export interface MountState {
   spread: number;
   /** internal: multiplier on this mount's hit chance (veteran troops; divides the scatter of shells). 1 normally. */
   accuracy: number;
+  /** internal: multiplier on the weapon's range (a man on a building's upper floor). 1 normally. */
+  rangeMul: number;
+  /** internal: multiplier on its damage to vehicles (an anti-tank weapon on a tall building's top floor). 1 normally. */
+  vehicleMul: number;
 }
 
 /**
@@ -280,8 +313,12 @@ export interface UnitState {
   inside: boolean;
   /** Supplies a sapper is carrying (draw the crate when > 0); 0 otherwise. */
   carrying: number;
-  /** Id of the trench the unit occupies (it has dropped into a slot and has cover), or -1. */
+  /** Id of the trench the unit occupies (it has dropped into a slot and has cover), or -1. A building's slots are a trench record (TrenchState.building). */
   trenchId: number;
+  /** Floor of the building slot it holds or is walking to (0 = ground floor; 0 for a trench slot or none). */
+  floor: number;
+  /** internal: damage-matrix column while it holds a slot (trench, building or rubble; see unitClass in tables.ts). */
+  coverClass: number;
   /**
    * True while the player directly controls this unit: it ignores orders, walks with the stick
    * (front-clamped), fires while the fire button is held (crew weapons still set up first) and gets
@@ -320,6 +357,8 @@ export interface UnitState {
   slotDepth: number;
   /** internal: fixed 0..1 value per unit, used to stagger stopping distances so units do not stack. */
   jitter: number;
+  /** internal: how far a guard may move from its post (ForceDef.leash; config.guardLeash by default, 0 = frozen). */
+  leash: number;
   /** internal: the post a guard or garrison unit returns to. */
   postX: number;
   /** internal: index into state.trenches of the trench a garrison unit holds, -1 for none. */
@@ -338,6 +377,11 @@ export interface UnitState {
 
   /** Veteran (the King Tiger's escort): more health and a better hit chance (config.veteran). Draw the elite marker. */
   veteran: boolean;
+  /**
+   * The look its force named (ForceDef.look: a `kv2`, a `stug3f`, the `romanian` look), '' = its era's look for the
+   * kind (src/data/eras.ts). Names and art only; the sim never reads it.
+   */
+  look: string;
   /** internal: multiplier on hit chance (config.veteran.accuracyMul for veterans, else 1). */
   accuracy: number;
   /**
@@ -354,6 +398,12 @@ export interface UnitState {
   aaCooldown: number;
   /** Admin panel: this unit takes no damage (its side's cheats.invincible covers every unit of the side). */
   invincible: boolean;
+  /** Ski troops (ForceDef.tags `skis`): deep snow does not slow them. */
+  skis: boolean;
+  /** internal: Fall Back: index into state.points of the rally point it is heading for or holds, -1 for none (the HQ). */
+  rally: number;
+  /** Index into state.ferries of the ferry it waits for or crosses on (inside, off the field), -1 for none. */
+  ferry: number;
 }
 
 /** Admin panel cheats in force on one side (AdminAction). All off in a normal battle. */
@@ -385,6 +435,8 @@ export interface HqState {
   garrison: number;
   /** The HQ machine gun. `gun.aimX` is where it points; `gun.burstLeft > 0` or a small `gun.sinceShot` means it is firing. */
   gun: MountState;
+  /** The mission's HQ look (SideStart.hqLook), '' for the side's upgrade look. Names and art only. */
+  look: string;
 }
 
 /** Running totals per side, shown on the result screen. */
@@ -395,6 +447,10 @@ export interface SideStats {
   lost: number;
   /** Enemy units killed by this side. */
   kills: number;
+  /** Enemy units killed by this side, per kind of the unit killed. */
+  killsByKind: Record<UnitKind, number>;
+  /** Own units lost, per kind (whoever killed them): the director's kill objectives count these. */
+  lostByKind: Record<UnitKind, number>;
   /** All supplies earned: passive income, sapper deliveries and airdrops (starting supplies excluded). */
   suppliesGathered: number;
   /** Supplies spent on training. */
@@ -449,6 +505,48 @@ export interface SideState {
   stats: SideStats;
   /** Admin panel cheats (all off unless the panel turned them on). */
   cheats: SideCheats;
+  /**
+   * Where trained units walk out (the training bar's "Deploy at" chip, FOUNDATIONS.md 4.5): DEPLOY_AUTO (the
+   * forward-most owned, uncontested spawn point, else the HQ; the default, and what the AI and the test bot use),
+   * DEPLOY_HQ, or an index into state.points (while that point is available; otherwise as DEPLOY_AUTO).
+   */
+  deploy: number;
+  /** Where the next trained unit will walk out this tick: an index into state.points, or -1 for the HQ door. */
+  deployPoint: number;
+}
+
+/** SideState.deploy: the forward-most available spawn point (the default). */
+export const DEPLOY_AUTO = -1;
+/** SideState.deploy: always the HQ door. */
+export const DEPLOY_HQ = -2;
+
+/**
+ * A capture point (MissionDef.capturePoints, FOUNDATIONS.md 4.5). A side takes it by holding its zone alone for
+ * captureTime (or with its structure, the trench way); while owned and uncontested it is a spawn and rally point.
+ */
+export interface CapturePointState {
+  id: string;
+  label: string;
+  /** Centre and width of the zone. */
+  x: number;
+  width: number;
+  /** -1 nobody, else the owning side. */
+  owner: number;
+  captureTime: number;
+  spawn: boolean;
+  /** CapturePointDef.spawnFor, or -1 for whichever side owns it. */
+  spawnFor: number;
+  contestRadius: number;
+  /** Index into state.trenches of its structure's trench (a building's stand-in until buildings exist), -1 for none. */
+  trench: number;
+  /** The side taking it now (alone in the zone), -1 for none. */
+  capturing: number;
+  /** 0..1 of captureTime done by `capturing`. */
+  progress: number;
+  /** An armed unit of the side that does not own it stands within contestRadius. */
+  contested: boolean;
+  /** Battle time of the last change of owner, -1 if it never changed. */
+  capturedAt: number;
 }
 
 /**
@@ -468,6 +566,46 @@ export interface TrenchState {
   occupants: number;
   /** Battle time of the last change of owner, -1 if it never changed. */
   capturedAt: number;
+  /** Index into state.buildings when these are a building's (or cover prop's) slots, -1 for a trench. */
+  building: number;
+}
+
+/**
+ * A building or cover prop (FOUNDATIONS.md 4.3; src/sim/buildings.ts). Its window slots are the slot record
+ * state.trenches[trench] (id BUILDINGS.idBase + id), so occupancy, capture, garrisons and the hold line work as a
+ * trench's; owner and occupants are that record's. Slots run floor by floor, ground floor first.
+ */
+export interface BuildingState {
+  id: number;
+  x: number;
+  width: number;
+  /** Floors it was built with, and floors still standing (0 once rubble). */
+  floors: number;
+  floorsLeft: number;
+  slotsPerFloor: number;
+  hp: number;
+  maxHp: number;
+  look: string;
+  /** Index of its slot record in state.trenches. */
+  trench: number;
+  /** -1 unowned, else the owning side (a copy of the slot record's, kept each tick). */
+  owner: number;
+  /** Men in its slots (a copy of the slot record's). */
+  occupants: number;
+  /** Infantry of each side inside its span this tick. */
+  inside: [number, number];
+  /** True when infantry of a side that does not own it are inside its span while its owner holds it. */
+  contested: boolean;
+  /** Fallen: its men are in rubble (rubbleCover), half as many slots, no floors. */
+  rubble: boolean;
+  /** A cover prop (wagons, a wreck): rubble cover from the start that takes no damage. */
+  prop: boolean;
+  /** The walls take damage (BuildingDef.collapse is not 'none'). */
+  breakable: boolean;
+  /** Also a spawn point while owned. */
+  spawn: boolean;
+  /** Battle time of the last hit on its walls, -1 if never. */
+  hitAt: number;
 }
 
 /** A pillbox: target class `fortification`, a machine gun, and a blocker while alive. Destroyed = rubble with no effect. */
@@ -493,6 +631,116 @@ export interface WireState {
   owner: Side;
   hp: number;
   alive: boolean;
+}
+
+/** A tank trap or road block (MissionDef.obstacles, or built in a prep phase; src/sim/obstacles.ts). */
+export interface ObstacleState {
+  id: number;
+  x: number;
+  width: number;
+  owner: Side;
+  kind: ObstacleKind;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  /** Vehicles of the other side held at it this tick. */
+  held: number;
+}
+
+/** A minefield (MissionDef.minefields, or laid in a prep phase; src/sim/mines.ts). */
+export interface MinefieldState {
+  id: number;
+  /** Centre and width of what is left of it (a Clear job eats in from the near edge). */
+  x: number;
+  width: number;
+  owner: Side;
+  mines: MineKind;
+  /** 0..1. */
+  density: number;
+  marked: boolean;
+  /** Per side: it sees the field (its owner always; the other side once marked, set off, shelled or seen from the air). */
+  known: [boolean, boolean];
+  /** False once cleared or thinned to nothing. */
+  alive: boolean;
+  /** Mines gone off under men so far. */
+  blasts: number;
+}
+
+/** A bridge (MissionDef.bridges; src/sim/water.ts). */
+export interface BridgeState {
+  id: number;
+  x0: number;
+  x1: number;
+  hp: number;
+  maxHp: number;
+  /** -1 nobody, else the side holding it (its point's owner when it has one). */
+  owner: number;
+  /** True while it spans the river (vehicles cross, nobody wades). */
+  standing: boolean;
+  /** Charges ready to blow; cleared when the other side holds its point. */
+  wired: boolean;
+  /** The side that laid the charges, -1 for none. */
+  demolitionSide: number;
+  look: 'bridge' | 'pontoon';
+  /** Index into state.points of the point on it, -1 for none. */
+  point: number;
+  /** Battle time it fell, -1 while it stands or never stood. */
+  downAt: number;
+}
+
+/**
+ * A ferry serving a capture point (CapturePointDef.ferry; src/sim/water.ts): a boat every `every` seconds lands what
+ * waited for it. While it crosses it is at boatX.
+ */
+export interface FerryState {
+  /** Index into state.points of the landing. */
+  point: number;
+  side: Side;
+  /** Where it puts out from and where it lands (wu). */
+  from: number;
+  to: number;
+  cross: number;
+  every: number;
+  hitShare: number;
+  /** Battle time the next boat lands. */
+  nextArrive: number;
+  /** True while a boat is on the water; boatX is where. */
+  sailing: boolean;
+  boatX: number;
+  /** Men aboard the boat on the water. */
+  load: number;
+  /** The boat on the water has been hit. */
+  hit: boolean;
+  /** Boats that landed men, boats hit on the way, and men lost with them. */
+  landed: number;
+  loadsLost: number;
+  menLost: number;
+}
+
+/** A sapper's Clear job on an enemy minefield or obstacle (src/sim/mines.ts and obstacles.ts). */
+export interface ClearJobState {
+  /** Shares the build sites' id space (UnitState.site names it). */
+  id: number;
+  side: Side;
+  target: 'minefield' | 'obstacle';
+  /** Index into state.minefields or state.obstacles. */
+  index: number;
+  /** Where the sapper stands to work: the near edge, from the side's own end. */
+  x: number;
+  /** Pool index of the sapper on it, -1 for none yet. */
+  worker: number;
+  workerId: number;
+}
+
+/** Sandbags built in a prep phase: a sandbag wall (its own slot record) or sandbags in a building's windows. */
+export interface SandbagState {
+  /** Index into state.trenches of the slot record they fortify (the wall's own, or the building's). */
+  trench: number;
+  /** Index into state.buildings when they are in a building's windows, -1 for a wall. */
+  building: number;
+  x: number;
+  width: number;
+  side: Side;
 }
 
 /** A supply dump: indestructible scenery where a side's sappers load. */
@@ -552,6 +800,10 @@ export interface PrepState {
   total: number;
   /** Battle time it ended, or -1 while it runs. The mission clock and events count from here. */
   endedAt: number;
+  /** Battle time it began: 0 for a prep phase at the mission start, later for one at a phase's start. */
+  startedAt: number;
+  /** Seconds of the earlier prep phases of this battle (the mission clock leaves them out too). */
+  before: number;
   /** What may be built. */
   buildables: BuildableId[];
   /** Side 0's build zone (side 1 never builds). */
@@ -576,6 +828,46 @@ export interface BuildSiteState {
   workerId: number;
   /** Money paid for it (given back on a cancel). */
   cost: number;
+}
+
+/** A flare in the sky (MissionEventDef 'flare'): visibility 1 over [x0, x1] from `from` until `until` (battle times). */
+export interface FlareState {
+  x: number;
+  x0: number;
+  x1: number;
+  /** Who fired it, and its colour (the view's). */
+  side: Side;
+  color: 'white' | 'green';
+  from: number;
+  until: number;
+}
+
+/** Scripted weather and time of day (FOUNDATIONS.md 4.7; src/sim/sky.ts). Plain data. */
+export interface SkyState {
+  /** The mission scripts its weather (MissionDef.weather or a weather event): the view's random rain stays off. */
+  scripted: boolean;
+  /** The weather and time of day the sim uses now (a change takes effect at the midpoint of its transition). */
+  weather: WeatherKind;
+  time: TimeOfDay;
+  /** The latest weather change: from, to, its start (battle time) and length in seconds (0 = at once). The view crossfades by these. */
+  weatherFrom: WeatherKind;
+  weatherTo: WeatherKind;
+  weatherStart: number;
+  weatherOver: number;
+  /** The latest change of the time of day, the same way. */
+  timeFrom: TimeOfDay;
+  timeTo: TimeOfDay;
+  timeStart: number;
+  timeOver: number;
+  /** The mission's visibility at night (MissionDef.nightVisibility or the default). */
+  nightVisibility: number;
+  /** Derived from weather and time: the share of a direct weapon's range it may pick targets at (away from flares). */
+  visibility: number;
+  /** Derived: speed multiplier for men on foot, and the multiplier on every weapon's accuracyFar (the blizzard). */
+  infantrySpeed: number;
+  accuracyFar: number;
+  /** Flares burning now. */
+  flares: FlareState[];
 }
 
 export interface TimerState {
@@ -616,6 +908,10 @@ export interface BattleState {
   trenches: TrenchState[];
   pillboxes: PillboxState[];
   wires: WireState[];
+  /** Capture points (MissionDef.capturePoints), in the mission's order; empty for a mission with none. */
+  points: CapturePointState[];
+  /** Buildings and cover props, in mission order (buildings first). */
+  buildings: BuildingState[];
   /** Supply dump of side 0 and side 1; null for a side with no HQ. */
   dumps: [DumpState | null, DumpState | null];
   /** The mission timer, or null. */
@@ -624,6 +920,107 @@ export interface BattleState {
   prep: PrepState | null;
   /** Build sites not yet finished (placed in the prep phase), in the order placed. */
   sites: BuildSiteState[];
+  /** Tank traps and road blocks (the mission's, then those built). */
+  obstacles: ObstacleState[];
+  /** Minefields (the mission's, then those laid). */
+  minefields: MinefieldState[];
+  /** Bridges, in mission order. */
+  bridges: BridgeState[];
+  /** Ferries, one per capture point with `ferry`. */
+  ferries: FerryState[];
+  /** Sappers' Clear jobs not yet done. */
+  clears: ClearJobState[];
+  /** Sandbags built (walls and buildings' windows). */
+  sandbags: SandbagState[];
+  /** The mission director: the current phase, its objectives, the side objectives (src/sim/director.ts). */
+  director: DirectorState;
+  /** Scripted weather and time of day (src/sim/sky.ts). */
+  sky: SkyState;
+}
+
+/** One objective of the current phase, as the objective plate shows it. */
+export interface ObjectiveState {
+  id: string;
+  type: ObjectiveDef['type'];
+  /** The plate's line ("Tanks destroyed", "Hold the summit"). */
+  text: string;
+  /** Progress toward `target`: a count, or seconds for hold and survive. */
+  value: number;
+  target: number;
+  /** count = "7 / 12"; seconds = a countdown of target - value; flag = done or not. */
+  unit: 'count' | 'seconds' | 'flag';
+  done: boolean;
+  /** internal (hold): phase time since the point has been held without a break, -1 while not held. */
+  since: number;
+}
+
+/** A side objective (pause and end screens). */
+export interface SideObjectiveState {
+  id: string;
+  text: string;
+  bonus: number;
+  /** open while it can still be earned; done once earned for good (or at a win); failed for good. */
+  status: 'open' | 'done' | 'failed';
+  /** internal: index into the mission's phases where its failIf stops being watched (`until`), or -1. */
+  untilPhase: number;
+  /** internal: what its failIf keeps from its start (side 0's losses for `lost`; 1 once side 0 held a point). */
+  base: number;
+  /** Progress of its objective, or null when it has none. */
+  progress: ObjectiveState | null;
+  /** True once its objective was done (in time). */
+  met: boolean;
+}
+
+/** A scripted barrage in progress (MissionEventDef 'barrage'). */
+export interface BarrageState {
+  side: Side;
+  x: number;
+  spread: number;
+  rounds: number;
+  fired: number;
+  /** Battle time of the first round and seconds between rounds. */
+  start: number;
+  interval: number;
+  /** Index into the sim's weapon tables. */
+  weapon: number;
+  /** 1 when the rounds come down from above (bombs). */
+  top: number;
+}
+
+/** The mission director's state (FOUNDATIONS.md 3; src/sim/director.ts). Plain data. */
+export interface DirectorState {
+  /** Index of the current phase in the mission's phases, its id and title, and how many phases there are. */
+  phase: number;
+  phaseId: string;
+  title: string;
+  count: number;
+  /** Mission time the current phase began (its own prep, which stops the mission clock, does not count). */
+  startedAt: number;
+  /** Mission time each phase began, by phase id (scoring times a mission from one of them). */
+  phaseStarts: Record<string, number>;
+  objectives: ObjectiveState[];
+  /** Every side objective begun so far, in order. */
+  side: SideObjectiveState[];
+  /** Mission time each objective and side objective was done, by id. */
+  doneAt: Record<string, number>;
+  /** internal: side 0's losses (of the condition's kinds) when each loss condition of the phase began. */
+  lossBase: number[];
+  /** The phase's own clock, or null. */
+  timer: TimerState | null;
+  /** Per side: the AI posture (posture events) and the mission time a counter-attack ends (-1 = no end). */
+  posture: ['free' | 'hold' | 'counterattack', 'free' | 'hold' | 'counterattack'];
+  postureUntil: [number, number];
+  /** Per side: the mission's own income multiplier and difficulty, before income events. */
+  incomeBase: [number, number];
+  barrages: BarrageState[];
+  /** The disguise in force (MissionEventDef 'disguise'): side -1 = none; battle times. */
+  disguiseSide: number;
+  disguiseX0: number;
+  disguiseX1: number;
+  disguiseFrom: number;
+  disguiseUntil: number;
+  /** Why the director ended the battle (the closing announcement of a surrender, or the loss), or null. */
+  endText: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -663,7 +1060,27 @@ export type SimEventType =
   | 'ignite'
   | 'buildStarted'
   | 'buildDone'
-  | 'prepEnded';
+  | 'prepEnded'
+  | 'phaseStarted'
+  | 'banner'
+  | 'objectiveDone'
+  | 'pointCaptured'
+  /** A building lost its top floor (targetIndex = index in state.buildings, value = floors left, x = its centre). */
+  | 'floorCollapsed'
+  /** A tank trap or road block is gone (targetIndex = index in state.obstacles, x, side = its owner, cause). */
+  | 'obstacleDestroyed'
+  /** A mine went off (targetIndex = index in state.minefields, x, side = the victim's side, unit, unitId, kind). */
+  | 'mineBlast'
+  /** A bridge fell (targetIndex = index in state.bridges, x = its centre, cause 'explosive'). */
+  | 'bridgeBlown'
+  /** A bridge was put across (targetIndex = index in state.bridges, x = its centre). */
+  | 'bridgeBuilt'
+  /** A boat landed (targetIndex = index in state.ferries, side, x = the landing, value = men ashore). */
+  | 'ferryLanded'
+  /** A boat was hit crossing (targetIndex = index in state.ferries, side, x = the boat, value = men lost). */
+  | 'ferryHit'
+  /** A Clear job is done (side, x, text = 'minefield' | 'obstacle'). */
+  | 'clearDone';
 
 /**
  * One event. A flat pooled record: every event has every field, and a field an
@@ -695,10 +1112,15 @@ export type SimEventType =
  *                   dir = direction the blow travelled (+1 = toward +x, so the body falls that way);
  *                   targetIndex = side that made the kill, -1 if none.
  * unitHit           A unit took damage and survived. side, unit, unitId, kind, x, row, value = damage, cause, dir.
- * structureHit      target = 'hq' | 'pillbox', targetIndex = HQ side or pillbox index, side = owner,
- *                   x = impact point, value = damage, cause, dir.
- * structureDestroyed  target, targetIndex, side = owner, x.
+ * structureHit      target = 'hq' | 'pillbox' | 'building', targetIndex = HQ side, pillbox or building index,
+ *                   side = owner (-1 for an unowned building), x = impact point, value = damage, cause, dir.
+ * structureDestroyed  target, targetIndex, side = owner, x. A building's ('building', its index) falls to rubble.
+ * floorCollapsed    A building lost its top floor. targetIndex = its index in state.buildings, value = floors still
+ *                   standing, side = owner, x = its centre.
  * trenchCaptured    side = new owner, targetIndex = trench id, x = trench centre, value = previous owner (-1 none).
+ * pointCaptured     A capture point changed hands. side = new owner, targetIndex = index into state.points, x = its
+ *                   centre, value = previous owner (-1 none), text = its label, hit = it is a structure (its
+ *                   trenchCaptured came with it).
  * wireDestroyed     targetIndex = wire id, side = its owner, x = its centre, cause = 'explosive' (splash) or null (crushed).
  * supplyDelivered   A sapper reached the HQ door. side, unit, unitId, kind, x, row, value = supplies credited.
  * trainStarted      A unit was queued. side, kind, value = that kind's queue length afterwards.
@@ -740,6 +1162,12 @@ export type SimEventType =
  *                   value = soldiers unloaded (unitSpawned events follow for each).
  * ignite            A flamethrower's fuel tank was hit from behind and went up (a unitDied and an
  *                   explosion follow in the same step). side, unit, unitId, kind ('flame'), x, row.
+ *
+ * The mission director (src/sim/director.ts):
+ * phaseStarted      A new phase began (after its prep, if any). value = phase index, text = "Phase 2: The water tanks".
+ * banner            A scripted banner (or a barrage's warning). text; value = sound: 0 horn, 1 alarm, 2 boss.
+ * objectiveDone     An objective of the phase, or a side objective, was done. text = its line; value = 1 for a side
+ *                   objective, 0 for one of the phase.
  */
 export interface SimEvent {
   type: SimEventType;

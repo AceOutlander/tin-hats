@@ -2,7 +2,7 @@
  * What the admin panel's DOM (src/ui/admin) asks of the app (src/app/admin.ts). Plain data both ways: the panel never
  * sees the simulation, the save or the view.
  */
-import type { Difficulty, UnitKind } from '../../data/schema';
+import type { Difficulty, TimeOfDay, UnitKind, WeatherKind } from '../../data/schema';
 
 export type AdminSide = 'mine' | 'enemy';
 export type AdminTarget = AdminSide | 'all' | 'selected';
@@ -29,9 +29,13 @@ export type AdminCommand =
   | { type: 'instantTrain'; on: boolean }
   | { type: 'end'; win: boolean }
   | { type: 'fireEvent'; index: number }
+  /** The mission director moves to this phase now (its PhaseDef.assume put in place). */
+  | { type: 'jumpPhase'; phase: string }
   | { type: 'restart'; difficulty: Difficulty }
   | { type: 'weather'; mode: WeatherChoice }
   | { type: 'timeOfDay'; darkness: number | null }
+  /** The sim's scripted weather or time of day changes now, over 10 s (FOUNDATIONS.md 4.7). */
+  | { type: 'sky'; weather?: WeatherKind; time?: TimeOfDay }
   /** Arm spawning (every tap on the field places `spec`) or stop it (null). */
   | { type: 'place'; spec: SpawnSpec | null }
   /** Arm picking (the next tap on the field selects a unit) or stop it. */
@@ -59,6 +63,8 @@ export interface AdminBattleInfo {
   sideInvincible: [boolean, boolean];
   /** The mission's scripted events, in data order. */
   events: { index: number; label: string }[];
+  /** The mission's phases (a mission of several), for "jump to phase". */
+  phases?: { id: string; label: string; current: boolean }[];
   /** Unit names of each side's nation, for the spawn chips. */
   names: [Record<UnitKind, string>, Record<UnitKind, string>];
 }
@@ -102,6 +108,8 @@ export const MARK_HQ = 0;
 export const MARK_EDGE = 1;
 export const MARK_WAVE = 2;
 export const MARK_TRENCH = 3;
+/** A building or cover prop (FOUNDATIONS.md 4.3): its slot record in state.trenches. */
+export const MARK_BUILDING = 4;
 
 export interface AdminDebugFrame {
   boxes: Float32Array;

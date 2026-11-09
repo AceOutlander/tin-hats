@@ -10,7 +10,7 @@
 import { ADMIN, type AdminSquadDef } from '../data/admin';
 import { APP } from '../data/app';
 import { DIFFICULTY_LIST } from '../data/difficulty';
-import { FACTIONS } from '../data/factions';
+import { missionEra, unitDisplayName } from '../data/eras';
 import type { MissionEventDef, Side, UnitKind } from '../data/schema';
 import { UNIT_KINDS } from '../data/units';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
@@ -18,6 +18,7 @@ import { maxLevel, sanitizeSave } from '../meta';
 import type { BattleView } from '../render/contracts';
 import type { AdminAction, UnitState } from '../sim';
 import {
+  MARK_BUILDING,
   MARK_EDGE,
   MARK_HQ,
   MARK_TRENCH,
@@ -55,10 +56,26 @@ function squadOf(what: string): AdminSquadDef | undefined {
 /** A short line for a scripted event in the panel's list. */
 function eventLabel(ev: MissionEventDef, index: number): string {
   const when = ev.when;
-  const at = 'at' in when ? ` at ${when.at}s` : 'every' in when ? ` every ${when.every}s` : 'trenchCapturedBy' in when ? ` on trench ${when.trenchId}` : ' on HQ damage';
+  const at =
+    'at' in when
+      ? ` at ${when.at}s`
+      : 'every' in when
+        ? ` every ${when.every}s`
+        : 'trenchCapturedBy' in when
+          ? ` on trench ${when.trenchId}`
+          : 'hqHpBelow' in when
+            ? ' on HQ damage'
+            : 'phaseEvery' in when
+              ? ` every ${when.phaseEvery}s of ${when.phase}`
+              : 'phase' in when
+                ? ` ${when.delay ?? 0}s into ${when.phase}`
+                : 'objective' in when
+                  ? ` on ${when.objective}`
+                  : ' on a trigger';
+  const names: Record<string, string> = { hint: 'Hint', announce: 'Announcement', banner: 'Banner', barrage: 'Barrage', airRaid: 'Air raid', income: 'Income', posture: 'Posture', support: 'Call-in', disguise: 'Disguise', reveal: 'Reveal', setOwner: 'Owner', endMission: 'End' };
   const what =
-    ev.type === 'wave' ? `Wave (${ev.side === 0 ? 'mine' : 'enemy'})` : ev.type === 'airdrop' ? `Airdrop (${ev.side === 0 ? 'mine' : 'enemy'})` : ev.type === 'hint' ? 'Hint' : 'Announcement';
-  return `${index + 1}. ${what}${at}`;
+    ev.type === 'wave' ? `Wave (${ev.side === 0 ? 'mine' : 'enemy'})` : ev.type === 'airdrop' ? `Airdrop (${ev.side === 0 ? 'mine' : 'enemy'})` : (names[ev.type] ?? ev.type);
+  return `${index + 1}. ${ev.id !== undefined ? `${ev.id}: ` : ''}${what}${at}`;
 }
 
 /** Add one debug mark (CSS x, MARK_* kind, owning side or -1) while there is room. */
@@ -140,7 +157,8 @@ export class AdminController implements AdminApi {
     const app = this.app;
     return {
       medals: app.save.medals,
-      missions: app.missions.map((m) => ({ id: m.id, title: m.title })),
+      // Every mission of every campaign on offer (the unlock adds the unreleased ones), so a jump can reach any.
+      missions: app.offered.flatMap((c) => c.missions.map((m) => ({ id: m.id, title: m.title }))),
       upgrades: app.upgradeDefs.map((d) => ({ id: d.id, name: d.name, level: app.save.upgrades[d.id] ?? 0, max: maxLevel(d) })),
       unlockedAll: app.missionsUnlocked,
       battle: this.battleInfo(),
@@ -172,7 +190,10 @@ export class AdminController implements AdminApi {
       hqInvincible: [mine.cheats.hqInvincible, enemy.cheats.hqInvincible],
       sideInvincible: [mine.cheats.invincible, enemy.cheats.invincible],
       events: session.mission.events.map((ev, index) => ({ index, label: eventLabel(ev, index) })),
-      names: [FACTIONS[mine.faction].unitNames, FACTIONS[enemy.faction].unitNames],
+      ...(s.director.count > 1
+        ? { phases: (session.mission.phases ?? []).map((p, index) => ({ id: p.id, label: `${index + 1}. ${p.title}`, current: index === s.director.phase })) }
+        : {}),
+      names: [missionEra(session.mission, mine.faction).names, missionEra(session.mission, enemy.faction).names],
     };
   }
 
@@ -186,10 +207,11 @@ export class AdminController implements AdminApi {
 
   private selected(): AdminSelected | null {
     const u = this.findUnit(this.selectedId);
-    if (!u) return null;
+    const session = this.app.session;
+    if (!u || !session) return null;
     return {
       id: u.id,
-      label: FACTIONS[u.faction].unitNames[u.kind],
+      label: unitDisplayName(missionEra(session.mission, u.faction), u.kind, u.look),
       side: u.side === 0 ? 'mine' : 'enemy',
       hp: Math.ceil(u.hp),
       maxHp: Math.ceil(u.maxHp),
@@ -255,6 +277,9 @@ export class AdminController implements AdminApi {
       case 'fireEvent':
         this.act({ type: 'fireEvent', index: command.index });
         break;
+      case 'jumpPhase':
+        this.act({ type: 'jumpPhase', phase: command.phase });
+        break;
       case 'restart':
         if (DIFFICULTY_LIST.includes(command.difficulty)) app.restartOn(command.difficulty);
         break;
@@ -263,6 +288,9 @@ export class AdminController implements AdminApi {
         break;
       case 'timeOfDay':
         app.adminDarkness = command.darkness === null ? null : Math.min(1, Math.max(0, command.darkness));
+        break;
+      case 'sky':
+        this.act({ type: 'sky', weather: command.weather, time: command.time, over: 10 });
         break;
       case 'place':
         this.placing = command.spec && app.session ? { ...command.spec } : null;
@@ -405,7 +433,7 @@ export class AdminController implements AdminApi {
     } catch {
       return false;
     }
-    const data = sanitizeSave(parsed, { missionIds: this.app.missions.map((m) => m.id), upgradeDefs: this.app.upgradeDefs });
+    const data = sanitizeSave(parsed, this.app.saveRules);
     if (!data) return false;
     this.app.replaceSave(data);
     return true;
@@ -466,7 +494,7 @@ export class AdminController implements AdminApi {
         if (hq) mark(out, (hq.doorX - left) * k, MARK_HQ, si);
         else mark(out, ((si === 0 ? 0 : s.length) - left) * k, MARK_EDGE, si);
       }
-      for (const t of s.trenches) mark(out, (t.x - left) * k, MARK_TRENCH, t.owner);
+      for (const t of s.trenches) mark(out, (t.x - left) * k, t.building >= 0 ? MARK_BUILDING : MARK_TRENCH, t.owner);
       for (const ev of session.mission.events) {
         if (ev.type !== 'wave') continue;
         for (const f of ev.forces) if (f.x !== undefined) mark(out, (f.x - left) * k, MARK_WAVE, ev.side);

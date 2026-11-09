@@ -2,16 +2,26 @@ import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
 
 /**
- * Stalingrad mission 8 (1008): the Tractor Factory, 14 October 1942 (docs/campaigns/STALINGRAD.md, mission 8).
- * A delay: the 37th Guards Rifle Division holds the Dzerzhinsky Tractor Factory against the 14th Panzer Division and
- * two infantry divisions from first light until dark. The yard (trench 1), the machine shops (trench 2), the foundry
- * (trench 3) and the assembly hall (trench 4) are held in turn, the T-34s straight off the line dug in among the
- * halls, while panzers and infantry come through the workers' settlement wave after wave.
+ * Stalingrad mission 8 (1008): the Tractor Factory, 14 October 1942 (docs/campaigns/STALINGRAD.md, mission 8). A delay:
+ * the 37th Guards Rifle Division holds the Dzerzhinsky Tractor Factory against the 14th Panzer Division and two
+ * infantry divisions from first light until dark. The yard (trench 1), the machine shops (B3), the foundry (B2) and the
+ * assembly hall (B1) are held in turn, the T-34s straight off the line dug in among the halls, while panzers and
+ * infantry come through the workers' settlement wave after wave.
  *
- * Built with today's schema (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the halls are trenches (no
- * buildings, floors or rubble yet), a 60 s prep phase comes first (the bot wires the gate), "lose if six get past the cliffs"
- * is the HQ, the loans are scripted waves, StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank`
- * kind, the Pak 40 crew the `at` kind. The attackers have no HQ, so they call in no Stukas.
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1008): the brief's delay, in three 420 s
+ * phases under the one clock to dark (the bombers, hall by hall, until dark), lost if six Germans get past the cliffs
+ * (x 2,000) at once. The halls are two-floor buildings (FOUNDATIONS.md 4.3), goods wagons in the yard are cover props
+ * (the snipers' post), the HQ a log dugout in the bank; the machine shops are the capture point P2 (held through B3), a
+ * forward spawn and the rally point Fall Back sends the men in the yard to; the ground is rubble throughout; a 60 s
+ * prep phase of wire, sandbags, AP mines, tank traps and road blocks comes first (FOUNDATIONS.md 4.6 and 4.8: the bot
+ * wires, mines and traps the yard and sandbags the machine shops); the barrage, the Stukas (scripted raids: the attackers have no HQ),
+ * the heavy bomb that brings down a floor of the machine shops and the Nebelwerfer are scripted; the loans are
+ * scripted waves. The mode stays `survival` (no enemy HQ, a winning clock) and the medals score it as a delay, with a
+ * kill bonus. StuG III Ausf. F, Panzer III J and L and Panzer IV Ausf. G are the `tank` kind (the era's Panzer III
+ * Ausf. L; `stug3f` and `panzer4g` by look), the Pak 40 crew the `at` kind.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): the stalingrad theatre; smoke over the works (visibility 0.85), brick dust
+ * after the heavy bomb (0.8), then smoke again as dusk and night fall in the last phase.
  */
 export const M1008: MissionDef = {
   id: 1008,
@@ -19,6 +29,8 @@ export const M1008: MissionDef = {
   title: 'The Tractor Factory',
   location: 'Dzerzhinsky Tractor Factory, Stalingrad',
   date: '14 October 1942',
+  dateIso: '1942-10-14',
+  climate: 'city',
   mapPos: { lon: 44.585, lat: 48.795 },
   briefing: [
     'Guards, in peacetime this works made tractors, and since before the war it has made tanks. Today it is a fortress, and we are its garrison. The bombers have been overhead since first light and there is a panzer division in the workers\' settlement, with two infantry divisions behind it.',
@@ -26,14 +38,29 @@ export const M1008: MissionDef = {
     'The sappers have wired the gaps and the yard. When a hall can no longer be held, fall back to the next one; the anti-tank rifles go where the tanks come. Hold until dark: every hour they spend here is an hour the rest of the bank holds.',
   ],
   objective: 'Hold the factory until dark. Do not let the Germans reach the river.',
-  theatre: 'italy',
+  intel: {
+    enemy: [
+      '14th Panzer and two infantry divisions, from the settlement',
+      'About 17 tanks: Panzer III, Panzer IV Ausf. G, StuG III',
+      'About 110 riflemen and MP40 troopers, 9 flamethrowers',
+      'Pioneers, a Pak 40, mortars; bombers overhead',
+    ],
+    friendly: [
+      '37th Guards: 8 riflemen, 8 PPSh troopers, 3 DPs, 2 snipers',
+      '2 T-34s dug in among the halls, 2 PTRD teams, 2 mortars',
+      'Flamethrowers and more PTRD teams come up later',
+      'Artillery, smoke and Katyusha from the far bank',
+    ],
+  },
+  theatre: 'stalingrad',
   timeOfDay: 'day',
+  weather: 'smoke',
   mode: 'survival',
   length: 14000,
   newUnit: null,
   newSupport: null,
   units: [
-    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'flame', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'flame', 'aa', 'commander', 'conscript'],
     ['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'at', 'flame', 'tank'],
   ],
   supports: [['artillery', 'smoke', 'katyusha'], []],
@@ -43,14 +70,17 @@ export const M1008: MissionDef = {
       hasHq: true,
       supplies: 450,
       hqHpMul: 1,
+      hqLook: 'logDugout',
       incomeMul: 1,
       sappers: 3,
       forces: [
         { kind: 'rifle', count: 8, trenchId: 1 },
-        { kind: 'assault', count: 8, trenchId: 2 },
-        { kind: 'at', count: 2, trenchId: 2 },
-        { kind: 'lmg', count: 3, trenchId: 3 },
-        { kind: 'sniper', count: 2, x: 6200 },
+        // The machine shops (B3) and the foundry (B2).
+        { kind: 'assault', count: 8, buildingId: 3 },
+        { kind: 'at', count: 2, buildingId: 3 },
+        { kind: 'lmg', count: 3, buildingId: 2 },
+        // The snipers among the goods wagons on the sidings.
+        { kind: 'sniper', count: 2, buildingId: 4, behaviour: 'garrison' },
         // The last two T-34s off the factory line, dug in among the halls.
         { kind: 'tank', count: 2, x: 6600, behaviour: 'guard' },
         // Loan from the start: two mortar teams.
@@ -70,27 +100,85 @@ export const M1008: MissionDef = {
   trenches: [
     // The factory yard and its sidings.
     { id: 1, x: 8000, width: 170, slots: 7, owner: 0 },
-    // The machine shops.
-    { id: 2, x: 6300, width: 210, slots: 8, owner: 0 },
-    // The foundry.
-    { id: 3, x: 5200, width: 210, slots: 8, owner: 0 },
-    // The assembly hall.
-    { id: 4, x: 3200, width: 260, slots: 10, owner: 0 },
   ],
+  buildings: [
+    // The assembly hall, the foundry and the machine shops (whose upper floor the heavy bomb brings in: at 900 hp one
+    // bomb on its own walls, 462, takes it below the 450 the upper floor needs and leaves the ground floor standing).
+    { id: 1, x: 3200, width: 260, floors: 2, slotsPerFloor: 10, hpMul: 2, owner: 0, look: 'factoryHall', spawn: true },
+    { id: 2, x: 5200, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 1.6, owner: 0, look: 'factoryHall' },
+    { id: 3, x: 6300, width: 210, floors: 2, slotsPerFloor: 8, hpMul: 0.6, owner: 0, look: 'factoryHall' },
+  ],
+  // Goods wagons on the sidings behind the yard trench.
+  props: [{ id: 4, x: 7450, width: 150, slots: 4, look: 'wagons', owner: 0 }],
   pillboxes: [],
   wire: [],
-  // A minute to wire the yard gate and the gap in front of the machine shops; the line is past half the field, so the
-  // zone is given.
+  // The brief's sectors (FOUNDATIONS.md 4.1): rubble from the cliffs to the workers' settlement.
+  sectors: [
+    { from: 0, to: 2000, ground: 'rubble', label: 'The Volga cliffs' },
+    { from: 2000, to: 4500, ground: 'rubble', label: 'Assembly hall' },
+    { from: 4500, to: 7000, ground: 'rubble', label: 'Machine shops' },
+    { from: 7000, to: 9500, ground: 'rubble', label: 'Factory yard' },
+    { from: 9500, to: 14000, ground: 'rubble', label: "Workers' settlement" },
+  ],
+  // The machine shops (FOUNDATIONS.md 4.5), held through the building B3. A forward
+  // spawn point, and the rally point Fall Back sends the men in the yard to.
+  capturePoints: [{ id: 'P2', x: 6300, width: 260, label: 'Machine shops', owner: 0, captureTime: 0, spawn: true, contestRadius: 500, structure: { building: 3 } }],
+  // A minute to wire, mine and trap the yard and sandbag the machine shops; the line is past half the field, so the zone
+  // is given.
   prep: {
     seconds: 60,
     zone: { from: 1000, to: 8600 },
+    buildables: ['wire', 'sandbags', 'minefield', 'tankTrap', 'roadBlock'],
     bot: [
-      { kind: 'wire', x: 8350 },
+      { kind: 'wire', x: 8180 },
+      { kind: 'tankTrap', x: 8535 },
+      { kind: 'minefield', x: 8350 },
+      { kind: 'sandbags', x: 6300 },
       { kind: 'wire', x: 6650 },
     ],
   },
   timer: { seconds: 1260, onExpire: 'win', label: 'Until dark' },
+  // The mission director (FOUNDATIONS.md 3): three phases of the brief (STALINGRAD.md, mission 8) on the old clock.
+  phases: [
+    {
+      id: 'bombers',
+      title: 'The bombers',
+      objectives: [{ id: 'bombers', type: 'survive', seconds: 420, text: 'Hold the factory' }],
+      lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
+      sideObjectives: [
+        { id: 'shops', text: 'The machine shops by night', objective: { id: 'shopsHeld', type: 'capture', point: { point: 'P2' } }, atEnd: true, bonus: 0.2 },
+        { id: 'tanks25', text: 'Twenty-five tanks', objective: { id: 'tanks25Dead', type: 'kill', side: 1, kinds: ['tank'], count: 25 }, bonus: 0.1 },
+      ],
+      next: 'halls',
+    },
+    {
+      id: 'halls',
+      title: 'Hall by hall',
+      objectives: [{ id: 'halls', type: 'survive', seconds: 420, text: 'Hold the halls' }],
+      lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
+      next: 'dark',
+    },
+    {
+      id: 'dark',
+      title: 'Until dark',
+      objectives: [{ id: 'dark', type: 'survive', seconds: 420, text: 'Until dark' }],
+      lose: [{ type: 'enemyReached', x: 2000, count: 6 }],
+      next: null,
+    },
+  ],
   events: [
+    // The director's events: the opening barrage and Stukas on the yard, the Stuka on the foundry, the heavy bomb on the
+    // machine shops, the Nebelwerfer at dusk.
+    { id: 'openingBarrage', type: 'barrage', when: { phase: 'bombers' }, side: 1, x: 8000, spread: 300, rounds: 8, duration: 5, weapon: 'artilleryShell', warning: 'Artillery!' },
+    { id: 'stukaYard', type: 'airRaid', when: { phase: 'bombers', delay: 2 }, side: 1, support: 'airStrike', x: 8000 },
+    { id: 'stukaFoundry', type: 'airRaid', when: { phase: 'bombers', delay: 150 }, side: 1, support: 'airStrike', x: 5200 },
+    { id: 'heavyBomb', type: 'barrage', when: { phase: 'halls', delay: 240 }, side: 1, x: 6300, spread: 60, rounds: 1, duration: 0, weapon: 'heavyBomb' },
+    // Smoke, the bomb's brick dust, then dusk and night (FOUNDATIONS.md 4.7).
+    { id: 'brickDust', type: 'weather', when: { phase: 'halls', delay: 242 }, to: 'dust', over: 20 },
+    { id: 'smokeAgain', type: 'weather', when: { phase: 'dark' }, to: 'smoke', over: 60 },
+    { id: 'dusk', type: 'time', when: { phase: 'dark' }, to: 'dusk', over: 120 },
+    { id: 'night', type: 'time', when: { phase: 'dark', delay: 200 }, to: 'night', over: 60 },
+    { id: 'nebelwerfer', type: 'barrage', when: { phase: 'dark', delay: 100 }, side: 1, x: 5200, spread: 300, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
     {
       type: 'hint',
       when: { at: 3 },
@@ -120,7 +208,7 @@ export const M1008: MissionDef = {
       when: { at: 230 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 2 },
+        { kind: 'tank', count: 2, look: 'panzer4g' },
         { kind: 'at', count: 1 },
         { kind: 'rifle', count: 8 },
         { kind: 'mortar', count: 2 },
@@ -142,7 +230,7 @@ export const M1008: MissionDef = {
     {
       type: 'hint',
       when: { at: 422 },
-      text: 'When a hall cannot be held, Fall Back and let the next hall fight. A trench lost is not the factory lost.',
+      text: 'When a hall cannot be held, Fall Back and let the next hall fight. A hall lost is not the factory lost.',
     },
     {
       type: 'wave',
@@ -160,7 +248,7 @@ export const M1008: MissionDef = {
       when: { every: 140, from: 480, until: 760 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3 },
+        { kind: 'tank', count: 3, look: 'stug3f' },
         { kind: 'rifle', count: 8 },
         { kind: 'assault', count: 4 },
         { kind: 'flame', count: 2 },
@@ -185,7 +273,7 @@ export const M1008: MissionDef = {
       when: { at: 1140 },
       side: 1,
       forces: [
-        { kind: 'tank', count: 3 },
+        { kind: 'tank', count: 3, look: 'panzer4g' },
         { kind: 'rifle', count: 6 },
       ],
       announce: 'The last tank push before dark!',

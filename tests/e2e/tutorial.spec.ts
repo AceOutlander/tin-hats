@@ -1,24 +1,23 @@
 /**
- * The campaign's tutorial tips in the built game, with real touches: a mission that brings a new unit says so with a
- * bubble over its button, which pulses; the tip ends when the player does the thing, a tip seen never comes back, the
+ * The campaign tips in the built game, with real touches, on Stalingrad's Klin (1004), which brings a new unit (the
+ * Sanitarka) and a new call-in (the Il-2 strike): the bubble with its arrow and the pulsing highlight on the new unit's
+ * button, the tip ending when the player does the thing (a real tap trains the unit), a tip that never comes back, its
  * close button, the hints setting, and bringing the tips back from the settings.
- * The guided course that mission 1 used to carry is Basic Training's now (src/data/tutorial.ts `trainingMission`;
- * tests/e2e/basic-training.spec.ts walks it): mission 1 keeps only its scripted hints, and its riflemen bring no tip.
+ * This spec played the British mission 1's guided tutorial until Basic Training took that over (src/data/tutorial.ts
+ * `trainingMission`; tests/e2e/basic-training.spec.ts walks through it) and the British missions were removed.
  * Pictures: docs/screenshots/e2e-tutorial-*.png
  */
 import type { Page } from '@playwright/test';
-import { MISSIONS } from '../../src/data/missions';
+import { missionEra } from '../../src/data/eras';
+import { getMission } from '../../src/data/missions';
 import type { MissionDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
-import { expect, grantSupplies, open, playThroughMenus, savedGame, setTimeScale, shot, state, tap, tapIn, test } from './helpers';
+import { expect, grantSupplies, open, playThroughMenus, savedGame, setTimeScale, shot, state, tap, tapIn, test, unlockAll } from './helpers';
 
 const TIPS_KEY = TUTORIAL.storageKey;
-
-/** The first campaign mission whose new unit has a tip (mission 2's Bren gunner today). */
-const UNIT_MISSION = MISSIONS.find((m) => m.newUnit !== null && TUTORIAL.newUnit.tips[m.newUnit] !== undefined) as MissionDef;
-/** The first that brings a unit and a call-in, each with its tip (mission 4's mortar and barrage today). */
-const BOTH_MISSION = MISSIONS.find((m) => m.newUnit !== null && TUTORIAL.newUnit.tips[m.newUnit] !== undefined && m.newSupport !== null) as MissionDef;
-const unitTip = (m: MissionDef): string => `new-unit-${m.newUnit}`;
+const KLIN = getMission(1004) as MissionDef;
+/** The new unit's name as the Red Army called it at Klin, in December 1941. */
+const MEDIC = missionEra(KLIN, KLIN.start[0].faction).names.medic;
 
 const bubble = (page: Page) => page.getByTestId('tip');
 
@@ -29,19 +28,8 @@ const seenTips = (page: Page) =>
     return text === null ? [] : (JSON.parse(text) as string[]);
   }, TIPS_KEY);
 
-/** A save that has won every mission before `m`, so `m` is open on the map and what it brings is new. */
-async function reached(page: Page, m: MissionDef): Promise<void> {
-  const ids = MISSIONS.filter((x) => x.id < m.id).map((x) => x.id);
-  await page.addInitScript((won) => {
-    if (window.localStorage.getItem('tinhats.save') !== null) return;
-    const cleared: Record<string, string[]> = {};
-    for (const id of won) cleared[String(id)] = ['normal'];
-    window.localStorage.setItem('tinhats.save', JSON.stringify({ version: 2, cleared, upgrades: {}, lastMission: won[won.length - 1] ?? 1, settings: { muted: false, difficulty: 'normal', hints: true } }));
-  }, ids);
-}
-
 /** The bubble is up, says `text`, and the control it points at pulses. `glow` is a selector for that control. */
-async function expectTip(page: Page, text: RegExp, glow: string): Promise<void> {
+async function expectTip(page: Page, text: RegExp | string, glow: string): Promise<void> {
   await expect(bubble(page)).toBeVisible({ timeout: 30_000 });
   await expect(bubble(page)).toContainText(text);
   await expect(page.locator(glow)).toHaveClass(/th-glow/);
@@ -68,21 +56,21 @@ async function waitForBattleTime(page: Page, seconds: number): Promise<void> {
   await expect.poll(async () => (await state(page)).time, { timeout: 60_000 }).toBeGreaterThanOrEqual(seconds);
 }
 
-const NEW_TIP = /^New: /;
+/** From the title, through the map (every mission opened by the debug hook) and the briefing, into Klin. */
+async function playKlin(page: Page): Promise<void> {
+  await unlockAll(page);
+  await playThroughMenus(page, KLIN.id, false);
+}
 
-test.describe('tutorial tips in the campaign', () => {
-  test('point at the new unit, end when one is trained, and never come back', async ({ page }) => {
-    if (!UNIT_MISSION?.newUnit) throw new Error('no campaign mission brings a unit with a tip');
-    const unit = UNIT_MISSION.newUnit;
-    const button = `[data-testid="train-${unit}"]`;
-    await reached(page, UNIT_MISSION);
+test.describe('campaign tips, Klin (1004)', () => {
+  test('point at the new unit with a pulsing bubble, end when it is trained, and never come back', async ({ page }) => {
     await open(page);
-    await playThroughMenus(page, UNIT_MISSION.id, false);
+    await playKlin(page);
 
-    // The bubble sits above the new unit's button, on the screen, with its arrow, and the button pulses.
-    await expectTip(page, NEW_TIP, button);
+    // The new unit: the bubble names it and sits above its button, on the screen, with its arrow; the button pulses.
+    await expectTip(page, MEDIC, '[data-testid="train-medic"]');
     {
-      const { tip, control, size } = await rects(page, button);
+      const { tip, control, size } = await rects(page, '[data-testid="train-medic"]');
       expect(tip.y + tip.height).toBeLessThanOrEqual(control.y + 1);
       expect(tip.x).toBeGreaterThanOrEqual(0);
       expect(tip.x + tip.width).toBeLessThanOrEqual(size.width);
@@ -96,61 +84,62 @@ test.describe('tutorial tips in the campaign', () => {
     await page.waitForTimeout(600);
     expect((await state(page)).time).toBeGreaterThan(t0);
 
-    // A real tap on the highlighted button does the thing and ends the tip.
+    // A real tap on the highlighted button does the thing (a medic is trained) and ends the tip.
     await grantSupplies(page, 500);
     const before = await state(page);
-    await tap(page, `train-${unit}`);
-    await expect(bubble(page)).toBeHidden();
-    await expect(page.locator('.th-glow')).toHaveCount(0);
-    await expect.poll(() => seenTips(page)).toContain(unitTip(UNIT_MISSION));
+    await tap(page, 'train-medic');
+    await expect.poll(() => seenTips(page)).toContain('new-unit-medic');
+    await expect(bubble(page)).not.toContainText(MEDIC);
     await expect
       .poll(async () => {
         const s = await state(page);
-        return s.units[0][unit] + s.queue[unit];
+        return s.units[0].medic + s.queue.medic;
       })
-      .toBeGreaterThan(before.units[0][unit] + before.queue[unit]);
+      .toBeGreaterThan(before.units[0].medic + before.queue.medic);
+
+    // Then the new call-in, after a short pause.
+    await expect(bubble(page)).toBeVisible({ timeout: 30_000 });
+    await expect(bubble(page)).toContainText(missionEra(KLIN, KLIN.start[0].faction).supportNames.airStrike);
+    await shot(page, 'tutorial-2-new-support');
 
     // Nothing the player has been through comes round again in a new battle.
     const seen = await seenTips(page);
     await page.evaluate(() => window.location.reload());
     await page.waitForFunction(() => (window as unknown as { __TH?: { ready: boolean } }).__TH?.ready === true, null, { timeout: 60_000 });
     expect(await seenTips(page)).toEqual(seen);
-    await playThroughMenus(page, UNIT_MISSION.id, false);
+    await playKlin(page);
     await setTimeScale(page, 4);
-    await waitForBattleTime(page, TUTORIAL.newUnit.startAfter + 12);
-    await expect(bubble(page)).toBeHidden();
+    await waitForBattleTime(page, 6);
+    expect(await seenTips(page)).toContain('new-unit-medic');
+    await expect(bubble(page)).not.toContainText(MEDIC);
     // The save itself holds no tutorial state.
     expect(await savedGame(page)).not.toHaveProperty('tips');
   });
 
   test('can be closed with its own button, and a closed tip does not come back', async ({ page }) => {
-    if (!BOTH_MISSION?.newUnit || !BOTH_MISSION.newSupport) throw new Error('no campaign mission brings a unit and a call-in');
-    await reached(page, BOTH_MISSION);
     await open(page);
-    await playThroughMenus(page, BOTH_MISSION.id, false);
-    await expectTip(page, NEW_TIP, `[data-testid="train-${BOTH_MISSION.newUnit}"]`);
-    const first = await bubble(page).textContent();
+    await playKlin(page);
+    await expectTip(page, MEDIC, '[data-testid="train-medic"]');
     const close = page.getByTestId('tip-dismiss');
     const box = await close.boundingBox();
     expect(box && box.width >= 47.5 && box.height >= 47.5, 'the close button is a full touch target').toBe(true);
     await close.tap();
     await expect(bubble(page)).toBeHidden();
     await expect(page.locator('.th-glow')).toHaveCount(0);
-    await expect.poll(() => seenTips(page)).toContain(unitTip(BOTH_MISSION));
-    // The next tip comes after a short pause, and it is a different one: the call-in's.
+    await expect.poll(() => seenTips(page)).toContain('new-unit-medic');
+    // The next tip comes after a short pause, and it is a different one: the call-in's, its button pulsing.
     await expect(bubble(page)).toBeVisible({ timeout: 20_000 });
-    await expect(bubble(page)).not.toHaveText(first ?? '');
+    await expect(bubble(page)).not.toContainText(MEDIC);
     await expect(page.locator('.th-glow')).toHaveCount(1);
   });
 
   test('is silent while the hints setting is off, and speaks again when it is switched on', async ({ page }) => {
-    await reached(page, UNIT_MISSION);
     await open(page);
     await tap(page, 'settings');
     await tap(page, 'setting-hints');
     await expect.poll(async () => (await savedGame(page))?.settings.hints).toBe(false);
     await backToTitle(page);
-    await playThroughMenus(page, UNIT_MISSION.id, false);
+    await playKlin(page);
     await setTimeScale(page, 4);
     await waitForBattleTime(page, 14);
     await expect(bubble(page)).toBeHidden();
@@ -159,16 +148,15 @@ test.describe('tutorial tips in the campaign', () => {
   });
 
   test('can be brought back from the settings', async ({ page }) => {
-    await reached(page, UNIT_MISSION);
     await open(page);
-    await page.evaluate(([key, id]) => window.localStorage.setItem(key, JSON.stringify([id])), [TIPS_KEY, unitTip(UNIT_MISSION)] as [string, string]);
+    await page.evaluate((key) => window.localStorage.setItem(key, JSON.stringify(['new-unit-medic', 'new-support-airStrike'])), TIPS_KEY);
     await page.reload();
     await page.waitForFunction(() => (window as unknown as { __TH?: { ready: boolean } }).__TH?.ready === true, null, { timeout: 60_000 });
     await tap(page, 'settings');
     await tap(page, 'setting-replay');
     expect(await seenTips(page)).toEqual([]);
     await backToTitle(page);
-    await playThroughMenus(page, UNIT_MISSION.id, false);
-    await expectTip(page, NEW_TIP, `[data-testid="train-${UNIT_MISSION.newUnit}"]`);
+    await playKlin(page);
+    await expectTip(page, MEDIC, '[data-testid="train-medic"]');
   });
 });

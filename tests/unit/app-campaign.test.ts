@@ -1,21 +1,29 @@
 /**
- * The campaign as the player meets it: the ten real missions and the real Quartermaster table, run through the app
- * controller with a fake view, audio and UI. Covers the flow (unlocking, upgrades, remembered choices) and the
- * in-battle wiring of the mission features (timers, banners, notices, hints, darkness, result reasons).
+ * The campaign as the player meets it: the ten real missions (Stalingrad, the game's campaign since the British
+ * placeholders were removed) and the real Quartermaster table, run through the app controller with a fake view, audio
+ * and UI. Covers the flow (unlocking, upgrades, remembered choices) and the in-battle wiring of the mission features
+ * (timers, banners, notices, hints, darkness, result reasons).
  */
 import { describe, expect, it } from 'vitest';
 import { App } from '../../src/app/app';
 import { describeEnd } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
-import { mapX, mapY } from '../../src/data/campaignMap';
+import { CAMPAIGN_MAP_VIEW, projection } from '../../src/data/campaignMap';
+import { STALINGRAD_MAP } from '../../src/data/campaignMapStalingrad';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
 import { UPGRADE_LEVEL_MEDALS, UPGRADES } from '../../src/data/upgrades';
 import { createMemoryStorage, loadSave, recordClear } from '../../src/meta';
+import { layoutPins } from '../../src/ui/screens/mapLayout';
 import { createFakeAudio, createFakeUi, createFakeView } from './app-helpers';
+import { FIELD } from './fixtures';
 
 /** Medals for Quartermaster levels 1, 2 and 3. */
 const [L1, L2, L3] = UPGRADE_LEVEL_MEDALS;
+
+/** The first mission (Brest, a survival with a prep phase) and the first assault with an enemy HQ and no prep (Dubno). */
+const FIRST = MISSIONS[0].id;
+const ASSAULT = 1002;
 
 function makeApp(storage = createMemoryStorage()) {
   const view = createFakeView();
@@ -41,23 +49,28 @@ describe('the campaign over the real missions', () => {
   it('lists the ten missions in order, only the first open', () => {
     const { app } = makeApp();
     const cards = app.campaign().missions;
-    expect(cards.map((c) => c.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(cards.map((c) => c.id)).toEqual([1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]);
     expect(cards.map((c) => c.unlocked)).toEqual([true, false, false, false, false, false, false, false, false, false]);
     expect(cards.every((c) => c.briefing.length > 0 && c.objective.length > 0 && c.title.length > 0)).toBe(true);
   });
 
-  it('places every mission on the map, apart from each other, in the order of the route', () => {
+  it('places every mission on the map, apart from each other once laid out, in the order of the route', () => {
     const { app } = makeApp();
-    const spots = app.campaign().missions.map((c) => ({ x: mapX(c.mapPos.lon), y: mapY(c.mapPos.lat) }));
-    for (const s of spots) {
-      expect(s.x).toBeGreaterThanOrEqual(0);
-      expect(s.x).toBeLessThanOrEqual(1);
-      expect(s.y).toBeGreaterThanOrEqual(0);
-      expect(s.y).toBeLessThanOrEqual(1);
+    const proj = projection(STALINGRAD_MAP.bounds);
+    const cards = app.campaign().missions;
+    for (const c of cards) {
+      expect(proj.x(c.mapPos.lon)).toBeGreaterThanOrEqual(0);
+      expect(proj.x(c.mapPos.lon)).toBeLessThanOrEqual(1);
+      expect(proj.y(c.mapPos.lat)).toBeGreaterThanOrEqual(0);
+      expect(proj.y(c.mapPos.lat)).toBeLessThanOrEqual(1);
     }
-    for (let i = 0; i < spots.length; i++) {
-      for (let j = i + 1; j < spots.length; j++) {
-        expect(Math.hypot(spots[i].x - spots[j].x, spots[i].y - spots[j].y), `missions ${i + 1} and ${j + 1}`).toBeGreaterThan(0.004);
+    // The four city markers sit a few streets apart: the layout pushes them a full touch apart, with leaders back.
+    const lay = layoutPins(cards.map((c) => c.mapPos.lon), cards.map((c) => c.mapPos.lat), 600, 390, proj);
+    for (let i = 0; i < cards.length; i++) {
+      for (let j = i + 1; j < cards.length; j++) {
+        expect(Math.hypot(lay.xs[i] - lay.xs[j], lay.ys[i] - lay.ys[j]), `missions ${cards[i].id} and ${cards[j].id}`).toBeGreaterThan(
+          CAMPAIGN_MAP_VIEW.pinSeparationPx - 1,
+        );
       }
     }
   });
@@ -65,9 +78,9 @@ describe('the campaign over the real missions', () => {
   it('introduces the new units and supports the campaign promises', () => {
     const { app } = makeApp();
     const cards = app.campaign().missions;
-    expect(cards.map((c) => c.newUnit?.kind ?? null)).toEqual(['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', null, 'aa']);
-    expect(cards.map((c) => (c.moreNewUnits ?? []).map((u) => u.kind))).toEqual([[], [], [], [], ['commander'], ['flame'], [], ['apc'], [], []]);
-    expect(cards.map((c) => c.newSupport?.kind ?? null)).toEqual([null, null, null, 'artillery', null, 'smoke', null, null, null, 'airStrike']);
+    expect(cards.map((c) => c.newUnit?.kind ?? null)).toEqual(['lmg', 'tank', 'assault', 'medic', 'flame', 'sniper', 'commander', null, 'apc', null]);
+    expect(cards.map((c) => (c.moreNewUnits ?? []).map((u) => u.kind))).toEqual([['at'], ['mortar'], [], ['conscript'], [], ['aa'], [], [], [], []]);
+    expect(cards.map((c) => c.newSupport?.kind ?? null)).toEqual([null, null, 'katyusha', 'airStrike', null, null, null, null, 'recon', 'bomber']);
     for (const c of cards) {
       if (c.newUnit) {
         expect(c.newUnit.name.length).toBeGreaterThan(0);
@@ -75,32 +88,23 @@ describe('the campaign over the real missions', () => {
       }
       if (c.newSupport) expect(c.newSupport.blurb.length).toBeGreaterThan(0);
     }
-    expect(cards[6].newUnit?.name).toBe('PIAT Team');
-    expect(cards[7].newUnit?.name).toContain('Churchill');
+    // The Red Army's names for them.
+    expect(cards[0].newUnit?.name).toBe('DP Gunner');
+    expect(cards[1].newUnit?.name).toBe('T-34');
   });
 
-  it('puts the missions in the theatres of the specification', () => {
+  it('puts the missions on the backdrops the mission data asks for', () => {
     const { app } = makeApp();
-    expect(app.campaign().missions.map((c) => c.theatre)).toEqual([
-      'france',
-      'france',
-      'desert',
-      'desert',
-      'sicily',
-      'italy',
-      'normandy',
-      'france',
-      'holland',
-      'germany',
-    ]);
+    expect(app.campaign().missions.map((c) => c.theatre)).toEqual(MISSIONS.map((m) => m.theatre));
+    for (const c of app.campaign().missions) expect(c.theatre.length, `mission ${c.id}`).toBeGreaterThan(0);
   });
 
   it('opens each mission only when the one before it is cleared, on any difficulty', () => {
     const { app } = makeApp();
-    recordClear(app.save, 1, 'insane');
+    recordClear(app.save, 1001, 'insane');
     expect(app.campaign().missions.map((c) => c.unlocked).slice(0, 3)).toEqual([true, true, false]);
     // Clearing mission 3 without mission 2 does not open mission 4 (the save checker would drop that anyway).
-    recordClear(app.save, 3, 'normal');
+    recordClear(app.save, 1003, 'normal');
     expect(app.campaign().missions[3].unlocked).toBe(true);
     expect(app.campaign().missions[2].unlocked).toBe(false);
     expect(app.campaign().missions[0].cleared).toEqual({ normal: false, hard: false, insane: true });
@@ -129,7 +133,7 @@ describe('upgrades in the campaign', () => {
   // Since medals, a clear pays nothing by itself: wins pay medals (meta-medals.test.ts), and the Quartermaster spends them.
   it('pays nothing for a clear alone: the Quartermaster spends medals', () => {
     const { app } = makeApp();
-    recordClear(app.save, 1, 'normal');
+    recordClear(app.save, FIRST, 'normal');
     expect(app.campaign().pointsAvailable).toBe(0);
     app.save.medals = 35;
     expect(app.campaign().pointsAvailable).toBe(35);
@@ -166,13 +170,13 @@ describe('upgrades in the campaign', () => {
     app.save.medals = L1 + L2;
     app.buyUpgrade('hqHealth');
     app.buyUpgrade('hqHealth');
-    app.startMission(1, 'normal');
+    app.startMission(ASSAULT, 'normal');
     const upgraded = app.session;
     expect(upgraded?.battle.config.upgrades).toEqual({ hqHealth: 2 });
     const hq = upgraded?.battle.state.sides[0].hq;
 
     app.refundAll();
-    app.startMission(1, 'normal');
+    app.startMission(ASSAULT, 'normal');
     const plain = app.session?.battle.state.sides[0].hq;
     expect(app.session?.battle.config.upgrades).toEqual({});
     // Sandbagged HQ level 2 is +24% health.
@@ -181,11 +185,18 @@ describe('upgrades in the campaign', () => {
 
   it('keeps upgrades off the enemy and out of the next battle once refunded', () => {
     const { app } = makeApp();
+    app.startMission(ASSAULT, 'normal');
+    const before = app.session?.battle.state.sides.map((s) => s.hq?.maxHp ?? 0) ?? [];
     app.save.medals = L1;
     app.buyUpgrade('hqHealth');
-    app.startMission(1, 'normal');
-    const sides = app.session?.battle.state.sides;
-    expect(sides && sides[0].hq && sides[1].hq ? sides[0].hq.maxHp / sides[1].hq.maxHp : 0).toBeGreaterThan(1.1);
+    app.startMission(ASSAULT, 'normal');
+    const upgraded = app.session?.battle.state.sides.map((s) => s.hq?.maxHp ?? 0) ?? [];
+    expect(upgraded[0] / before[0]).toBeGreaterThan(1.1);
+    expect(upgraded[1]).toBe(before[1]);
+    expect(before[1]).toBeGreaterThan(0);
+    app.refundAll();
+    app.startMission(ASSAULT, 'normal');
+    expect(app.session?.battle.state.sides[0].hq?.maxHp).toBe(before[0]);
   });
 
   it('sets levels for the tests: unknown upgrades dropped, levels capped, no medals needed', () => {
@@ -202,7 +213,7 @@ describe('upgrades in the campaign', () => {
 describe('choices that are remembered', () => {
   it('remembers the difficulty a mission was started on, and survives a reload', () => {
     const { app, storage } = makeApp();
-    app.startMission(1, 'insane');
+    app.startMission(FIRST, 'insane');
     expect(app.campaign().settings.difficulty).toBe('insane');
     const reloaded = new App({ view: createFakeView(), audio: createFakeAudio(), storage });
     expect(reloaded.campaign().settings.difficulty).toBe('insane');
@@ -212,17 +223,17 @@ describe('choices that are remembered', () => {
     const { app, storage } = makeApp();
     expect(app.campaign().lastMission).toBe(0);
     app.unlockAll();
-    app.startMission(3, 'normal');
-    expect(app.campaign().lastMission).toBe(3);
+    app.startMission(1003, 'normal');
+    expect(app.campaign().lastMission).toBe(1003);
     const reloaded = new App({ view: createFakeView(), audio: createFakeAudio(), storage });
-    expect(reloaded.campaign().lastMission).toBe(3);
+    expect(reloaded.campaign().lastMission).toBe(1003);
   });
 
   it('does not remember the proving ground, which is not in the campaign', () => {
     const { app } = makeApp();
-    app.startMission(1, 'normal');
-    app.beginUnlisted({ ...mission(1), id: 99, key: 'ground' }, 'normal');
-    expect(app.campaign().lastMission).toBe(1);
+    app.startMission(FIRST, 'normal');
+    app.beginUnlisted({ ...mission(FIRST), id: 99, key: 'ground' }, 'normal');
+    expect(app.campaign().lastMission).toBe(FIRST);
   });
 
   it('boots to a fresh game on a damaged or impossible save', () => {
@@ -239,9 +250,10 @@ describe('choices that are remembered', () => {
   });
 });
 
-/** Mission 2 (survival, no enemy HQ) with the scripted events replaced by ones the test controls. */
+/** The first mission (Brest: survival, no enemy HQ) with the scripted events replaced by ones the test controls, and no prep phase. */
 function scripted(events: MissionEventDef[], hints = true) {
-  const m: MissionDef = structuredClone(mission(2));
+  const m: MissionDef = structuredClone(mission(FIRST));
+  delete m.prep;
   m.events = events;
   m.start[0].forces = [];
   m.start[1].forces = [];
@@ -301,12 +313,12 @@ describe('mission events in the battle', () => {
 describe('what the HUD shows of a mission', () => {
   it('shows the clock of a survival mission and no enemy HQ, and a clock that turns urgent in the last 30 seconds', () => {
     const { app, view } = makeApp();
-    app.startMission(2, 'normal');
+    app.startMission(FIRST, 'normal');
     view.frame?.(100);
     const hud = app.session?.hud.state;
     expect(hud?.enemyHqHp).toBeNull();
-    expect(hud?.timer?.label).toBe(mission(2).timer?.label);
-    expect(hud?.timer?.secondsLeft).toBeGreaterThan((mission(2).timer?.seconds ?? 0) - 5);
+    expect(hud?.timer?.label).toBe(mission(FIRST).timer?.label);
+    expect(hud?.timer?.secondsLeft).toBeGreaterThan((mission(FIRST).timer?.seconds ?? 0) - 5);
     expect(hud?.timer?.urgent).toBe(false);
     const battle = app.session?.battle;
     if (battle?.state.timer) battle.state.timer.secondsLeft = APP.timerUrgentSeconds;
@@ -316,26 +328,38 @@ describe('what the HUD shows of a mission', () => {
 
   it('shows the enemy HQ and no clock in an ordinary assault', () => {
     const { app, view } = makeApp();
-    app.startMission(1, 'normal');
+    app.startMission(ASSAULT, 'normal');
     view.frame?.(100);
     expect(app.session?.hud.state.enemyHqHp).toBeGreaterThan(0);
     expect(app.session?.hud.state.timer).toBeNull();
   });
 
-  it('offers every unlocked type in every mission (no sapper button at Arnhem, which has no money)', () => {
-    const { app } = makeApp();
+  it('offers every unlocked type in every mission (and no sapper button in a mission with no money)', () => {
+    // A mission that lives on airdrops, as the old Arnhem did: no sappers in its list and no income.
+    const noMoney: MissionDef = structuredClone(mission(ASSAULT));
+    noMoney.id = 1099;
+    noMoney.key = 'noMoney';
+    noMoney.units[0] = noMoney.units[0].filter((k) => k !== 'sapper');
+    noMoney.start[0] = { ...noMoney.start[0], sappers: 0, incomeMul: 0 };
+    const app = new App({ view: createFakeView(), audio: createFakeAudio(), storage: createMemoryStorage(), missions: [...MISSIONS, noMoney], random: () => 0.25 });
+    app.attachUi(createFakeUi());
     // The whole campaign cleared, so everything unlocked: no mission rules an unlocked type out (owner, 2026-11-08),
-    // mission 1 and Arnhem included.
-    for (const m of MISSIONS) recordClear(app.save, m.id, 'normal');
-    app.startMission(1, 'normal');
+    // the first mission and the one without money included.
+    for (const m of [...MISSIONS, noMoney]) recordClear(app.save, m.id, 'normal');
+    app.startMission(FIRST, 'normal');
     const first = app.session?.hud.state.train.map((b) => b.kind) ?? [];
     expect(first).toEqual(expect.arrayContaining(['sapper', 'rifle', 'lmg', 'tank', 'flame', 'apc']));
-    app.startMission(9, 'normal');
+    for (const m of MISSIONS) {
+      app.startMission(m.id, 'normal');
+      const own = app.session?.hud.state.train.map((b) => b.kind) ?? [];
+      for (const k of m.units[0]) expect(own, `mission ${m.id}`).toContain(k);
+    }
+    app.startMission(noMoney.id, 'normal');
     const kinds = app.session?.hud.state.train.map((b) => b.kind) ?? [];
     expect(kinds.length).toBeGreaterThan(0);
     expect(kinds).not.toContain('sapper');
     expect(kinds).toContain('tank');
-    for (const k of mission(9).units[0]) expect(kinds).toContain(k);
+    for (const k of noMoney.units[0]) expect(kinds).toContain(k);
   });
 
   // Units are unlocked by missions again (owner, 2026-11-09): a mission fields its own types, and every type of every
@@ -346,36 +370,61 @@ describe('what the HUD shows of a mission', () => {
       app.startMission(id, 'normal');
       return app.session?.hud.state.train.map((b) => b.kind) ?? [];
     };
-    const ownLmg = mission(2)
+    const ownLmg = mission(ASSAULT)
       .start[0].forces.filter((f) => f.kind === 'lmg')
       .reduce((n, f) => n + f.count, 0);
-    expect(trained(1)).toEqual(['sapper', 'rifle']);
-    expect(trained(2)).toEqual(['sapper', 'rifle', 'lmg']);
+    expect(trained(FIRST)).toEqual(['sapper', 'rifle', 'lmg', 'at']);
+    expect(trained(ASSAULT)).toEqual(['sapper', 'rifle', 'lmg', 'mortar', 'at', 'tank']);
     expect(app.session?.battle.state.sides[0].alive.lmg).toBe(ownLmg);
     // Units cannot be bought.
     app.save.medals = 1000;
     app.buyArmoury('tank');
     expect(app.save.medals).toBe(1000);
-    expect(trained(1)).toEqual(['sapper', 'rifle']);
-    // Missions 1 to 3 cleared: mission 4 is reached, so its types field everywhere, the tutorial mission included.
-    for (const id of [1, 2, 3]) recordClear(app.save, id, 'normal');
-    expect(trained(1)).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar']);
+    expect(trained(FIRST)).toEqual(['sapper', 'rifle', 'lmg', 'at']);
+    // Missions 1 to 3 cleared: mission 4 is reached, so its types field everywhere, the first mission included.
+    for (const id of [1001, 1002, 1003]) recordClear(app.save, id, 'normal');
+    expect(trained(FIRST)).toEqual(['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'medic', 'at', 'tank']);
   });
 
   it('lists the supports the mission gives the player', () => {
     const { app } = makeApp();
-    app.startMission(4, 'normal');
+    app.startMission(ASSAULT, 'normal');
     expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('artillery');
-    app.startMission(10, 'normal');
+    app.startMission(1003, 'normal');
+    // The Katyusha comes up behind the halt in phase 2, the Il-2s fly from phase 3 at Klin (support events,
+    // FOUNDATIONS.md 3.3): their buttons come with them.
+    expect(app.session?.hud.state.supports.map((b) => b.kind)).not.toContain('katyusha');
+    app.session?.battle.admin({ type: 'jumpPhase', phase: 'again' });
+    app.session?.battle.step();
+    app.session?.fill(false, false);
+    expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('katyusha');
+    app.startMission(1004, 'normal');
+    app.session?.battle.admin({ type: 'jumpPhase', phase: 'highway' });
+    app.session?.battle.step();
+    app.session?.fill(false, false);
     expect(app.session?.hud.state.supports.map((b) => b.kind)).toContain('airStrike');
   });
 });
 
-/** A copy of a mission with its clock set to `seconds`. */
+/** A copy of a mission with its clock set to `seconds` (and no prep phase before it). */
 function shortClock(id: number, seconds: number): MissionDef {
   const m: MissionDef = structuredClone(mission(id));
   if (!m.timer) throw new Error(`mission ${id} has no clock`);
   m.timer.seconds = seconds;
+  delete m.prep;
+  m.events = [];
+  m.start[0].forces = [];
+  m.start[1].forces = [];
+  return m;
+}
+
+/**
+ * A deadline mission: the test field (./fixtures.ts) with a clock that loses when it runs out. No Stalingrad mission
+ * has a deadline, but the engine and the HUD still play one (the old Primosole had one).
+ */
+function shortDeadline(seconds: number): MissionDef {
+  const m: MissionDef = structuredClone(FIELD);
+  m.timer = { seconds, onExpire: 'lose', label: 'Nightfall' };
   m.events = [];
   m.start[0].forces = [];
   m.start[1].forces = [];
@@ -395,25 +444,25 @@ function playOut(m: MissionDef) {
 
 describe('the end of a timed mission', () => {
   it('darkens a deadline mission toward night as the clock runs down, and not a survival mission', () => {
-    const deadline = playOut(shortClock(5, 20));
+    const deadline = playOut(shortDeadline(20));
     const dark = deadline.view.darkness;
     expect(dark[0]).toBe(0);
     for (let i = 1; i < dark.length; i++) expect(dark[i]).toBeGreaterThan(dark[i - 1]);
     expect(dark[dark.length - 1]).toBeGreaterThan(0.9);
 
-    const survival = playOut(shortClock(2, 20));
+    const survival = playOut(shortClock(FIRST, 20));
     expect(survival.view.darkness).toEqual([0]);
   });
 
   it('says why: time ran out on a deadline (a loss), and the line held in a survival (a win)', () => {
-    const lost = playOut(shortClock(5, 20));
+    const lost = playOut(shortDeadline(20));
     const loss = lost.ui.results[0];
     expect(loss.won).toBe(false);
     expect(lost.app.session?.battle.state.endReason).toBe('timerExpired');
-    expect(loss.reason).toBe(`${mission(5).timer?.label} came before the enemy HQ was destroyed`);
+    expect(loss.reason).toBe('Nightfall came before the enemy HQ was destroyed');
     expect(lost.app.campaign().missions[0].cleared.normal).toBe(false);
 
-    const won = playOut(shortClock(2, 20));
+    const won = playOut(shortClock(FIRST, 20));
     const win = won.ui.results[0];
     expect(win.won).toBe(true);
     expect(won.app.session?.battle.state.endReason).toBe('timerSurvived');

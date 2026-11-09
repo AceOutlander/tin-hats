@@ -139,14 +139,14 @@ describe('signature kinds', () => {
 });
 
 describe('the campaign registry (FOUNDATIONS.md section 6)', () => {
-  it('lists Stalingrad (Soviet, missions 1001 to 1010, unreleased) and the British campaign', () => {
+  it('lists Stalingrad (Soviet, missions 1001 to 1010, released), the only campaign since the British placeholders went', () => {
     expect([...CAMPAIGN_IDS].sort()).toEqual(Object.keys(CAMPAIGNS).sort());
     const s = CAMPAIGNS.stalingrad;
     expect(s.nation).toBe('soviet');
     expect(s.missionRange).toEqual({ first: 1001, last: 1010 });
     expect(s.missionIds).toEqual([1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]);
-    expect(s.released).toBe(false);
-    expect(CAMPAIGNS.british.nation).toBe('british');
+    expect(s.released).toBe(true);
+    expect(CAMPAIGN_IDS).toEqual(['stalingrad']);
   });
 
   it('keeps every campaign’s missions inside its own id range, the ranges apart, and ids the save format accepts', () => {
@@ -162,9 +162,10 @@ describe('the campaign registry (FOUNDATIONS.md section 6)', () => {
         expect(campaignOf(m)).toBe(id);
       }
     }
-    for (const a of CAMPAIGN_IDS) {
-      for (const b of CAMPAIGN_IDS) {
-        if (a === b) continue;
+    for (let i = 0; i < CAMPAIGN_IDS.length; i++) {
+      for (let j = 0; j < CAMPAIGN_IDS.length; j++) {
+        if (i === j) continue;
+        const [a, b] = [CAMPAIGN_IDS[i], CAMPAIGN_IDS[j]];
         const ra = CAMPAIGNS[a].missionRange;
         const rb = CAMPAIGNS[b].missionRange;
         expect(ra.last < rb.first || rb.last < ra.first, `${a} and ${b} overlap`).toBe(true);

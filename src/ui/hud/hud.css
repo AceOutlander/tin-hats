@@ -404,6 +404,28 @@
   animation: th-pulse 0.8s ease-in-out infinite;
 }
 
+/* The mission director's phase line (FOUNDATIONS.md 3.4): a smaller plate under the objective, only in a mission of
+   several phases. One line; a long objective is cut with an ellipsis rather than pushing the plate wider. */
+.th-obj-phase {
+  display: none;
+  max-width: min(100%, 46vw);
+  padding: 2px 10px 3px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--th-brass);
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-center.has-phase .th-obj-phase {
+  display: block;
+}
+
 .th-target {
   display: none;
   align-items: stretch;
@@ -839,6 +861,14 @@
   visibility: hidden;
 }
 
+/* Grounded by the weather or the night: a short word in place of the clock. */
+.th-sbtn.is-grounded .th-sbtn-sec {
+  font-size: calc(var(--sbtn) * 0.26);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--th-paper-dim);
+}
+
 .th-sbtn:not(.is-ready) .th-sbtn-name {
   color: var(--th-paper-dim);
 }
@@ -953,6 +983,72 @@
 .th-trainwrap.more-l .th-more-l,
 .th-trainwrap.more-r .th-more-r {
   opacity: 1;
+}
+
+/*
+ * "Deploy at" (FOUNDATIONS.md 4.5): a small tab on the training bar's top edge, so the bar keeps its size. It sits at
+ * the bar's right end: the left end has the call-ins toggle above it.
+ */
+.th-deploy {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 3px);
+  max-width: calc(100% - 12px);
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  color: var(--th-brass);
+  font-size: var(--fs-s);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-deploy[hidden] {
+  display: none;
+}
+
+.th-deploy.is-closed {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* "Clear" (FOUNDATIONS.md 4.6 and 4.8): the same tab, stacked above "Deploy at" when both show. */
+.th-clear {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 3px);
+  max-width: calc(100% - 12px);
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  color: var(--th-brass);
+  font-size: var(--fs-s);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-clear.is-stacked {
+  bottom: calc(100% + 36px);
+}
+
+.th-clear[hidden] {
+  display: none;
+}
+
+.th-clear.is-busy {
+  opacity: 0.6;
 }
 
 /* Buttons give up a few pixels (never below 54) before the bar starts to scroll. */
@@ -1546,6 +1642,43 @@
   font-size: clamp(22px, 7vh, 34px);
   letter-spacing: 0.22em;
   color: var(--th-brass);
+}
+
+/* The side objectives on the pause screen: ticked when earned, struck through when failed. */
+.th-pause-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-s);
+  letter-spacing: 0.05em;
+}
+
+.th-pause-objectives:empty {
+  display: none;
+}
+
+.th-pause-objectives-title {
+  color: var(--th-brass);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: var(--fs-xs);
+}
+
+.th-pause-objective::before {
+  content: '\25A1\00A0';
+}
+
+.th-pause-objective.is-done {
+  color: var(--th-good);
+}
+
+.th-pause-objective.is-done::before {
+  content: '\2713\00A0';
+}
+
+.th-pause-objective.is-failed {
+  color: var(--th-bad);
+  text-decoration: line-through;
 }
 
 .th-pbtn {

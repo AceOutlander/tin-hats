@@ -69,8 +69,10 @@ describe('loading a save never throws', () => {
       result = loadSave(storage);
     }).not.toThrow();
     expect(result?.status).toBe('repaired');
-    expect(result?.data.cleared).toEqual({ '1': ['normal'], '2': ['normal', 'hard'] });
-    expect(result?.data.lastMission).toBe(2);
+    // The British clears are kept, archived by version 10 (those missions are gone, so the map opens on the first).
+    expect(result?.data.legacy?.cleared).toEqual({ '1': ['normal'], '2': ['normal', 'hard'] });
+    expect(result?.data.cleared).toEqual({});
+    expect(result?.data.lastMission).toBe(0);
     expect(result?.data.settings).toEqual(defaultSettings());
     expect(result?.data.version).toBe(META.saveVersion);
     // The save as it was is kept aside, so the next write does not destroy it.
@@ -155,7 +157,9 @@ describe('loading a save never throws', () => {
         expect(typeof s.hints).toBe('boolean');
         expect(typeof s.reduceFlash).toBe('boolean');
         expect(['normal', 'hard', 'insane']).toContain(s.difficulty);
-        expect(result?.data.cleared).toEqual({ '1': ['normal'] });
+        // The progress is kept: as it is in a current save, archived with the British missions in an older one.
+        expect({ ...result?.data.cleared, ...result?.data.legacy?.cleared }).toEqual({ '1': ['normal'] });
+        expect(result?.data.cleared).toEqual(version < 10 ? {} : { '1': ['normal'] });
       }
     }
   });

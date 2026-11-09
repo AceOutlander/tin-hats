@@ -8,7 +8,7 @@ import { AdminController } from './app/admin';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
-import { browserStorage, createIconPainter, createUpgradePainter, installPageGuards } from './app/page';
+import { browserStorage, createFlagPainter, createIconPainter, createUpgradePainter, installPageGuards, showUnreleased } from './app/page';
 import { withStorageFallback } from './meta';
 import { registerServiceWorker } from './pwa';
 import { createBattleView } from './render';
@@ -32,7 +32,7 @@ async function boot(): Promise<void> {
   // again on an empty store.
   const app = withStorageFallback(
     browserStorage(),
-    (storage) => new App({ view, audio, storage }),
+    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV) }),
     (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
   );
   // The hidden admin panel: nothing of it shows until the secret entry and the code (src/ui/admin).
@@ -40,6 +40,7 @@ async function boot(): Promise<void> {
   const ui = createUi(uiEl, app, {
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
+    paintFlag: createFlagPainter(),
     createHud,
     onScreen: (screen) => {
       app.onScreen(screen);

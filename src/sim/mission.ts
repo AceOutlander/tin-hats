@@ -4,18 +4,21 @@
  */
 import { CONFIG } from '../data/config';
 import type { ForceDef, MissionEventDef, Side } from '../data/schema';
-import { releaseAll } from './control';
+import { buildingTrenchId, refTrenchId } from './buildings';
+import { checkDirector, directorTrigger, endBattle, enterPhase, fireDirectorEvent, pointOwner, setOwner, updateDirector } from './director';
 import { inPrep, missionTime } from './prep';
 import { KIND_DEFS, KIND_INDEX, KIND_SAPPER } from './tables';
+import { deployX } from './points';
 import { claimSlot, enterSlot } from './trenches';
-import type { EndReason } from './types';
 import { makeVeteran, spawnUnit } from './units';
+import { boardFerry, ferryFor } from './water';
 import type { World } from './world';
 
 /**
  * Spawn one group of units. Where they appear:
  * - `x` given: there, one spacing apart going back;
- * - `trenchId` given: seated in that trench's free slots (taking it for the side), the rest just behind it;
+ * - `trenchId` (or `buildingId`) given: seated in that trench's (building's) free slots (taking it for the side), the
+ *   rest just behind it;
  * - otherwise at the HQ door, or at the map edge for a side with no HQ.
  * At mission start, army units with no position stand ready in the hold formation instead.
  * Units of a side with no HQ (survival attackers) default to 'assault': they always advance.
@@ -29,7 +32,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   const dir = si === 0 ? 1 : -1;
   const kindIndex = KIND_INDEX[force.kind];
   const def = KIND_DEFS[kindIndex];
-  const behaviour = force.behaviour ?? (side.hq ? 'army' : 'assault');
+  const behaviour = force.behaviour ?? (force.leash !== undefined ? 'guard' : side.hq ? 'army' : 'assault');
   const count = atStart ? force.count : Math.max(1, Math.round(force.count * w.mods[si].wave));
   const capped = !atStart && side.hq !== null;
   const edge = si === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
@@ -38,6 +41,42 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   let step = (dir * CONFIG.spacing) / 2;
   let inFormation = atStart && behaviour === 'army' && side.hq !== null;
   let trench = -1;
+  // A wave sent to a ferry landing the side holds (or a point beyond one) waits for the next boat (FOUNDATIONS.md 4.4).
+  let ferry = -1;
+  // A building's window slots are its slot record's (src/sim/buildings.ts).
+  const seatId = force.trenchId ?? (force.buildingId !== undefined ? buildingTrenchId(force.buildingId) : undefined);
+  // A forward spawn point the side holds (ForceDef.at): just behind it, going back.
+  if (force.x === undefined && seatId === undefined && force.at !== undefined && pointOwner(s, force.at) === si) {
+    const at = force.at;
+    if ('point' in at) {
+      // A capture point: just behind its zone, where trained units deploy.
+      const k = s.points.findIndex((p) => p.id === at.point);
+      if (k >= 0) baseX = deployX(w, si, k);
+      if (k >= 0 && !atStart) ferry = ferryFor(w, si, k);
+    } else {
+      // A trench, or a building by its slot record (src/sim/buildings.ts).
+      const atId = refTrenchId(at);
+      for (let i = 0; i < s.trenches.length; i++) {
+        if (s.trenches[i].id === atId) baseX = s.trenches[i].x - dir * (w.trenchHalf[i] + CONFIG.trenchFormGap);
+      }
+    }
+    step = -dir * CONFIG.spacing;
+    inFormation = false;
+  }
+  if (force.x === undefined && seatId === undefined && !atStart && ferry < 0) {
+    // The same rule for a wave at the HQ door, the map edge or a spawn point (the 1004 counter-attack): if its leading
+    // man would stand at or behind the other side's line, the wave forms up just ahead of that line, going back, and
+    // is cut off when there is no ground left.
+    const gap = CONFIG.spacing * 2;
+    const lead = step * dir > 0 ? baseX + (count - 1) * step : baseX;
+    if (si === 1 ? lead <= w.front[0] + gap : lead >= w.front[1] - gap) {
+      baseX = si === 1 ? Math.max(baseX, w.front[0] + gap) : Math.min(baseX, w.front[1] - gap);
+      if (si === 1 && lead <= w.front[0] + gap) baseX = w.front[0] + gap;
+      else if (si === 0 && lead >= w.front[1] - gap) baseX = w.front[1] - gap;
+      step = -dir * CONFIG.spacing;
+      if (baseX < CONFIG.mapMargin || baseX > s.length - CONFIG.mapMargin) return 0;
+    }
+  }
   if (force.x !== undefined) {
     baseX = force.x;
     // A wave never appears behind the other side's line (the two lines never pass through each other): one placed
@@ -51,14 +90,26 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     }
     step = -dir * CONFIG.spacing;
     inFormation = false;
-  } else if (force.trenchId !== undefined) {
+  } else if (seatId !== undefined) {
     // Seated in the trench's slots; whoever does not fit (or cannot use a trench) stands just behind it.
     for (let i = 0; i < s.trenches.length; i++) {
-      if (s.trenches[i].id === force.trenchId) trench = i;
+      if (s.trenches[i].id === seatId) trench = i;
     }
     if (trench >= 0) baseX = s.trenches[trench].x - dir * (w.trenchHalf[trench] + CONFIG.trenchFormGap);
     step = -dir * CONFIG.spacing;
     inFormation = false;
+    // A later wave for a trench or building the other side has already got past (its front at or behind the centre:
+    // a tank that rolled by it in the fog) is not seated behind them: it forms up just ahead of their line instead,
+    // like a wave at a position (the two lines never pass through each other).
+    if (trench >= 0 && !atStart) {
+      const gap = CONFIG.spacing * 2;
+      const tx = s.trenches[trench].x;
+      if (si === 0 ? tx >= w.front[1] - gap : tx <= w.front[0] + gap) {
+        trench = -1;
+        baseX = si === 0 ? Math.min(baseX, w.front[1] - gap) : Math.max(baseX, w.front[0] + gap);
+        if (baseX < CONFIG.mapMargin || baseX > s.length - CONFIG.mapMargin) return 0;
+      }
+    }
   }
 
   // A garrison placed at the start simply holds its trench; taking one later is a capture.
@@ -69,7 +120,19 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
   for (let j = 0; j < count; j++) {
     if (capped && side.pop + side.reservePop + def.pop > side.popCap) {
       const post = force.x ?? (trench >= 0 ? s.trenches[trench].x : NaN);
-      w.reserve.push({ side: si, kindIndex, behaviour, postX: post, postTrench: trench, left: count - j, veteran: force.veteran === true });
+      w.reserve.push({
+        side: si,
+        kindIndex,
+        behaviour,
+        postX: post,
+        postTrench: trench,
+        left: count - j,
+        veteran: force.veteran === true,
+        look: force.look ?? '',
+        faction: force.nation ?? '',
+        leash: force.leash ?? -1,
+        skis: force.tags?.includes('skis') === true,
+      });
       side.reservePop += (count - j) * def.pop;
       break;
     }
@@ -78,7 +141,16 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
     const u = spawnUnit(w, si, kindIndex, startX, behaviour, false, false);
     if (!u) break;
     spawned++;
+    if (force.leash !== undefined) u.leash = force.leash;
+    if (force.tags?.includes('skis') === true) u.skis = true;
     if (force.veteran === true) makeVeteran(w, u);
+    // Names and looks only (FOUNDATIONS.md 5.1): the force's look inside the era, and its nation if not the side's.
+    if (force.look !== undefined) u.look = force.look;
+    if (force.nation !== undefined) u.faction = force.nation;
+    if (ferry >= 0) {
+      boardFerry(w, u, ferry);
+      continue;
+    }
     if (behaviour === 'garrison') u.postTrench = trench;
     let x: number;
     if (seat && claimSlot(w, u, trench)) {
@@ -105,7 +177,7 @@ function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): numb
 
 /**
  * Place each side's starting sappers and forces. Called once, with the hold lines already known.
- * A side whose mission unit list has no sapper (mission 9) starts with none, whatever `sappers` says.
+ * A side whose mission unit list has no sapper (a mission that lives on airdrops) starts with none, whatever `sappers` says.
  */
 export function placeStartingForces(w: World): void {
   const s = w.state;
@@ -159,6 +231,9 @@ export function fireEvent(w: World, ev: MissionEventDef): void {
       e.text = ev.announce ?? null;
       break;
     }
+    default:
+      // The director's events: banners, barrages, air raids, income, postures, call-ins, disguise, reveal, owners, the end.
+      fireDirectorEvent(w, ev);
   }
 }
 
@@ -189,7 +264,17 @@ function releaseReserve(w: World): void {
       if (reserve[k].side === g.side) ahead += reserve[k].left * KIND_DEFS[reserve[k].kindIndex].pop;
     }
     const dir = g.side === 0 ? 1 : -1;
-    const posted = !Number.isNaN(g.postX) && (g.postX - side.holdLineX) * dir <= 0;
+    // Posted: its position lies behind the side's hold line, and the enemy has not got past it.
+    const enemyFront = w.front[1 - g.side];
+    const posted =
+      !Number.isNaN(g.postX) && (g.postX - side.holdLineX) * dir <= 0 && (g.side === 0 ? g.postX < enemyFront - CONFIG.spacing * 2 : g.postX > enemyFront + CONFIG.spacing * 2);
+    // The door is in the enemy's hands (they stand at or past it): the group waits inside rather than walk out behind
+    // their line.
+    const gap = CONFIG.spacing * 2;
+    if (!posted && (g.side === 1 ? hq.doorX <= w.front[0] + gap : hq.doorX >= w.front[1] - gap)) {
+      i++;
+      continue;
+    }
     while (g.left > 0 && side.pop + ahead + def.pop <= side.popCap) {
       let x = hq.doorX;
       if (posted) {
@@ -200,6 +285,10 @@ function releaseReserve(w: World): void {
       const u = spawnUnit(w, g.side, g.kindIndex, x, g.behaviour, false, false);
       if (!u) break;
       if (g.veteran) makeVeteran(w, u);
+      u.look = g.look;
+      if (g.faction !== '') u.faction = g.faction;
+      if (g.leash >= 0) u.leash = g.leash;
+      u.skis = g.skis;
       g.left--;
       side.reservePop -= def.pop;
       if (!Number.isNaN(g.postX)) u.postX = g.postX;
@@ -224,12 +313,16 @@ export function updateMission(w: World): void {
     s.timer.progress = s.timer.total > 0 ? 1 - s.timer.secondsLeft / s.timer.total : 1;
   }
 
+  // Barrages in flight keep falling, postures and a disguise run out (whatever the prep phase does).
+  updateDirector(w);
   // Nothing scripted happens while the prep phase runs.
   if (inPrep(s)) return;
-  const events = w.mission.events;
+  const events = w.missionEvents;
   for (let i = 0; i < events.length; i++) {
+    if (s.over) return;
     const ev = events[i];
     const when = ev.when;
+    if (directorTrigger(w, i, time)) continue;
     if ('at' in when) {
       if (w.eventFired[i] === 0 && time >= when.at) {
         w.eventFired[i] = 1;
@@ -251,7 +344,7 @@ export function updateMission(w: World): void {
         }
         break;
       }
-    } else {
+    } else if ('hqHpBelow' in when) {
       const hq = s.sides[when.side].hq;
       if (w.eventFired[i] === 0 && hq && hq.hp < hq.maxHp * when.hqHpBelow) {
         w.eventFired[i] = 1;
@@ -261,17 +354,8 @@ export function updateMission(w: World): void {
   }
 }
 
-/** The battle is over: winner (-1 for a draw) and why. Releases direct control and emits battleEnded. */
-export function endBattle(w: World, winner: number, reason: EndReason): void {
-  const s = w.state;
-  s.over = true;
-  s.winner = winner;
-  s.endReason = reason;
-  releaseAll(w);
-  const e = w.events.emit('battleEnded');
-  e.side = winner;
-  e.value = s.time;
-}
+/** The battle is over (src/sim/director.ts, which also settles the side objectives). */
+export { endBattle };
 
 /** Win and lose rules, checked after the tick's damage has landed. */
 export function checkEnd(w: World): void {
@@ -288,4 +372,35 @@ export function checkEnd(w: World): void {
     if (s.timer.onExpire === 'win') endBattle(w, 0, 'timerSurvived');
     else endBattle(w, 1, 'timerExpired');
   }
+  // The mission director: the phase's losses, clock and objectives, and the side objectives.
+  if (!s.over) checkDirector(w);
+}
+
+/**
+ * Admin "jump to phase" (and phase-isolated tests): put the phase's `assume` in place (owners, money, units), end any
+ * prep phase still running, and enter that phase now. Returns false for an unknown phase or a finished battle.
+ */
+export function jumpToPhase(w: World, id: string): boolean {
+  const s = w.state;
+  if (s.over) return false;
+  const index = w.phases.findIndex((p) => p.id === id);
+  if (index < 0) return false;
+  const assume = w.phases[index].assume;
+  if (assume) {
+    for (const o of assume.owners ?? []) setOwner(w, o.ref, o.owner);
+    if (assume.supplies) {
+      s.sides[0].supplies = assume.supplies[0];
+      s.sides[1].supplies = assume.supplies[1];
+    }
+    if (assume.forces) {
+      for (let si = 0; si < 2; si++) for (const f of assume.forces[si]) spawnForce(w, si as Side, f, false);
+    }
+  }
+  if (s.prep !== null && s.prep.active) {
+    s.prep.active = false;
+    s.prep.secondsLeft = 0;
+    s.prep.endedAt = s.time;
+  }
+  enterPhase(w, index, true);
+  return true;
 }

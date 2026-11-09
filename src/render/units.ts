@@ -19,10 +19,15 @@ import {
   createFigureLayout,
   layoutFigure,
   resetFigureAnim,
+  MOLOTOV_KEY,
+  setFigureClothing,
   setFigureCrateKey,
   setFigureGear,
+  setFigureHeadgear,
   setFigurePointing,
   setFigurePushing,
+  setFigureRocketItem,
+  setFigureWeapon,
   updateFigure,
   type FigureAnim,
   type FigureDeath,
@@ -46,10 +51,12 @@ import {
 import type { SpriteSpec } from '../art/types';
 import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type VehicleLook } from '../data/artLayout';
 import { FX_KEYS } from '../data/fx';
+import { BUILDING_LAYOUT } from '../data/looksBuilding';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
-import type { DamageType, FactionId, Side, UnitKind } from '../data/schema';
+import { infantryLookOf, missionEra, resolveEra, unitVehicleLook, type ResolvedEra, type VehicleKind } from '../data/eras';
+import type { DamageType, FactionId, MissionDef, Side, UnitKind } from '../data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { createRng, mixSeed, type Rng01 } from '../fx';
@@ -531,6 +538,8 @@ class TankView extends UnitViewBase {
       const w = tr.width / 2;
       if (this.x + L.length * 0.6 * this.s < tr.x - w || this.x - L.length * 0.6 * this.s > tr.x + w) continue;
       over = true;
+      // A building's span (its slot record): the tank passes in front of the facade or the rubble, with no lip to climb.
+      if (tr.building >= 0) continue;
       for (let e = -1; e <= 1; e += 2) {
         const lip = tr.x + e * w;
         hf = Math.max(hf, T.lipBump * Math.max(0, 1 - Math.abs(front - lip) / T.lipWidth));
@@ -557,8 +566,8 @@ class TankView extends UnitViewBase {
     }
   }
 
-  reset(kind: UnitKind, faction: FactionId): void {
-    const look = vehicleLookOf(kind, faction);
+  /** `look` = the era's or the force's vehicle look (src/data/eras.ts unitVehicleLook); default = the nation's. */
+  reset(kind: UnitKind, faction: FactionId, look: VehicleLook = vehicleLookOf(kind, faction)): void {
     this.look = look;
     this.tank.look = look;
     this.tank.distance = 0;
@@ -730,6 +739,17 @@ export class UnitViews {
   private relaxed = new Float64Array(64);
   /** Looks of each side (upgrade gear), from setLooks; null = no gear. */
   private readonly looks: (SideLooks | null)[] = [null, null];
+  /** The battle's mission, for the era looks by date (src/data/eras.ts); null = every nation's defaults. */
+  private mission: MissionDef | null = null;
+
+  /** The mission whose date and climate pick the units' era looks (call once per battle, after reset). */
+  setMission(mission: MissionDef | null): void {
+    this.mission = mission;
+  }
+
+  private eraOf(faction: FactionId): ResolvedEra {
+    return this.mission ? missionEra(this.mission, faction) : resolveEra(faction, null);
+  }
   /** Blood pools under the bodies of soldiers killed by gunfire (the "Show blood" setting). */
   readonly blood: BloodPools;
   /** Whose health pips are drawn (the enemy's are hidden unless revealed); the battle view hands in its own. */
@@ -843,15 +863,22 @@ export class UnitViews {
     if (isVehicle(u.kind)) {
       const pool = this.tankPool[row];
       const tv = pool.pop() ?? new TankView(row, this.reg, this.scene, this.layers);
-      tv.reset(u.kind, u.faction);
+      tv.reset(u.kind, u.faction, unitVehicleLook(this.eraOf(u.faction), u.kind as VehicleKind, u.look));
       tv.setGear(this.gearOf(u.side, u.kind));
       v = tv;
     } else {
       const pool = this.figurePool[row];
       const fv = pool.pop() ?? new FigureView(row, this.reg, this.scene, this.layers);
       fv.reset(u.kind, u.faction, mixSeed(this.seed ^ U.seedSalt, u.id));
-      // After the reset (which goes back to level 0): this unit's upgrade gear.
+      // After the reset (which goes back to level 0): this unit's upgrade gear, then its era's cap, clothing and arms
+      // (or its force's infantry look: the Romanian line).
       setFigureGear(fv.anim, this.gearOf(u.side, u.kind));
+      const era = this.eraOf(u.faction);
+      const inf = infantryLookOf(u.look);
+      setFigureHeadgear(fv.anim, inf ? inf.headgear : (era.headgear[u.kind] ?? null));
+      setFigureClothing(fv.anim, inf ? inf.clothing : (era.clothing[u.kind] ?? null));
+      setFigureWeapon(fv.anim, era.weapon[u.kind] ?? null);
+      setFigureRocketItem(fv.anim, era.rocketItem[u.kind] === 'molotov' ? MOLOTOV_KEY : null);
       const looks = this.looks[u.side];
       if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);
       // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.
@@ -1113,8 +1140,14 @@ export class UnitViews {
     const simX = u.prevX + (u.x - u.prevX) * alpha;
     const spread = doorSpreadAt(simX, u, state);
     let x = simX + (v.jitter + v.crowd) * spread;
+    // A building's men (its slot record, src/sim/buildings.ts): at the windows of their floor, or crouched in its
+    // rubble or behind a cover prop (as in a trench, but not packed into a pit).
+    const record = u.trenchId >= 0 && u.trench >= 0 && u.trench < state.trenches.length ? state.trenches[u.trench] : null;
+    const bld = record !== null && record.building >= 0 && record.building < state.buildings.length ? state.buildings[record.building] : null;
+    const atWindow = bld !== null && !bld.rubble;
+    if (bld !== null) x = simX;
     // A trench is drawn as one narrow pit seen end-on: its occupants are packed in toward its centre (view only).
-    const occupant = u.trenchId >= 0 && u.trench >= 0 && u.trench < state.trenches.length;
+    const occupant = record !== null && bld === null;
     v.packW += ((occupant ? 1 : 0) - v.packW) * (dt > 0 ? 1 - Math.exp(-dt / TRENCH_LAYOUT.packTime) : 0);
     if (v.packW > 1e-3 && u.trench >= 0 && u.trench < state.trenches.length) {
       const tr = state.trenches[u.trench];
@@ -1127,7 +1160,7 @@ export class UnitViews {
     v.lastX = x;
     v.x = x;
     v.simX = simX;
-    v.y = VIEW.groundY + VIEW.rowDy[v.row] * spread;
+    v.y = atWindow ? VIEW.groundY + BUILDING_LAYOUT.occupantDy - u.floor * BUILDING_LAYOUT.floorH : VIEW.groundY + VIEW.rowDy[v.row] * spread;
     if (v instanceof FigureView && v.hopAge < RENDER.apc.hopTime) {
       v.hopAge += dt;
       v.y -= apcHopLift(v.hopAge, v.hopDeck) * v.s;
@@ -1152,11 +1185,13 @@ export class UnitViews {
     // Trench: occupants, and infantry crossing a trench, step down onto the fire step behind the front parapet.
     let into = 0;
     if (!isVehicle(u.kind)) {
-      if (u.trenchId >= 0) into = 1;
+      if (u.trenchId >= 0) into = atWindow ? 0 : 1;
       else {
         const tr = state.trenches;
         const half = TRENCH_LAYOUT.pitW / 2;
         for (let t = 0; t < tr.length; t++) {
+          // Men walking through a building stay on their feet.
+          if (tr[t].building >= 0) continue;
           if (x > tr[t].x - half && x < tr[t].x + half) {
             into = 1;
             break;

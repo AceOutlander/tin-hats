@@ -5,10 +5,10 @@
  * glint. Everything is pooled; nothing allocates per frame.
  */
 import type Phaser from 'phaser';
-import { PLANE_LAYOUT, type PlaneKind } from '../../data/artLayout';
+import { PLANE_LAYOUT, type AircraftLook, type PlaneKind } from '../../data/artLayout';
 import { RENDER } from '../../data/render';
 import type { FactionId } from '../../data/schema';
-import { PLANE_KINDS, planeGearKey, planeKey, planeShadowKey } from '../../art/vehicles';
+import { PLANE_KINDS, aircraftLookKey, planeGearKey, planeKey, planeShadowKey } from '../../art/vehicles';
 import type { SideLooks } from '../../data/upgradeLooks';
 import { planeGearOf } from '../../meta/looks';
 import type { SpriteRegistry } from '../atlas';
@@ -79,6 +79,16 @@ export class PlanePool {
   private readonly glowInv: number;
   /** Plane gear level per side and plane type (PLANE_KINDS order), from setLooks. */
   private readonly gear = new Int8Array(2 * PLANE_KINDS.length);
+  /** Per side and plane type: the era aircraft's sprite key flown instead of the nation's plane ('' = none). */
+  private readonly eraKey: string[] = new Array<string>(2 * PLANE_KINDS.length).fill('');
+
+  /** The era aircraft a side flies (src/data/eras.ts: the I-16 in 1941); call once per battle. No gear on them. */
+  setAircraft(side: number, aircraft: Partial<Record<PlaneKind, AircraftLook>>): void {
+    for (let i = 0; i < PLANE_KINDS.length; i++) {
+      const look = aircraft[PLANE_KINDS[i]];
+      this.eraKey[side * PLANE_KINDS.length + i] = look ? aircraftLookKey(look) : '';
+    }
+  }
 
   constructor(
     scene: Phaser.Scene,
@@ -166,9 +176,11 @@ export class PlanePool {
     p.fallT = 0;
     p.dive = 0;
     // Its gear variant when the side has the upgrade and the battle built the sprite, else the plain plane.
-    const level = this.gear[(side === 1 ? 1 : 0) * PLANE_KINDS.length + PLANE_KINDS.indexOf(kind)];
+    const slot = (side === 1 ? 1 : 0) * PLANE_KINDS.length + PLANE_KINDS.indexOf(kind);
+    const level = this.gear[slot];
     const geared = level > 0 ? planeGearKey(kind, faction, level) : '';
-    const k = geared !== '' && this.reg.has(geared) ? geared : planeKey(kind, faction);
+    const era = this.eraKey[slot];
+    const k = era !== '' && this.reg.has(era) ? era : geared !== '' && this.reg.has(geared) ? geared : planeKey(kind, faction);
     if (k !== p.key) {
       const fr = this.reg.get(k);
       p.body.setFrame(fr.frame);

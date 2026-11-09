@@ -157,7 +157,8 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const cl = a.clothing;
   putJ(out[S_FAR_UA], (cl && cl.upperArmFar) ?? B.upperArmFar, j, J_FSHOULDER, p[P_FUA]);
   putJ(out[S_FAR_FA], (cl && cl.forearmFar) ?? B.forearmFar, j, J_FELBOW, p[P_FFA]);
-  putJ(out[S_FAR_ITEM], keys.item[a.item], j, J_FHAND, p[P_FFA], a.itemFar);
+  const item = a.item === 'rocket' && a.rocketKey !== null ? a.rocketKey : keys.item[a.item];
+  putJ(out[S_FAR_ITEM], item, j, J_FHAND, p[P_FFA], a.itemFar);
   putJ(out[S_FAR_TH], (cl && cl.thighFar) ?? B.thighFar, j, J_HIP, p[P_FTH]);
   putJ(out[S_FAR_SH], B.shinFar, j, J_FKNEE, p[P_FSH]);
   putJ(out[S_FAR_BOOT], B.bootFar, j, J_FANKLE, p[P_FFP]);
@@ -186,14 +187,15 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const wa = p[P_WA];
   const gx = j[J_GRIP * 2];
   const gy = j[J_GRIP * 2 + 1];
-  put(out[S_PLATE], keys.plate[a.kind], gx, gy, 0, a.weaponVisible && a.plate > 0.5);
+  const wk = a.weaponKeys;
+  put(out[S_PLATE], wk ? wk.plate : keys.plate[a.kind], gx, gy, 0, a.weaponVisible && a.plate > 0.5);
   const g = a.geom;
   const c = Math.cos(wa);
   const s = Math.sin(wa);
-  put(out[S_BIPOD], keys.bipod[a.kind], gx + g.bipodX * c - g.bipodY * s, gy + g.bipodX * s + g.bipodY * c, p[P_BIPOD], a.weaponVisible);
+  put(out[S_BIPOD], wk ? wk.bipod : keys.bipod[a.kind], gx + g.bipodX * c - g.bipodY * s, gy + g.bipodX * s + g.bipodY * c, p[P_BIPOD], a.weaponVisible);
   if (a.crateVisible) put(out[S_WEAPON], a.crateKey ?? keys.crate, gx, gy, wa);
-  else put(out[S_WEAPON], keys.weapon[a.kind], gx, gy, wa, a.weaponVisible);
-  putJ(out[S_NEAR_ITEM], keys.item[a.item], j, J_NHAND, p[P_NFA], !a.itemFar);
+  else put(out[S_WEAPON], wk ? wk.weapon : keys.weapon[a.kind], gx, gy, wa, a.weaponVisible);
+  putJ(out[S_NEAR_ITEM], item, j, J_NHAND, p[P_NFA], !a.itemFar);
 
   // Near arm.
   putJ(out[S_NEAR_UA], (cl && cl.upperArm) ?? B.upperArm, j, J_NSHOULDER, p[P_NUA]);

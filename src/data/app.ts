@@ -49,10 +49,14 @@ export interface AppTunables {
    * Result screen reason text. `{label}` in a line stands for the mission timer's label ("Nightfall"), so a deadline
    * mission can say what ran out.
    */
-  reasons: Record<'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw' | 'admin', { win: string; lose: string }>;
+  reasons: Record<
+    'hqDestroyed' | 'timerSurvived' | 'timerExpired' | 'draw' | 'admin' | 'objectives' | 'objectiveFailed' | 'surrender' | 'scripted',
+    { win: string; lose: string }
+  >;
   /** Short banners for scripted events that carry no text of their own. `{n}` = the money delivered. */
   /** HUD banners: an airdrop, a survival wave, the King Tiger's arrival (bossArrived). */
-  notices: { airdrop: string; wave: string; boss: string; prepEnded: string };
+  /** Short banners; sideObjective: {text} = the side objective earned. */
+  notices: { airdrop: string; wave: string; boss: string; prepEnded: string; sideObjective: string };
   /** One line per support for the briefing's "new support" card. */
   supportBlurbs: Record<SupportKind, string>;
   /** Quartermaster level text: "+X% label" per stat. */
@@ -101,8 +105,20 @@ export const APP: AppTunables = {
     draw: { win: 'Both headquarters fell together', lose: 'Both headquarters fell together' },
     // Only the hidden admin panel ends a battle this way.
     admin: { win: 'Victory declared from the admin panel', lose: 'Defeat declared from the admin panel' },
+    // The mission director (src/sim/director.ts): the last phase done, a loss condition ({reason} is its own words), a
+    // surrender, a scripted end (its closing words).
+    objectives: { win: 'Every objective taken', lose: 'Your HQ was overrun' },
+    objectiveFailed: { win: 'The enemy failed', lose: '{reason}' },
+    surrender: { win: 'The enemy surrendered', lose: 'Your HQ was overrun' },
+    scripted: { win: '{reason}', lose: '{reason}' },
   },
-  notices: { airdrop: 'Airdrop: +{n} money', wave: 'Enemy wave incoming', boss: 'Warning: King Tiger sighted', prepEnded: 'Here they come!' },
+  notices: {
+    airdrop: 'Airdrop: +{n} money',
+    wave: 'Enemy wave incoming',
+    boss: 'Warning: King Tiger sighted',
+    prepEnded: 'Here they come!',
+    sideObjective: 'Side objective: {text}',
+  },
   supportBlurbs: {
     artillery: 'Calls a barrage of shells down on a spot you choose. Hurts everything caught in the open.',
     smoke: 'Lays a screen that blocks direct fire for a few seconds. Cover an advance with it.',

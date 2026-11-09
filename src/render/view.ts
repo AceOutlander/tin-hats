@@ -17,10 +17,14 @@ import { listFxSprites } from '../art/fx';
 import { propSpecs } from '../art/props';
 import { structureSpecs } from '../art/structures';
 import { vehicleSpecs } from '../art/vehicles';
+import { sideEra } from '../data/eras';
 import { FX_KEYS } from '../data/fx';
+import { groundArt } from '../data/ground';
 import { MENU_STORM } from '../data/menuStorm';
 import { RENDER } from '../data/render';
 import { SUPPORTS } from '../data/supports';
+import { theatreVariant } from '../data/theatres';
+import { variantDef } from '../art/backdrops/scene';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
 import type { SideLooks } from '../data/upgradeLooks';
@@ -28,7 +32,7 @@ import { sideLooks } from '../meta/looks';
 import { SpriteRegistry, type SpriteFrame } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
-import { StormGuard, type MenuStormState } from '../fx';
+import { StormGuard, brightestTime, missionTimes, type MenuStormState } from '../fx';
 import type { AttachOptions, AudioSink, BattleView, MenuSceneStats, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
 import { EffectsSystem, pillboxAt } from './effects';
 import { PanInput } from './input';
@@ -39,13 +43,21 @@ import { QualityGovernor, startQuality } from './quality';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { renderSprites } from './sprites';
 import { BuildSiteViews, type Placing } from './buildSites';
+import { PointViews } from './points';
+import { BuildingViews } from './buildings';
+import { ObstacleViews } from './obstacles';
+import { obstaclesNeeded } from '../data/obstacles';
+import { obstacleSpecs } from '../art/structures/obstacles';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
 import { MenuStormView } from './weather/menuStorm';
+import { SkyView } from './weather/sky';
 
 const ATLAS_GROUP = 'th/atlas';
 const BATTLE_GROUP = 'th/battle';
+/** The battle's buildings and cover props: big, plain pieces, baked at a lower texture scale (RENDER.buildingTextureScale). */
+const BUILDING_GROUP = 'th/buildings';
 
 class BattleScene extends Phaser.Scene {
   constructor(private readonly owner: BattleViewImpl) {
@@ -91,12 +103,22 @@ export class BattleViewImpl implements BattleView {
   private backdrop: BackdropView | null = null;
   private units: UnitViews | null = null;
   private structures: StructureViews | null = null;
+  private points: PointViews | null = null;
+  private buildings: BuildingViews | null = null;
+  /** Tank traps, road blocks, sandbags, minefields, bridges and the ferry (FOUNDATIONS.md 4.4, 4.6, 4.8). */
+  private obstacles: ObstacleViews | null = null;
+  /** The battle being shown has any of them (obstaclesNeeded, worked out once at attach). */
+  private obstaclesOn = false;
   private buildSites: BuildSiteViews | null = null;
   /** The build the player is placing in a prep phase (the ghost), or null. */
   private placing: Placing | null = null;
   private effects: EffectsSystem | null = null;
   private input: PanInput | null = null;
   private weatherView: WeatherView | null = null;
+  /** Scripted weather and time of day (FOUNDATIONS.md 4.7), and whether the scripted weather has the rain on now. */
+  private skyView: SkyView | null = null;
+  private skyScripted = false;
+  private scriptedRain = false;
   private menuView: MenuStormView | null = null;
   /** Sheds title rain when frames stay slow. */
   readonly stormGuard = new StormGuard();
@@ -227,6 +249,9 @@ export class BattleViewImpl implements BattleView {
     this.units.blood.setEnabled(this.showBlood);
     this.units.hpReveal = this.hpReveal;
     this.structures = new StructureViews(scene, layers, reg);
+    this.points = new PointViews(scene, layers, reg);
+    this.buildings = new BuildingViews(scene, layers, reg);
+    this.obstacles = new ObstacleViews(scene, layers, reg);
     this.buildSites = new BuildSiteViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
 
@@ -239,6 +264,7 @@ export class BattleViewImpl implements BattleView {
     this.reticle.visible = false;
     this.weatherView = new WeatherView(scene, layers, reg, this.effects.ctx);
     this.weatherView.reduced = this.reducedFlashing;
+    this.skyView = new SkyView(scene, layers, reg, this.effects.ctx, this.backdrop);
     this.menuView = new MenuStormView(scene, layers, reg, this.backdrop);
     if (this.menuWanted && !this.battle) this.menuView.show(true);
 
@@ -334,14 +360,35 @@ export class BattleViewImpl implements BattleView {
     this.visualSeed = opts.visualSeed;
     const state = battle.state;
     const mission = battle.config.mission;
-    this.backdrop.build(mission.theatre, mission.timeOfDay, opts.visualSeed);
+    // A winter mission sees its theatre's winter look (FOUNDATIONS.md 4.7), where the theatre has one.
+    const variant = theatreVariant(mission.theatre, mission.climate);
+    // A mission in sectors draws each one's ground (FOUNDATIONS.md 4.1), blended at the edges.
+    const theatreGround = variantDef(mission.theatre, variant).groundStyle;
+    const winter = mission.climate === 'winter';
+    const ground = (mission.sectors ?? []).map((sec) => ({ from: sec.from, to: sec.to, style: groundArt(sec.ground, theatreGround, winter) }));
+    // A mission whose time of day changes paints its land in the brightest of its times and tints it darker; its skies
+    // are painted for every time it passes through. A second theatre's strips fade in over its sectors.
+    const times = missionTimes(mission);
+    const timed = times.length > 1;
+    const baseTime = timed ? brightestTime(times) : mission.timeOfDay;
+    const other = (mission.sectors ?? []).filter((sec) => sec.backdrop !== undefined && sec.backdrop !== mission.theatre);
+    const secondTheatre = other.length > 0 ? other[0].backdrop : undefined;
+    const second =
+      secondTheatre !== undefined
+        ? {
+            theatre: secondTheatre,
+            variant: theatreVariant(secondTheatre, mission.climate),
+            spans: other.filter((sec) => sec.backdrop === secondTheatre).map((sec) => ({ from: sec.from, to: sec.to })),
+          }
+        : undefined;
+    this.backdrop.build(mission.theatre, baseTime, opts.visualSeed, ground, { variant, times: timed ? times : undefined, second });
     this.backdrop.setAllHidden(false);
-    const colours = getTheatreColours(mission.theatre, mission.timeOfDay);
+    const colours = getTheatreColours(mission.theatre, baseTime, variant);
     this.nightAlpha = colours.nightTintAlpha;
     if (this.nightTint) this.nightTint.setTint(colours.int.nightTint);
     // Trenches are dug in this theatre's earth.
     const earth = {
-      id: `${mission.theatre}-${mission.timeOfDay}`,
+      id: variant === 'base' ? `${mission.theatre}-${baseTime}` : `${mission.theatre}~${variant}-${baseTime}`,
       ground: colours.ground,
       groundDark: colours.groundDark,
       soil: colours.soil,
@@ -355,20 +402,36 @@ export class BattleViewImpl implements BattleView {
     ];
     this.looks = looks;
     const specs = StructureViews.battleSpecs(state, earth, looks);
+    this.obstaclesOn = obstaclesNeeded(mission);
+    if (this.obstaclesOn) specs.push(...obstacleSpecs());
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
     this.structures.build(state, earth, looks);
+    if (this.obstaclesOn) this.obstacles?.build(state);
+    this.points?.build(state);
+    if (this.buildings && state.buildings.length > 0) {
+      this.registry.addAtlas(BUILDING_GROUP, BuildingViews.battleSpecs(state), RENDER.buildingTextureScale, RENDER.atlasMaxSize);
+      this.buildings.build(state);
+    }
     this.units.reset(opts.visualSeed);
     this.units.setLooks(0, looks[0]);
     this.units.setLooks(1, looks[1]);
+    // The mission's date and climate pick each nation's era looks (src/data/eras.ts).
+    this.units.setMission(mission);
     this.effects.ctx.planes.setLooks(0, looks[0]);
     this.effects.ctx.planes.setLooks(1, looks[1]);
+    this.effects.ctx.planes.setAircraft(0, sideEra(mission, 0).aircraft);
+    this.effects.ctx.planes.setAircraft(1, sideEra(mission, 1).aircraft);
     this.effects.clear();
     this.effects.ctx.state = state;
     this.effects.ctx.playerSide = opts.playerSide;
     this.effects.ctx.seed(opts.visualSeed);
     this.effects.ctx.time = 0;
     this.darkness = 0;
-    this.weatherView?.attach(opts.visualSeed, this.weather, mission.theatre);
+    // Scripted weather turns the random rain off (FOUNDATIONS.md 4.7); the roll is still drawn, so nothing else shifts.
+    this.skyScripted = state.sky.scripted;
+    this.scriptedRain = false;
+    this.weatherView?.attach(opts.visualSeed, this.skyScripted && this.weather === 'auto' ? 'clear' : this.weather, mission.theatre);
+    this.skyView?.attach(mission, opts.visualSeed, baseTime, timed);
     this.camera.setLength(state.length);
     // Open on the player's own end of the map, the whole HQ clear of the screen edge (the clamp's edge margin).
     this.camera.setCenter(opts.playerSide === 0 ? -state.length : 2 * state.length, true);
@@ -378,14 +441,20 @@ export class BattleViewImpl implements BattleView {
     this.battle = null;
     this.units?.reset(this.visualSeed);
     this.structures?.clear();
+    this.points?.clear();
+    this.buildings?.clear();
+    this.obstacles?.clear();
+    this.obstaclesOn = false;
     this.effects?.clear();
     this.weatherView?.clear();
+    this.skyView?.clear();
     if (this.effects) {
       this.effects.ctx.state = null;
       this.effects.ctx.sound.stopLoops();
       this.effects.ctx.sound.reset();
     }
     this.registry?.removeGroup(BATTLE_GROUP);
+    this.registry?.removeGroup(BUILDING_GROUP);
     if (this.nightTint) this.nightTint.visible = false;
     this.setControlled(-1);
     this.setTargeting(null);
@@ -482,8 +551,26 @@ export class BattleViewImpl implements BattleView {
       ctx.sound.setView(rig.centerX, viewW);
       this.structures.sync(state); // trenches, pillboxes and wire built in the prep phase
       this.structures.update(state, dt);
+      this.points?.update(state, dt);
+      this.buildings?.update(state);
+      if (this.obstaclesOn) {
+        this.obstacles?.sync(state);
+        this.obstacles?.update(state, this.playerSide);
+      }
       this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
+      if (this.skyView) {
+        this.skyView.update(state, dt, left, viewW, this.effects.enabled, ctx.night);
+        if (this.skyView.nightAlpha >= 0) this.nightAlpha = this.skyView.nightAlpha;
+        // Scripted rain: the streaks come and go with the weather.
+        if (this.skyScripted && this.weather === 'auto') {
+          const rain = SkyView.rainShare(state) >= 0.5;
+          if (rain !== this.scriptedRain) {
+            this.scriptedRain = rain;
+            this.weatherView?.force(rain ? 'rain' : 'clear');
+          }
+        }
+      }
       this.weatherView?.update(dt, left, viewW, this.effects.enabled);
       this.effects.update(dt, this.realDt);
     }

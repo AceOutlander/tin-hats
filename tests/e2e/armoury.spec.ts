@@ -8,6 +8,7 @@
 import type { Page } from '@playwright/test';
 import type { DebugApi } from '../../src/app/debug';
 import { MEDALS } from '../../src/data/medals';
+import { MISSIONS } from '../../src/data/missions';
 import { BATTLE_LOAD_MS, arrived, expect, lastResult, memorySave, open, playToEnd, savedGame, shot, state, tap, tapIn, test, type Hooked } from './helpers';
 
 /** The medals in the stored save (the shared StoredSave type predates them). */
@@ -39,12 +40,14 @@ test.describe('armoury', () => {
     await expect(arrived(page, 'campaign').getByTestId('armoury')).toBeVisible();
     await tapIn(page, 'campaign', 'armoury');
     await expect(arrived(page, 'armoury').getByTestId('medals-available')).toHaveText(String(RECON.price + 5));
-    // Riflemen and sappers are issued free; every other unit type is listed, locked until its mission.
+    // Riflemen and sappers are issued free, the first mission (always open) brings the DP gunner and the tank hunters,
+    // and every other unit type is listed, locked until its mission.
     await expect(arrived(page, 'armoury').getByTestId('armoury-item-rifle')).toHaveAttribute('data-owned', 'true');
     await expect(arrived(page, 'armoury').getByTestId('armoury-item-sapper')).toHaveAttribute('data-owned', 'true');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-item-lmg')).toHaveAttribute('data-owned', 'false');
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toBeDisabled();
-    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-lmg')).toContainText('Mission 2');
+    await expect(arrived(page, 'armoury').getByTestId('armoury-item-lmg')).toHaveAttribute('data-owned', 'true');
+    await expect(arrived(page, 'armoury').getByTestId('armoury-item-assault')).toHaveAttribute('data-owned', 'false');
+    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-assault')).toBeDisabled();
+    await expect(arrived(page, 'armoury').getByTestId('armoury-buy-assault')).toContainText('Mission 3');
     for (const item of MEDALS.armoury) await expect(arrived(page, 'armoury').getByTestId(`armoury-item-${item.id}`)).toBeAttached();
     await page.waitForTimeout(400);
     await shot(page, 'armoury-before');
@@ -56,14 +59,14 @@ test.describe('armoury', () => {
     expect(await storedMedals(page)).toBe(5);
     await shot(page, 'armoury-after');
 
-    // --- Mission 3 brings its own Assault Troopers, with a NEW UNIT card, and nothing on loan -----------------------
+    // --- Mission 3 (Volokolamsk) brings its own PPD Troopers, with a NEW UNIT card, and nothing on loan ------------
     await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).unlockAll());
     await tapIn(page, 'armoury', 'back');
-    await tapIn(page, 'campaign', 'mission-pin-3');
+    await tapIn(page, 'campaign', 'mission-pin-1003');
     await tapIn(page, 'campaign', 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');
     await expect(page.getByTestId('briefing-loans')).toHaveCount(0);
-    await expect(arrived(page, 'briefing').locator('.th-new-name').first()).toHaveText('Assault Trooper');
+    await expect(arrived(page, 'briefing').locator('.th-new-name').first()).toHaveText('PPD Trooper');
     await shot(page, 'armoury-briefing-new');
     await tap(page, 'begin');
     await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
@@ -76,7 +79,7 @@ test.describe('armoury', () => {
     test.setTimeout(900_000);
     await open(page);
     await tap(page, 'play');
-    await tap(page, 'mission-pin-1');
+    await tap(page, `mission-pin-${MISSIONS[0].id}`);
     await tap(page, 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');
     await tap(page, 'begin');
@@ -89,13 +92,14 @@ test.describe('armoury', () => {
     expect(result?.pointsAwarded).toBeGreaterThanOrEqual(MEDALS.rough);
     await expect(page.getByTestId('result-points')).toContainText(`+${result?.pointsAwarded ?? 0}`);
     await expect(page.getByTestId('result-score')).toContainText('Casualties');
-    await expect(page.getByTestId('result-score')).toContainText('Time');
+    // An assault scores on time, a survival (Brest) on HQ health.
+    await expect(page.getByTestId('result-score')).toContainText(MISSIONS[0].mode === 'assault' ? 'Time' : 'HQ health');
     await page.waitForTimeout(900);
     await shot(page, 'armoury-victory');
     expect(await storedMedals(page)).toBe(result?.pointsAwarded);
 
     await tap(page, 'result-map');
-    await tapIn(page, 'campaign', 'mission-pin-1');
+    await tapIn(page, 'campaign', `mission-pin-${MISSIONS[0].id}`);
     await tapIn(page, 'campaign', 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('Replay: 50% medals');
     await tap(page, 'difficulty-hard');

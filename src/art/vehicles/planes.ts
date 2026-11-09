@@ -7,7 +7,7 @@
  * The shapes are readable at phone size: a dark body with a light rim like every unit, the nation's tint on the
  * upper surfaces, a pale belly, glazing and a propeller blur.
  */
-import { ART_COLORS as C, PLANE_LAYOUT, type PlaneKind } from '../../data/artLayout';
+import { AIRCRAFT_LOOKS, ART_COLORS as C, PLANE_LAYOUT, type AircraftLook, type PlaneKind } from '../../data/artLayout';
 import { PLANE_GEAR_ART, PLANE_GEAR_NATION } from '../../data/looksGear';
 import { PLANE_GEAR_STEPS, type PlaneGearPiece } from '../../data/upgradeLooks';
 import { FACTIONS } from '../../data/factions';
@@ -15,12 +15,20 @@ import type { FactionId } from '../../data/schema';
 import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, makeSpec, rgba, rimmed } from '../props/kit';
 import type { SpriteSpec } from '../types';
 import { RIM, finFlash, marking, propBlur, skin, twoTone } from './planeKit';
-import { SOVIET_PLANES } from './sovietPlanes';
+import { SOVIET_PLANES, paintI16 } from './sovietPlanes';
 
 export const PLANE_KINDS: readonly PlaneKind[] = ['bomber', 'fighter', 'recon'];
 
 export function planeKey(kind: PlaneKind, faction: FactionId): string {
   return `veh/air/${kind}/${faction}`;
+}
+
+/** The era aircraft looks (AIRCRAFT_LOOKS: the 1941 I-16 fighter), drawn in their type's box and anchors. */
+const AIRCRAFT_PAINT: Record<AircraftLook, (ctx: Ctx, f: FactionId) => void> = { i16: paintI16 };
+
+/** The sprite of an era aircraft look (src/data/eras.ts picks it by date); no upgrade gear. */
+export function aircraftLookKey(look: AircraftLook): string {
+  return `veh/air/${AIRCRAFT_LOOKS[look].kind}/${look}`;
 }
 
 export function planeShadowKey(kind: PlaneKind): string {
@@ -336,6 +344,10 @@ export function planeSpecs(): SpriteSpec[] {
     const L = PLANE_LAYOUT[kind];
     for (const f of Object.keys(FACTIONS) as FactionId[]) out.push(makeSpec(planeKey(kind, f), L.box, (ctx) => paintPlane(ctx, kind, f)));
     out.push(makeSpec(planeShadowKey(kind), L.shadowBox, (ctx) => paintPlaneShadow(ctx, kind)));
+  }
+  for (const look of Object.keys(AIRCRAFT_LOOKS) as AircraftLook[]) {
+    const A = AIRCRAFT_LOOKS[look];
+    out.push(makeSpec(aircraftLookKey(look), PLANE_LAYOUT[A.kind].box, (ctx) => AIRCRAFT_PAINT[look](ctx, A.faction)));
   }
   return out;
 }

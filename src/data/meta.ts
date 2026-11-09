@@ -1,5 +1,5 @@
 /** Rules and keys of the save data and campaign progress (src/meta). */
-import type { Difficulty } from './schema';
+import type { Difficulty, UnitKind } from './schema';
 import { VOLUME } from './sounds';
 
 export interface MetaTunables {
@@ -50,11 +50,18 @@ export interface MetaTunables {
    * by the player, so the step to version 4 brings it to today's default; a value the player chose is kept.
    */
   v3DefaultVolumes: { music: number; ambience: number; sfx: number };
+  /**
+   * The ten British placeholder missions, removed in save version 10 (owner, docs/QUEUE.md): their ids in campaign
+   * order, and the unit types reaching each one unlocked (its newUnit, unlocks and its own unit list, as
+   * missionUnlocks in src/meta/medals.ts read them). The step to version 10 keeps every type a save had unlocked
+   * there; the step to version 6 reads the ids to count an old save's clears.
+   */
+  legacyCampaign: { ids: readonly number[]; unlocks: Readonly<Record<number, readonly UnitKind[]>> };
 }
 
 export const META: MetaTunables = {
   saveKey: 'tinhats.save',
-  saveVersion: 9,
+  saveVersion: 10,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
   firstClearPoints: 2,
@@ -71,4 +78,19 @@ export const META: MetaTunables = {
   defaultShowBlood: true,
   defaultShowFps: false,
   v3DefaultVolumes: { music: 100, ambience: 100, sfx: 100 },
+  legacyCampaign: {
+    ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    unlocks: {
+      1: ['rifle', 'sapper'],
+      2: ['lmg', 'sapper', 'rifle'],
+      3: ['assault', 'sapper', 'rifle', 'lmg'],
+      4: ['mortar', 'sapper', 'rifle', 'lmg', 'assault'],
+      5: ['sniper', 'commander', 'sapper', 'rifle', 'lmg', 'assault', 'mortar'],
+      6: ['medic', 'flame', 'sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper'],
+      7: ['at', 'sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic'],
+      8: ['tank', 'apc', 'sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at'],
+      9: ['rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at'],
+      10: ['aa', 'sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank'],
+    },
+  },
 };

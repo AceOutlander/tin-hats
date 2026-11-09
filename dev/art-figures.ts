@@ -1,7 +1,9 @@
 /**
  * Stick-figure preview page (dev server only). See art-figures.html for the URL options.
  */
-import { createFigureAnim, createFigureInput, drawFigure2d, paintUnitIcon, setFigureClothing, setFigureGear, setFigureHeadgear, updateFigure, type FigureAnim, type FigureInput } from '../src/art/figure';
+import { MOLOTOV_KEY, createFigureAnim, createFigureInput, drawFigure2d, paintUnitIcon, setFigureClothing, setFigureGear, setFigureHeadgear, setFigureRocketItem, setFigureWeapon, updateFigure, type FigureAnim, type FigureInput } from '../src/art/figure';
+import { infantryLookOf, missionEra } from '../src/data/eras';
+import { getStalingradMission } from '../src/data/missions/stalingrad';
 import { FIGURE_CLOTHING_LIST, FIGURE_HEADGEAR_LIST, type FigureClothing, type FigureHeadgear } from '../src/data/looksGear';
 import type { LookStage } from '../src/data/upgradeLooks';
 import { ramp } from '../src/art/figure/math';
@@ -369,6 +371,16 @@ function sheetMode(): void {
       if (gear) setFigureGear(a, gear);
       setFigureHeadgear(a, cap);
       setFigureClothing(a, cloth);
+      // ?mission=1009 dresses and arms every figure in that mission's era (src/data/eras.ts); ?look=romanian a force look.
+      const m = getStalingradMission(num('mission', 0));
+      if (m) {
+        const era = missionEra(m, f);
+        const inf = infantryLookOf(params.get('look') ?? '');
+        setFigureHeadgear(a, inf ? inf.headgear : (era.headgear[k] ?? null));
+        setFigureClothing(a, inf ? inf.clothing : (era.clothing[k] ?? null));
+        setFigureWeapon(a, era.weapon[k] ?? null);
+        setFigureRocketItem(a, era.rocketItem[k] ? MOLOTOV_KEY : null);
+      }
       if (params.has('alt')) a.altAim = params.get('alt') === '1';
       const inp = createFigureInput(k);
       inp.carrying = k === 'sapper' && params.get('carry') !== '0';

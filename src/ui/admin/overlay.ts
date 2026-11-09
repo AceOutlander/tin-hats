@@ -16,10 +16,10 @@ export interface DebugLayer {
 }
 
 /** Room for every unit of the pool and plenty of points. */
-const MAX_MARKS = 64;
+const MAX_MARKS = 96;
 
 /** Labels by MARK_* kind (contracts.ts). */
-const MARK_NAMES: readonly string[] = ['HQ door', 'Edge', 'Wave', 'Trench'];
+const MARK_NAMES: readonly string[] = ['HQ door', 'Edge', 'Wave', 'Trench', 'Building'];
 
 export function createDebugLayer(api: AdminApi): DebugLayer {
   const root = el('div', 'th-admin-debug');

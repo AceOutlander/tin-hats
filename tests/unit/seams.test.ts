@@ -12,7 +12,7 @@ import { LOOP_NAMES, ONE_SHOT_NAMES, ORDER_WHISTLE, UI_SOUND, isSoundName } from
 import { SUPPORTS } from '../../src/data/supports';
 import { UNIT_KINDS, UNITS } from '../../src/data/units';
 import { WEAPONS } from '../../src/data/weapons';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import { listFxSprites } from '../../src/art/fx';
 import {
   FACTION_FIGURE_KEYS,
@@ -106,9 +106,9 @@ describe('unit vocabulary', () => {
   });
 
   it('only produces kinds and actions in a real battle that the art and UI know about', () => {
-    const battle = createBattle({ mission: M01, difficulty: 'normal', seed: 5, upgrades: {}, commanders: ['bot', 'ai'] });
+    const battle = createBattle({ mission: FIELD, difficulty: 'normal', seed: 5, upgrades: {}, commanders: ['bot', 'ai'] });
     const seen = new Set<string>();
-    // Long enough for the bot's first push (mission 1: about 105 s) to reach the enemy.
+    // Long enough for the bot's first push (the test field: about 105 s) to reach the enemy.
     for (let tick = 0; tick < 30 * 300 && !battle.state.over; tick++) {
       battle.step();
       if (tick % 3 !== 0) continue;

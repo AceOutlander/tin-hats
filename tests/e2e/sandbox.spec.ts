@@ -5,6 +5,7 @@
  * the sim back. Pictures go to docs/screenshots/e2e-sandbox-*.png.
  */
 import type { Page } from '@playwright/test';
+import { MISSIONS } from '../../src/data/missions';
 import type { SupportKind, UnitKind } from '../../src/data/schema';
 import {
   BATTLE_LOAD_MS,
@@ -60,7 +61,7 @@ test.describe('proving ground (Phase 2)', () => {
     await open(page);
     await expect(page.getByTestId('play')).toBeVisible();
     await tap(page, 'play');
-    await expect(page.getByTestId('mission-pin-1')).toBeVisible();
+    await expect(page.getByTestId('mission-pin-1001')).toBeVisible();
     await expect(page.getByTestId('mission-pin-901')).toHaveCount(0);
     expect(await startSandbox(page, 1, true)).toBe(true);
     await expect.poll(async () => (await state(page)).missionId).toBe(902);
@@ -189,12 +190,14 @@ test.describe('proving ground (Phase 2)', () => {
 
   test('a mission shows only the units and call-ins it allows', async ({ page }) => {
     await open(page);
-    expect(await startMission(page, 1)).toBe(true);
+    // The first mission (Brest) fields its own four types and no call-in.
+    const first = MISSIONS[0];
+    expect(first.supports[0]).toEqual([]);
+    expect(await startMission(page, first.id)).toBe(true);
     await expect(page.getByTestId('order-hold')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('train-rifle')).toBeVisible();
-    await expect(page.getByTestId('train-sapper')).toBeVisible();
-    for (const kind of TRAIN_KINDS.filter((k) => k !== 'rifle' && k !== 'sapper')) {
-      await expect(page.getByTestId(`train-${kind}`), `${kind} is not in mission 1`).toHaveCount(0);
+    for (const kind of first.units[0]) await expect(page.getByTestId(`train-${kind}`), `${kind} is in mission ${first.id}`).toBeVisible();
+    for (const kind of TRAIN_KINDS.filter((k) => !first.units[0].includes(k))) {
+      await expect(page.getByTestId(`train-${kind}`), `${kind} is not in mission ${first.id}`).toHaveCount(0);
     }
     for (const kind of SUPPORTS) await expect(page.getByTestId(`support-${kind}`)).toHaveCount(0);
     expect((await state(page)).supports.artillery.available).toBe(false);

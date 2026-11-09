@@ -7,18 +7,27 @@
  * the prep phase ends go on being built. Nothing here runs for a mission without `prep`.
  */
 import { CONFIG } from '../data/config';
+import { MINES } from '../data/obstacles';
 import { PREP } from '../data/prep';
-import type { BuildableId, MissionDef, Side } from '../data/schema';
+import type { BuildableId, MissionDef, MissionPrepDef, Side } from '../data/schema';
 import { KIND_SAPPER } from './tables';
+import { addMinefield } from './mines';
+import { addObstacle } from './obstacles';
 import { addTrench } from './trenches';
 import type { BattleState, BuildSiteState, PrepState } from './types';
 import { createMount, resetMount } from './units';
-import type { World } from './world';
+import { CMD_ORDER, type World } from './world';
 
 /** The prep state a mission starts with, or null. `hq0X` is side 0's HQ centre (null without one). */
 export function createPrep(mission: MissionDef, hq0X: number | null): PrepState | null {
-  const def = mission.prep;
+  // The mission's prep phase, or its first phase's (FOUNDATIONS.md 7.3).
+  const def = mission.prep ?? mission.phases?.[0]?.prep;
   if (!def) return null;
+  return prepState(mission, def, hq0X, 0, 0);
+}
+
+/** A prep state for `def` starting at battle time `startedAt`, after `before` seconds of earlier preps. */
+function prepState(mission: MissionDef, def: MissionPrepDef, hq0X: number | null, startedAt: number, before: number): PrepState {
   const seconds = def.seconds ?? PREP.defaultSeconds;
   let from = hq0X !== null ? hq0X + CONFIG.hqWidth / 2 + PREP.gap : CONFIG.mapMargin;
   // The player's half, and behind the first enemy position by a gap.
@@ -27,6 +36,7 @@ export function createPrep(mission: MissionDef, hq0X: number | null): PrepState 
     if (x - PREP.frontGap < to) to = x - PREP.frontGap;
   };
   for (const t of mission.trenches) if (t.owner === 1) enemy(t.x - t.width / 2);
+  for (const b of mission.buildings ?? []) if (b.owner === 1) enemy(b.x - b.width / 2);
   for (const p of mission.pillboxes) if (p.side === 1) enemy(p.x - CONFIG.pillboxWidth / 2);
   for (const w of mission.wire) if (w.owner === 1) enemy(w.x - w.width / 2);
   for (const f of mission.start[1].forces) if (f.x !== undefined) enemy(f.x);
@@ -38,7 +48,9 @@ export function createPrep(mission: MissionDef, hq0X: number | null): PrepState 
     active: seconds > 0,
     secondsLeft: seconds,
     total: seconds,
-    endedAt: seconds > 0 ? -1 : 0,
+    endedAt: seconds > 0 ? -1 : startedAt,
+    startedAt,
+    before,
     buildables: [...(def.buildables ?? PREP.order)],
     zoneFrom: from,
     zoneTo: Math.max(from, to),
@@ -51,14 +63,43 @@ export function inPrep(s: BattleState): boolean {
 }
 
 /**
- * Seconds on the mission clock: battle time less the prep phase. While the prep phase runs it stays at 0, so the
- * mission timer and the scripted events wait for the attack.
+ * Seconds on the mission clock: battle time less every prep phase. While a prep phase runs it stands still (at 0 for
+ * one at the mission start), so the mission timer and the scripted events wait for the attack.
  */
 export function missionTime(s: BattleState): number {
   const p = s.prep;
   if (p === null) return s.time;
-  if (p.active) return 0;
-  return s.time - p.endedAt;
+  if (p.active) return p.startedAt - p.before;
+  return s.time - p.before - (p.endedAt - p.startedAt);
+}
+
+/**
+ * A prep phase at the start of a later phase (FOUNDATIONS.md 7.3): the countdown starts now. Its zone, unless the
+ * phase gives one, runs from PREP.phaseZoneDepth behind side 0's front (never behind its HQ) to PREP.frontGap short
+ * of the enemy's front. The enemy holds while it runs (its commander waits, and is told to Hold now). A prep phase
+ * still running ends first; its unfinished sites go on being built.
+ */
+export function startPhasePrep(w: World, def: MissionPrepDef): void {
+  const s = w.state;
+  const old = s.prep;
+  if (old !== null && old.active) endPrep(w);
+  const before = old === null ? 0 : old.before + (old.endedAt - old.startedAt);
+  const hq = s.sides[0].hq;
+  const p = prepState(w.mission, def, hq ? hq.x : null, s.time, before);
+  if (!def.zone) {
+    const home = hq ? hq.x + CONFIG.hqWidth / 2 + PREP.gap : CONFIG.mapMargin;
+    const to = w.front[1] - PREP.frontGap;
+    p.zoneTo = Math.max(home, to);
+    p.zoneFrom = Math.max(home, Math.min(p.zoneTo, w.front[0]) - PREP.phaseZoneDepth);
+  }
+  s.prep = p;
+  w.prepDef = def;
+  for (let si = 0; si < 2; si++) {
+    const ai = w.ai[si];
+    if (ai) ai.prepNext = 0;
+  }
+  // The enemy waits in its positions.
+  if (s.sides[1].hq && s.sides[1].order === 'advance') w.commands.push(1, CMD_ORDER).order = 'hold';
 }
 
 /** Edge-to-edge clear of every structure and site, with PREP.gap to spare. */
@@ -69,9 +110,26 @@ function clearOf(s: BattleState, x: number, half: number): boolean {
   for (const p of s.pillboxes) if (p.alive && near(p.x, CONFIG.pillboxWidth / 2)) return false;
   for (const w of s.wires) if (w.alive && near(w.x, w.width / 2)) return false;
   for (const site of s.sites) if (near(site.x, site.width / 2)) return false;
+  for (const o of s.obstacles) if (o.alive && near(o.x, o.width / 2)) return false;
+  for (const f of s.minefields) if (f.alive && near(f.x, f.width / 2)) return false;
   for (const side of s.sides) if (side.hq && near(side.hq.x, CONFIG.hqWidth / 2)) return false;
   for (const d of s.dumps) if (d && near(d.x, CONFIG.dumpSpread / 2)) return false;
   return true;
+}
+
+/**
+ * Sandbags placed on a building side `si` holds go into its windows: the index in state.buildings of the standing
+ * building (not a cover prop) whose footprint holds x and that has no sandbags yet, or -1.
+ */
+export function sandbagBuilding(s: BattleState, si: number, x: number): number {
+  for (let i = 0; i < s.buildings.length; i++) {
+    const b = s.buildings[i];
+    if (b.prop || b.rubble || b.owner !== si || Math.abs(x - b.x) > b.width / 2) continue;
+    for (const sb of s.sandbags) if (sb.building === i) return -1;
+    for (const site of s.sites) if (site.kind === 'sandbags' && site.x === b.x) return -1;
+    return i;
+  }
+  return -1;
 }
 
 /** Why a build at x would be dropped, or null if it would be placed. The HUD shows the ghost red when not null. */
@@ -82,7 +140,7 @@ export function buildProblem(s: BattleState, si: number, kind: BuildableId, x: n
   const def = PREP.buildables[kind];
   const half = def.width / 2;
   if (!Number.isFinite(x) || x - half < p.zoneFrom || x + half > p.zoneTo) return 'zone';
-  if (!clearOf(s, x, half)) return 'blocked';
+  if (!(kind === 'sandbags' && sandbagBuilding(s, si, x) >= 0) && !clearOf(s, x, half)) return 'blocked';
   if (s.sides[si].supplies < def.cost) return 'money';
   let mine = 0;
   for (const site of s.sites) if (site.side === si) mine++;
@@ -97,12 +155,16 @@ export function applyBuild(w: World, si: number, kind: BuildableId, x: number): 
   const side = s.sides[si];
   side.supplies -= def.cost;
   side.stats.suppliesSpent += def.cost;
-  const site: BuildSiteState = { id: w.nextSiteId++, kind, side: si as Side, x, width: def.width, progress: 0, worker: -1, workerId: -1, cost: def.cost };
+  // Sandbags on a building go in its windows: the site is the building's footprint.
+  const bi = kind === 'sandbags' ? sandbagBuilding(s, si, x) : -1;
+  const at = bi >= 0 ? s.buildings[bi].x : x;
+  const width = bi >= 0 ? s.buildings[bi].width : def.width;
+  const site: BuildSiteState = { id: w.nextSiteId++, kind, side: si as Side, x: at, width, progress: 0, worker: -1, workerId: -1, cost: def.cost };
   s.sites.push(site);
   const e = w.events.emit('buildStarted');
   e.side = si;
   e.targetIndex = site.id;
-  e.x = x;
+  e.x = at;
   e.text = kind;
 }
 
@@ -146,7 +208,7 @@ export function updatePrep(w: World): void {
   const s = w.state;
   const p = s.prep;
   if (p === null || !p.active) return;
-  p.secondsLeft = Math.max(0, p.total - s.time);
+  p.secondsLeft = Math.max(0, p.total - (s.time - p.startedAt));
   if (p.secondsLeft <= 0) endPrep(w);
 }
 
@@ -205,7 +267,25 @@ function finish(w: World, site: BuildSiteState): void {
   const s = w.state;
   const def = PREP.buildables[site.kind];
   let index: number;
-  if (def.makes === 'trench') {
+  let target: 'trench' | 'pillbox' | 'wire' | 'building' | 'ground' = def.makes === 'trench' || def.makes === 'pillbox' || def.makes === 'wire' ? def.makes : 'ground';
+  if (def.makes === 'obstacle') {
+    index = addObstacle(w, { id: 1000 + site.id, x: site.x, width: def.width, owner: site.side, kind: def.obstacle ?? 'tankTrap' });
+  } else if (def.makes === 'minefield') {
+    index = addMinefield(w, { id: 1000 + site.id, x: site.x, width: def.width, owner: site.side, mines: 'ap', density: MINES.prepDensity, marked: false });
+  } else if (def.makes === 'sandbags') {
+    // Into the windows of the building it was placed on (if the side still holds it), else a sandbag wall.
+    const bi = s.buildings.findIndex((b) => !b.prop && !b.rubble && b.x === site.x && b.owner === site.side);
+    if (bi >= 0) {
+      const b = s.buildings[bi];
+      s.sandbags.push({ trench: b.trench, building: bi, x: b.x, width: b.width, side: site.side });
+      target = 'building';
+      index = bi;
+    } else {
+      index = addTrench(w, { id: 1000 + site.id, x: site.x, width: def.width, slots: def.slots ?? 3, owner: site.side });
+      s.sandbags.push({ trench: index, building: -1, x: site.x, width: def.width, side: site.side });
+      target = 'trench';
+    }
+  } else if (def.makes === 'trench') {
     index = addTrench(w, { id: 1000 + site.id, x: site.x, width: def.width, slots: def.slots ?? 3, owner: site.side });
   } else if (def.makes === 'pillbox') {
     const gun = createMount();
@@ -222,5 +302,5 @@ function finish(w: World, site: BuildSiteState): void {
   e.targetIndex = index;
   e.x = site.x;
   e.text = site.kind;
-  e.target = def.makes;
+  e.target = target;
 }

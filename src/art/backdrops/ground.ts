@@ -3,7 +3,8 @@
  * band the units walk on is kept mid-to-light and low in contrast so black
  * figures read against it; texture gets coarser toward the camera.
  */
-import { BACKDROP } from '../../data/theatres';
+import { GROUND_PALETTES } from '../../data/ground';
+import { BACKDROP, type GroundStyle } from '../../data/theatres';
 import { VIEW } from '../../data/view';
 import { mixRgb, rgbToCss } from './color';
 import { TAU, clamp, fillBelow, lerp, oval, sineProfile, wrapped, wrappedSeeded, type Ctx } from './kit';
@@ -297,7 +298,115 @@ function forestDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
 }
 
 /** Paint the whole ground strip. The context is in view-space y. */
-export function paintGround(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
+/** Wind-packed snow: soft drifts lit on top, a few dry stalks and stones showing through, boot prints in the band. */
+function snowDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number, deep: boolean): void {
+  const P = sc.pal;
+  // Drifts: long low mounds, the far side lit and the near side in blue shadow.
+  const drifts = deep ? 46 : 26;
+  for (let i = 0; i < drifts; i++) {
+    const x = rng() * w;
+    const y = planeY(rng, 1.3);
+    const d = depthAt(y);
+    const rx = lerp(18, deep ? 120 : 80, d) * range(rng, 0.6, 1.4);
+    const ry = Math.max(0.8, rx * lerp(0.05, deep ? 0.14 : 0.1, d));
+    wrapped(w, x, rx, (cx) => {
+      ctx.fillStyle = sc.tone(P.groundDark, 0, deep ? 0.3 : 0.22);
+      oval(ctx, cx, y + ry * 0.45, rx, ry);
+      ctx.fillStyle = sc.tone(P.groundLight, 0, 0.85);
+      oval(ctx, cx - rx * 0.05, y, rx * 0.92, ry * 0.8);
+    });
+  }
+  // Wind ripples in the crust.
+  ripples(ctx, rng, w, deep ? 90 : 160, sc.tone(P.groundDark, 0, 0.18), sc.tone(P.groundLight, 0, 0.5));
+  // Boot prints and sled tracks along the walked band.
+  ctx.fillStyle = sc.tone(P.groundDark, 0, deep ? 0.32 : 0.24);
+  const half = BACKDROP.trackHalfHeight;
+  for (let i = 0; i < (deep ? 70 : 120); i++) {
+    const x = range(rng, 2, w - 2);
+    const y = VIEW.groundY + range(rng, -0.8, 1) * half;
+    const d = depthAt(y);
+    oval(ctx, x, y, lerp(0.8, 2.2, d) * (deep ? 1.4 : 1), lerp(0.3, 0.8, d));
+  }
+  // What pokes through: dry stalks and the odd dark stone.
+  scatterTufts(ctx, rng, w, deep ? 30 : 90, 2.4, 8, [sc.tone(P.tuft, 0, 0.6), sc.tone(P.soil, 0, 0.45)]);
+  scatterPebbles(ctx, rng, w, deep ? 14 : 40, 0.8, 3.2, sc.tone(P.pebble, 0.05), sc.tone(P.soilDark, 0.05));
+}
+
+/** A city's rubble: broken brick and concrete, charred timbers, dust and the odd twisted rail. */
+function rubbleDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
+  const P = sc.pal;
+  scatterPatches(ctx, rng, w, 40, 16, 70, sc.tone(P.soilDark, 0, 0.18), 1.3);
+  scatterPatches(ctx, rng, w, 30, 20, 90, sc.tone(P.groundLight, 0, 0.18), 1.3);
+  // Brick and block fragments, lit on top with a dark underside.
+  for (let i = 0; i < 260; i++) {
+    const x = range(rng, 4, w - 4);
+    const y = planeY(rng, 1.35);
+    const d = depthAt(y);
+    const s = lerp(0.9, 4.4, d) * range(rng, 0.6, 1.5);
+    const v = rng();
+    ctx.fillStyle = v < 0.45 ? sc.tone(P.pebble, 0.05) : v < 0.8 ? sc.tone(P.stone, 0.05) : sc.tone(P.groundLight, 0.05);
+    ctx.fillRect(x, y, s * range(rng, 1.2, 2.2), s * 0.75);
+    ctx.fillStyle = sc.tone(P.soilDark, 0, 0.55);
+    ctx.fillRect(x, y + s * 0.75, s * 1.6, s * 0.28);
+  }
+  // Charred beams and bent rods lying askew.
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 34; i++) {
+    const x = range(rng, 20, w - 20);
+    const y = planeY(rng, 1.2);
+    const d = depthAt(y);
+    const len = lerp(6, 34, d) * range(rng, 0.6, 1.3);
+    const tilt = range(rng, -0.25, 0.25);
+    ctx.strokeStyle = rng() < 0.7 ? sc.tone(P.trunk, 0, 0.7) : sc.tone(P.metalShade, 0, 0.7);
+    ctx.lineWidth = lerp(0.6, 2.2, d);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + len, y + len * tilt * lerp(0.2, 0.5, d));
+    ctx.stroke();
+  }
+  scatterPebbles(ctx, rng, w, 160, 0.6, 2.8, sc.tone(P.stone, 0.05), sc.tone(P.stoneShade, 0.05));
+  scatterTufts(ctx, rng, w, 24, 2, 5.5, [sc.tone(P.tuft, 0, 0.5)]);
+}
+
+/** Open steppe: thick dry grass in bunches, a few wormwood clumps and dusty bare patches. */
+function steppeDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
+  const P = sc.pal;
+  scatterPatches(ctx, rng, w, 22, 18, 80, sc.tone(P.soil, 0, 0.14), 1.2);
+  scatterTufts(ctx, rng, w, 700, 2.6, 9.5, [sc.tone(P.tuft, 0, 0.6), sc.tone(P.groundLight, 0, 0.65), sc.tone(P.groundDark, 0, 0.55)]);
+  // Grey-green wormwood clumps.
+  ctx.fillStyle = sc.tone(P.foliageAlt, 0.1, 0.35);
+  for (let i = 0; i < 40; i++) {
+    const x = range(rng, 4, w - 4);
+    const y = planeY(rng, 1.4);
+    const r = lerp(0.8, 3.2, depthAt(y));
+    oval(ctx, x, y, r * 1.6, r * 0.7);
+  }
+  scatterPebbles(ctx, rng, w, 40, 0.7, 2.6, sc.tone(P.pebble, 0.05), sc.tone(P.stoneShade, 0.05));
+}
+
+/** A river's surface: long low swells, glints of light along them, and a few drifting reeds and foam streaks. */
+function waterDetail(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
+  const P = sc.pal;
+  scatterPatches(ctx, rng, w, 30, 40, 180, sc.tone(P.groundDark, 0, 0.18), 1.2);
+  ripples(ctx, rng, w, 420, sc.tone(P.groundDark, 0, 0.35), sc.tone(P.groundLight, 0, 0.4));
+  // Glints: short bright dashes, sparser toward the horizon.
+  ctx.fillStyle = sc.tone(P.pebble, 0.15, 0.45);
+  for (let i = 0; i < 140; i++) {
+    const x = range(rng, 2, w - 2);
+    const y = planeY(rng, 1.3);
+    const d = depthAt(y);
+    ctx.fillRect(x, y, lerp(2, 12, d) * range(rng, 0.5, 1.4), lerp(0.4, 1.1, d));
+  }
+  scatterTufts(ctx, rng, w, 18, 3, 8, [sc.tone(P.tuft, 0, 0.5)]);
+}
+
+/**
+ * Paint the whole ground strip. The context is in view-space y. `style` (default: the theatre's own) picks the
+ * detail; a style with its own colours (GROUND_PALETTES: snow, deep snow, rubble, steppe) paints in them.
+ */
+export function paintGround(ctx: Ctx, base: Scene, rng: Rng, w: number, style: GroundStyle = base.def.groundStyle): void {
+  const own = GROUND_PALETTES[style];
+  const sc: Scene = own ? { ...base, pal: { ...base.pal, ...own } } : base;
   const P = sc.pal;
   const edge = sineProfile(rng, w, [3, 7, 13, 23], 0.5);
   const yEdge = (x: number): number => H - 2.4 + edge(x) * BACKDROP.groundEdgeAmp;
@@ -334,7 +443,19 @@ export function paintGround(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
   ctx.fillRect(0, VIEW.groundY - half, w, half * 2.3);
   scatterBand(ctx, rng, w, sc.tone(P.track, 0, 0.2));
 
-  switch (sc.def.groundStyle) {
+  switch (style) {
+    case 'snow':
+      snowDetail(ctx, sc, rng, w, false);
+      break;
+    case 'deepSnow':
+      snowDetail(ctx, sc, rng, w, true);
+      break;
+    case 'rubble':
+      rubbleDetail(ctx, sc, rng, w);
+      break;
+    case 'steppe':
+      steppeDetail(ctx, sc, rng, w);
+      break;
     case 'grass':
       grassDetail(ctx, sc, rng, w);
       break;
@@ -355,6 +476,9 @@ export function paintGround(ctx: Ctx, sc: Scene, rng: Rng, w: number): void {
       break;
     case 'forest':
       forestDetail(ctx, sc, rng, w);
+      break;
+    case 'water':
+      waterDetail(ctx, sc, rng, w);
       break;
   }
 

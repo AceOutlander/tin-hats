@@ -76,7 +76,7 @@ async function loadAndStart(page: Page, id: number): Promise<Rendered> {
   const loaded = await page.evaluate((k) => (window as unknown as Hooked).__TH?.battleMusic.load(k) ?? false, id);
   expect(loaded, 'the whole track renders before the battle').toBe(true);
   const ready = await battle(page);
-  expect(ready.track).toBe(MISSIONS[id - 1].music);
+  expect(ready.track).toBe(MISSIONS.find((m) => m.id === id)?.music);
   expect(ready.state).toBe('ready');
   const longestTask = await longestTaskSince(page, from);
   await page.evaluate((k) => (window as unknown as Hooked).__TH?.startMission(k), id);
@@ -197,11 +197,11 @@ test.describe('battle music, every mission', () => {
     await watchLongTasks(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     const rows: string[] = [];
-    for (const id of [1, 2, 6, 10]) {
+    for (const id of [1001, 1002, 1006, 1010]) {
       const r = await loadAndStart(page, id);
       const s = r.stats;
       rows.push(
-        `${MISSIONS[id - 1].music.padEnd(10)} 4x CPU: render ${(s.renderMs / 1000).toFixed(1)} s, first piece ${s.firstMs.toFixed(0)} ms, build max ${s.buildMs.toFixed(0)} ms ` +
+        `${(MISSIONS.find((m) => m.id === id)?.music ?? '').padEnd(10)} 4x CPU: render ${(s.renderMs / 1000).toFixed(1)} s, first piece ${s.firstMs.toFixed(0)} ms, build max ${s.buildMs.toFixed(0)} ms ` +
           `(${s.buildMsTotal.toFixed(0)} ms in all), longest task ${r.longestTask.toFixed(0)} ms`,
       );
       expect(s.piecesReady).toBe(s.piecesTotal);
@@ -221,7 +221,10 @@ test.describe('battle music, every mission', () => {
     const R = MUSIC_BATTLE.intensity;
     const log: string[] = [];
     let combats = 0;
-    // The symmetric proving ground (two big armies, the player's played by the bot), then Arnhem (a survival clock).
+    // The symmetric proving ground (two big armies, the player's played by the bot), then the first survival mission (a
+    // clock: Brest, as Arnhem was before the British missions were removed).
+    const survival = MISSIONS.find((m) => m.mode === 'survival');
+    if (!survival) throw new Error('no survival mission');
     const battles: { name: string; load: () => Promise<unknown>; start: () => Promise<unknown> }[] = [
       {
         name: 'proving ground',
@@ -229,9 +232,9 @@ test.describe('battle music, every mission', () => {
         start: () => page.evaluate(() => (window as unknown as Hooked).__TH?.startSandbox(11, true)),
       },
       {
-        name: `mission 9 (${MISSIONS[8].music})`,
-        load: () => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.load(9)),
-        start: () => page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(9)),
+        name: `mission ${survival.id} (${survival.music})`,
+        load: () => page.evaluate((id) => (window as unknown as Hooked).__TH?.battleMusic.load(id), survival.id),
+        start: () => page.evaluate((id) => (window as unknown as Hooked).__TH?.startMission(id), survival.id),
       },
     ];
     for (const fight of battles) {
