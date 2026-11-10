@@ -6,6 +6,7 @@
 import { APP } from '../data/app';
 import { CAMPAIGNS, CAMPAIGN_IDS, UPCOMING_CAMPAIGNS, type UpcomingCampaign } from '../data/campaigns';
 import { missionEra } from '../data/eras';
+import { upgradeTextFor } from '../data/upgradeText';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
 import { MEDALS } from '../data/medals';
@@ -153,8 +154,8 @@ function upgradeView(save: SaveData, defs: readonly UpgradeDef[], def: UpgradeDe
   const group = support !== null ? own.supportNames[support] : def.unit !== null && def.unit !== 'sapper' ? own.unitNames[def.unit] : APP.upgradeHqGroup;
   return {
     id: def.id,
-    name: def.name,
-    description: def.description,
+    // In the words of the player's nation (owner, 2026-11-09): T-34 crews, not Churchill crews.
+    ...upgradeTextFor(def, nation),
     unit: def.unit,
     support,
     group,

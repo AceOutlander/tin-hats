@@ -1,6 +1,7 @@
 import { FACTIONS } from './factions';
 import { MEDALS } from './medals';
 import type { SupportKind, UnitKind, UpgradeDef, UpgradeEffect } from './schema';
+import { GENERAL_UPGRADE_TEXT, UNIT_UPGRADE_TEXT, type TrackText } from './upgradeText';
 import { UNITS } from './units';
 
 /**
@@ -11,7 +12,7 @@ import { UNITS } from './units';
  * The unit and call-in tracks are generated from the data: every unit type the player has for free or can unlock in
  * the Armoury (MEDALS.free, MEDALS.units) gets a health track and a damage track (a healing track for a unit that
  * heals instead of fighting), and every plane call-in (UPGRADABLE_SUPPORTS) gets one track. A new unit type or call-in
- * therefore gets its upgrades without a line here; UNIT_TRACK_TEXT and SUPPORT_TRACKS only give them their names.
+ * therefore gets its upgrades without a line here; src/data/upgradeText.ts gives them their names, per nation.
  * Saved levels are keyed by id: never rename an id (`${kind}Health`, `${kind}Damage`, `${kind}Healing` and
  * SUPPORT_TRACKS[kind].id, or `${kind}Upgrade` without one).
  */
@@ -44,43 +45,10 @@ function levels(build: (i: number) => UpgradeEffect[]): UpgradeEffect[][] {
   return [build(0), build(1), build(2)];
 }
 
-/** Name and one-line text of one generated unit track. */
-interface TrackText {
-  name: string;
-  description: string;
-}
-
 /**
- * Names of the unit tracks, by upgrade id. A unit type missing here still gets its tracks, named after the unit
- * (see unitTracks). The ids of the first eight units are those of the hand-written table they replaced.
+ * Names of the unit tracks: each unit type's British text (src/data/upgradeText.ts, where every nation has its own;
+ * these are the upgrades' default words). A unit type missing there still gets its tracks, named after the unit.
  */
-export const UNIT_TRACK_TEXT: Readonly<Record<string, TrackText>> = {
-  rifleHealth: { name: 'Rifleman Fieldcraft', description: 'Riflemen keep their heads down.' },
-  rifleDamage: { name: 'Rifleman Musketry', description: 'Riflemen train on the range until every round counts.' },
-  lmgHealth: { name: 'Bren Gun Pits', description: 'Bren gunners dig in faster and deeper.' },
-  lmgDamage: { name: 'Bren Gun Drill', description: 'Faster magazine changes and tighter bursts.' },
-  assaultHealth: { name: 'Assault Conditioning', description: 'Assault Troopers are hardened by battle school.' },
-  assaultDamage: { name: 'Close Quarter Battle', description: 'Assault Troopers hit harder with gun and grenade.' },
-  mortarHealth: { name: 'Mortar Pit Drill', description: 'Mortar crews site their pits under cover.' },
-  mortarDamage: { name: 'Mortar Ranging', description: 'Mortar crews bracket the target sooner.' },
-  sniperHealth: { name: 'Sniper Camouflage', description: 'Snipers use scrim and ghillie to stay alive.' },
-  sniperDamage: { name: 'Telescopic Sights', description: 'Better optics for the sniper rifle.' },
-  medicHealth: { name: 'Medic Armbands', description: 'Medics learn to move between cover.' },
-  medicHealing: { name: 'Field Dressings', description: 'Medics carry better kit and patch men up faster.' },
-  atHealth: { name: 'PIAT Team Cover', description: 'PIAT teams stalk from better cover.' },
-  atDamage: { name: 'PIAT Bomb Drill', description: 'PIAT teams aim for the weak spots.' },
-  tankHealth: { name: 'Appliqué Armour', description: 'Extra plates bolted to the Churchill.' },
-  tankDamage: { name: 'Tank Gunnery School', description: 'Churchill crews lay their guns faster and truer.' },
-  apcHealth: { name: 'Carrier Armour', description: 'Spare track and sandbags turn more bullets off the Carrier.' },
-  apcDamage: { name: 'Carrier Gunnery', description: 'More ammunition and a second gun for the Carrier crew.' },
-  flameHealth: { name: 'Flamer Protection', description: 'Flamethrowers learn to work from cover in heat-proof kit.' },
-  flameDamage: { name: 'Fuel Mixture', description: 'A thicker fuel that clings and burns hotter.' },
-  commanderHealth: { name: 'Officer Training', description: 'The Lieutenant keeps low and leads from cover.' },
-  commanderDamage: { name: 'Revolver Practice', description: 'The Lieutenant shoots straighter with his own revolver. His aura is unchanged.' },
-  aaHealth: { name: 'Gun Pit Revetment', description: 'Bofors crews dig their gun pit deeper.' },
-  aaDamage: { name: 'Predictor Drill', description: 'Bofors crews lead their targets and hit harder.' },
-};
-
 /** Unit types with Quartermaster tracks, in Quartermaster order: the free types, then MEDALS.units (data order). */
 export function upgradableKinds(): UnitKind[] {
   const out: UnitKind[] = [];
@@ -106,8 +74,8 @@ function heals(kind: UnitKind): boolean {
 }
 
 function text(id: string, kind: UnitKind, what: string): TrackText {
-  const own = UNIT_TRACK_TEXT[id];
-  if (own) return own;
+  const own = UNIT_UPGRADE_TEXT.british[kind];
+  if (own) return id === `${kind}Health` ? own.health : own.second;
   const name = FACTIONS.british.unitNames[kind];
   return { name: `${name} ${what}`, description: `Better training and kit for every ${name}.` };
 }
@@ -162,20 +130,17 @@ export interface SupportTrackDef {
 export const SUPPORT_TRACKS: Partial<Record<SupportKind, SupportTrackDef>> = {
   recon: {
     id: 'reconOptics',
-    name: 'Long-Range Cameras',
-    description: 'Better cameras and a longer loiter: the recon plane sees a wider area for longer.',
+    ...GENERAL_UPGRADE_TEXT.british.reconOptics,
     stats: ['supportReach', 'supportTime'],
   },
   fighter: {
     id: 'fighterTurnaround',
-    name: 'Fighter Turnaround',
-    description: 'Ground crews rearm and refuel the fighters faster: the strafing run is ready sooner.',
+    ...GENERAL_UPGRADE_TEXT.british.fighterTurnaround,
     stats: ['supportRate'],
   },
   bomber: {
     id: 'bomberTurnaround',
-    name: 'Bomber Turnaround',
-    description: 'Faster bombing-up on the airfield: the bomber is ready to fly again sooner.',
+    ...GENERAL_UPGRADE_TEXT.british.bomberTurnaround,
     stats: ['supportRate'],
   },
 };
@@ -211,8 +176,7 @@ function supportTrack(kind: SupportKind): UpgradeDef {
 export const UPGRADES: readonly UpgradeDef[] = [
   {
     id: 'sapperDrill',
-    name: 'Sapper Drill',
-    description: 'Sappers march faster and carry more per trip.',
+    ...GENERAL_UPGRADE_TEXT.british.sapperDrill,
     unit: null,
     levels: levels((i) => [
       { stat: 'sapperSpeed', mul: SAPPER_SPEED[i] },
@@ -223,8 +187,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   },
   {
     id: 'hqIncome',
-    name: 'Requisition Orders',
-    description: 'The HQ draws more money from the rear.',
+    ...GENERAL_UPGRADE_TEXT.british.hqIncome,
     unit: null,
     levels: levels((i) => [{ stat: 'hqIncome', mul: HQ_INCOME[i] }]),
     costPerLevel: UPGRADE_LEVEL_POINTS[0],
@@ -232,8 +195,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   },
   {
     id: 'hqHealth',
-    name: 'Sandbagged HQ',
-    description: 'Extra sandbags and timber on the command post.',
+    ...GENERAL_UPGRADE_TEXT.british.hqHealth,
     unit: null,
     levels: levels((i) => [{ stat: 'hqHealth', mul: HQ_HEALTH[i] }]),
     costPerLevel: UPGRADE_LEVEL_POINTS[0],
@@ -241,8 +203,7 @@ export const UPGRADES: readonly UpgradeDef[] = [
   },
   {
     id: 'hqGun',
-    name: 'HQ Vickers Gun',
-    description: 'A better-served HQ machine gun: it hits harder and fires faster.',
+    ...GENERAL_UPGRADE_TEXT.british.hqGun,
     unit: null,
     levels: levels((i) => [
       { stat: 'hqGunDamage', mul: HQ_GUN_DAMAGE[i] },
