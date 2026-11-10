@@ -14,31 +14,7 @@ import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
 import { UNITS } from '../../src/data/units';
-import {
-  BATTLE_LOAD_MS,
-  arrived,
-  expect,
-  fastForward,
-  field,
-  grantSupplies,
-  lastResult,
-  lookAt,
-  open,
-  reasonText,
-  savedGame,
-  setTimeScale,
-  shot,
-  state,
-  tap,
-  tapCallIn,
-  tapIfThere,
-  tapWorld,
-  test,
-  touchDrag,
-  camera,
-  unlockAll,
-  type Hooked,
-} from './helpers';
+import { arrived, BATTLE_LOAD_MS, camera, expect, fastForward, field, grantSupplies, type Hooked, lastResult, lookAt, open, reasonText, savedGame, setTimeScale, shot, state, tap, tapCallIn, tapIfThere, tapWorld, test, toMap, touchDrag, unlockAll } from './helpers';
 import type { DebugApi } from '../../src/app/debug';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -100,7 +76,7 @@ for (const m of MISSIONS) {
 
     // --- Campaign map: unlock everything, select the mission, open the briefing ---------------------------------
     await unlockAll(page);
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${m.id}`)).toBeVisible();
     await tap(page, `mission-pin-${m.id}`);
     await expect(page.getByTestId('mission-start')).toBeEnabled();

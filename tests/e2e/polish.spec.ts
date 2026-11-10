@@ -5,7 +5,7 @@
  */
 import type { Page } from '@playwright/test';
 import { UPGRADES } from '../../src/data/upgrades';
-import { BATTLE_LOAD_MS, arrived, expect, open, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
+import { arrived, BATTLE_LOAD_MS, expect, open, shot, startMission, state, tap, tapIn, test, toMap, touchDrag } from './helpers';
 
 const SIZES: Array<[number, number]> = [
   [568, 320],
@@ -123,7 +123,7 @@ test.describe('menus and HUD at every phone size', () => {
         await expectClean(page, 'settings');
         await tapIn(page, 'settings', 'back');
         await settled(page);
-        await tap(page, 'play');
+        await toMap(page);
         await settled(page);
         await expectClean(page, 'campaign');
         await tapIn(page, 'campaign', 'quartermaster');
@@ -165,7 +165,7 @@ test.describe('the briefing', () => {
   test('runs past the screen, says so, and scrolls with a finger and with the wheel', async ({ page }) => {
     await farSave(page);
     await open(page);
-    await tap(page, 'play');
+    await toMap(page);
     await settled(page);
     await page.getByTestId('mission-pin-1004').evaluate((el) => (el as HTMLElement).click());
     await tapIn(page, 'campaign', 'mission-start');
@@ -203,7 +203,7 @@ test.describe('the briefing', () => {
   test('shows no cue when everything fits', async ({ page }) => {
     await farSave(page);
     await open(page);
-    await tap(page, 'play');
+    await toMap(page);
     await settled(page);
     await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
     await tapIn(page, 'campaign', 'mission-start');
@@ -247,19 +247,23 @@ test.describe('rapid taps', () => {
 
     await doubleTap(page, 'play');
     await page.waitForTimeout(500);
-    expect(await shown(page)).toEqual(['campaign']);
+    expect(await shown(page)).toEqual(['campaigns']);
+    await expect(page.locator('.th-screen[data-screen="campaigns"]')).toHaveCount(1);
+    await doubleTap(page, 'campaign-stalingrad', 'campaigns');
+    await page.waitForTimeout(500);
+    expect(await shown(page)).toEqual(['campaigns', 'campaign']);
     await expect(page.locator('.th-screen[data-screen="campaign"]')).toHaveCount(1);
 
     await page.getByTestId('mission-pin-1002').evaluate((el) => (el as HTMLElement).click());
     await doubleTap(page, 'mission-start', 'campaign');
     await page.waitForTimeout(500);
-    expect(await shown(page)).toEqual(['campaign', 'briefing']);
+    expect(await shown(page)).toEqual(['campaigns', 'campaign', 'briefing']);
     await expect(page.locator('.th-screen[data-screen="briefing"]')).toHaveCount(1);
 
     await doubleTap(page, 'begin', 'briefing');
     await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await page.waitForTimeout(500);
-    expect(await shown(page)).toEqual(['campaign', 'briefing', 'battle']);
+    expect(await shown(page)).toEqual(['campaigns', 'campaign', 'briefing', 'battle']);
     // The second tap landed where the Advance button now is: it must not have given an order.
     expect((await state(page)).order).toBe('hold');
     expect((await state(page)).queue.rifle).toBe(0);
@@ -289,7 +293,7 @@ test.describe('rapid taps', () => {
   test('buy exactly one level for each tap on a Quartermaster button, however fast the taps come', async ({ page }) => {
     await farSave(page);
     await open(page);
-    await tap(page, 'play');
+    await toMap(page);
     await settled(page);
     await tapIn(page, 'campaign', 'quartermaster');
     await settled(page);

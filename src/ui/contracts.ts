@@ -6,7 +6,7 @@
  * these models from the simulation and the save data.
  */
 import type { CampaignMapDef } from '../data/campaignMap';
-import type { BuildableId, CampaignId, Difficulty, FactionId, FactionLook, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { BuildableId, CampaignId, UpcomingCampaignId, Difficulty, FactionId, FactionLook, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
 import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
@@ -225,7 +225,10 @@ export type HudAction =
   | { type: 'clear' };
 
 export interface MissionCard {
+  /** The internal mission id (1001…): never shown to the player; screens show `number`. */
   id: number;
+  /** The mission's place in its campaign, 1 to 10: what the map markers, briefing and result screens show. */
+  number: number;
   title: string;
   location: string;
   date: string;
@@ -364,10 +367,15 @@ export interface PanelDropsState {
 
 /** One campaign on the campaign select screen. */
 export interface CampaignCardView {
-  id: CampaignId;
+  /** A playable campaign, or one still to come (`comingSoon`). */
+  id: CampaignId | UpcomingCampaignId;
   title: string;
-  /** Its dates, e.g. 'June 1941 to February 1943'. */
+  /** Its dates, e.g. 'June 1941 to February 1943' (the years alone for a campaign still to come). */
   subtitle: string;
+  /** The years on the card, e.g. '1941–1943'. */
+  years: string;
+  /** A campaign still to come: greyed, "Coming soon", no missions, and no way to start it. */
+  comingSoon: boolean;
   /** The one-line pitch. */
   pitch: string;
   nation: FactionId;

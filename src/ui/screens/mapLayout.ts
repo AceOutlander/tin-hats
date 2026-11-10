@@ -200,9 +200,10 @@ const SHIFT_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
 ];
 
 /**
- * For each label, how far to move it so it is clear of every obstacle and of the labels placed before it: the
- * smallest move found, trying `step` px more each time up to `maxShift`. A label that is already clear, or has no
- * clear spot that close, stays where it is. Deterministic.
+ * For each label, how far to move it so it is clear of every obstacle and of the labels placed before it, and (when
+ * `bounds` is given) wholly inside `bounds`, so no name is covered by a pin or cut off at the map edge: the smallest
+ * move found, trying `step` px more each time up to `maxShift`, then on to twice that before giving up. A label that is
+ * already clear, or has no clear spot that close, stays where it is (pulled inside `bounds` if it can be). Deterministic.
  */
 export function clearLabels(
   labels: readonly LabelBox[],
@@ -210,20 +211,36 @@ export function clearLabels(
   maxShift: number,
   step: number,
   pad: number,
+  bounds?: Obstacle,
 ): Array<{ dx: number; dy: number }> {
   const taken: Obstacle[] = [...obstacles];
   const out: Array<{ dx: number; dy: number }> = [];
-  const clear = (b: LabelBox): boolean => taken.every((r) => !labelHitsRect(b, r, pad));
+  const inside = (b: LabelBox): boolean => {
+    if (!bounds) return true;
+    const r = labelBounds(b);
+    return r.x0 >= bounds.x0 && r.x1 <= bounds.x1 && r.y0 >= bounds.y0 && r.y1 <= bounds.y1;
+  };
+  const clear = (b: LabelBox): boolean => inside(b) && taken.every((r) => !labelHitsRect(b, r, pad));
   for (const label of labels) {
     let best = { dx: 0, dy: 0 };
     if (!clear(label)) {
-      search: for (let r = step; r <= maxShift; r += step) {
+      let found = false;
+      search: for (let r = step; r <= maxShift * 2; r += step) {
         for (const [ux, uy] of SHIFT_DIRECTIONS) {
           if (clear({ ...label, x: label.x + ux * r, y: label.y + uy * r })) {
             best = { dx: ux * r, dy: uy * r };
+            found = true;
             break search;
           }
         }
+      }
+      // Nowhere clear: at least keep the whole name on the map.
+      if (!found && bounds) {
+        const r = labelBounds(label);
+        best = {
+          dx: r.x0 < bounds.x0 ? bounds.x0 - r.x0 : r.x1 > bounds.x1 ? bounds.x1 - r.x1 : 0,
+          dy: r.y0 < bounds.y0 ? bounds.y0 - r.y0 : r.y1 > bounds.y1 ? bounds.y1 - r.y1 : 0,
+        };
       }
     }
     out.push(best);

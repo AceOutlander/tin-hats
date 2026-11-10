@@ -6,7 +6,7 @@
  */
 import type { Page } from '@playwright/test';
 import type { BattleMusicStats } from '../../src/audio';
-import { arrived, expect, open, state, tap, test, unlockAll, type Hooked } from './helpers';
+import { arrived, expect, type Hooked, open, state, tap, test, toMap, unlockAll } from './helpers';
 
 /** Begin to the battle screen (ms), owner's target "within about 2 seconds". */
 const BEGIN_TARGET_MS = 2000;
@@ -17,7 +17,7 @@ const battleMusic = (page: Page): Promise<BattleMusicStats> => page.evaluate(() 
 async function beginToBattle(page: Page, id: number, waitMs: number): Promise<number> {
   await open(page);
   await unlockAll(page);
-  await tap(page, 'play');
+  await toMap(page);
   await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${id}`)).toBeVisible();
   await tap(page, `mission-pin-${id}`);
   await tap(page, 'mission-start');

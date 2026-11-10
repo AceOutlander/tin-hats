@@ -41,12 +41,12 @@ export const campaignScreen: ScreenFactory = (ctx) => {
   world.append(canvas);
 
   const head = el('div', 'th-map-head');
-  /** Back goes to the campaign select when there is a choice of campaigns, else to the title. */
-  const backTo = (): 'campaigns' | 'title' => ((ctx.view().campaigns?.length ?? 0) > 1 ? 'campaigns' : 'title');
+  /** Back goes to the campaign select, where Play led (owner, 2026-11-09). */
+  const backTo = (): 'campaigns' => 'campaigns';
   const back = button({
     testid: 'back',
     className: 'th-btn-icon',
-    aria: backTo() === 'campaigns' ? 'Back to the campaigns' : 'Back to title',
+    aria: 'Back to the campaigns',
     content: [glyph('back')],
     onTap: () => {
       ctx.app.uiSound('click');
@@ -211,12 +211,12 @@ export const campaignScreen: ScreenFactory = (ctx) => {
       node.classList.toggle('is-selected', m.id === ctx.session.missionId);
       node.classList.toggle('is-next', state === 'open' && m.id === nextId);
       node.setAttribute('aria-pressed', m.id === ctx.session.missionId ? 'true' : 'false');
-      node.setAttribute('aria-label', `Mission ${m.id}: ${m.title}, ${state === 'locked' ? 'locked' : state === 'cleared' ? 'cleared' : 'ready'}`);
+      node.setAttribute('aria-label', `Mission ${m.number}: ${m.title}, ${state === 'locked' ? 'locked' : state === 'cleared' ? 'cleared' : 'ready'}`);
       const disc = node.children[0] as HTMLElement;
       const pips = node.children[1] as HTMLElement;
       clear(disc);
       if (state === 'locked') disc.append(glyph('lock', 'th-icon th-pin-lock'));
-      else disc.textContent = String(m.id);
+      else disc.textContent = String(m.number);
       clear(pips);
       if (state !== 'locked') {
         for (const d of difficulties) {
@@ -275,7 +275,7 @@ export const campaignScreen: ScreenFactory = (ctx) => {
     if (!m) return;
     const state = pinState(m);
     card.dataset.state = state;
-    cardNo.textContent = `No. ${m.id}/${missions.length}`;
+    cardNo.textContent = `Mission ${m.number} of ${missions.length}`;
     cardStamp.textContent = state === 'locked' ? 'Locked' : state === 'cleared' ? 'Cleared' : 'Orders in';
     cardStamp.dataset.state = state;
     setStencil(cardTitle, m.title);
@@ -304,7 +304,9 @@ export const campaignScreen: ScreenFactory = (ctx) => {
 
   function paint(): void {
     paintedFront = frontKey();
-    paintCampaignMap(canvas, mapW, mapH, pins, mapDef, selected()?.dateIso);
+    const placed = paintCampaignMap(canvas, mapW, mapH, pins, mapDef, selected()?.dateIso);
+    // Where each name was lettered (map px), for the browser tests that check no name is covered or cut off.
+    canvas.dataset.labels = JSON.stringify(placed.map((r, i) => ({ t: mapDef.labels[i]?.text ?? '', x0: Math.round(r.x0), y0: Math.round(r.y0), x1: Math.round(r.x1), y1: Math.round(r.y1) })));
     map.dataset.front = paintedFront ?? '';
   }
 

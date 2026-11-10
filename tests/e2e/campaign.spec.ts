@@ -10,28 +10,7 @@ import { META } from '../../src/data/meta';
 import { MISSIONS } from '../../src/data/missions';
 import { MEDALS } from '../../src/data/medals';
 import { UPGRADES, UPGRADE_LEVEL_POINTS } from '../../src/data/upgrades';
-import {
-  BATTLE_LOAD_MS,
-  arrived,
-  expect,
-  lastResult,
-  memorySave,
-  missionList,
-  open,
-  pinState,
-  playThroughMenus,
-  playToEnd,
-  pointsLeft,
-  savedGame,
-  shot,
-  state,
-  storeRaw,
-  tap,
-  tapIn,
-  test,
-  upgradeLevel,
-  type Hooked,
-} from './helpers';
+import { arrived, BATTLE_LOAD_MS, expect, type Hooked, lastResult, memorySave, missionList, open, pinState, playThroughMenus, playToEnd, pointsLeft, savedGame, shot, state, storeRaw, tap, tapIn, test, toMap, upgradeLevel } from './helpers';
 import type { DebugApi } from '../../src/app/debug';
 
 const FIRST = MISSIONS[0].id;
@@ -59,7 +38,7 @@ test.describe('campaign', () => {
     const list = await missionList(page);
     expect(list.map((m) => m.id)).toEqual(MISSIONS.map((m) => m.id));
     expect(list).toHaveLength(10);
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
     expect(await pinStates(page)).toEqual(['open', ...Array<string>(9).fill('locked')]);
     for (const m of MISSIONS) await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${m.id}`)).toBeAttached();
@@ -174,7 +153,7 @@ test.describe('campaign', () => {
     expect(saved?.upgrades).toEqual({ hqHealth: 1, rifleDamage: 1 });
     expect(saved?.settings.difficulty).toBe('hard');
     expect(saved?.lastMission).toBe(FIRST);
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
     expect(await pinState(page, FIRST)).toBe('cleared');
     expect(await pinState(page, SECOND)).toBe('open');
@@ -257,7 +236,7 @@ test.describe('campaign', () => {
           showBlood: META.defaultShowBlood,
           showFps: META.defaultShowFps,
         });
-        await tap(page, 'play');
+        await toMap(page);
         await expect(arrived(page, 'campaign').getByTestId(`mission-pin-${FIRST}`)).toBeVisible();
         expect(await pinStates(page)).toEqual(['open', ...Array<string>(9).fill('locked')]);
         expect(await pointsLeft(page, 'campaign')).toBe(0);
@@ -302,7 +281,7 @@ test.describe('campaign', () => {
         showBlood: META.defaultShowBlood,
         showFps: META.defaultShowFps,
       });
-      await tap(page, 'play');
+      await toMap(page);
       expect(await pinStates(page)).toEqual(['open', ...Array<string>(9).fill('locked')]);
       // Two missions cleared were four old points, one spent on the level kept: the three left become medals, plus the
       // 10 the re-pricing of save version 8 gave back for a level 1 (it cost 20, then 10). Version 11 adds the upgrade
@@ -326,7 +305,7 @@ test.describe('campaign', () => {
       // points that clear earns today, on top of the levels kept.
       const back = 2 * META.legacyUpgradeLevelMedals - META.v8UpgradeLevelMedals[0] - META.v8UpgradeLevelMedals[1];
       expect(clamped.medals).toBe(back);
-      await tap(page, 'play');
+      await toMap(page);
       expect(await pointsLeft(page, 'campaign')).toBe(MEDALS.points.byDifficulty.normal);
       await tap(page, 'quartermaster');
       await expect(arrived(page, 'quartermaster').getByTestId('upgrade-buy-hqHealth')).toBeVisible();

@@ -9,27 +9,7 @@ import { join } from 'node:path';
 import type { DebugApi } from '../../src/app/debug';
 import { MEDALS } from '../../src/data/medals';
 import { BASIC_TRAINING, BASIC_TRAINING_ID } from '../../src/data/missions/training';
-import {
-  BATTLE_LOAD_MS,
-  SHOT_DIR,
-  arrived,
-  expect,
-  grantSupplies,
-  lookAt,
-  memorySave,
-  open,
-  savedGame,
-  setTimeScale,
-  state,
-  tap,
-  tapIfThere,
-  tapIn,
-  tapWorld,
-  test,
-  touchDrag,
-  units,
-  type Hooked,
-} from './helpers';
+import { arrived, BATTLE_LOAD_MS, expect, grantSupplies, type Hooked, lookAt, mapToTitle, memorySave, open, savedGame, setTimeScale, SHOT_DIR, state, tap, tapIfThere, tapIn, tapWorld, test, touchDrag, units } from './helpers';
 
 type TutorialInfo = ReturnType<DebugApi['tutorial']>;
 
@@ -303,7 +283,7 @@ test.describe('Basic Training', () => {
 
     // Back on the title the offer is gone; the button stays for a replay, which pays nothing more.
     await tapIn(page, 'armoury', 'back');
-    await tapIn(page, 'campaign', 'back');
+    await mapToTitle(page);
     await expect(arrived(page, 'title')).toBeVisible();
     await expect(page.getByTestId('training-offer')).toBeHidden();
     await tap(page, 'basic-training');

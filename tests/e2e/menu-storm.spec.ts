@@ -12,7 +12,7 @@ import type { MenuStormStats } from '../../src/app/menuStorm';
 import { MENU_STORM } from '../../src/data/menuStorm';
 import { volumeGain } from '../../src/data/sounds';
 import type { PerfHook } from '../../src/render/view';
-import { arrived, expect, open, savedGame, SHOT_DIR, tap, tapIn, test, type Hooked } from './helpers';
+import { arrived, expect, type Hooked, mapToTitle, open, savedGame, SHOT_DIR, tap, tapIn, test, toMap } from './helpers';
 
 const stats = (page: Page): Promise<MenuStormStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.menuStorm.stats() as MenuStormStats);
 const freeze = (page: Page, on: boolean) => page.evaluate((v) => (window as unknown as Hooked).__TH?.menuStorm.freeze(v), on);
@@ -265,7 +265,7 @@ test.describe('title storm', () => {
     await expect.poll(async () => (await stats(page)).audio.bed, { timeout: 8000 }).toBeGreaterThan(0.5);
 
     // Leaving for the campaign: rain and sound fade out and the scene comes down.
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign')).toBeVisible();
     await expect.poll(async () => (await stats(page)).running).toBe(false);
     await expect.poll(async () => (await stats(page)).audio.bedOn).toBe(false);
@@ -275,7 +275,7 @@ test.describe('title storm', () => {
     expect((await stats(page)).time).toBe(time);
 
     // Back on the title it starts again.
-    await tapIn(page, 'campaign', 'back');
+    await mapToTitle(page);
     await expect(arrived(page, 'title')).toBeVisible();
     await expect.poll(async () => (await stats(page)).running).toBe(true);
     await expect.poll(async () => (await stats(page)).scene.shown).toBe(true);

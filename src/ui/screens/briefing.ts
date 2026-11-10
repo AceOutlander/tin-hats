@@ -58,7 +58,7 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const sheetHead = el('div', 'th-sheet-head');
   add(
     sheetHead,
-    el('span', 'th-type th-sheet-no', mission ? `Operation order No. ${mission.id}` : 'Operation order'),
+    el('span', 'th-type th-sheet-no', mission ? `Operation order No. ${mission.number}` : 'Operation order'),
     el('span', 'th-stamp th-stamp-secret', 'Most secret'),
   );
   const title = stencil('h1', mission ? mission.title : 'No orders', 'th-sheet-title');

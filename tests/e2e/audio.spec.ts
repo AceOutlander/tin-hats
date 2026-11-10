@@ -4,7 +4,7 @@
  */
 import type { Page } from '@playwright/test';
 import { MISSIONS } from '../../src/data/missions';
-import { audioStats, expect, open, playThroughMenus, savedGame, state, tap, tapIn, test } from './helpers';
+import { audioStats, expect, mapToTitle, open, playThroughMenus, savedGame, state, tap, tapIn, test, toMap } from './helpers';
 
 /** Make the page believe it was sent to the background (or brought back), the way a phone does when you switch app. */
 async function setVisibility(page: Page, state: 'hidden' | 'visible'): Promise<void> {
@@ -23,9 +23,9 @@ const muted = async (page: Page): Promise<boolean> => (await audioStats(page)).m
 test.describe('sound', () => {
   test('the mute switch works in the battle, the pause menu and the settings, and is remembered', async ({ page }) => {
     await open(page);
-    await tap(page, 'play');
+    await toMap(page);
     await expect.poll(async () => (await audioStats(page)).state, { timeout: 10_000 }).toBe('running');
-    await tapIn(page, 'campaign', 'back');
+    await mapToTitle(page);
     await expect(page.locator('.th-screen.is-out')).toHaveCount(0);
 
     // Settings: Sound is on; switch it off and on again.
@@ -67,7 +67,7 @@ test.describe('sound', () => {
 
   test('freezes while the page is hidden, in the menus and in a battle, and only the player resumes a paused battle', async ({ page }) => {
     await open(page);
-    await tap(page, 'play');
+    await toMap(page);
     await expect.poll(async () => (await audioStats(page)).state, { timeout: 10_000 }).toBe('running');
 
     // Menus: hidden means silent; back in front means sound again.
@@ -77,7 +77,7 @@ test.describe('sound', () => {
     await expect.poll(async () => (await audioStats(page)).state).toBe('running');
 
     // A battle: hidden pauses it and freezes the sound; coming back changes neither until the player taps Resume.
-    await tapIn(page, 'campaign', 'back');
+    await mapToTitle(page);
     await expect(page.locator('.th-screen.is-out')).toHaveCount(0);
     await playThroughMenus(page, FIRST, false);
     await expect.poll(async () => (await state(page)).paused).toBe(false);

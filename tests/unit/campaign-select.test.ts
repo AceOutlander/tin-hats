@@ -7,15 +7,17 @@
  */
 import { describe, expect, it } from 'vitest';
 import { App, MAP_MUSIC } from '../../src/app/app';
-import { buildCampaignCards } from '../../src/app/campaignView';
+import { buildCampaignCards, buildUpcomingCards, missionLabel } from '../../src/app/campaignView';
 import { WEST_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection } from '../../src/data/campaignMap';
 import { STALINGRAD_MAP } from '../../src/data/campaignMapStalingrad';
-import { CAMPAIGN_IDS, CAMPAIGNS } from '../../src/data/campaigns';
+import { CAMPAIGN_IDS, CAMPAIGNS, UPCOMING_CAMPAIGNS } from '../../src/data/campaigns';
 import { MISSIONS } from '../../src/data/missions';
 import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { STALINGRAD_MUSIC } from '../../src/data/musicCampaigns';
 import { createMemoryStorage, defaultSave, recordClear } from '../../src/meta';
 import { layoutPins } from '../../src/ui/screens/mapLayout';
+import { FACTIONS } from '../../src/data/factions';
+import type { SupportKind, UnitKind } from '../../src/data/schema';
 import { createFakeAudio, createFakeUi, createFakeView } from './app-helpers';
 
 function makeApp(opts: { showUnreleased?: boolean; storage?: ReturnType<typeof createMemoryStorage> } = {}) {
@@ -201,6 +203,41 @@ describe('the campaign select cards', () => {
     expect(s.next).toEqual({ id: 1003, number: 3, title: 'The Volokolamsk Highway' });
   });
 
+  it('count the missions completed, on any difficulty, and show the years', () => {
+    const save = defaultSave();
+    expect(buildCampaignCards(save, [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }], 'stalingrad')[0].cleared).toBe(0);
+    recordClear(save, 1001, 'normal');
+    recordClear(save, 1001, 'hard');
+    recordClear(save, 1002, 'insane');
+    recordClear(save, 1003, 'normal');
+    const [s] = buildCampaignCards(save, [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }], 'stalingrad');
+    expect(s).toMatchObject({ cleared: 3, total: 10, years: '1941–1943', comingSoon: false });
+    expect(s.next).toEqual({ id: 1004, number: 4, title: STALINGRAD_MISSIONS[3].title });
+  });
+
+  it('show D-Day, Road to Berlin and North Africa as greyed "Coming soon" cards with no missions', () => {
+    const soon = buildUpcomingCards();
+    expect(soon.map((c) => c.id)).toEqual(UPCOMING_CAMPAIGNS.map((u) => u.id));
+    expect(soon.map((c) => c.title)).toEqual(['D-Day', 'Road to Berlin', 'North Africa']);
+    expect(soon.map((c) => c.years)).toEqual(['1944', '1944–1945', '1940–1943']);
+    expect(soon.map((c) => c.nation)).toEqual(['british', 'soviet', 'british']);
+    expect(soon.map((c) => c.flag)).toEqual(['unionJack', 'sovietRed', 'unionJack']);
+    for (const c of soon) {
+      expect(c, c.id).toMatchObject({ comingSoon: true, locked: true, total: 0, cleared: 0, next: null, current: false });
+      expect(c.pitch.length, c.id).toBeGreaterThan(10);
+      // No mission and no campaign of that name to start.
+      expect(CAMPAIGN_IDS as readonly string[]).not.toContain(c.id);
+    }
+  });
+
+  it('never start a "Coming soon" campaign: selecting one leaves Stalingrad on the map', () => {
+    const { app } = makeApp({ showUnreleased: true });
+    for (const u of UPCOMING_CAMPAIGNS) {
+      app.selectCampaign(u.id as never);
+      expect(app.current.id).toBe('stalingrad');
+    }
+  });
+
   it('says when every mission is cleared', () => {
     const save = defaultSave();
     for (const m of STALINGRAD_MISSIONS) recordClear(save, m.id, 'normal');
@@ -218,12 +255,50 @@ describe('the campaign select cards', () => {
   });
 });
 
+describe('mission numbers, never internal ids', () => {
+  it('numbers the Stalingrad missions 1 to 10 on the map, in campaign order', () => {
+    const { app } = makeApp();
+    app.adminUnlockMissions();
+    const missions = app.campaign().missions;
+    expect(missions.map((m) => m.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    for (const m of missions) {
+      expect(m.number, m.title).not.toBe(m.id);
+      expect(String(m.number)).not.toMatch(/^d{4}$/);
+    }
+  });
+
+  it('names a mission by its campaign and number, as a lock note would', () => {
+    expect(missionLabel(1001)).toBe('Stalingrad mission 1');
+    expect(missionLabel(1010)).toBe('Stalingrad mission 10');
+    expect(missionLabel(42)).not.toMatch(/d/);
+  });
+});
+
+describe('the Shop and the Quartermaster in a campaign', () => {
+  it('show the names of the campaign nation: the Red Army for Stalingrad', () => {
+    const { app } = makeApp();
+    const view = app.campaign();
+    const names = new Map((view.armoury ?? []).map((a) => [a.id, a.name]));
+    expect(names.get('lmg')).toBe('DP Gunner');
+    expect(names.get('lmg')).not.toBe(FACTIONS.british.unitNames.lmg);
+    for (const a of view.armoury ?? []) {
+      if (a.type === 'unit') expect(a.name, a.id).toBe(FACTIONS.soviet.unitNames[a.kind as UnitKind]);
+      if (a.type === 'support') expect(a.name, a.id).toBe(FACTIONS.soviet.supportNames[a.kind as SupportKind]);
+    }
+    for (const u of view.upgrades) {
+      if (u.support) expect(u.group, u.id).toBe(FACTIONS.soviet.supportNames[u.support]);
+      else if (u.unit && u.unit !== 'sapper') expect(u.group, u.id).toBe(FACTIONS.soviet.unitNames[u.unit]);
+    }
+  });
+});
+
 describe('the app with its one campaign', () => {
-  it('offers Stalingrad on the live site, as the only campaign (the title goes straight to its map)', () => {
+  it('offers Stalingrad on the live site, as the only playable campaign (the select screen adds the three to come)', () => {
     const { app } = makeApp();
     expect(app.offered.map((c) => c.id)).toEqual(['stalingrad']);
     const view = app.campaign();
-    expect(view.campaigns?.map((c) => c.id)).toEqual(['stalingrad']);
+    expect(view.campaigns?.map((c) => c.id)).toEqual(['stalingrad', 'dday', 'berlin', 'africa']);
+    expect(view.campaigns?.filter((c) => !c.comingSoon).map((c) => c.id)).toEqual(['stalingrad']);
     expect(view.campaignId).toBe('stalingrad');
     expect(view.campaignTitle).toBe('Stalingrad');
     expect(view.map).toBe(STALINGRAD_MAP);
@@ -291,7 +366,8 @@ describe('the app with its one campaign', () => {
     expect(app.current.id).toBe('stalingrad');
     expect(app.campaign().lastMission).toBe(1002);
     const cards = app.campaign().campaigns ?? [];
-    expect(cards.map((c) => c.cleared)).toEqual([2]);
+    expect(cards.map((c) => c.cleared)).toEqual([2, 0, 0, 0]);
+    expect(cards.map((c) => c.comingSoon)).toEqual([false, true, true, true]);
   });
 
   it('counts the unit types the British missions unlocked: no NEW DP gunner at Brest for a player who had the Bren', () => {

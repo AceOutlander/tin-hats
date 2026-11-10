@@ -8,33 +8,7 @@ import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { MISSIONS } from '../../src/data/missions';
 import type { SupportKind, UnitKind } from '../../src/data/schema';
-import {
-  BATTLE_LOAD_MS,
-  Fingers,
-  buttonRects,
-  camera,
-  centreOf,
-  expect,
-  firstUnit,
-  grantPopulation,
-  grantSupplies,
-  lookAt,
-  open,
-  openCallIns,
-  setTimeScale,
-  SHOT_DIR,
-  shot,
-  startMission,
-  startSandbox,
-  state,
-  tap,
-  tapCallIn,
-  tapIfThere,
-  tapWorld,
-  test,
-  units,
-  waitForState,
-} from './helpers';
+import { BATTLE_LOAD_MS, buttonRects, camera, centreOf, expect, Fingers, firstUnit, grantPopulation, grantSupplies, lookAt, open, openCallIns, setTimeScale, shot, SHOT_DIR, startMission, startSandbox, state, tap, tapCallIn, tapIfThere, tapWorld, test, toMap, units, waitForState } from './helpers';
 
 /** The thirteen unit buttons of the proving ground, in HUD order (the King Tiger and the Panzer III are enemy-only). */
 const TRAIN_KINDS: readonly UnitKind[] = ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'commander', 'aa'];
@@ -62,7 +36,7 @@ test.describe('proving ground (Phase 2)', () => {
   test('the sandbox is never part of the campaign and never touches the save', async ({ page }) => {
     await open(page);
     await expect(page.getByTestId('play')).toBeVisible();
-    await tap(page, 'play');
+    await toMap(page);
     await expect(page.getByTestId('mission-pin-1001')).toBeVisible();
     await expect(page.getByTestId('mission-pin-901')).toHaveCount(0);
     expect(await startSandbox(page, 1, true)).toBe(true);

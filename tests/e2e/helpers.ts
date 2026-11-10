@@ -259,11 +259,28 @@ export async function centreOf(page: Page, testId: string): Promise<{ x: number;
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** Title, campaign map, briefing and into the first battle, with real taps. */
+/**
+ * From the title to the Stalingrad map the way a player goes (owner, 2026-11-09): Play, then the Stalingrad card on
+ * the campaign select.
+ */
+export async function toMap(page: Page): Promise<void> {
+  await tap(page, 'play');
+  await tapIn(page, 'campaigns', 'campaign-stalingrad');
+  await expect(arrived(page, 'campaign')).toBeVisible();
+}
+
+/** From the campaign map back to the title: Back to the campaign select, and Back again. */
+export async function mapToTitle(page: Page): Promise<void> {
+  await tapIn(page, 'campaign', 'back');
+  await tapIn(page, 'campaigns', 'back');
+  await expect(arrived(page, 'title')).toBeVisible();
+}
+
+/** Title, campaign select, campaign map, briefing and into the first battle, with real taps. */
 export async function playThroughMenus(page: Page, missionId: number, shots: boolean): Promise<void> {
   await expect(page.getByTestId('play')).toBeVisible();
   if (shots) await shot(page, 'title');
-  await tap(page, 'play');
+  await toMap(page);
   await expect(page.getByTestId(`mission-pin-${missionId}`)).toBeVisible();
   await tap(page, `mission-pin-${missionId}`);
   if (shots) {

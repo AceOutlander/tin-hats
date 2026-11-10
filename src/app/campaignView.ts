@@ -4,7 +4,7 @@
  * no DOM, so they run in unit tests.
  */
 import { APP } from '../data/app';
-import { CAMPAIGNS } from '../data/campaigns';
+import { CAMPAIGNS, CAMPAIGN_IDS, UPCOMING_CAMPAIGNS, type UpcomingCampaign } from '../data/campaigns';
 import { missionEra } from '../data/eras';
 import { DIFFICULTIES, DIFFICULTY_LIST } from '../data/difficulty';
 import { FACTIONS } from '../data/factions';
@@ -121,6 +121,8 @@ function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
     loans,
     callIns,
     id: m.id,
+    // The number the player sees: its place in its campaign (never the internal id; owner, 2026-11-09).
+    number: p.ids.indexOf(m.id) + 1,
     title: m.title,
     location: m.location,
     date: m.date,
@@ -217,6 +219,8 @@ export function buildCampaignCards(
       id: c.id,
       title: def.title,
       subtitle: def.subtitle,
+      years: def.years,
+      comingSoon: false,
       pitch: def.card,
       nation: def.nation,
       nationName: FACTIONS[def.nation].name,
@@ -225,10 +229,43 @@ export function buildCampaignCards(
       total: c.missions.length,
       next: next ? { id: next.id, number: c.missions.indexOf(next) + 1, title: next.title } : null,
       locked,
-      lockNote: locked ? `Opens after mission ${after}` : undefined,
+      lockNote: locked && after !== null ? `Opens after ${missionLabel(after)}` : undefined,
       current: c.id === current,
     };
   });
+}
+
+/** A mission as the player knows it: "Stalingrad mission 3" (its campaign and its place there), never its internal id. */
+export function missionLabel(missionId: number): string {
+  for (const id of CAMPAIGN_IDS) {
+    const index = CAMPAIGNS[id].missionIds.indexOf(missionId);
+    if (index >= 0) return `${CAMPAIGNS[id].title} mission ${index + 1}`;
+  }
+  return 'an earlier mission';
+}
+
+/**
+ * The select screen's greyed cards for the campaigns still to come (owner, 2026-11-09): name, nation and flag, years
+ * and pitch, "Coming soon", no missions and never startable.
+ */
+export function buildUpcomingCards(upcoming: readonly UpcomingCampaign[] = UPCOMING_CAMPAIGNS): CampaignCardView[] {
+  return upcoming.map((u) => ({
+    id: u.id,
+    title: u.title,
+    subtitle: u.years,
+    years: u.years,
+    comingSoon: true,
+    pitch: u.card,
+    nation: u.nation,
+    nationName: FACTIONS[u.nation].name,
+    flag: FACTIONS[u.nation].look.flag,
+    cleared: 0,
+    total: 0,
+    next: null,
+    locked: true,
+    lockNote: 'Coming soon',
+    current: false,
+  }));
 }
 
 /**

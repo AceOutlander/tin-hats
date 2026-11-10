@@ -5,7 +5,7 @@
  */
 import type { Page } from '@playwright/test';
 import { UPGRADES } from '../../src/data/upgrades';
-import { arrived, expect, open, shot, startMission, state, tap, tapIn, test, type Hooked } from './helpers';
+import { arrived, expect, type Hooked, open, shot, startMission, state, tapIn, test, toMap } from './helpers';
 import type { DebugApi } from '../../src/app/debug';
 
 const setUpgrades = (page: Page, levels: Record<string, number>) =>
@@ -17,7 +17,7 @@ test.describe('upgrade looks', () => {
     const levels: Record<string, number> = {};
     UPGRADES.forEach((u, i) => (levels[u.id] = i % 4));
     await setUpgrades(page, levels);
-    await tap(page, 'play');
+    await toMap(page);
     await tapIn(page, 'campaign', 'quartermaster');
     const qm = arrived(page, 'quartermaster');
     for (const u of UPGRADES) {

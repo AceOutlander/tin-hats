@@ -83,7 +83,11 @@ export const resultScreen: ScreenFactory = (ctx) => {
   const difficultyName = result ? (ctx.view().difficulties.find((d) => d.id === result.difficulty)?.name ?? result.difficulty) : '';
   // Basic Training is no numbered mission and is always played on one difficulty.
   const training = result?.training === true;
-  const heading = result ? (training ? result.title : `Mission ${result.missionId} · ${result.title} · ${difficultyName}`) : '';
+  // The mission's number in its campaign (1 to 10), never its internal id; a mission outside the campaign on the map
+  // (the proving ground) shows its name only.
+  const number = result ? (ctx.view().missions.find((m) => m.id === result.missionId)?.number ?? 0) : 0;
+  const named = result ? (number > 0 ? `Mission ${number} · ${result.title}` : result.title) : '';
+  const heading = result ? (training ? result.title : `${named} · ${difficultyName}`) : '';
   const title = el('p', 'th-result-title', heading);
   const reason = el('p', 'th-type th-result-reason', result ? result.reason : 'No report received.');
   reason.dataset.testid = 'result-reason';

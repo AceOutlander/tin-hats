@@ -13,7 +13,7 @@ import type { Page } from '@playwright/test';
 import type { DebugApi } from '../../src/app/debug';
 import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
-import { BATTLE_LOAD_MS, SHOT_DIR, arrived, expect, lastResult, memorySave, open, playToEnd, savedGame, shot, state, tap, tapIn, test, type Hooked } from './helpers';
+import { arrived, BATTLE_LOAD_MS, expect, type Hooked, lastResult, memorySave, open, playToEnd, savedGame, shot, SHOT_DIR, state, tap, tapIn, test, toMap } from './helpers';
 
 /** The medals in the stored save (the shared StoredSave type predates them). */
 async function storedMedals(page: Page): Promise<number | undefined> {
@@ -44,7 +44,7 @@ test.describe('armoury', () => {
     await page.evaluate((n) => ((window as unknown as Hooked).__TH as DebugApi).giveMedals(n), medals);
 
     // --- The map's Shop button opens the Shop ---------------------------------------------------------------------
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign').getByTestId('armoury')).toContainText('Shop');
     await tapIn(page, 'campaign', 'armoury');
     const shop = arrived(page, 'armoury');
@@ -109,7 +109,7 @@ test.describe('armoury', () => {
   test('a win shows its medals and score breakdown, and the replay is announced at half', async ({ page }) => {
     test.setTimeout(900_000);
     await open(page);
-    await tap(page, 'play');
+    await toMap(page);
     await tap(page, `mission-pin-${MISSIONS[0].id}`);
     await tap(page, 'mission-start');
     await expect(page.getByTestId('briefing-replay')).toHaveText('First win: full medals');

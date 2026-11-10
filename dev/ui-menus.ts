@@ -331,6 +331,7 @@ function campaign(): CampaignView {
   const available = earned - spent;
   const missions: MissionCard[] = MISSIONS.map((m, i) => ({
     id: m.id,
+    number: i + 1,
     title: m.title,
     location: m.location,
     date: m.date,
