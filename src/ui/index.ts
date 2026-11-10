@@ -35,10 +35,12 @@ const FADE_MS = 150;
 /**
  * A screen takes no touch for this many milliseconds after it appears, so the second tap of a double-tap (or a thumb
  * still mashing buttons as a battle ends) does not land on whatever sits where the old button was. The result
- * screen waits longest: the player is most likely to be tapping hard when it comes up.
+ * screen waits longest: the player is most likely to be tapping hard when it comes up. The campaign select waits a
+ * little longer than the rest: its Stalingrad card sits right where Play was, and a double tap on Play must not start
+ * the campaign as well.
  */
 const ARRIVE_MS_DEFAULT = 260;
-const ARRIVE_MS: Partial<Record<ScreenId, number>> = { result: 800 };
+const ARRIVE_MS: Partial<Record<ScreenId, number>> = { result: 800, campaigns: 450 };
 
 export interface UiHandle extends UiApi {
   /** Whatever the HUD's getButtonRects() returns, or null while there is no HUD. */
