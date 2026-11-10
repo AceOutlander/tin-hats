@@ -9,6 +9,7 @@
  */
 import { ADMIN, type AdminSquadDef } from '../data/admin';
 import { APP } from '../data/app';
+import { CAMPAIGNS } from '../data/campaigns';
 import { MEDALS } from '../data/medals';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { missionEra, unitDisplayName } from '../data/eras';
@@ -160,8 +161,17 @@ export class AdminController implements AdminApi {
       medals: app.save.medals,
       points: app.save.points,
       charges: MEDALS.charges.map((c) => ({ kind: c.kind, count: app.save.charges[c.kind] ?? 0 })),
-      // Every mission of every campaign on offer (the unlock adds the unreleased ones), so a jump can reach any.
-      missions: app.offered.flatMap((c) => c.missions.map((m) => ({ id: m.id, title: m.title }))),
+      // Every mission of every campaign on offer (the unlock adds the unreleased ones), so a jump can reach any. The
+      // number is the mission's place in its campaign, as the players see it (1 to 10, not the internal id).
+      missions: app.offered.flatMap((c) =>
+        c.missions.map((m, i) => ({
+          id: m.id,
+          number: i + 1,
+          title: m.title,
+          campaign: CAMPAIGNS[c.id].title,
+          phases: (m.phases ?? []).map((p) => ({ id: p.id, title: p.title })),
+        })),
+      ),
       upgrades: app.upgradeDefs.map((d) => ({ id: d.id, name: d.name, level: app.save.upgrades[d.id] ?? 0, max: maxLevel(d) })),
       unlockedAll: app.missionsUnlocked,
       battle: this.battleInfo(),
@@ -174,7 +184,13 @@ export class AdminController implements AdminApi {
       placing: this.placing ? { ...this.placing } : null,
       picking: this.picking,
       selected: this.selected(),
+      render: this.renderInfo(),
     };
+  }
+
+  private renderInfo(): AdminInfo['render'] {
+    const st = this.view.getStats();
+    return { fps: st.fps, quality: st.quality, dpr: st.dpr, canvasW: st.canvasW, canvasH: st.canvasH };
   }
 
   private battleInfo(): AdminBattleInfo | null {
@@ -190,6 +206,8 @@ export class AdminController implements AdminApi {
       frozen: mine.cheats.holdSupplies >= 0 && mine.cheats.holdSupplies !== ADMIN.infiniteSupplies,
       infinite: mine.cheats.holdSupplies === ADMIN.infiniteSupplies,
       instantTrain: mine.cheats.instantTrain,
+      instantBuild: mine.cheats.instantBuild,
+      prep: s.prep ? { active: s.prep.active, secondsLeft: Math.ceil(s.prep.secondsLeft) } : null,
       hqInvincible: [mine.cheats.hqInvincible, enemy.cheats.hqInvincible],
       sideInvincible: [mine.cheats.invincible, enemy.cheats.invincible],
       events: session.mission.events.map((ev, index) => ({ index, label: eventLabel(ev, index) })),
@@ -237,7 +255,9 @@ export class AdminController implements AdminApi {
         app.adminUnlockMissions();
         break;
       case 'jump':
-        if (DIFFICULTY_LIST.includes(command.difficulty)) app.beginMission(command.missionId, command.difficulty, undefined, true);
+        if (!DIFFICULTY_LIST.includes(command.difficulty) || !app.adminJump(command.missionId, command.difficulty)) break;
+        // Straight on to a later phase of its mission director (the battle has not run a tick yet).
+        if (command.phase !== undefined && app.session?.mission.phases?.some((p) => p.id === command.phase)) this.act({ type: 'jumpPhase', phase: command.phase });
         break;
       case 'medals':
         app.giveMedals(command.amount);
@@ -246,7 +266,7 @@ export class AdminController implements AdminApi {
         app.givePoints(command.amount);
         break;
       case 'charges':
-        app.giveCharges(command.amount);
+        app.giveCharges(command.amount, command.kind);
         break;
       case 'upgrade': {
         const def = app.upgradeDefs.find((d) => d.id === command.id);
@@ -277,6 +297,12 @@ export class AdminController implements AdminApi {
         break;
       case 'instantTrain':
         this.act({ type: 'instantTrain', side: 0, on: command.on });
+        break;
+      case 'instantBuild':
+        this.act({ type: 'instantBuild', side: 0, on: command.on });
+        break;
+      case 'prep':
+        this.act({ type: 'prep', op: command.op });
         break;
       case 'end':
         this.act({ type: 'end', winner: command.win ? 0 : 1 });
@@ -418,13 +444,19 @@ export class AdminController implements AdminApi {
   spawnAt(spec: SpawnSpec, x: number): number {
     const side = sideOf(spec.side);
     const count = Math.max(1, Math.floor(spec.count));
-    if (isKind(spec.what)) return this.act({ type: 'spawn', side, kind: spec.what, x, count });
+    const nation = ADMIN.spawnNations.find((n) => n.nation !== null && n.nation === spec.nation)?.nation ?? undefined;
+    if (isKind(spec.what)) {
+      // An era variant goes only on a kind it is made for, and brings its own nation.
+      const kind = spec.what;
+      const look = ADMIN.spawnLooks.find((l) => l.look === spec.look && l.kinds.includes(kind));
+      return this.act({ type: 'spawn', side, kind, x, count, ...(look ? { look: look.look, nation: look.nation } : nation ? { nation } : {}) });
+    }
     const squad = squadOf(spec.what);
     if (!squad) return 0;
     const dir = side === 0 ? 1 : -1;
     let n = 0;
     for (const m of squad.members) {
-      n += this.act({ type: 'spawn', side, kind: m.kind, x: x - dir * (m.behind ?? 0), count: m.count * count, veteran: m.veteran === true });
+      n += this.act({ type: 'spawn', side, kind: m.kind, x: x - dir * (m.behind ?? 0), count: m.count * count, veteran: m.veteran === true, ...(nation ? { nation } : {}) });
     }
     return n;
   }
@@ -519,6 +551,9 @@ export class AdminController implements AdminApi {
     const lines: string[] = [];
     const fps = this.view.getStats().fps;
     lines.push(`FPS ${Math.round(fps)}  tick ${s.tick}  t ${s.time.toFixed(1)}s  x${this.app.loop.timeScale}`);
+    const phase = s.director.count > 1 ? `phase ${s.director.phase + 1}/${s.director.count}` : 'one phase';
+    const prep = s.prep ? (s.prep.active ? `prep ${Math.ceil(s.prep.secondsLeft)}s left` : 'prep over') : 'no prep';
+    lines.push(`Mission: ${phase}, ${prep}, weather ${s.sky.weather}, ${s.sky.time}`);
     for (let si = 0; si < 2; si++) {
       const side = s.sides[si];
       const counts = UNIT_KINDS.filter((kind) => side.alive[kind] > 0)

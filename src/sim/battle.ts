@@ -211,7 +211,7 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     holdLineX: 0,
     controlled: -1,
     stats: { trained: 0, lost: 0, kills: 0, killsByKind: kindRecord(0), lostByKind: kindRecord(0), suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
-    cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false },
+    cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false, instantBuild: false },
     deploy: DEPLOY_AUTO,
     deployPoint: -1,
   };

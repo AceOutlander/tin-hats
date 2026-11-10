@@ -6,9 +6,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/data/config';
+import { TANK_GUNS } from '../../src/data/tankGuns';
 import { UNITS } from '../../src/data/units';
 import type { Battle, UnitState } from '../../src/sim';
-import { makeBattle, testMission } from './sim-helpers';
+import { makeBattle, run, testMission } from './sim-helpers';
 
 function living(b: Battle, side?: 0 | 1): UnitState[] {
   const out: UnitState[] = [];
@@ -30,7 +31,7 @@ function steps(b: Battle, n: number): void {
 describe('admin panel actions on a battle', () => {
   it('starts every battle with every cheat off', () => {
     const b = makeBattle();
-    for (const side of b.state.sides) expect(side.cheats).toEqual({ invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false });
+    for (const side of b.state.sides) expect(side.cheats).toEqual({ invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false, instantBuild: false });
   });
 
   it('spawns a King Tiger and the enemy-only Panzer III for either side, at the tapped spot, with their events', () => {
@@ -210,5 +211,87 @@ describe('admin panel actions on a battle', () => {
     expect(ai?.commander).toBe('ai');
     expect(ai?.order).toBe(b.state.sides[1].order);
     expect(ai?.firstAttackAfter).toBe(b.config.mission.ai.firstAttackAfter);
+  });
+
+  it('spawns era variants and other nations: the later Panzer III for either side, a Soviet tank for the enemy', () => {
+    const b = makeBattle();
+    expect(b.admin({ type: 'spawn', side: 1, kind: 'tank', x: 3000, count: 2, look: 'panzer3l', nation: 'german' })).toBe(2);
+    const panzers = living(b, 1);
+    expect(panzers.map((u) => [u.kind, u.look, u.faction])).toEqual([
+      ['tank', 'panzer3l', 'german'],
+      ['tank', 'panzer3l', 'german'],
+    ]);
+    expect(panzers[0].mount.weapon?.id).toBe(TANK_GUNS.panzer3l ?? UNITS.tank.weapon);
+    expect(b.admin({ type: 'spawn', side: 0, kind: 'tank', x: 1500, count: 1, look: 'panzer3l', nation: 'german' })).toBe(1);
+    expect(living(b, 0)[0]).toMatchObject({ look: 'panzer3l', faction: 'german', side: 0 });
+    expect(b.admin({ type: 'spawn', side: 1, kind: 'tank', x: 2800, count: 1, look: 't34', nation: 'soviet' })).toBe(1);
+    const t34 = living(b, 1).find((u) => u.look === 't34');
+    expect(t34?.faction).toBe('soviet');
+    expect(t34?.mount.weapon?.id).toBe(TANK_GUNS.t34 ?? UNITS.tank.weapon);
+    expect(b.admin({ type: 'spawn', side: 0, kind: 'rifle', x: 1200, count: 3, nation: 'soviet' })).toBe(3);
+    expect(living(b, 0).filter((u) => u.kind === 'rifle').every((u) => u.faction === 'soviet' && u.look === '')).toBe(true);
+  });
+
+  it('builds instantly while instant building is on, and skips or restarts the prep phase', () => {
+    const mission = testMission({ trenches: [], pillboxes: [], wire: [], prep: { seconds: 40 }, a: { supplies: 1000, sappers: 0 }, b: { supplies: 0, forces: [{ kind: 'rifle', count: 2 }] } });
+    const b = makeBattle({ mission });
+    const p = b.state.prep;
+    if (!p) throw new Error('no prep phase');
+    const x = p.zoneFrom + (p.zoneTo - p.zoneFrom) * 0.5;
+    // No sapper to work on it: the site waits.
+    b.command(0, { type: 'build', kind: 'wire', x });
+    run(b, 1);
+    expect(b.state.sites).toHaveLength(1);
+    expect(b.admin({ type: 'instantBuild', side: 0, on: true })).toBe(1);
+    run(b, 0.1);
+    expect(b.state.sites).toHaveLength(0);
+    expect(b.state.wires.some((w) => w.owner === 0 && w.alive && Math.abs(w.x - x) < 1)).toBe(true);
+    b.admin({ type: 'instantBuild', side: 0, on: false });
+    b.command(0, { type: 'build', kind: 'wire', x: p.zoneFrom + (p.zoneTo - p.zoneFrom) * 0.9 });
+    run(b, 1);
+    expect(b.state.sites).toHaveLength(1);
+
+    // Restart while it runs: the full countdown again, the mission clock still at its start.
+    run(b, 10);
+    expect(b.state.prep?.secondsLeft).toBeLessThan(30);
+    expect(b.admin({ type: 'prep', op: 'restart' })).toBe(1);
+    expect(b.state.prep?.secondsLeft).toBe(40);
+    run(b, 1);
+    expect(b.state.prep?.secondsLeft).toBeCloseTo(39, 0);
+    expect(b.state.prep?.active).toBe(true);
+    // Skip: over now; a second skip has nothing to end.
+    expect(b.admin({ type: 'prep', op: 'skip' })).toBe(1);
+    expect(b.state.prep?.active).toBe(false);
+    expect(b.admin({ type: 'prep', op: 'skip' })).toBe(0);
+    run(b, 5);
+    // Restart once over: a fresh prep phase from now, and the enemy waits again.
+    expect(b.admin({ type: 'prep', op: 'restart' })).toBe(1);
+    expect(b.state.prep?.active).toBe(true);
+    expect(b.state.prep?.secondsLeft).toBe(40);
+    run(b, 41);
+    expect(b.state.prep?.active).toBe(false);
+  });
+
+  it('has no prep phase to skip or restart in a mission without one', () => {
+    const b = makeBattle();
+    expect(b.admin({ type: 'prep', op: 'skip' })).toBe(0);
+    expect(b.admin({ type: 'prep', op: 'restart' })).toBe(0);
+    expect(b.state.prep).toBeNull();
+  });
+
+  it('stays deterministic: the same admin actions between the same ticks give the same battle', () => {
+    const play = (): string => {
+      const b = makeBattle({ seed: 7, mission: testMission({ a: { supplies: 800 }, b: { supplies: 800 } }) });
+      run(b, 2);
+      b.admin({ type: 'spawn', side: 1, kind: 'tank', x: 2500, count: 1, look: 'panzer3l', nation: 'german' });
+      b.admin({ type: 'instantTrain', side: 0, on: true });
+      b.command(0, { type: 'train', kind: 'rifle' });
+      run(b, 8);
+      b.admin({ type: 'kill', side: 1 });
+      run(b, 4);
+      const s = b.state;
+      return JSON.stringify([s.tick, s.sides.map((x) => [x.supplies, x.pop, x.stats]), Array.from({ length: s.unitCount }, (_, i) => [s.units[i].id, s.units[i].alive, Math.round(s.units[i].x * 1000)])]);
+    };
+    expect(play()).toBe(play());
   });
 });

@@ -2,7 +2,7 @@
  * What the admin panel's DOM (src/ui/admin) asks of the app (src/app/admin.ts). Plain data both ways: the panel never
  * sees the simulation, the save or the view.
  */
-import type { Difficulty, SupportKind, TimeOfDay, UnitKind, WeatherKind } from '../../data/schema';
+import type { Difficulty, FactionId, ForceLookId, SupportKind, TimeOfDay, UnitKind, WeatherKind } from '../../data/schema';
 
 export type AdminSide = 'mine' | 'enemy';
 export type AdminTarget = AdminSide | 'all' | 'selected';
@@ -14,14 +14,19 @@ export interface SpawnSpec {
   what: UnitKind | string;
   side: AdminSide;
   count: number;
+  /** An era variant (data/admin.ts spawnLooks), and units of another nation than the side's own. */
+  look?: ForceLookId;
+  nation?: FactionId;
 }
 
 export type AdminCommand =
   | { type: 'unlockMissions' }
-  | { type: 'jump'; missionId: number; difficulty: Difficulty }
+  /** Start a mission (opened or not), and with `phase` go straight on to that phase of its mission director. */
+  | { type: 'jump'; missionId: number; difficulty: Difficulty; phase?: string }
   | { type: 'medals'; amount: number }
   | { type: 'points'; amount: number }
-  | { type: 'charges'; amount: number }
+  /** Charges of one call-in, or of every one the Shop sells (no kind); negative takes them. */
+  | { type: 'charges'; amount: number; kind?: SupportKind }
   | { type: 'upgrade'; id: string; level: number }
   | { type: 'resetSave' }
   | { type: 'addSupplies'; amount: number }
@@ -29,6 +34,9 @@ export type AdminCommand =
   | { type: 'freezeSupplies'; on: boolean }
   | { type: 'infiniteSupplies'; on: boolean }
   | { type: 'instantTrain'; on: boolean }
+  | { type: 'instantBuild'; on: boolean }
+  /** End the prep phase now, or give it its full countdown again (start it afresh once it has ended). */
+  | { type: 'prep'; op: 'skip' | 'restart' }
   | { type: 'end'; win: boolean }
   | { type: 'fireEvent'; index: number }
   /** The mission director moves to this phase now (its PhaseDef.assume put in place). */
@@ -60,6 +68,9 @@ export interface AdminBattleInfo {
   frozen: boolean;
   infinite: boolean;
   instantTrain: boolean;
+  instantBuild: boolean;
+  /** The mission's prep phase (null for a mission without one): running or not, and its seconds left. */
+  prep: { active: boolean; secondsLeft: number } | null;
   /** Mine, enemy. */
   hqInvincible: [boolean, boolean];
   sideInvincible: [boolean, boolean];
@@ -86,7 +97,8 @@ export interface AdminInfo {
   points: number;
   /** Call-in charges held, in Shop order. */
   charges: { kind: SupportKind; count: number }[];
-  missions: { id: number; title: string }[];
+  /** Every mission on offer: its number in its campaign (as players see it), and its mission director's phases. */
+  missions: { id: number; number: number; title: string; campaign: string; phases: { id: string; title: string }[] }[];
   upgrades: { id: string; name: string; level: number; max: number }[];
   unlockedAll: boolean;
   /** Null outside a battle. */
@@ -101,6 +113,8 @@ export interface AdminInfo {
   picking: boolean;
   /** The picked unit while it lives. */
   selected: AdminSelected | null;
+  /** The renderer's figures for the debug tab (the rest of the readout comes from the canvas itself). */
+  render: { fps: number; quality: number; dpr: number; canvasW: number; canvasH: number };
 }
 
 /**

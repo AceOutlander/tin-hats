@@ -5,12 +5,13 @@
  */
 import { ADMIN, type AdminEntryDef, type AdminTabId } from '../../data/admin';
 import { DIFFICULTY_LIST } from '../../data/difficulty';
-import type { Difficulty, UnitKind } from '../../data/schema';
+import type { Difficulty, FactionId, ForceLookId, UnitKind } from '../../data/schema';
 import { TIMES_OF_DAY } from '../../data/theatres';
 import { WEATHER_KINDS } from '../../data/weather';
 import { UNIT_KINDS } from '../../data/units';
 import { add, el } from '../shell/dom';
 import type { AdminApi, AdminCommand, AdminInfo, AdminSide, OverlayLayer, SpawnSpec } from './contracts';
+import { rendererLines } from './rendererInfo';
 
 const DIFFICULTY_NAMES: Record<Difficulty, string> = { normal: 'Normal', hard: 'Hard', insane: 'Insane' };
 
@@ -61,6 +62,11 @@ function note(text: string): HTMLElement {
   return el('p', 'th-admin-note', text);
 }
 
+/** A signed step on a button: +10, −10. */
+function signed(n: number): string {
+  return n > 0 ? `+${n}` : `−${-n}`;
+}
+
 export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
   const root = el('aside', 'th-admin-panel');
   root.dataset.testid = 'admin-panel';
@@ -82,8 +88,11 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
   let tab: AdminTabId = 'campaign';
   // Choices the panel remembers between renders.
   let jumpMission = 0;
+  let jumpPhase = '';
   let jumpDifficulty: Difficulty = 'normal';
   let spawnWhat: string = 'rifle';
+  let spawnNation: FactionId | null = null;
+  let spawnLook: ForceLookId | null = null;
   let spawnSide: AdminSide = 'enemy';
   let spawnCount = ADMIN.batches[0];
   let saveText = '';
@@ -106,7 +115,7 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
     unlockMissions(info, out) {
       out.append(
         row(
-          btn(info.unlockedAll ? 'All missions open' : 'Unlock all missions', () => run({ type: 'unlockMissions' }), {
+          btn(info.unlockedAll ? 'All open' : 'Unlock all campaigns and missions', () => run({ type: 'unlockMissions' }), {
             testid: 'admin-unlock',
             pressed: info.unlockedAll,
             disabled: info.unlockedAll,
@@ -117,19 +126,46 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
     },
     jump(info, out) {
       if (!info.missions.some((m) => m.id === jumpMission)) jumpMission = info.missions[0]?.id ?? 0;
-      const select = el('select', 'th-admin-select');
-      select.dataset.testid = 'admin-jump-mission';
-      for (const m of info.missions) {
-        const option = el('option', undefined, `${m.id}. ${m.title}`);
-        option.value = String(m.id);
-        option.selected = m.id === jumpMission;
-        select.append(option);
+      const picked = info.missions.find((m) => m.id === jumpMission);
+      if (!picked?.phases.some((p) => p.id === jumpPhase)) jumpPhase = '';
+      // The missions as the players see them ("1 Brest Fortress"), under their campaign when there are several.
+      const campaigns = [...new Set(info.missions.map((m) => m.campaign))];
+      for (const campaign of campaigns) {
+        if (campaigns.length > 1) out.append(note(campaign));
+        const list = el('div', 'th-admin-list');
+        for (const m of info.missions.filter((x) => x.campaign === campaign)) {
+          list.append(
+            btn(
+              `${m.number} ${m.title}`,
+              () => {
+                jumpMission = m.id;
+                jumpPhase = '';
+                render();
+              },
+              { pressed: m.id === jumpMission, testid: `admin-jump-${m.id}` },
+            ),
+          );
+        }
+        out.append(list);
       }
-      select.addEventListener('change', () => {
-        jumpMission = Number(select.value);
-      });
+      if (picked && picked.phases.length > 1) {
+        out.append(
+          note('Phase:'),
+          row(
+            ...picked.phases.map((p, i) =>
+              btn(
+                `${i + 1} ${p.title}`,
+                () => {
+                  jumpPhase = i === 0 ? '' : p.id;
+                  render();
+                },
+                { pressed: jumpPhase === (i === 0 ? '' : p.id), testid: `admin-jump-phase-${p.id}` },
+              ),
+            ),
+          ),
+        );
+      }
       out.append(
-        row(select),
         row(
           ...DIFFICULTY_LIST.map((d) =>
             btn(
@@ -138,25 +174,36 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
                 jumpDifficulty = d;
                 render();
               },
-              { pressed: d === jumpDifficulty },
+              { pressed: d === jumpDifficulty, testid: `admin-jump-diff-${d}` },
             ),
           ),
-          btn('Go', () => run({ type: 'jump', missionId: jumpMission, difficulty: jumpDifficulty }), { testid: 'admin-jump-go' }),
+          btn('Go', () => run({ type: 'jump', missionId: jumpMission, difficulty: jumpDifficulty, ...(jumpPhase ? { phase: jumpPhase } : {}) }), { testid: 'admin-jump-go' }),
         ),
       );
     },
     medals(info, out) {
-      out.append(
-        row(el('span', 'th-admin-value', `${info.medals}`), ...ADMIN.medalGrants.map((n) => btn(`+${n}`, () => run({ type: 'medals', amount: n }), { testid: `admin-medals-${n}` }))),
-        row(
-          el('span', 'th-admin-value', `${info.points} pts`),
-          ...ADMIN.pointGrants.map((n) => btn(`+${n} pts`, () => run({ type: 'points', amount: n }), { testid: `admin-points-${n}` })),
-        ),
-        row(
-          el('span', 'th-admin-value', info.charges.map((c) => c.count).join(' ')),
-          ...ADMIN.chargeGrants.map((n) => btn(`+${n} each`, () => run({ type: 'charges', amount: n }), { testid: `admin-charges-${n}` })),
-        ),
-      );
+      const value = el('span', 'th-admin-value', `${info.medals}`);
+      value.dataset.testid = 'admin-medals-value';
+      out.append(row(value, ...ADMIN.medalGrants.map((n) => btn(signed(n), () => run({ type: 'medals', amount: n }), { testid: `admin-medals-${n}`, disabled: n < 0 && info.medals <= 0 }))));
+    },
+    points(info, out) {
+      const value = el('span', 'th-admin-value', `${info.points}`);
+      value.dataset.testid = 'admin-points-value';
+      out.append(row(value, ...ADMIN.pointGrants.map((n) => btn(signed(n), () => run({ type: 'points', amount: n }), { testid: `admin-points-${n}`, disabled: n < 0 && info.points <= 0 }))));
+    },
+    charges(info, out) {
+      out.append(row(...ADMIN.chargeGrants.map((n) => btn(`${signed(n)} of each`, () => run({ type: 'charges', amount: n }), { testid: `admin-charges-${n}` }))));
+      for (const c of info.charges) {
+        const value = el('span', 'th-admin-value', `${c.count}`);
+        value.dataset.testid = `admin-charge-${c.kind}-value`;
+        out.append(
+          row(
+            el('span', 'th-admin-name', ADMIN.chargeNames[c.kind]),
+            value,
+            ...ADMIN.chargeSteps.map((n) => btn(signed(n), () => run({ type: 'charges', amount: n, kind: c.kind }), { testid: `admin-charge-${c.kind}-${n}`, disabled: n < 0 && c.count <= 0 })),
+          ),
+        );
+      }
     },
     upgrades(info, out) {
       for (const u of info.upgrades) {
@@ -228,7 +275,38 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
     instantTrain(info, out) {
       if (!needBattle(info, out) || !info.battle) return;
       const on = info.battle.instantTrain;
-      out.append(row(btn('Instant training', () => run({ type: 'instantTrain', on: !on }), { pressed: on, testid: 'admin-instant' })));
+      const build = info.battle.instantBuild;
+      out.append(
+        row(
+          btn('Instant training', () => run({ type: 'instantTrain', on: !on }), { pressed: on, testid: 'admin-instant' }),
+          btn('Instant building', () => run({ type: 'instantBuild', on: !build }), { pressed: build, testid: 'admin-instant-build' }),
+        ),
+      );
+    },
+    prep(info, out) {
+      if (!needBattle(info, out) || !info.battle) return;
+      const b = info.battle;
+      const p = b.prep;
+      if (!p) {
+        out.append(note('This mission has no prep phase.'));
+        return;
+      }
+      out.append(
+        row(
+          el('span', 'th-admin-value', p.active ? `${p.secondsLeft}s` : 'Over'),
+          btn('Skip', () => run({ type: 'prep', op: 'skip' }), { disabled: !p.active || b.over, testid: 'admin-prep-skip' }),
+          btn('Restart', () => run({ type: 'prep', op: 'restart' }), { disabled: b.over, testid: 'admin-prep-restart' }),
+        ),
+      );
+    },
+    phases(info, out) {
+      if (!needBattle(info, out) || !info.battle) return;
+      const b = info.battle;
+      const phases = b.phases ?? [];
+      if (phases.length === 0) out.append(note('This mission has one phase.'));
+      for (const p of phases) {
+        out.append(row(el('span', 'th-admin-name', p.label), btn('Jump', () => run({ type: 'jumpPhase', phase: p.id }), { pressed: p.current, disabled: b.over, testid: `admin-phase-${p.id}` })));
+      }
     },
     end(info, out) {
       if (!needBattle(info, out) || !info.battle) return;
@@ -246,9 +324,6 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
       if (info.battle.events.length === 0) out.append(note('This mission has no scripted events.'));
       for (const ev of info.battle.events) {
         out.append(row(el('span', 'th-admin-name', ev.label), btn('Fire', () => run({ type: 'fireEvent', index: ev.index }), { testid: `admin-event-${ev.index}` })));
-      }
-      for (const p of info.battle.phases ?? []) {
-        out.append(row(el('span', 'th-admin-name', p.label), btn('Jump', () => run({ type: 'jumpPhase', phase: p.id }), { pressed: p.current, testid: `admin-phase-${p.id}` })));
       }
     },
     difficulty(info, out) {
@@ -284,14 +359,31 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
       for (const squad of ADMIN.squads) {
         grid.append(btn(squad.label, () => ((spawnWhat = squad.id), render()), { pressed: spawnWhat === squad.id, testid: `admin-kind-${squad.id}` }));
       }
-      const spec: SpawnSpec = { what: spawnWhat, side: spawnSide, count: spawnCount };
-      out.append(
+      const looks = ADMIN.spawnLooks.filter((l) => l.kinds.includes(spawnWhat as UnitKind));
+      if (spawnLook !== null && !looks.some((l) => l.look === spawnLook)) spawnLook = null;
+      const spec: SpawnSpec = { what: spawnWhat, side: spawnSide, count: spawnCount, ...(spawnLook ? { look: spawnLook } : {}), ...(spawnNation ? { nation: spawnNation } : {}) };
+      add(
+        out,
         row(
           btn('Mine', () => ((spawnSide = 'mine'), render()), { pressed: spawnSide === 'mine', testid: 'admin-spawn-mine' }),
           btn('Enemy', () => ((spawnSide = 'enemy'), render()), { pressed: spawnSide === 'enemy', testid: 'admin-spawn-enemy' }),
           ...ADMIN.batches.map((n) => btn(`×${n}`, () => ((spawnCount = n), render()), { pressed: spawnCount === n, testid: `admin-batch-${n}` })),
         ),
         grid,
+        row(
+          el('span', 'th-admin-short', 'Nation'),
+          ...ADMIN.spawnNations.map((n) =>
+            btn(n.label, () => ((spawnNation = n.nation), render()), { pressed: spawnNation === n.nation, testid: `admin-nation-${n.nation ?? 'own'}` }),
+          ),
+        ),
+        looks.length > 0
+          ? row(
+              el('span', 'th-admin-short', 'Look'),
+              btn('Era', () => ((spawnLook = null), render()), { pressed: spawnLook === null, testid: 'admin-look-era' }),
+              ...looks.map((l) => btn(l.label, () => ((spawnLook = l.look), render()), { pressed: spawnLook === l.look, testid: `admin-look-${l.look}` })),
+            )
+          : null,
+        spawnLook ? note('A look brings its own nation.') : null,
         row(
           btn(
             'Place on the field',
@@ -393,6 +485,11 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
         ['points', 'Spawn and capture points'],
       ];
       out.append(row(...layers.map(([layer, label]) => btn(label, () => run({ type: 'overlay', layer, on: !info.overlays[layer] }), { pressed: info.overlays[layer], testid: `admin-layer-${layer}` }))));
+    },
+    renderer(info, out) {
+      const pre = el('pre', 'th-admin-pre', rendererLines(info.render, root.ownerDocument).join('\n'));
+      pre.dataset.testid = 'admin-renderer';
+      out.append(pre);
     },
     revealHp(info, out) {
       if (!needBattle(info, out)) return;

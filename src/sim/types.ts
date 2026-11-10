@@ -15,6 +15,7 @@ import type {
   DamageType,
   Difficulty,
   FactionId,
+  ForceLookId,
   MissionDef,
   MineKind,
   MissionMode,
@@ -120,8 +121,12 @@ export type Command =
  * one unit. Admin spawns ignore the population cap (only the unit pool limits them).
  */
 export type AdminAction =
-  /** `count` units of `kind` at world x for `side`, one spacing apart going back; veterans with `veteran`. */
-  | { type: 'spawn'; side: Side; kind: UnitKind; x: number; count: number; veteran?: boolean }
+  /**
+   * `count` units of `kind` at world x for `side`, one spacing apart going back; veterans with `veteran`. `look`
+   * (an era variant, as ForceDef.look) and `nation` (units of another nation, as ForceDef.nation) change names, looks
+   * and a vehicle's gun only.
+   */
+  | { type: 'spawn'; side: Side; kind: UnitKind; x: number; count: number; veteran?: boolean; look?: ForceLookId; nation?: FactionId }
   /** Kill one unit, every unit of a side, or every unit (invincibility does not stop it). */
   | { type: 'kill'; side: Side | -1; unit?: number }
   /** Back to full health: one unit, a side, or everyone. */
@@ -138,6 +143,13 @@ export type AdminAction =
   | { type: 'holdSupplies'; side: Side; amount: number | null }
   /** Units in training finish on the next tick. */
   | { type: 'instantTrain'; side: Side; on: boolean }
+  /** Build sites of the side (prep phase) finish on the next tick, sapper or not. */
+  | { type: 'instantBuild'; side: Side; on: boolean }
+  /**
+   * The prep phase: 'skip' ends a running one now (as Ready); 'restart' gives a running one its full countdown again,
+   * or starts the mission's prep phase (or the current phase's) afresh once it has ended. 0 when there is none.
+   */
+  | { type: 'prep'; op: 'skip' | 'restart' }
   /** Units of `kind` walk out until the side's population reaches its cap. */
   | { type: 'fillArmy'; side: Side; kind: UnitKind }
   /** Fire the mission's scripted event with this index now (a one-shot event will not fire again). */
@@ -421,6 +433,8 @@ export interface SideCheats {
   holdSupplies: number;
   /** Units in training finish on the next tick. */
   instantTrain: boolean;
+  /** Build sites finish on the next tick. */
+  instantBuild: boolean;
 }
 
 /** A side's headquarters bunker. */
