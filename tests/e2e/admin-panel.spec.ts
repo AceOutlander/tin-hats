@@ -103,7 +103,9 @@ test.describe('admin panel', () => {
     // sits mid-screen: the tap goes to the first point down the middle that is the battlefield itself, not a control.
     const before = (await units(page)).filter((u) => u.kind === 'heavyTank').length;
     const ground = await page.evaluate(() => {
-      for (let y = 200; y <= 320; y += 10) if (document.elementFromPoint(430, y) instanceof HTMLCanvasElement) return { x: 430, y };
+      // Clear of the panel above by a margin: a touch right at its edge can land on its buttons.
+      const field = (y: number) => document.elementFromPoint(430, y) instanceof HTMLCanvasElement;
+      for (let y = 200; y <= 320; y += 10) if (field(y) && field(y - 20)) return { x: 430, y };
       return null;
     });
     expect(ground, 'open battlefield under the admin bar').not.toBeNull();
