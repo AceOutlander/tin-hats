@@ -256,7 +256,7 @@ export const TRENCH_LAYOUT = {
   packTime: 0.3,
   /** Owner's pennant on a stake at the friendly lip: stake height and width, cloth size, colours per faction. */
   stakeH: 30,
-  stakeW: 1.6,
+  stakeW: 2.4,
   pennantW: 12,
   pennantH: 7,
   stakeColor: 0x4a3a28,

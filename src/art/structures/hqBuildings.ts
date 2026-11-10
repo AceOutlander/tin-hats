@@ -10,6 +10,7 @@ import type { FactionId } from '../../data/schema';
 import { makeSpec, rgba, rimRect, rng, sandbag, type Ctx } from '../props/kit';
 import type { SpriteSpec } from '../types';
 import { paintStack } from './buildings';
+import { flagpole } from './hq';
 
 /** Same key scheme as the Quartermaster's HQ styles (hqStyleKey). */
 export function missionHqKey(style: MissionHqStyle, faction: FactionId, state: DamageState): string {
@@ -44,10 +45,24 @@ function door(ctx: Ctx, style: MissionHqStyle, state: DamageState): void {
   sandbag(ctx, x0 + L.doorW + 4, -10, 18, 10, 0.2);
 }
 
+/**
+ * The flagpole on the roof (the flag is the renderer's, hung from flagTop): planted in the casemate's earth bank or
+ * behind the parapet, its foot steadied by two sandbags on the roof line. None on the ruin (the flag is down).
+ */
+function roofFlagpole(ctx: Ctx, style: MissionHqStyle): void {
+  const L = MISSION_HQ_LAYOUT[style];
+  const x = L.flagBase.x;
+  const y = L.flagBase.y;
+  flagpole(ctx, L);
+  sandbag(ctx, x - 13, y - 7, 14, 7, 0.1);
+  sandbag(ctx, x + 1, y - 7, 14, 7, -0.1);
+}
+
 function paint(ctx: Ctx, style: MissionHqStyle, state: DamageState): void {
   const L = MISSION_HQ_LAYOUT[style];
   const s = SHAPE[style];
   paintStack(ctx, style, L.bodyW, s.slots, s.floors, state === 'damaged', state === 'ruin');
+  if (state !== 'ruin') roofFlagpole(ctx, style);
   door(ctx, style, state);
   if (style === 'store' && state !== 'ruin') {
     // The Univermag's boarded shop windows along the ground floor and its sign band.

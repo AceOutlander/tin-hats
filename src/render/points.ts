@@ -12,6 +12,7 @@ import type { BattleState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
+import { pointFlag } from './flagMounts';
 
 type Img = Phaser.GameObjects.Image;
 
@@ -80,7 +81,6 @@ export class PointViews {
 
   update(state: BattleState, dt: number): void {
     const A = POINT_ART;
-    const base = VIEW.groundY + A.backY;
     const points = state.points;
     for (let i = 0; i < points.length && i < this.views.length; i++) {
       const p = points[i];
@@ -90,13 +90,13 @@ export class PointViews {
         v.hoist = v.owner === -2 ? 1 : 0;
         v.owner = p.owner;
         v.flag.setTint(p.owner === 0 || p.owner === 1 ? TRENCH_LAYOUT.pennant[state.sides[p.owner].faction] : A.neutralFlag);
-        // The cloth flies away from the holder's own end of the field.
-        const dir = p.owner === 1 ? -1 : 1;
-        v.flag.x = p.x + (dir * A.poleW) / 2;
-        v.flag.scaleX = dir * A.flagW * this.inv;
       }
       if (v.hoist < 1) v.hoist = Math.min(1, v.hoist + dt / A.hoist);
-      v.flag.y = base - A.flagH - (A.poleH - A.flagH) * v.hoist;
+      // The cloth flies away from the holder's own end of the field, its hoist on the pole (src/render/flagMounts.ts).
+      const cloth = pointFlag(p.x, p.owner === 1 ? -1 : 1, v.hoist, VIEW.groundY).cloth;
+      v.flag.x = cloth.hoistX;
+      v.flag.y = cloth.top;
+      v.flag.scaleX = cloth.dir * cloth.w * this.inv;
       const taking = p.capturing === 0 || p.capturing === 1;
       v.barBack.visible = taking;
       v.bar.visible = taking;

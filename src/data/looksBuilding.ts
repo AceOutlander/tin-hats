@@ -112,8 +112,17 @@ export const PROP_LAYOUT: Record<CoverPropLook, { h: number }> = {
 export type MissionHqStyle = 'casemate' | 'mill' | 'store';
 export const MISSION_HQ_STYLES: readonly MissionHqStyle[] = ['casemate', 'mill', 'store'];
 
-function hqLayout(w: number, h: number, bodyW: number, bodyH: number, doorX: number, flag: ArtPoint, fires: ArtPoint[]): HqStyleLayout {
+/**
+ * A mission HQ's flagpole stands on its roof (owner, 2026-11-09: "every flag must hang from a visible flagpole that's
+ * attached to something"): its foot on the roof line, this tall, so the flag hangs just above the building instead of
+ * floating high over it. FLAG_LAYOUT.h (36) of flag hangs from its top, with bare pole below.
+ */
+export const ROOF_FLAGPOLE_H = 66;
+
+/** `floors` storeys of BUILDING_LAYOUT.floorH: the roof line the flagpole stands on is at -floors * floorH. */
+function hqLayout(w: number, h: number, bodyW: number, bodyH: number, doorX: number, floors: number, flagX: number, fires: ArtPoint[]): HqStyleLayout {
   const box: ArtBox = { w, h, ox: w / 2, oy: h - 14 };
+  const roof = -floors * BUILDING_LAYOUT.floorH;
   return {
     box,
     bodyW,
@@ -121,8 +130,8 @@ function hqLayout(w: number, h: number, bodyW: number, bodyH: number, doorX: num
     doorX,
     doorW: 34,
     doorH: 60,
-    flagBase: { x: flag.x, y: -bodyH },
-    flagTop: { x: flag.x, y: flag.y },
+    flagBase: { x: flagX, y: roof },
+    flagTop: { x: flagX, y: roof - ROOF_FLAGPOLE_H },
     fires,
     gunNest: { x: bodyW / 2 + 60, y: 0 },
   };
@@ -131,19 +140,19 @@ function hqLayout(w: number, h: number, bodyW: number, bodyH: number, doorX: num
 /** Layouts of the mission HQ buildings, in the conventions of HQ_STYLE_LAYOUT (src/data/looksHq.ts). */
 export const MISSION_HQ_LAYOUT: Record<MissionHqStyle, HqStyleLayout> = {
   // The ring barracks' casemate at Brest: long, low, red brick under a bank of earth.
-  casemate: hqLayout(360, 236, 300, 112, 70, { x: -90, y: -206 }, [
+  casemate: hqLayout(360, 236, 300, 112, 70, 2, -90, [
     { x: -90, y: -60 },
     { x: 0, y: -84 },
     { x: 90, y: -50 },
   ]),
   // The Gerhardt mill: three storeys of shell-scarred brick.
-  mill: hqLayout(300, 290, 220, 168, 50, { x: -60, y: -262 }, [
+  mill: hqLayout(300, 290, 220, 168, 50, 3, -60, [
     { x: -60, y: -120 },
     { x: 10, y: -150 },
     { x: 60, y: -70 },
   ]),
   // The Univermag: a department store of four storeys, its cellars the last headquarters.
-  store: hqLayout(360, 290, 300, 176, 80, { x: -110, y: -270 }, [
+  store: hqLayout(360, 290, 300, 176, 80, 3, -110, [
     { x: -100, y: -130 },
     { x: 0, y: -160 },
     { x: 100, y: -90 },
