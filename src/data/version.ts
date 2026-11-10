@@ -20,6 +20,15 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.14.0',
+    items: [
+      'Pressing Play now opens a campaign select: Stalingrad, with D-Day, Road to Berlin and North Africa coming soon.',
+      'Missions are numbered 1 to 10 on the map and in briefings, and map names are no longer hidden behind markers.',
+      'The Soviet Quartermaster has its own Red Army upgrade names, descriptions and pictures.',
+      'Incoming shells now whistle the classic way: high and faint, falling and growing louder until they land.',
+    ],
+  },
+  {
     version: '0.13.0',
     items: [
       'New campaign: Stalingrad. Ten long Red Army missions, from Brest Fortress in 1941 to Operation Ring in 1943.',
