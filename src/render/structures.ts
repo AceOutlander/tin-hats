@@ -39,6 +39,7 @@ import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { WireWreck, pieceLag } from './wireRules';
+import { hqFlag, trenchPennant } from './flagMounts';
 
 type Img = Phaser.GameObjects.Image;
 
@@ -549,15 +550,16 @@ export class StructureViews {
         pen.visible = on;
         if (on) {
           const k = this.whiteInv;
-          const lipX = t.x - dir * (T.pitW / 2 + 4);
-          stake.x = lipX - T.stakeW / 2;
-          stake.y = VIEW.groundY + T.pitNearY - T.stakeH;
-          stake.scaleX = T.stakeW * k;
-          stake.scaleY = T.stakeH * k;
-          pen.x = lipX;
-          pen.y = stake.y;
-          pen.scaleX = -dir * T.pennantW * k;
-          pen.scaleY = T.pennantH * k;
+          // A stake driven in at the friendly lip, the cloth tied at its top (src/render/flagMounts.ts).
+          const { pole, cloth } = trenchPennant(t.x, dir, VIEW.groundY);
+          stake.x = pole.x - pole.w / 2;
+          stake.y = pole.top;
+          stake.scaleX = pole.w * k;
+          stake.scaleY = (pole.base - pole.top) * k;
+          pen.x = cloth.hoistX;
+          pen.y = cloth.top;
+          pen.scaleX = cloth.dir * cloth.w * k;
+          pen.scaleY = cloth.h * k;
           pen.setTint(T.pennant[state.sides[t.owner].faction]);
         }
       }
@@ -587,7 +589,11 @@ export class StructureViews {
         hv.flag.setVisible(st !== 'ruin');
       }
       const L = hqLayoutOf(hv.style);
-      if (st !== 'ruin') hv.flag.update(hv.artX + hv.dir * L.flagTop.x, VIEW.groundY + L.flagTop.y, hv.dir, this.time + side * S.flagPhase);
+      if (st !== 'ruin') {
+        // Hung by its hoist from the top of the pole the HQ sprite draws (src/render/flagMounts.ts).
+        const cloth = hqFlag(L, hv.artX, hv.dir < 0 ? -1 : 1, VIEW.groundY).cloth;
+        hv.flag.update(cloth.hoistX, cloth.top, cloth.dir, this.time + side * S.flagPhase);
+      }
       hv.flashTime -= dt;
       const on = hv.flashTime > 0 && hq.alive;
       hv.flash.visible = on;

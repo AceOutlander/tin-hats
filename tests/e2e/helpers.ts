@@ -106,8 +106,11 @@ export function reasonText(end: DebugState): string {
   return describeEnd(end.endReason, end.winner === 0, label, end.endText);
 }
 
-/** The screen that is on show (a screen that is leaving stays in the page for its fade, marked `inert`). */
-export const arrived = (page: Page, screen: string) => page.locator(`.th-screen.is-in[data-screen="${screen}"]`);
+/**
+ * The screen that is on show and takes touches (a screen that is leaving stays in the page for its fade, marked `inert`;
+ * one that has just appeared takes no touch for a moment, `is-arriving`, so a double tap cannot reach it).
+ */
+export const arrived = (page: Page, screen: string) => page.locator(`.th-screen.is-in:not(.is-arriving)[data-screen="${screen}"]`);
 
 /** Upgrade points the arriving screen says are left to spend. */
 export async function pointsLeft(page: Page, screen: 'campaign' | 'quartermaster'): Promise<number> {

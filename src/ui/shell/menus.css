@@ -61,6 +61,15 @@
   pointer-events: none;
 }
 
+/* The arrival guard must hold for the buttons too: theme.css gives every #ui button pointer-events: auto, which would
+   otherwise let the second tap of a double tap through (a double tap on Play reached the Stalingrad card under it). */
+#ui .th-screen.is-out button,
+#ui .th-screen.is-out [data-interactive],
+#ui .th-screen.is-arriving button,
+#ui .th-screen.is-arriving [data-interactive] {
+  pointer-events: none;
+}
+
 .th-screen.is-out {
   opacity: 0;
 }

@@ -2,6 +2,10 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Branch campaign-select (2026-11-09, not merged, not live)
+
+Ready for the main session to release: Play opens a campaign select (Stalingrad, plus D-Day, Road to Berlin and North Africa as greyed "Coming soon" cards), mission numbers 1 to 10 instead of internal ids on every player screen, map names kept clear of markers and edges at phone sizes, Soviet upgrade names and texts in the Stalingrad Quartermaster (per-nation text in src/data/upgradeText.ts), the falling incoming-shell whistle varied per shell, and a pole for every flag (mission HQ roof poles). DECISIONS 442 to 447. Specs moved to the new flow (Play, then the Stalingrad card: helpers toMap / mapToTitle).
+
 ## LIVE: Beta v0.13.0, the Stalingrad campaign (2026-11-09)
 
 The owner said to push Stalingrad live. Branch stalingrad (final check commit 11e41f9) merged into main (60a376a), version bumped (4b63039), deployed and checked on hunteracedev.com: the service worker is active, mission 1006 starts at 844x390, the console is clean. The site card now describes the Stalingrad campaign (hunteracedev 103c55d).
