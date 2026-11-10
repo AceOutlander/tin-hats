@@ -15,7 +15,7 @@ import { DT, KIND_HAS_ARMOUR, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './t
 import { senseControlled } from './control';
 import { applyAura } from './specials';
 import { claimSlot, releaseSlot } from './trenches';
-import { TARGET_NONE, type SideState, type UnitState } from './types';
+import { TARGET_NONE, TARGET_UNIT, type SideState, type UnitState } from './types';
 import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
 import { rallyFor } from './points';
 import { clearJob } from './clear';
@@ -167,6 +167,47 @@ function senseGarrison(w: World, u: UnitState, hasTarget: boolean, patient: bool
   u.goalX = u.engaged ? u.x : u.postX;
 }
 
+/**
+ * Tank Hunters (a weapon with stalkRange; DECISIONS 460) under Hold or Advance: an enemy vehicle ahead of him, out of
+ * the bundle's reach but within stalkRange of his side's line, draws him out of his slot or the formation to go for it
+ * (crawling its last stalkRange, see moveUnits); with the vehicle in reach he stops and throws. Returns true when he is stalking (u.goalX and u.engaged set), false to
+ * leave him to his order. A man already throwing from a slot (a building's window) stays there.
+ */
+function senseStalk(w: World, u: UnitState, dir: number, hasTarget: boolean): boolean {
+  const m = u.mount;
+  const weapon = m.weapon;
+  const reach = weapon === null ? 0 : (weapon.stalkRange ?? 0);
+  if (reach <= 0 || weapon === null) return false;
+  const s = w.state;
+  const units = s.units;
+  const onVehicle = hasTarget && m.targetType === TARGET_UNIT && units[m.targetIndex].def.class === 'vehicle';
+  if (onVehicle && u.slot >= 0) return false;
+  let best = -1;
+  let bestD = Infinity;
+  const enemy = 1 - u.side;
+  const line = w.lineFront[u.side];
+  for (let i = 0; i < s.unitCount; i++) {
+    const t = units[i];
+    if (!t.alive || t.side !== enemy || t.inside || t.def.class !== 'vehicle') continue;
+    const d = (t.x - u.x) * dir;
+    if (d < 0 || d > bestD || (t.x - line) * dir > reach) continue;
+    bestD = d;
+    best = i;
+  }
+  if (best < 0) return false;
+  releaseSlot(w, u);
+  u.stalking = true;
+  if (onVehicle) {
+    u.engaged = true;
+    u.goalX = u.x;
+  } else {
+    // Close to half the bundle's reach of it; the front clamp may stop him short behind its infantry.
+    u.engaged = false;
+    u.goalX = units[best].x - dir * weapon.range * 0.5;
+  }
+  return true;
+}
+
 /** Pass 1: targets, and for each unit whether it stands to fight (`engaged`) and where it is heading (`goalX`). */
 export function senseUnits(w: World): void {
   const s = w.state;
@@ -199,6 +240,7 @@ export function senseUnits(w: World): void {
       senseMount(w, m2, u.side, retarget);
     }
     const patient = u.def.healRate > 0 && findPatient(w, u);
+    u.stalking = false;
 
     if (u.controlled) {
       // Direct control: the stick, not the order, says where it goes.
@@ -223,6 +265,8 @@ export function senseUnits(w: World): void {
       senseGuard(w, u, hasTarget);
     } else if (u.behaviour === 'garrison') {
       senseGarrison(w, u, hasTarget, patient);
+    } else if (senseStalk(w, u, dir, hasTarget)) {
+      // Out of cover after a vehicle (Hold or Advance).
     } else if (order === 'hold') {
       senseHold(w, u, side, dir, hasTarget, patient);
     } else {
@@ -448,6 +492,11 @@ export function moveUnits(w: World): void {
 
     const retreating = u.behaviour === 'army' && orderFor(side, u.kind) === 'fallBack';
     u.moveSpeed = retreating ? u.def.speed * CONFIG.fallBackSpeedMul : u.def.speed;
+    // On his belly for the last stretch to the vehicle he stalks (senseStalk): its stalkRange of his goal.
+    if (u.stalking) {
+      const gap = u.goalX > u.x ? u.goalX - u.x : u.x - u.goalX;
+      if (gap <= (u.mount.weapon?.stalkRange ?? 0)) u.moveSpeed *= CONFIG.stalkCrawlMul;
+    }
     if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     else if (anyBlock && u.def.class === 'infantry' && inEnemyRoadBlock(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     const arrived = walk(w, u, dir);

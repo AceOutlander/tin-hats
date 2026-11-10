@@ -2,6 +2,13 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Branch brest-at (2026-11-09, not merged, not live)
+
+Brest fix after the sweep (DECISIONS 460): the 1941 Tank Hunters stalk an enemy vehicle that stops out of their 130 wu
+reach (within 340 wu: they leave cover and crawl up to throw), and a vehicle's guns cannot pick out a man stalking it.
+The campaign spec's keen player lost Brest because the StuGs shelled the Kholm Gate from 160 wu while the Hunters sat
+in it. For the main session to release together with the sweep.
+
 ## Branch sweep (2026-11-09, not merged, not live)
 
 The Stalingrad bug sweep and the Soviet anti-tank units by era (DECISIONS 455 to 458): the AT Rifle Team (PTRD, tracer

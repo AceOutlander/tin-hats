@@ -34,6 +34,8 @@ export const CONFIG: GameConfig = {
   mapMargin: 20,
   fallBackSpeedMul: 1.25,
   moveDeadband: 14,
+  /** A Tank Hunter stalking a vehicle (WeaponDef.stalkRange) crawls at this fraction of his pace. */
+  stalkCrawlMul: 0.6,
 
   firePoseTime: 0.18,
   retargetInterval: 0.5,

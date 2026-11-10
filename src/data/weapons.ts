@@ -324,6 +324,9 @@ export const WEAPONS: Record<string, WeaponDef> = {
     thrown: true,
     knockback: 0,
     fortMul: 1,
+    // They do not wait in the window for a tank that stops short: a vehicle within the old rocket's reach of them draws
+    // them out to crawl up and throw (DECISIONS 460).
+    stalkRange: 340,
   },
   // Tank and assault-gun cannon by calibre (DECISIONS 424; which vehicle carries which: TANK_GUNS in ./tankGuns).
   // The 7.5 cm short, the 76.2 mm and the Churchill's 75 mm: the medium tank's gun.

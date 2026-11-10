@@ -45,6 +45,7 @@ export function createMount(): MountState {
     accuracy: 1,
     rangeMul: 1,
     vehicleMul: 1,
+    vehicle: false,
   };
 }
 
@@ -132,6 +133,7 @@ export function createUnit(index: number): UnitState {
     skis: false,
     rally: -1,
     ferry: -1,
+    stalking: false,
   };
 }
 
@@ -247,6 +249,9 @@ export function spawnUnit(
   u.weaponCharge = 1;
   resetMount(u.mount, def.weapon, px);
   resetMount(u.mount2, def.secondary, px);
+  u.mount.vehicle = def.class === 'vehicle';
+  u.mount2.vehicle = def.class === 'vehicle';
+  u.stalking = false;
   u.engaged = false;
   u.goalX = px;
   u.moveSpeed = 0;

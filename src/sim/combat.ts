@@ -164,6 +164,8 @@ function search(w: World, m: MountState, side: number): boolean {
   for (let i = 0; i < s.unitCount; i++) {
     const t = units[i];
     if (!t.alive || t.side !== enemy || t.inside) continue;
+    // A Tank Hunter crawling up to a vehicle is out of sight of its slits and below its gun (DECISIONS 460).
+    if (t.stalking && m.vehicle) continue;
     if (masked && disguised(s, t)) continue;
     const d = t.x > x ? t.x - x : x - t.x;
     if (d > range || d < minRange) continue;
@@ -273,6 +275,7 @@ function targetValid(w: World, m: MountState): boolean {
     case TARGET_UNIT: {
       const t = s.units[m.targetIndex];
       if (!t.alive || t.id !== m.targetId || t.inside) return false;
+      if (t.stalking && m.vehicle) return false;
       if (s.director.disguiseSide === t.side && disguised(s, t)) return false;
       if ((WEAPON_MASK[wi] & (1 << unitClass(t))) === 0) return false;
       if (unitRank(w, wi, t) < 0) return false;

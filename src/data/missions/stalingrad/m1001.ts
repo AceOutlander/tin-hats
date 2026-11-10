@@ -302,7 +302,7 @@ export const M1001: MissionDef = {
     },
     {
       type: 'wave',
-      when: { at: 685 },
+      when: { at: 716 },
       side: 0,
       forces: [{ kind: 'at', count: 2, buildingId: 3 }],
       announce: 'Two more Tank Hunters have made it across the courtyard.',

@@ -160,6 +160,13 @@ export interface WeaponDef {
   knockback: number;
   /** Multiplier on the blast's damage to fortifications: wire, tank traps and road blocks, pillboxes, building walls. 1 normally. */
   fortMul: number;
+  /**
+   * Hand-thrown anti-tank charges (the 1941 Tank Hunters; DECISIONS 460): an enemy vehicle within this distance (wu) of
+   * the man's line, out of the weapon's own reach, draws him out of cover to stalk it, the last stretch of this length on
+   * his belly (config.stalkCrawlMul of his pace); a vehicle's guns do not pick out a man stalking it. Unset or 0 = never
+   * stalks (every other weapon).
+   */
+  stalkRange?: number;
 }
 
 export interface UnitDef {
@@ -436,6 +443,8 @@ export interface GameConfig {
   fallBackSpeedMul: number;
   /** A standing unit sets off again only when its goal is further than this (no shuffling behind a creeping line). */
   moveDeadband: number;
+  /** A Tank Hunter stalking a vehicle (WeaponDef.stalkRange) crawls at this fraction of his pace (DECISIONS 460). */
+  stalkCrawlMul: number;
 
   /** Seconds a unit stays in the `fire` action after its last shot. */
   firePoseTime: number;

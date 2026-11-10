@@ -277,6 +277,8 @@ export interface MountState {
   rangeMul: number;
   /** internal: multiplier on its damage to vehicles (an anti-tank weapon on a tall building's top floor). 1 normally. */
   vehicleMul: number;
+  /** internal: the mount is a vehicle's (main gun or machine gun): it cannot pick out a Tank Hunter stalking it. */
+  vehicle: boolean;
 }
 
 /**
@@ -421,6 +423,11 @@ export interface UnitState {
   rally: number;
   /** Index into state.ferries of the ferry it waits for or crosses on (inside, off the field), -1 for none. */
   ferry: number;
+  /**
+   * A Tank Hunter out of cover crawling up to an enemy vehicle or throwing at it (WeaponDef.stalkRange): enemy vehicles'
+   * guns do not pick him out (DECISIONS 460).
+   */
+  stalking: boolean;
 }
 
 /** Admin panel cheats in force on one side (AdminAction). All off in a normal battle. */

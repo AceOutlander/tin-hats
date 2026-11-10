@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path';
 import type { DebugApi, DebugState, FieldInfo } from '../../src/app/debug';
 import { describeEnd } from '../../src/app/campaignView';
 import { APP } from '../../src/data/app';
+import { CONFIG } from '../../src/data/config';
 import { MISSIONS } from '../../src/data/missions';
 import type { Difficulty, SupportKind, UnitKind } from '../../src/data/schema';
 
@@ -313,7 +314,9 @@ export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
   while (!s.over && Date.now() < deadline) {
     if (win) {
       await grantSupplies(page, 800);
-      for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
+      // A full rifle queue (CONFIG.maxQueue): one pass here is 40 to 80 s of battle at 40x, and a keen player at 1x keeps
+      // the barracks busy all that time (three taps left it idle most of each pass; DECISIONS 460).
+      for (let i = 0; i < CONFIG.maxQueue; i++) await tapIfThere(page, 'train-rifle');
       await tapIfThere(page, 'train-lmg');
       // Armour on the field: a keen player answers it with anti-tank men (Brest's assault guns; DECISIONS 459).
       if (s.units[1].tank + s.units[1].heavyTank + s.units[1].lightTank > 0) await tapIfThere(page, 'train-at');
