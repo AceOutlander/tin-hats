@@ -277,6 +277,46 @@ function paintBomb(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.restore();
 }
 
+/**
+ * The anti-tank rifle's round in flight (PTRD-41, PzB 39): a hot armour-piercing tracer, a white-orange head and a long
+ * fading red streak behind it. No motor, no flame, no fins (it is a bullet, not a rocket).
+ */
+function paintApRound(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const cy = h / 2;
+  const streak = ctx.createLinearGradient(0, 0, w, 0);
+  streak.addColorStop(0, rgba([210, 60, 30], 0));
+  streak.addColorStop(0.6, rgba([240, 110, 50], 0.7));
+  streak.addColorStop(0.92, rgba([255, 214, 150], 1));
+  streak.addColorStop(1, rgba([255, 248, 230], 1));
+  ctx.fillStyle = streak;
+  ctx.beginPath();
+  ctx.moveTo(0, cy);
+  ctx.lineTo(w - h * 0.5, cy - h * 0.38);
+  ctx.quadraticCurveTo(w, cy - h * 0.3, w, cy);
+  ctx.quadraticCurveTo(w, cy + h * 0.3, w - h * 0.5, cy + h * 0.38);
+  ctx.closePath();
+  ctx.fill();
+  dab(ctx, w - h * 0.6, cy, h * 0.5, [255, 236, 190], 0.8, 0);
+}
+
+/** The Tank Hunters' petrol bottle in flight: a dark green bottle, the rag at its neck alight. */
+function paintMolotovFlight(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const cy = h / 2;
+  // Flame from the rag (at +x, the neck).
+  dab(ctx, w * 0.82, cy, h * 0.55, [246, 150, 56], 0.75, 0);
+  dab(ctx, w * 0.86, cy, h * 0.3, [255, 226, 150], 0.9, 0);
+  bodyFill(ctx, cy - h * 0.3, cy + h * 0.3, [104, 120, 82], [74, 88, 58], [44, 52, 34]);
+  ctx.beginPath();
+  ctx.rect(w * 0.1, cy - h * 0.3, w * 0.46, h * 0.6);
+  ctx.moveTo(w * 0.56, cy - h * 0.16);
+  ctx.lineTo(w * 0.7, cy - h * 0.12);
+  ctx.lineTo(w * 0.7, cy + h * 0.12);
+  ctx.lineTo(w * 0.56, cy + h * 0.16);
+  ctx.closePath();
+  ctx.fill();
+  outline(ctx, 0.35);
+}
+
 export function shotSprites(): SpriteSpec[] {
   const tracerSpecs = (Object.keys(TRACERS) as TracerLook[]).map((look) => {
     const art = TRACERS[look];
@@ -291,5 +331,8 @@ export function shotSprites(): SpriteSpec[] {
     sprite(FX_KEYS.projectile.rocket, ROCKET_W, ROCKET_H, ROCKET_AX, 0.5, paintRocket),
     sprite(FX_KEYS.projectile.shell, 22, 5, 0.75, 0.5, paintShell),
     sprite(FX_KEYS.projectile.bomb, 28, 11, 0.55, 0.5, paintBomb),
+    // Anchored at the head (the round is where the sprite is; the streak trails behind).
+    sprite(FX_KEYS.projectile.apRound, 26, 4, 0.92, 0.5, paintApRound),
+    sprite(FX_KEYS.projectile.molotov, 13, 7, 0.4, 0.5, paintMolotovFlight),
   ];
 }

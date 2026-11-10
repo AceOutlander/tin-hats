@@ -47,7 +47,7 @@ export const M1006: MissionDef = {
     friendly: [
       '95th Rifle Division: 12 riflemen, 4 PPSh troopers, 2 DPs',
       'A sniper and 2 mortar crews; flamethrowers come up later',
-      'PTRD teams for the counter-attack on the summit',
+      'AT Rifle Teams for the counter-attack on the summit',
       'Artillery and Katyusha from the far bank, and smoke',
     ],
   },
@@ -315,7 +315,7 @@ export const M1006: MissionDef = {
         { kind: 'rifle', count: 4, x: 10200 },
         { kind: 'lmg', count: 2, x: 10100 },
       ],
-      announce: 'Three PTRD teams have come up to the crest.',
+      announce: 'Three AT Rifle Teams have come up to the crest.',
     },
     {
       type: 'wave',
@@ -382,12 +382,12 @@ export const M1006: MissionDef = {
     {
       type: 'hint',
       when: { phase: 'summit', delay: 30 },
-      text: 'Assault guns: PTRD Teams in the summit trench. The far bank fires on each attack as it climbs the western slope; a Katyusha Salvo of your own breaks it.',
+      text: 'Assault guns: AT Rifle Teams in the summit trench. The far bank fires on each attack as it climbs the western slope; a Katyusha Salvo of your own breaks it.',
     },
     {
       type: 'announce',
       when: { phase: 'summit', delay: 420 },
-      text: 'One more minute and the summit is ours for good. Keep the PTRD teams in the trench.',
+      text: 'One more minute and the summit is ours for good. Keep the AT Rifle Teams in the trench.',
     },
     {
       type: 'hint',

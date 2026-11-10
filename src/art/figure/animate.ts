@@ -390,7 +390,8 @@ function pickTargets(a: FigureAnim, inp: FigureInput, K: FigureKindDef, moving: 
       tau[C_SPINE] = F.spring.throwBody;
       tau[C_HIPX] = F.spring.throwBody;
       tau[C_HEAD] = F.spring.throwBody;
-      if (t < TH.releaseTime) a.item = FIGURE_LOADOUT[a.faction].grenade;
+      // The Tank Hunters throw their bottle (the anti-tank hand item, setFigureRocketItem), everyone else a grenade.
+      if (t < TH.releaseTime) a.item = a.rocketKey !== null ? 'rocket' : FIGURE_LOADOUT[a.faction].grenade;
       break;
     }
     case 'load':

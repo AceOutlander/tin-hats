@@ -98,7 +98,7 @@ export function progressOf(
 }
 
 function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
-  // The names of the mission's date (src/data/eras.ts): Tank Hunters in June 1941, PTRD Teams from November.
+  // The names of the mission's date (src/data/eras.ts): Tank Hunters in June 1941, AT Rifle Teams from November.
   const era = missionEra(m, m.start[0].faction);
   const faction = { unitNames: era.names, unitBlurbs: era.blurbs, supportNames: era.supportNames };
   const cleared = {} as Record<Difficulty, boolean>;
@@ -133,6 +133,7 @@ function missionCard(save: SaveData, p: Progress, m: MissionDef): MissionCard {
     briefing: m.briefing,
     objective: m.objective,
     intel: m.intel ? { enemy: [...m.intel.enemy], friendly: [...m.intel.friendly] } : undefined,
+    orders: { ...FACTIONS[m.start[0].faction].orders },
     unlocked: p.unlockAll || isUnlocked(save, p.ids, m.id),
     cleared,
     newUnit: news.units.length > 0 ? unitCard(news.units[0]) : null,

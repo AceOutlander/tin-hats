@@ -172,8 +172,9 @@ function paintSandbagFront(ctx: Ctx): void {
 }
 
 function paintSandbagLow(ctx: Ctx): void {
-  bagCourse(ctx, 0, A.lowTileW, -10, 15, 9, 0, 2);
-  bagCourse(ctx, 0, A.lowTileW, -18, 15, 9, 7.5, 1);
+  // The bottom course rests on the ground at the sprite's origin (it hovered 3.7 wu above it; tests/unit/grounded.test.ts).
+  bagCourse(ctx, 0, A.lowTileW, -6.3, 15, 9, 0, 2);
+  bagCourse(ctx, 0, A.lowTileW, -14.3, 15, 9, 7.5, 1);
 }
 
 // ---------------------------------------------------------------------------

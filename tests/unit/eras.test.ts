@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { AIRCRAFT_LOOKS, TANK_LAYOUT, VEHICLE_LOOKS, type VehicleLook } from '../../src/data/artLayout';
-import { DEFAULT_AIRCRAFT, EQUIPMENT, outOfService } from '../../src/data/equipment';
+import { DEFAULT_AIRCRAFT, EQUIPMENT, SIM_WEAPON_EQUIPMENT, outOfService } from '../../src/data/equipment';
 import {
   INFANTRY_LOOKS,
   NATION_ERAS,
@@ -29,7 +29,8 @@ import { SANDBOX, SANDBOX_MIRROR } from '../../src/data/missions/sandbox';
 import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { BASIC_TRAINING } from '../../src/data/missions/training';
 import type { FactionId, ForceDef, MissionDef, Side, SupportKind, UnitKind } from '../../src/data/schema';
-import { UNIT_KINDS } from '../../src/data/units';
+import { UNITS, UNIT_KINDS } from '../../src/data/units';
+import { WEAPONS } from '../../src/data/weapons';
 import { vehicleLookOf } from '../../src/art/vehicles';
 import { makeBattle, run, testMission, unitsOf } from './sim-helpers';
 
@@ -68,6 +69,10 @@ function fielded(m: MissionDef, side: Side): Fielded {
     const inf = infantryLookOf(look);
     if (inf) add(look, `${f} ${kind}`);
     if (isFigureKind(kind)) add(e.weapon[kind] ?? FIGURE_LOADOUT[f].weapon[kind], `${f} ${kind}`);
+    // What the sim fires (the anti-tank kind's rifle, bundles or rocket; ResolvedEra.arms): the same window.
+    const fires = e.arms[kind] ?? UNITS[kind].weapon;
+    const eq = fires !== null ? SIM_WEAPON_EQUIPMENT[fires]?.[f as 'british' | 'german' | 'soviet'] : undefined;
+    if (eq !== undefined) add(eq, `${f} ${kind} (${fires})`);
   };
   for (const kind of m.units[side]) unit(kind, '', era, nation);
   if (m.start[side].sappers > 0 && m.units[side].includes('sapper')) unit('sapper', '', era, nation);
@@ -234,13 +239,13 @@ describe('every Stalingrad mission is era-correct for both sides (FOUNDATIONS.md
   it('brings the PTRD in November 1941 and keeps the PPD through 1941', () => {
     for (const id of [1003, 1004]) {
       const e = missionEra(M(id), 'soviet');
-      expect(e.names.at, `${id}`).toBe('PTRD Team');
+      expect(e.names.at, `${id}`).toBe('AT Rifle Team');
       expect(e.names.assault, `${id}`).toBe('PPD Trooper');
       expect(e.weapon.at, `${id}`).toBeUndefined();
     }
     for (const id of [1005, 1006, 1007, 1008, 1009, 1010]) {
       const e = missionEra(M(id), 'soviet');
-      expect([e.names.assault, e.names.at, e.names.conscript], `${id}`).toEqual(['PPSh Trooper', 'PTRD Team', 'Conscript Squad']);
+      expect([e.names.assault, e.names.at, e.names.conscript], `${id}`).toEqual(['PPSh Trooper', 'AT Rifle Team', 'Conscript Squad']);
       expect(e.weapon.assault, `${id}`).toBeUndefined();
       expect(e.aircraft.fighter, `${id}`).toBeUndefined();
     }
@@ -356,6 +361,73 @@ describe('per-force looks and roster nations reach the units (FOUNDATIONS.md 5.1
       for (const m of [...STALINGRAD_MISSIONS, FIELD]) {
         const e = missionEra(m, f);
         for (const kind of UNIT_KINDS) expect(e.names[kind], `${m.id} ${f} ${kind}`).toBeTruthy();
+      }
+    }
+  });
+});
+
+describe('anti-tank units by era (owner, 2026-11-09; DECISIONS 455)', () => {
+  it('never gives the Red Army a rocket: Tank Hunters with bundles before November 1941, the AT Rifle Team after', () => {
+    for (const m of STALINGRAD_MISSIONS) {
+      const e = missionEra(m, 'soviet');
+      const fires = e.arms.at ?? UNITS.at.weapon;
+      expect(fires, `${m.id}`).not.toBe('rocket');
+      expect(WEAPONS[fires ?? ''].projectileLook, `${m.id}`).not.toBe('rocket');
+      if ((m.dateIso ?? '') < '1941-11') {
+        expect([e.names.at, e.buttonNames.at, fires], `${m.id}`).toEqual(['Tank Hunters', 'AT Bundle', 'atGrenades']);
+      } else {
+        expect([e.names.at, e.buttonNames.at, fires], `${m.id}`).toEqual(['AT Rifle Team', 'AT Rifle', 'atRifle']);
+      }
+    }
+    // Without a date (the proving ground): the AT Rifle Team too.
+    expect(resolveEra('soviet', null).arms.at).toBe('atRifle');
+  });
+
+  it('gives the German anti-tank kind the PzB 39 rifle until the Panzerschreck of November 1943', () => {
+    for (const m of STALINGRAD_MISSIONS) {
+      const e = missionEra(m, 'german');
+      expect([e.names.at, e.arms.at], `${m.id}`).toEqual(['PzB 39 Team', 'atRifle']);
+    }
+    expect(resolveEra('german', '1944-06-06').arms.at).toBeUndefined();
+    expect(resolveEra('german', '1944-06-06').names.at).toBe('Panzerschreck Team');
+  });
+
+  it('fires an armour-piercing round with no rocket and no backblast, or throws the bundle from close up', () => {
+    const rifle = WEAPONS.atRifle;
+    const rocket = WEAPONS.rocket;
+    // The anti-tank role stays mirrored: the rifle has the rocket's numbers (DECISIONS 424 to 427 hold for both).
+    for (const k of ['damageType', 'damage', 'range', 'aimTime', 'cooldown', 'projectileSpeed', 'splashRadius', 'scatter', 'targets', 'prefer'] as const) {
+      expect(rifle[k], k).toEqual(rocket[k]);
+    }
+    expect([rifle.projectileLook, rifle.sound, rifle.thrown]).toEqual(['apRound', 'atRifleShot', false]);
+    const bundle = WEAPONS.atGrenades;
+    expect(bundle.thrown).toBe(true);
+    expect(bundle.projectileLook).toBe('molotov');
+    expect(bundle.range).toBeLessThan(rocket.range / 2);
+    expect(bundle.damageType).toBe('antiTank');
+  });
+
+  it('arms the units in the sim by their era: what is drawn is what fires', () => {
+    const at = (m: MissionDef, side: Side): string[] => {
+      const b = makeBattle({ mission: m });
+      run(b, 0.5);
+      return unitsOf(b, side, 'at').map((u) => u.mount.weapon?.id ?? '');
+    };
+    const brest = { ...testMission({ length: 6000, a: { faction: 'soviet', forces: [{ kind: 'at', count: 2, x: 900 }] } }), dateIso: '1941-06-22' };
+    expect(at(brest, 0)).toEqual(['atGrenades', 'atGrenades']);
+    const city = { ...testMission({ length: 6000, a: { faction: 'soviet', forces: [{ kind: 'at', count: 1, x: 900 }] }, b: { faction: 'german', forces: [{ kind: 'at', count: 1, x: 5000 }] } }), dateIso: '1942-09-15' };
+    expect(at(city, 0)).toEqual(['atRifle']);
+    expect(at(city, 1)).toEqual(['atRifle']);
+    // The British PIAT and a dateless German Panzerschreck keep the kind's rocket.
+    expect(at(testMission({ length: 6000, a: { forces: [{ kind: 'at', count: 1, x: 900 }] } }), 0)).toEqual(['rocket']);
+  });
+
+  it('says on every Soviet unit button what the unit is (no bare "Hunters")', () => {
+    for (const m of STALINGRAD_MISSIONS) {
+      const e = missionEra(m, 'soviet');
+      for (const kind of m.units[0]) {
+        const label = e.buttonNames[kind] ?? e.names[kind];
+        expect(label, `${m.id} ${kind}`).not.toMatch(/^(Hunters|Schreck|Werfer|Flammer)$/);
       }
     }
   });

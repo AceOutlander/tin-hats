@@ -11,6 +11,7 @@ import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { CAMPAIGNS } from '../data/campaigns';
 import { DIFFICULTY_LIST } from '../data/difficulty';
+import { FACTIONS } from '../data/factions';
 import { STALINGRAD_MISSIONS } from '../data/missions/stalingrad';
 import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
 import type { MusicTrackName } from '../data/music';
@@ -588,6 +589,8 @@ export class App implements AppApi {
     view.campaignId = c.id;
     view.campaignTitle = def.title;
     view.map = def.map;
+    // The nation's own helmet on the Quartermaster's HQ group and the result banner (a Brodie on a Soviet screen was wrong).
+    view.helmet = FACTIONS[def.nation].look.helmet;
     // The playable campaigns, then the greyed "Coming soon" ones (owner, 2026-11-09).
     view.campaigns = [...buildCampaignCards(this.save, this.offered, c.id), ...buildUpcomingCards()];
     return view;

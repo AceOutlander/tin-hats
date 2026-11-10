@@ -133,7 +133,7 @@ export interface WeaponDef {
   moveAndFire: boolean;
   /** View hints. */
   tracer: 'rifle' | 'mg' | 'smg' | 'sniper' | 'none';
-  projectileLook: 'none' | 'grenade' | 'mortar' | 'rocket' | 'shell' | 'bomb' | 'katyusha';
+  projectileLook: 'none' | 'grenade' | 'mortar' | 'rocket' | 'shell' | 'bomb' | 'katyusha' | 'apRound' | 'molotov';
   /** Sound played when the weapon fires: a one-shot name from src/data/sounds.ts, or 'none' for silence. */
   sound: string;
   /*
@@ -257,6 +257,8 @@ export interface FactionDef {
   unitBlurbs: Record<UnitKind, string>;
   supportNames: Record<SupportKind, string>;
   look: FactionLook;
+  /** The briefing sheet's heading and its secrecy stamp, in the nation's own paperwork (a British "Most secret"). */
+  orders: { title: string; stamp: string };
   /** HUD accent and campaign-card colour (NATIONS.md). */
   uiAccent: string;
   /**

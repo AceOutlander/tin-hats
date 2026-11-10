@@ -76,7 +76,7 @@ export const resultScreen: ScreenFactory = (ctx) => {
   const main = el('div', 'th-result-main');
   const banner = el('div', 'th-result-banner');
   const helmet = el('div', 'th-result-helmet');
-  helmet.append(helmetIcon());
+  helmet.append(helmetIcon('th-helmet', ctx.view().helmet));
   const stamp = stencil('h1', won ? 'VICTORY' : 'DEFEAT', 'th-result-word');
   add(banner, helmet, stamp);
 

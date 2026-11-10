@@ -159,7 +159,7 @@ test.describe('the campaign select', () => {
     await tapIn(page, 'campaign', 'mission-pin-1001');
     await tapIn(page, 'campaign', 'mission-start');
     const briefing = arrived(page, 'briefing');
-    await expect(briefing.locator('.th-sheet-no')).toHaveText('Operation order No. 1');
+    await expect(briefing.locator('.th-sheet-no')).toHaveText('Combat order No. 1');
     await expect(briefing.getByTestId('briefing-intel')).toContainText('StuG III Ausf. B');
     await expect(briefing.locator('.th-new-name')).toHaveText(['DP Gunner', 'Tank Hunters']);
     expect(await briefing.innerText()).not.toMatch(INTERNAL_ID);

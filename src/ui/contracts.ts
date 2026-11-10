@@ -6,7 +6,7 @@
  * these models from the simulation and the save data.
  */
 import type { CampaignMapDef } from '../data/campaignMap';
-import type { BuildableId, CampaignId, UpcomingCampaignId, Difficulty, FactionId, FactionLook, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { BuildableId, CampaignId, UpcomingCampaignId, Difficulty, FactionId, FactionLook, HelmetShape, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
 import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
@@ -240,6 +240,8 @@ export interface MissionCard {
   objective: string;
   /** The briefing's intelligence: the enemy's forces and ours, a few short lines each. */
   intel?: MissionIntel;
+  /** The orders sheet's heading and stamp in the player nation's paperwork (FactionDef.orders). */
+  orders?: { title: string; stamp: string };
   unlocked: boolean;
   cleared: Record<Difficulty, boolean>;
   newUnit: { kind: UnitKind; name: string; blurb: string } | null;
@@ -399,6 +401,8 @@ export interface CampaignView {
   campaignId?: CampaignId;
   campaignTitle?: string;
   map?: CampaignMapDef;
+  /** The helmet of the campaign's nation (the Quartermaster's HQ group, the result banner); absent = the Brodie. */
+  helmet?: HelmetShape;
   /** Every campaign offered, for the select screen, in its order. */
   campaigns?: CampaignCardView[];
   missions: MissionCard[];

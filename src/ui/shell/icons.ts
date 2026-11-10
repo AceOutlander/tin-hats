@@ -1,5 +1,5 @@
 /** Inline SVG icons for the menus. Everything is drawn here: no image files. */
-import type { Side, SupportKind, UnitKind } from '../../data/schema';
+import type { HelmetShape, Side, SupportKind, UnitKind } from '../../data/schema';
 import { PLANE_GLYPHS } from '../hud/icons';
 import { iconCanvas } from './dom';
 
@@ -27,8 +27,30 @@ function svg(viewBox: string, className: string, paths: readonly PathSpec[]): SV
   return node;
 }
 
-/** A Brodie "tin hat" seen from the side: shallow bowl, wide brim, chin strap. */
-export function helmetIcon(className = 'th-helmet'): SVGSVGElement {
+/**
+ * A helmet seen from the side: the Brodie "tin hat" (the game's emblem, and the British helmet), or a nation's own on
+ * that nation's screens: the Soviet SSh-40 (a deep round dome with a short brim all round) or the German Stahlhelm.
+ */
+export function helmetIcon(className = 'th-helmet', shape: HelmetShape = 'brodie'): SVGSVGElement {
+  if (shape === 'ssh40') {
+    return svg('0 0 200 112', className, [
+      { cls: 'th-helmet-strap', d: 'M60 90 Q100 124 140 90' },
+      { cls: 'th-helmet-dome', d: 'M46 84 C44 34 70 8 100 8 C130 8 156 34 154 84 Z' },
+      { cls: 'th-helmet-shade', d: 'M114 10 C142 18 158 44 154 84 L126 84 C132 54 128 28 114 10 Z' },
+      { cls: 'th-helmet-shine', d: 'M62 52 C64 34 78 20 94 15 C82 24 72 38 70 54 Z' },
+      { cls: 'th-helmet-brim', d: 'M36 80 Q100 72 164 80 Q170 88 160 92 Q100 100 40 92 Q30 88 36 80 Z' },
+      { cls: 'th-helmet-rim', d: 'M42 87 Q100 96 158 87' },
+    ]);
+  }
+  if (shape === 'stahlhelm') {
+    return svg('0 0 200 112', className, [
+      { cls: 'th-helmet-strap', d: 'M64 88 Q100 122 136 88' },
+      { cls: 'th-helmet-dome', d: 'M42 74 C40 30 70 8 104 8 C136 8 160 32 158 74 Z' },
+      { cls: 'th-helmet-shade', d: 'M116 10 C144 18 160 42 158 74 L130 74 C134 48 130 26 116 10 Z' },
+      { cls: 'th-helmet-shine', d: 'M58 48 C62 32 76 20 92 15 C80 24 70 36 66 50 Z' },
+      { cls: 'th-helmet-brim', d: 'M30 92 Q34 70 42 70 L158 70 Q170 74 176 94 Q150 86 120 86 L60 86 Q42 86 30 92 Z' },
+    ]);
+  }
   return svg('0 0 200 112', className, [
     { cls: 'th-helmet-strap', d: 'M52 78 Q100 126 148 78' },
     { cls: 'th-helmet-dome', d: 'M40 66 C40 30 70 10 100 10 C130 10 160 30 160 66 Z' },

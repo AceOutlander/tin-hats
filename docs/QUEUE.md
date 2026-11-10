@@ -5,7 +5,7 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
-## NEXT job after the campaign-select release: Soviet anti-tank units by era (owner, 2026-11-09)
+## DONE on branch `sweep`, commit 5c4f0ed (DECISIONS 455): Soviet anti-tank units by era (owner, 2026-11-09)
 
 Owner, verbatim: "Bug: the Soviet "Tank Hunters" fire rockets, which is wrong. The Soviets had no shoulder-fired rocket launchers in this period, and the button label "Hunters" doesn't tell players what the unit is.
 - Rename the Soviet anti-tank unit to "AT Rifle Team" (button label "AT Rifle"), and make it a two-man team with the long PTRD anti-tank rifle firing armour-piercing shots: a loud crack and a tracer, no rocket or backblast.

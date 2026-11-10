@@ -63,6 +63,25 @@ function problemsOnScreen(): string[] {
     }
     return true;
   };
+  /** An element's box cut to every ancestor that clips its overflow (a scroller shows only what is inside it). */
+  const shownRect = (el: Element): { left: number; right: number; top: number; bottom: number } => {
+    const r = el.getBoundingClientRect();
+    const out = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    for (let n = el.parentElement; n; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+      const c = n.getBoundingClientRect();
+      if (cs.overflowX !== 'visible') {
+        out.left = Math.max(out.left, c.left);
+        out.right = Math.min(out.right, c.right);
+      }
+      if (cs.overflowY !== 'visible') {
+        out.top = Math.max(out.top, c.top);
+        out.bottom = Math.min(out.bottom, c.bottom);
+      }
+    }
+    return out;
+  };
   const buttons = [...document.querySelectorAll('button')].filter((b) => visible(b) && !b.closest('.th-tip'));
   for (const b of buttons) {
     const r = b.getBoundingClientRect();
@@ -76,13 +95,16 @@ function problemsOnScreen(): string[] {
       const b = buttons[j];
       // Pins are round and kept 50 px apart; their square boxes may touch at the corners.
       if (a.contains(b) || b.contains(a) || (a.classList.contains('th-pin') && b.classList.contains('th-pin'))) continue;
-      const ra = a.getBoundingClientRect();
-      const rb = b.getBoundingClientRect();
+      // What shows of each: a button a scroller (the unit tray) has moved out of its own box is clipped there and is
+      // not on top of anything beside the scroller (DECISIONS 457).
+      const ra = shownRect(a);
+      const rb = shownRect(b);
+      if (ra.right - ra.left <= 0 || rb.right - rb.left <= 0 || ra.bottom - ra.top <= 0 || rb.bottom - rb.top <= 0) continue;
       const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
       const h = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
       // A pin the map has panned mostly off the screen (its centre is outside it) is not there to touch.
       const rim = 15; // the pin's disc is 30 px across: with its centre this close to the edge, half of it is out of sight
-      const centreOff = (r: DOMRect): boolean => (r.left + r.right) / 2 < rim || (r.top + r.bottom) / 2 < rim || (r.left + r.right) / 2 > vw - rim || (r.top + r.bottom) / 2 > vh - rim;
+      const centreOff = (r: { left: number; right: number; top: number; bottom: number }): boolean => (r.left + r.right) / 2 < rim || (r.top + r.bottom) / 2 < rim || (r.left + r.right) / 2 > vw - rim || (r.top + r.bottom) / 2 > vh - rim;
       if ((a.classList.contains('th-pin') && centreOff(ra)) || (b.classList.contains('th-pin') && centreOff(rb))) continue;
       if (w > 3 && h > 3) out.push(`overlap: ${name(a)} x ${name(b)}`);
     }
@@ -200,16 +222,24 @@ test.describe('the briefing', () => {
     await expect(page.getByTestId('begin')).toBeVisible();
   });
 
-  test('shows no cue when everything fits', async ({ page }) => {
-    await farSave(page);
-    await open(page);
-    await toMap(page);
-    await settled(page);
-    await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
-    await tapIn(page, 'campaign', 'mission-start');
-    await settled(page);
-    await page.waitForTimeout(2800);
-    await expect(page.locator('.th-screen.is-in[data-screen="briefing"] .th-scrollwrap.is-paper')).toHaveAttribute('data-more', 'false');
+  // Every Stalingrad briefing now carries its intelligence and three paragraphs of orders, so none fits a phone (the
+  // test used to open the British campaign's short first briefing; DECISIONS 457). The cue's other half is checked on
+  // a screen tall enough for the whole of Brest's orders: the paper really fits there, and then no cue shows.
+  test.describe('on a screen tall enough for the whole sheet', () => {
+    test.use({ viewport: { width: 1366, height: 1024 } });
+    test('shows no cue when everything fits', async ({ page }) => {
+      await farSave(page);
+      await open(page);
+      await toMap(page);
+      await settled(page);
+      await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
+      await tapIn(page, 'campaign', 'mission-start');
+      await settled(page);
+      await page.waitForTimeout(2800);
+      const sheet = page.locator('.th-screen.is-in[data-screen="briefing"] .th-sheet');
+      expect(await sheet.evaluate((el) => el.scrollHeight - el.clientHeight), 'the whole of the orders fits').toBeLessThanOrEqual(1);
+      await expect(page.locator('.th-screen.is-in[data-screen="briefing"] .th-scrollwrap.is-paper')).toHaveAttribute('data-more', 'false');
+    });
   });
 });
 

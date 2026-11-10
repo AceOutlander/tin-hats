@@ -45,6 +45,7 @@ const MUZZLE_SIZE: Readonly<Record<string, number>> = {
   heavyGun: 1.75,
   gun152: 2.1,
   rocket: 0.6,
+  atRifle: 0.4,
   mortar: 0.55,
   airRocket: 0.6,
   artilleryShell: 1.2,
@@ -172,7 +173,7 @@ function onShot(fx: EffectContext, e: SimEvent): void {
     }
   } else if (weapon) {
     const size = MUZZLE_SIZE[weapon.id] ?? 1;
-    if (!hidden && weapon.projectileLook !== 'grenade') {
+    if (!hidden && weapon.projectileLook !== 'grenade' && !weapon.thrown) {
       const d = launchDir(fx, e, weapon.delivery === 'lob', to.x - from.x, to.y - from.y);
       fx.play('tankMuzzle', from.x, from.y, d.x, d.y, gy, size);
     }
@@ -256,7 +257,7 @@ function onProjectile(fx: EffectContext, e: SimEvent): void {
     hidden = !Number.isNaN(edge);
     if (hidden) from.x = edge;
   }
-  if (!dupe && !air && !hidden && weapon.projectileLook !== 'grenade') {
+  if (!dupe && !air && !hidden && weapon.projectileLook !== 'grenade' && !weapon.thrown) {
     const d = launchDir(fx, e, weapon.delivery === 'lob', dir, 0);
     fx.play('tankMuzzle', from.x, from.y, d.x, d.y, g, MUZZLE_SIZE[weapon.id] ?? 1);
     if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, g, 2.2);
@@ -278,6 +279,11 @@ function onExplosion(fx: EffectContext, e: SimEvent): void {
   // A tank shell's blast is drawn as far as it throws men (CONFIG.knockReach x its lethal splash).
   const radius = (e.value > 0 ? e.value : X.smallMax) * (heavy ? CONFIG.knockReach : 1);
   blast(fx, e.x, radius, ground);
+  // A Tank Hunter's bottle (atGrenades): the petrol catches where it lands, so the tank or the ground there burns.
+  if (weapon !== undefined && weapon.projectileLook === 'molotov' && fx.onScreen(e.x - radius, e.x + radius)) {
+    fx.play('tankFire', e.x, ground - 4, 0, -1, ground, RENDER.flame.fireSize * 1.6);
+    if (fx.lowOk()) fx.play('hqSmoke', e.x, ground - 10, 0, -1, ground, RENDER.flame.smokeSize * 1.4);
+  }
   // A tank shell (a heavy round that throws men): a big cloud of dust rolls out from the impact (DECISIONS 424).
   if (heavy && fx.onScreen(e.x - radius, e.x + radius)) {
     fx.play('shellDust', e.x, ground, 1, 0, ground, clamp(radius / X.refRadius.medium, 0.7, 1.8));

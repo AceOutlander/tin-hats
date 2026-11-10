@@ -25,7 +25,7 @@ export interface EraLook {
   clothing?: PerKind<FigureClothing>;
   /** Small arms in place of the nation's (src/data/figure.ts FIGURE_LOADOUT). */
   weapon?: Partial<Record<UnitKind, WeaponModel>>;
-  /** The anti-tank hand item held while making ready (the Tank Hunters' bottle). */
+  /** The anti-tank hand item held while making ready and thrown (the Tank Hunters' bottle). */
   rocketItem?: Partial<Record<UnitKind, 'molotov'>>;
   /** The vehicle kinds' looks (src/data/artLayout.ts VehicleLook). */
   vehicle?: Partial<Record<VehicleKind, VehicleLook>>;
@@ -45,8 +45,24 @@ export interface NationEraDef {
   buttonNames?: Partial<Record<UnitKind, string>>;
   blurbs?: Partial<Record<UnitKind, string>>;
   supportNames?: Partial<Record<SupportKind, string>>;
+  /**
+   * Sim weapons in place of the kind's (UnitDef.weapon, src/data/weapons.ts): the anti-tank rifle or the Tank Hunters'
+   * bundles for the anti-tank kind (DECISIONS 455). The art and the sim read the same era, so what is drawn is what fires.
+   */
+  arms?: Partial<Record<UnitKind, string>>;
   look?: EraLook;
 }
+
+/**
+ * Each nation's sim weapons by kind when no era replaces them (a mission without a date): the Red Army's anti-tank kind
+ * is the AT Rifle Team with the PTRD (its round, not a rocket; DECISIONS 455). The British PIAT and the German
+ * Panzerschreck fire the kind's own rocket (UnitDef.weapon).
+ */
+export const DEFAULT_ARMS: Record<FactionId, Partial<Record<UnitKind, string>>> = {
+  british: {},
+  german: {},
+  soviet: { at: 'atRifle' },
+};
 
 export type VehicleKind = 'tank' | 'heavyTank' | 'lightTank' | 'apc';
 export const VEHICLE_KINDS: readonly VehicleKind[] = ['tank', 'heavyTank', 'lightTank', 'apc'];
@@ -110,6 +126,7 @@ export const NATION_ERAS: Record<FactionId, readonly NationEraDef[]> = {
       buttonNames: { at: 'PzB 39' },
       blurbs: { at: 'A heavy anti-tank rifle. Holes light tanks and hurts heavier ones from the side. Poor against infantry.' },
       look: { weapon: { at: 'pzb39' } },
+      arms: { at: 'atRifle' },
     },
   ],
   soviet: [
@@ -133,15 +150,17 @@ export const NATION_ERAS: Record<FactionId, readonly NationEraDef[]> = {
         clothing: { default: 'telogreika' },
       },
     },
-    // The Tank Hunters (grenade bundles and bottles) until the PTRD reached the front in November 1941.
+    // The Tank Hunters (grenade bundles and petrol bottles, thrown from close up) until the PTRD reached the front in
+    // November 1941 (DECISIONS 455): no anti-tank rifle and no rocket. From then on, the AT Rifle Team (FACTIONS.soviet).
     {
       id: 'soviet-tank-hunters',
       from: '1941-06',
       to: '1941-10',
       names: { at: 'Tank Hunters' },
-      buttonNames: { at: 'Hunters' },
-      blurbs: { at: 'Grenade bundles and petrol bottles. They must get close and hit a tank from the side or rear. Poor against infantry.' },
+      buttonNames: { at: 'AT Bundle' },
+      blurbs: { at: 'Grenade bundles and petrol bottles, thrown from close up: the tank burns where they land. They must let it come near. Poor against infantry.' },
       look: { weapon: { at: 'mosin' }, rocketItem: { at: 'molotov' } },
+      arms: { at: 'atGrenades' },
     },
     // Summer 1941 (missions 1001, 1002): the BT-7 is the light tank (the T-26 a per-force look) until the T-60 arrives.
     { id: 'soviet-summer-1941', from: '1941-06', to: '1941-09', names: { lightTank: 'BT-7' }, look: { vehicle: { lightTank: 'bt7' } } },
@@ -224,6 +243,8 @@ export interface ResolvedEra {
   weapon: Partial<Record<UnitKind, WeaponModel>>;
   rocketItem: Partial<Record<UnitKind, 'molotov'>>;
   vehicle: Record<VehicleKind, VehicleLook>;
+  /** Sim weapons that replace the kind's own (the anti-tank rifle, the Tank Hunters' bundles); absent = UnitDef.weapon. */
+  arms: Partial<Record<UnitKind, string>>;
   aircraft: Partial<Record<SupportKind, AircraftLook>>;
 }
 
@@ -270,6 +291,7 @@ export function resolveEra(nation: FactionId, dateIso: string | null, climate: C
     clothing: {},
     weapon: {},
     rocketItem: {},
+    arms: { ...DEFAULT_ARMS[nation] },
     vehicle: defaultVehicleLooks(nation),
     aircraft: {},
   };
@@ -280,6 +302,7 @@ export function resolveEra(nation: FactionId, dateIso: string | null, climate: C
     Object.assign(out.supportNames, e.supportNames);
     Object.assign(out.weapon, e.look?.weapon);
     Object.assign(out.rocketItem, e.look?.rocketItem);
+    Object.assign(out.arms, e.arms);
     Object.assign(out.vehicle, e.look?.vehicle);
     Object.assign(out.aircraft, e.look?.aircraft);
   }
@@ -336,4 +359,19 @@ export function infantryLookOf(look: string): (typeof INFANTRY_LOOKS)[InfantryLo
 /** Every aircraft look's support kind (for the plane pool): the look flies in place of that call-in's plane. */
 export function aircraftKindOf(look: AircraftLook): (typeof AIRCRAFT_LOOKS)[AircraftLook]['kind'] {
   return AIRCRAFT_LOOKS[look].kind;
+}
+
+/**
+ * The second man drawn beside a kind that is a crew of two, by the sim weapon it carries and its nation: the PTRD's
+ * number two with his rifle (the Soviet AT Rifle Team is a two-man team; DECISIONS 455). Names and art only: the
+ * team is one unit in the sim. The German PzB 39 was a one-man weapon, the Tank Hunters went singly.
+ */
+export const TEAM_MATES: Partial<Record<string, Partial<Record<FactionId, UnitKind>>>> = {
+  atRifle: { soviet: 'rifle' },
+};
+
+/** The kind of the second man drawn with a unit of `kind` in an era, or null for a one-man unit. */
+export function teamMateOf(era: ResolvedEra, kind: UnitKind): UnitKind | null {
+  const arms = era.arms[kind];
+  return arms !== undefined ? (TEAM_MATES[arms]?.[era.nation] ?? null) : null;
 }

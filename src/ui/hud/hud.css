@@ -412,9 +412,9 @@
   padding: 2px 10px 3px;
   font-size: var(--fs-xs);
   letter-spacing: 0.06em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* A long phase line wraps onto a second line rather than ending in "..." (the sweep: Mamayev Kurgan at 667x375). */
+  line-height: 1.25;
+  text-align: center;
   color: var(--th-brass);
   background: var(--plate-bg);
   border: 1px solid var(--plate-edge);
@@ -826,8 +826,9 @@
 .th-sbtn-name {
   position: relative;
   max-width: 100%;
-  padding: 0 2px;
-  font-size: calc(var(--sbtn) * 0.2);
+  /* "Artillery" and "Katyusha" ran 2 px into the padding at 0.2 (tests/e2e/screen-labels.spec.ts). */
+  padding: 0 1px;
+  font-size: calc(var(--sbtn) * 0.185);
   letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
