@@ -200,16 +200,24 @@ test.describe('the briefing', () => {
     await expect(page.getByTestId('begin')).toBeVisible();
   });
 
-  test('shows no cue when everything fits', async ({ page }) => {
-    await farSave(page);
-    await open(page);
-    await toMap(page);
-    await settled(page);
-    await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
-    await tapIn(page, 'campaign', 'mission-start');
-    await settled(page);
-    await page.waitForTimeout(2800);
-    await expect(page.locator('.th-screen.is-in[data-screen="briefing"] .th-scrollwrap.is-paper')).toHaveAttribute('data-more', 'false');
+  // Every Stalingrad briefing now carries its intelligence and three paragraphs of orders, so none fits a phone (the
+  // test used to open the British campaign's short first briefing; DECISIONS 457). The cue's other half is checked on
+  // a screen tall enough for the whole of Brest's orders: the paper really fits there, and then no cue shows.
+  test.describe('on a screen tall enough for the whole sheet', () => {
+    test.use({ viewport: { width: 1366, height: 1024 } });
+    test('shows no cue when everything fits', async ({ page }) => {
+      await farSave(page);
+      await open(page);
+      await toMap(page);
+      await settled(page);
+      await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
+      await tapIn(page, 'campaign', 'mission-start');
+      await settled(page);
+      await page.waitForTimeout(2800);
+      const sheet = page.locator('.th-screen.is-in[data-screen="briefing"] .th-sheet');
+      expect(await sheet.evaluate((el) => el.scrollHeight - el.clientHeight), 'the whole of the orders fits').toBeLessThanOrEqual(1);
+      await expect(page.locator('.th-screen.is-in[data-screen="briefing"] .th-scrollwrap.is-paper')).toHaveAttribute('data-more', 'false');
+    });
   });
 });
 

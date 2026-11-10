@@ -298,7 +298,7 @@ export const M1005: MissionDef = {
       when: { phase: 'station', delay: 6 },
       side: 0,
       forces: [{ kind: 'at', count: 3, at: { point: 'P2' } }],
-      announce: 'Three PTRD teams have come up to the high bank.',
+      announce: 'Three AT Rifle Teams have come up to the high bank.',
     },
     {
       type: 'hint',

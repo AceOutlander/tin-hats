@@ -47,8 +47,8 @@ export const M1008: MissionDef = {
     ],
     friendly: [
       '37th Guards: 8 riflemen, 8 PPSh troopers, 3 DPs, 2 snipers',
-      '2 T-34s dug in among the halls, 2 PTRD teams, 2 mortars',
-      'Flamethrowers and more PTRD teams come up later',
+      '2 T-34s dug in among the halls, 2 AT Rifle Teams, 2 mortars',
+      'Flamethrowers and more AT Rifle Teams come up later',
       'Artillery, smoke and Katyusha from the far bank',
     ],
   },
@@ -190,7 +190,7 @@ export const M1008: MissionDef = {
     {
       type: 'hint',
       when: { at: 3 },
-      text: 'A delay: hold the factory until dark. PTRD Teams and the dug-in T-34s make the yard a tank trap.',
+      text: 'A delay: hold the factory until dark. AT Rifle Teams and the dug-in T-34s make the yard a tank trap.',
     },
     { type: 'announce', when: { at: 50 }, text: 'The bombers! The whole sky is full of them.' },
     // Phase 1: the bombers.
@@ -248,7 +248,7 @@ export const M1008: MissionDef = {
         { kind: 'flame', count: 2, x: 5000 },
         { kind: 'at', count: 3, x: 4900 },
       ],
-      announce: 'Two flamethrowers and three PTRD teams are up from the cliffs.',
+      announce: 'Two flamethrowers and three AT Rifle Teams are up from the cliffs.',
     },
     { type: 'wave', when: { every: 120, from: 545, until: 1200 }, side: 0, forces: [{ kind: 'at', count: 1, x: 4900 }] },
     {

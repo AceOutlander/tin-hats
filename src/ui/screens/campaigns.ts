@@ -79,10 +79,11 @@ export const campaignsScreen: ScreenFactory = (ctx) => {
     const top = el('div', 'th-camp-top');
     const titles = el('div', 'th-camp-titles');
     const years = el('p', 'th-type th-camp-dates', `${c.years} · ${c.nationName}`);
-    add(titles, stencil('h2', c.title, 'th-camp-name'), years);
     const stamp = el('span', 'th-stamp th-camp-stamp', stampText);
     stamp.dataset.state = c.comingSoon ? 'soon' : c.locked ? 'locked' : done ? 'cleared' : 'open';
-    add(top, flag(c), titles, stamp);
+    // The stamp sits under the name, not beside it: a long name (Stalingrad) ran under a stamp beside it.
+    add(titles, stencil('h2', c.title, 'th-camp-name'), years, stamp);
+    add(top, flag(c), titles);
 
     const pitch = el('p', 'th-type th-camp-pitch', c.pitch);
     const progress = el('div', 'th-camp-progress');

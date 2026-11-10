@@ -48,7 +48,7 @@ export const M1004: MissionDef = {
     friendly: [
       '371st Rifle Division: 10 riflemen, 6 ski troopers, 2 DPs',
       'A T-34, a T-60, 2 mortar crews and 4 militia squads',
-      'PTRD teams at the village; at Klin 2 T-34s with riders',
+      'AT Rifle Teams at the village; at Klin 2 T-34s with riders',
       'Artillery, smoke, Katyusha, and the Il-2 when it clears',
     ],
   },
@@ -255,7 +255,7 @@ export const M1004: MissionDef = {
         // The brief's loan of phase 2. The rifle companies that came up with them stood in for forward deploy.
         { kind: 'at', count: 3, at: { point: 'P1' } },
       ],
-      announce: 'PTRD teams have come up to the village.',
+      announce: 'AT Rifle Teams have come up to the village.',
     },
     {
       type: 'hint',

@@ -43,8 +43,8 @@ export function playEventSound(audio: SfxAudio, e: SimEvent, playerSide: number)
       if (e.side === playerSide) audio.play(EVENT_SOUND.supportCalled);
       break;
     case 'projectile':
-      // Only a grenade leaving a hand: shells and rockets have their launch sound from the renderer.
-      if (e.weapon === 'grenade') audio.playAt(EVENT_SOUND.grenadeThrown, e.x);
+      // Only a grenade or a Tank Hunter's bundle leaving a hand: shells and rockets have their launch sound from the renderer.
+      if (e.weapon === 'grenade' || e.weapon === 'atGrenades') audio.playAt(EVENT_SOUND.grenadeThrown, e.x);
       break;
     case 'structureDestroyed':
       if (e.target === 'pillbox') audio.playAt(EVENT_SOUND.pillboxDestroyed, e.x);

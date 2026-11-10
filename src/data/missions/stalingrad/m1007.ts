@@ -265,7 +265,7 @@ export const M1007: MissionDef = {
     {
       type: 'hint',
       when: { at: 670 },
-      text: 'The anti-tank rifle in the house fires down on the thin roof of a tank. Keep the PTRD Teams in the house.',
+      text: 'The anti-tank rifle in the house fires down on the thin roof of a tank. Keep the AT Rifle Teams in the house.',
     },
     {
       type: 'wave',

@@ -120,6 +120,10 @@ export const RENDER = {
     tankTurnMinK: 0.32,
     /** Units on different rows of one formation column stand at the same x; spread them by up to this much (wu, view only). */
     xJitter: 8,
+    /** A two-man team's second man (src/data/eras.ts TEAM_MATES): this far behind the gunner (wu at scale 1), and how much
+     * later he falls when the team is hit (s). */
+    mateBehind: 11,
+    mateDeathLag: 0.18,
     /** Fixed x offset per depth row (wu, view only): a column of four reads as a staggered file, not one thick figure. */
     rowStagger: [-13, -4, 4, 13] as readonly number[],
     /** Within this distance of their own HQ door units leave their depth row and formation offset (file in and out). */
@@ -144,6 +148,7 @@ export const RENDER = {
      */
     kneelByRow: [0.1, 0.3, 0.75, 0.92] as readonly number[],
     kneelSalt: 0x6b1e3d,
+    mateSalt: 0x2c9d41,
   },
 
   /**
@@ -346,10 +351,10 @@ export const RENDER = {
       /** Peak opacity of the faint target marker over the player's own barrage or call-in; the enemy's get none (owner, 2026-11-09). */
       ownMarkerPeak: 0.4,
       /** Sprite size multiplier and spin (rad/s) by look. */
-      scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5, katyusha: 1.3 } as Readonly<Record<string, number>>,
-      spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0, katyusha: 0 } as Readonly<Record<string, number>>,
+      scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5, katyusha: 1.3, apRound: 1.2, molotov: 1.1 } as Readonly<Record<string, number>>,
+      spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0, katyusha: 0, apRound: 0, molotov: 9 } as Readonly<Record<string, number>>,
       /** Smoke trail preset by look ('' for none); it puffs at the preset's own interval. */
-      trail: { grenade: '', mortar: 'projTrailThin', rocket: 'rocketTrail', shell: 'projTrailThin', bomb: 'projTrailThin', katyusha: 'katyushaTrail' } as Readonly<Record<string, string>>,
+      trail: { grenade: '', mortar: 'projTrailThin', rocket: 'rocketTrail', shell: 'projTrailThin', bomb: 'projTrailThin', katyusha: 'katyushaTrail', apRound: '', molotov: 'projTrailThin' } as Readonly<Record<string, string>>,
       /** Shots at weapons that are not hitscan, with no projectile event the same step, are drawn as a fast flight of at least this length (s). */
       provisionalMin: 0.12,
       provisionalMax: 0.9,

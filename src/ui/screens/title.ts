@@ -76,7 +76,7 @@ export const titleScreen: ScreenFactory = (ctx) => {
     logo,
     helmet,
     stencil('h1', 'TIN HATS', 'th-logo-text'),
-    el('p', 'th-type th-logo-tag', 'Western Europe & North Africa · 1940–45'),
+    el('p', 'th-type th-logo-tag', 'The Second World War · 1940–45'),
   );
 
   const actions = el('div', 'th-title-actions');

@@ -58,8 +58,8 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const sheetHead = el('div', 'th-sheet-head');
   add(
     sheetHead,
-    el('span', 'th-type th-sheet-no', mission ? `Operation order No. ${mission.number}` : 'Operation order'),
-    el('span', 'th-stamp th-stamp-secret', 'Most secret'),
+    el('span', 'th-type th-sheet-no', mission ? `${mission.orders?.title ?? 'Operation order'} No. ${mission.number}` : 'Operation order'),
+    el('span', 'th-stamp th-stamp-secret', mission?.orders?.stamp ?? 'Most secret'),
   );
   const title = stencil('h1', mission ? mission.title : 'No orders', 'th-sheet-title');
   const meta = el('p', 'th-type th-sheet-meta', mission ? `${mission.location} — ${mission.date}` : '');
@@ -210,8 +210,11 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const brought = new Set(callIns.filter((c) => c.chosen).map((c) => c.kind));
   const ownBrought = (): number => callIns.filter((c) => c.loan <= 0 && brought.has(c.kind)).length;
   for (const c of callIns) {
-    const parts: Node[] = [supportIcon(c.kind), el('span', undefined, c.owned > 0 ? `×${c.owned}` : '')];
-    if (c.loan > 0) parts.push(el('span', undefined, `+${c.loan} lent`));
+    // The call-in's short name under its icon and count (an icon and "x3" alone did not say which call-in it was).
+    const top = el('span', 'th-load-top');
+    add(top, supportIcon(c.kind), el('span', undefined, c.owned > 0 ? `×${c.owned}` : ''));
+    if (c.loan > 0) top.append(el('span', undefined, `+${c.loan} lent`));
+    const parts: Node[] = [top, el('span', 'th-load-name', c.name.split(' ')[0])];
     const chip = button({
       testid: `loadout-${c.kind}`,
       className: `th-load-chip${c.chosen ? ' is-on' : ''}${c.loan > 0 ? ' is-lent' : ''}`,

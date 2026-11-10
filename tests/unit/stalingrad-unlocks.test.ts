@@ -109,8 +109,8 @@ describe('the Stalingrad unlock order', () => {
   it('starts mission 1 with sappers, riflemen and two basics: the DP gunner and the Tank Hunters', () => {
     expect(step(1001).unlocked).toEqual(['sapper', 'rifle', 'lmg', 'at']);
     expect(missionEra(step(1001).m, 'soviet').names.at).toBe('Tank Hunters');
-    // The anti-tank kind is the PTRD Team from November 1941 (src/data/eras.ts), with no second unlock.
-    expect(missionEra(step(1003).m, 'soviet').names.at).toBe('PTRD Team');
+    // The anti-tank kind is the AT Rifle Team from November 1941 (src/data/eras.ts), with no second unlock.
+    expect(missionEra(step(1003).m, 'soviet').names.at).toBe('AT Rifle Team');
   });
 
   it('unlocks every type the player can field by the end of the campaign, and the Soviet conscripts', () => {

@@ -10,7 +10,7 @@ import { adminPrep } from './prep';
 import { changeTime, changeWeather } from './sky';
 import { DAMAGE_TYPES, KIND_COUNT, KIND_DEFS, KIND_INDEX, KIND_LIST, KIND_SAPPER } from './tables';
 import type { AdminAction, AiReport, Behaviour, UnitState } from './types';
-import { armVehicle, killUnit, makeVeteran, removeUnit, spawnUnit } from './units';
+import { armUnit, killUnit, makeVeteran, removeUnit, spawnUnit } from './units';
 import type { World } from './world';
 
 const BULLET = DAMAGE_TYPES.indexOf('bullet');
@@ -53,7 +53,7 @@ function spawn(w: World, side: Side, kindIndex: number, x: number, count: number
     // Names and looks only, as a mission's force with a look or a nation (spawnForce): a vehicle takes its look's gun.
     if (nation !== undefined) u.faction = nation;
     if (look !== undefined) u.look = look;
-    if (nation !== undefined || look !== undefined) armVehicle(w, u);
+    if (nation !== undefined || look !== undefined) armUnit(w, u);
     n++;
   }
   return n;

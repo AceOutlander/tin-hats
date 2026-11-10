@@ -94,6 +94,9 @@ export const FX_KEYS = {
     /** The Soviet F-1 grenade and the Katyusha's M-13 rocket. */
     f1Grenade: 'fx/proj/f1Grenade',
     katyusha: 'fx/proj/katyusha',
+    /** The anti-tank rifle's armour-piercing tracer round and the Tank Hunters' burning bottle. */
+    apRound: 'fx/proj/apRound',
+    molotov: 'fx/proj/molotov',
   },
   rain: {
     far: 'fx/rain/far',
@@ -130,6 +133,8 @@ export const FX_PROJECTILE_SPRITE: Record<ProjectileLook, Record<FactionId, stri
   bomb: { british: FX_KEYS.projectile.bomb, german: FX_KEYS.projectile.bomb, soviet: FX_KEYS.projectile.bomb },
   // Only the Katyusha salvo fires these (the Soviet signature call-in), so every nation's row is the M-13.
   katyusha: { british: FX_KEYS.projectile.katyusha, german: FX_KEYS.projectile.katyusha, soviet: FX_KEYS.projectile.katyusha },
+  apRound: { british: FX_KEYS.projectile.apRound, german: FX_KEYS.projectile.apRound, soviet: FX_KEYS.projectile.apRound },
+  molotov: { british: FX_KEYS.projectile.molotov, german: FX_KEYS.projectile.molotov, soviet: FX_KEYS.projectile.molotov },
 };
 
 /* ------------------------------------------------------------------ */

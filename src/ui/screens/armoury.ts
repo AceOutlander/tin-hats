@@ -95,7 +95,8 @@ export const armouryScreen: ScreenFactory = (ctx) => {
       price.textContent = 'Issued';
       aria = `${item.name}: unlocked`;
     } else if (item.owned) {
-      label = 'Unlocked';
+      // "Unlocked" ran past the 56 px button (sweep, DECISIONS 456): "Owned" says the same and fits.
+      label = 'Owned';
       price.textContent = 'All nations';
       aria = `${item.name}: unlocked`;
     } else {

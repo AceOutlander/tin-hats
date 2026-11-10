@@ -572,6 +572,23 @@ export const SOUNDS = {
     { minInterval: 0.15, reach: 3.2, duck: { depth: 0.55, seconds: 0.6 } },
   ),
 
+  /**
+   * The anti-tank rifle (PTRD-41, PzB 39): one very loud, sharp crack with a hard bark and a short rolling echo; no
+   * hiss or whoosh (a big rifle, not a rocket).
+   */
+  atRifleShot: sound(
+    [
+      noise('white', 2, 0.0004, 0.005, 0.07, { filter: hp(1700) }),
+      noise('pink', 1.6, 0.001, 0.014, 0.3, { filter: lp(2600, 380) }),
+      tone('triangle', 140, 0.45, 0.001, 0.012, 0.22, { freqEnd: 40, sweep: 0.12 }),
+      noise('brown', 0.9, 0.002, 0.03, 0.5, { filter: lp(800, 160) }),
+      noise('pink', 0.6, 0.01, 0.07, 0.9, { at: 0.05, filter: bp(700, 0.6, 220) }),
+      noise('white', 0.35, 0.005, 0.03, 0.3, { at: 0.24, filter: bp(1200, 0.9, 600) }),
+    ],
+    0.5,
+    { minInterval: 0.1, pitchJitter: 0.05, reach: 2, duck: { depth: 0.2, seconds: 0.15 } },
+  ),
+
   /** Anti-tank rocket leaving the tube: ignition hiss, then a rising whoosh. */
   rocketLaunch: sound(
     [

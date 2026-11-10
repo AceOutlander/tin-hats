@@ -466,9 +466,25 @@ function carryKnock(w: World, u: UnitState): void {
   const hi = w.state.length - CONFIG.mapMargin;
   if (nx < lo) nx = lo;
   else if (nx > hi) nx = hi;
+  // Never thrown through the other side's line (the two lines never pass through each other): a man blown toward the
+  // enemy stops at the front clamp, as a walking man does (or where he is, if already nearer).
+  let stopped = false;
+  if (u.side === 0) {
+    const cap = Math.max(u.x, w.limit[0]);
+    if (nx > cap) {
+      nx = cap;
+      stopped = true;
+    }
+  } else {
+    const cap = Math.min(u.x, w.limit[1]);
+    if (nx < cap) {
+      nx = cap;
+      stopped = true;
+    }
+  }
   u.x = nx;
   u.velX = 0;
-  u.knock = k === step || nx === lo || nx === hi ? 0 : k - step;
+  u.knock = k === step || stopped || nx === lo || nx === hi ? 0 : k - step;
 }
 
 function setAction(u: UnitState, action: UnitAction): void {
@@ -584,10 +600,12 @@ export function fireUnits(w: World): void {
       m2.accuracy = u.accuracy;
       updateMount(w, m2, active2, u.side, u.row, u, 'unit');
     }
-    const throwing =
-      thrower && (m2.windup > 0 || m2.sinceShot < CONFIG.throwPoseTime - CONFIG.throwReleaseTime);
+    const throwing2 = thrower && (m2.windup > 0 || m2.sinceShot < CONFIG.throwPoseTime - CONFIG.throwReleaseTime);
+    // A thrown primary (the Tank Hunters' bundles): the throw pose while it winds up and lets go.
+    const throwing1 = weapon.thrown && (m.windup > 0 || m.sinceShot < CONFIG.throwPoseTime - CONFIG.throwReleaseTime);
+    const throwing = throwing2 || throwing1;
 
-    u.aimX = throwing ? m2.aimX : hasTarget ? m.aimX : u.x;
+    u.aimX = throwing2 ? m2.aimX : hasTarget || throwing1 ? m.aimX : u.x;
     u.weaponCharge = weapon.cooldown > 0 ? 1 - m.cooldown / weapon.cooldown : 1;
     if (!moving) {
       if (throwing && u.aimX !== u.x) u.facing = u.aimX > u.x ? 1 : -1;

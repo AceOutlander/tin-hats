@@ -60,8 +60,8 @@ export const M1009: MissionDef = {
     ],
     friendly: [
       '26th Tank Corps: 6 T-34s and 3 T-60s, with tank riders',
-      '8 riflemen, 2 DPs, 2 PTRD teams, 2 mortar crews',
-      'Universal Carriers and PTRD teams after the first line',
+      '8 riflemen, 2 DPs, 2 AT Rifle Teams, 2 mortar crews',
+      'Universal Carriers and AT Rifle Teams after the first line',
       'The Front artillery and Il-2s for the breakthrough and the Don hills',
       'The 4th Tank Corps beside us for the push on Sovetsky',
     ],
@@ -293,7 +293,7 @@ export const M1009: MissionDef = {
         { kind: 'at', count: 4, at: { point: 'P1' } },
         { kind: 'mortar', count: 2, at: { point: 'P1' } },
       ],
-      announce: 'Lend-Lease Universal Carriers, PTRD teams and mortars are up.',
+      announce: 'Lend-Lease Universal Carriers, AT Rifle Teams and mortars are up.',
     },
     {
       type: 'hint',

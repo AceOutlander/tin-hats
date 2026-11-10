@@ -45,7 +45,7 @@ export const M1003: MissionDef = {
     ],
     friendly: [
       '316th Rifle Division: 10 riflemen, 2 DP gunners, a sniper',
-      '5 PTRD teams with the new anti-tank rifles, 2 mortar crews',
+      '5 AT Rifle Teams with the new PTRD, 2 mortar crews',
       'Katukov\'s tanks later: 3 T-34s and a KV-1, with PPD tank riders',
       'Artillery, smoke and the first Katyusha salvoes',
     ],
@@ -56,7 +56,7 @@ export const M1003: MissionDef = {
   mode: 'hold',
   length: 16000,
   // The unlock order (DECISIONS 334): the PPD submachine gunners. The anti-tank kind came with Brest (the Tank Hunters);
-  // it is the PTRD Team from November 1941 (src/data/eras.ts). The sniper and the sanitarka are lent.
+  // it is the AT Rifle Team from November 1941 (src/data/eras.ts). The sniper and the sanitarka are lent.
   newUnit: 'assault',
   newSupport: 'katyusha',
   units: [
@@ -83,7 +83,7 @@ export const M1003: MissionDef = {
         { kind: 'lmg', count: 2, trenchId: 2 },
         { kind: 'at', count: 1, trenchId: 2 },
         { kind: 'sniper', count: 1, trenchId: 2 },
-        // Four more PTRD teams, two mortar crews and a sanitarka (lent: the sanitarka is unlocked at Klin).
+        // Four more AT Rifle Teams, two mortar crews and a sanitarka (lent: the sanitarka is unlocked at Klin).
         { kind: 'at', count: 4, trenchId: 2 },
         { kind: 'mortar', count: 2 },
         { kind: 'medic', count: 1 },
@@ -199,9 +199,9 @@ export const M1003: MissionDef = {
     {
       type: 'hint',
       when: { at: 4 },
-      text: 'Your anti-tank men carry the PTRD now. The long rifle holes a Panzer at close range: keep them in the trenches and let the tanks come near.',
+      text: 'Your anti-tank men are AT Rifle Teams now: two men with the long PTRD. Its armour-piercing round holes a Panzer at close range: keep them in the trenches and let the tanks come near.',
     },
-    { type: 'hint', when: { at: 9 }, text: 'PTRD teams kill tanks from the side. Tank traps stop vehicles until they work them loose or blow them.' },
+    { type: 'hint', when: { at: 9 }, text: 'AT Rifle Teams kill tanks from the side. Tank traps stop vehicles until they work them loose or blow them.' },
     {
       type: 'hint',
       when: { at: 14 },
@@ -308,7 +308,7 @@ export const M1003: MissionDef = {
     {
       type: 'hint',
       when: { phase: 'katukov', delay: 4 },
-      text: 'Advance behind the tanks with the PTRD Teams and take the wood\'s edge, then hold it: they will counter-attack.',
+      text: 'Advance behind the tanks with the AT Rifle Teams and take the wood\'s edge, then hold it: they will counter-attack.',
     },
     { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' } }, text: 'The wood\'s edge is ours again.' },
     {

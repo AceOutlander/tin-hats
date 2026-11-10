@@ -286,7 +286,7 @@ export function spawnUnit(
   u.slotDepth = def.formationDepth;
   u.row = serial % CONFIG.rows;
   if (behaviour === 'army' && kindIndex !== KIND_SAPPER) allocCell(w, u);
-  if (def.class === 'vehicle') armVehicle(w, u);
+  armUnit(w, u);
 
   sideState.alive[u.kind]++;
   if (!trained) sideState.pop += def.pop;
@@ -306,15 +306,16 @@ export function spawnUnit(
 }
 
 /**
- * Give a vehicle the main gun of the look it is drawn with (its force's look, else its era's for its nation; TANK_GUNS
- * in src/data/tankGuns.ts): the cannon scale by calibre. Call again whenever u.look or u.faction changes. Only the
- * weapon changes; the mount's aim, accuracy and spread stay as they are.
+ * Give a unit the weapon its era and look carry: a vehicle the main gun of the look it is drawn with (its force's look,
+ * else its era's for its nation; TANK_GUNS in src/data/tankGuns.ts), the cannon scaled by calibre; an infantryman his
+ * era's arms (the anti-tank kind's rifle or bundles, ResolvedEra.arms; DECISIONS 455), else his kind's own weapon.
+ * Call again whenever u.look or u.faction changes. Only the weapon changes; the mount's aim, accuracy and spread stay.
  */
-export function armVehicle(w: World, u: UnitState): void {
-  if (u.def.class !== 'vehicle' || u.def.weapon === null) return;
+export function armUnit(w: World, u: UnitState): void {
+  if (u.def.weapon === null) return;
   const m = w.mission;
   const era = resolveEra(u.faction, m.dateIso ?? null, m.climate ?? 'temperate');
-  const gun = vehicleGun(u.kind, unitVehicleLook(era, u.kind as VehicleKind, u.look));
+  const gun = u.def.class === 'vehicle' ? vehicleGun(u.kind, unitVehicleLook(era, u.kind as VehicleKind, u.look)) : (era.arms[u.kind] ?? u.def.weapon);
   const mount = u.mount;
   if (gun === null || (mount.weapon !== null && mount.weapon.id === gun)) return;
   const index = weaponIndex(gun);

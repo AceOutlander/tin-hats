@@ -818,7 +818,7 @@
 }
 
 .th-camp-stamp {
-  align-self: flex-start;
+  margin-top: 3px;
 }
 
 .th-camp-pitch {
@@ -2352,8 +2352,10 @@ svg.th-group-icon {
 
 .th-load-chip {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 1px;
   /* A full touch target, like every other control (the chips were 30 px tall). */
   min-width: 48px;
   min-height: 48px;
@@ -2370,6 +2372,19 @@ svg.th-group-icon {
 .th-load-chip .th-support-icon {
   width: 20px;
   height: 20px;
+}
+
+.th-load-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* The call-in's short name under its icon (Artillery, Smoke, Il-2, Katyusha). */
+.th-load-name {
+  font-size: 9.5px;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .th-load-chip.is-on {

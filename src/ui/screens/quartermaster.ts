@@ -182,7 +182,7 @@ export const quartermasterScreen: ScreenFactory = (ctx) => {
         ? supportIcon(group.support, 'th-support-icon th-unit-icon')
         : group.unit
           ? unitIcon(group.unit, 30, ctx.opts.paintUnitIcon)
-          : helmetIcon('th-helmet th-unit-icon');
+          : helmetIcon('th-helmet th-unit-icon', view.helmet);
       icon.classList.add('th-group-icon');
       add(heading, icon, el('span', undefined, group.name));
       const grid = el('div', 'th-qm-grid');

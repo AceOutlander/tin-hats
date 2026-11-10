@@ -47,6 +47,8 @@ export const EQUIPMENT: Record<string, EquipmentWindow> = {
   mortar: { from: '1934-01', note: 'Granatwerfer 34' },
   pzb39: { from: '1939-09', to: '1943-12', note: 'PzB 39 anti-tank rifle (GrB 39 from 1942)' },
   panzerschreck: { from: '1943-11', note: 'Panzerschreck: East from November 1943' },
+  // The anti-tank kind's 1941 bundles (the Tank Hunters; src/data/eras.ts arms atGrenades).
+  molotov: { from: '1939-11', note: 'grenade bundles and petrol bottles (the Winter War on)' },
   // Shared pieces.
   flamer: { from: '1935-01', note: 'the shared flamethrower (Flammenwerfer 35/41; stands in for the ROKS-2 and ROKS-3)' },
   pistol: { from: '1908-01', note: 'Luger P08 / Walther P38' },
@@ -79,3 +81,14 @@ export function outOfService(look: string, dateIso: string): string | null {
   if (w.to !== undefined && month > w.to) return `${look} (${w.note}): out of service after ${w.to}`;
   return null;
 }
+
+/**
+ * What each sim weapon of the anti-tank kind is, per nation (src/data/eras.ts ResolvedEra.arms, else UnitDef.weapon):
+ * the equipment id whose window it must be fielded inside (tests/unit/eras.test.ts). The Soviet kind never fires a
+ * rocket: the Red Army had no shoulder-fired launcher in the war's Stalingrad years (DECISIONS 455).
+ */
+export const SIM_WEAPON_EQUIPMENT: Record<string, Partial<Record<'british' | 'german' | 'soviet', string>>> = {
+  rocket: { british: 'piat', german: 'panzerschreck' },
+  atRifle: { german: 'pzb39', soviet: 'ptrd' },
+  atGrenades: { soviet: 'molotov', german: 'molotov' },
+};

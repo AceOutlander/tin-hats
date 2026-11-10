@@ -55,7 +55,7 @@ import { BUILDING_LAYOUT } from '../data/looksBuilding';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
-import { infantryLookOf, missionEra, resolveEra, unitVehicleLook, type ResolvedEra, type VehicleKind } from '../data/eras';
+import { infantryLookOf, missionEra, resolveEra, unitVehicleLook, teamMateOf, type ResolvedEra, type VehicleKind } from '../data/eras';
 import type { DamageType, FactionId, MissionDef, Side, UnitKind } from '../data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
@@ -293,10 +293,16 @@ class FigureView extends UnitViewBase {
   private vehicleKey = '';
   private vehicleInv = 1;
   private readonly scene: Phaser.Scene;
+  private readonly layers: Layers;
+  /** A two-man team's second man (src/data/eras.ts TEAM_MATES), drawn just behind this one; made when first needed. */
+  private mate: FigureView | null = null;
+  private mateOn = false;
+  private readonly mateDeath: FigureDeath = { variant: 'crumple', time: 0, dir: -1 };
 
   constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
     super(row, reg, scene, layers);
     this.scene = scene;
+    this.layers = layers;
     const first = reg.get(RENDER_KEYS.white);
     for (let i = 0; i < FIGURE_PART_COUNT; i++) {
       const img = addImage(scene, this.layer, first.frame);
@@ -331,6 +337,72 @@ class FigureView extends UnitViewBase {
     this.haul = 'crate';
     if (this.vehicle) this.vehicle.visible = false;
     this.applyShade(1);
+    this.mateOn = false;
+    if (this.mate) this.mate.setShown(false);
+  }
+
+  /** Make this a two-man team (call after reset): the second man is a `kind` figure, returned for the caller to dress. */
+  enableMate(kind: UnitKind, faction: FactionId, seed: number): FigureAnim {
+    if (!this.mate) this.mate = new FigureView(this.row, this.reg, this.scene, this.layers);
+    this.mate.reset(kind, faction, seed);
+    this.mate.faction = faction;
+    this.mateOn = true;
+    return this.mate.anim;
+  }
+
+  /** True while a second man is drawn with this one (for tests and the debug hooks). */
+  hasMate(): boolean {
+    return this.mateOn;
+  }
+
+  override sendBack(): void {
+    super.sendBack();
+    if (this.mateOn && this.mate) this.mate.sendBack();
+  }
+
+  override bringFront(): void {
+    // The second man stands behind the gunner: under him in the row's layer.
+    if (this.mateOn && this.mate) this.mate.bringFront();
+    super.bringFront();
+  }
+
+  /**
+   * Draw the second man: a step behind the gunner, on his feet line, facing his way. He goes where the gunner goes,
+   * covers him with his rifle while he aims and fires, and falls a moment after him.
+   */
+  private drawMate(dt: number): void {
+    const m = this.mate;
+    if (!m) return;
+    const src = this.input;
+    const dir = this.turnK < 0 ? -1 : 1;
+    m.x = this.x - dir * U.mateBehind * this.s;
+    m.y = this.y;
+    m.sink = this.sink;
+    m.s = this.s;
+    m.turnK = this.turnK;
+    m.alpha = this.alpha;
+    m.shown = true;
+    const inp = m.input;
+    const act = src.action;
+    inp.action = act === 'fire' || act === 'aim' ? 'aim' : act === 'move' || act === 'idle' ? act : 'idle';
+    inp.speed = src.speed;
+    inp.stepping = src.stepping;
+    inp.moved = src.moved;
+    inp.inTrench = src.inTrench;
+    inp.carrying = false;
+    inp.controlled = false;
+    inp.victory = src.victory;
+    inp.struggling = src.struggling;
+    inp.fired = false;
+    inp.hit = src.hit;
+    if (src.death) {
+      const d = this.mateDeath;
+      d.variant = 'crumple';
+      d.dir = src.death.dir;
+      d.time = Math.max(0, src.death.time - U.mateDeathLag);
+      inp.death = d;
+    } else inp.death = null;
+    m.draw(dt);
   }
 
   /** A sapper's haul from the upgrade looks (call after reset): a bigger load, a handcart or a supply truck. */
@@ -378,6 +450,7 @@ class FigureView extends UnitViewBase {
       if (this.vehicle) this.vehicle.visible = false;
       this.shadow.visible = false;
       this.hidePips();
+      if (this.mate) this.mate.setShown(false);
     }
   }
 
@@ -388,10 +461,12 @@ class FigureView extends UnitViewBase {
     const rim = a * a * a;
     const imgs = this.images;
     for (let i = 0; i < imgs.length; i++) imgs[i].alpha = i < FIGURE_RIM_PARTS ? rim : a;
+    if (this.mateOn && this.mate) this.mate.applyAlpha(a);
   }
 
   /** Colour multiplier, 1 = normal, 0 = a black silhouette (a unit in the dark of its HQ doorway). */
   applyShade(k: number): void {
+    if (this.mateOn && this.mate) this.mate.applyShade(k);
     const q = k >= 0.995 ? 1 : Math.round(k * 32) / 32;
     if (q === this.appliedShade) return;
     this.appliedShade = q;
@@ -419,6 +494,7 @@ class FigureView extends UnitViewBase {
       this.placeShadow(SUPPLY_TRUCK_LAYOUT.length * U.truckShadowK, U.figureShadowH);
       return;
     }
+    if (this.mateOn && this.mate) this.drawMate(dt);
     layoutFigure(this.anim, this.parts);
     if (this.haul === 'handcart') {
       if (this.input.death) {
@@ -928,6 +1004,15 @@ export class UnitViews {
       setFigureClothing(fv.anim, inf ? inf.clothing : (era.clothing[u.kind] ?? null));
       setFigureWeapon(fv.anim, era.weapon[u.kind] ?? null);
       setFigureRocketItem(fv.anim, era.rocketItem[u.kind] === 'molotov' ? MOLOTOV_KEY : null);
+      // A two-man team (the PTRD and its number two): the second man in the gunner's cap and coat, with his own rifle.
+      const mateKind = inf ? null : teamMateOf(era, u.kind);
+      if (mateKind !== null) {
+        const ma = fv.enableMate(mateKind, u.faction, mixSeed(this.seed ^ U.mateSalt, u.id));
+        setFigureGear(ma, this.gearOf(u.side, mateKind));
+        setFigureHeadgear(ma, era.headgear[u.kind] ?? null);
+        setFigureClothing(ma, era.clothing[u.kind] ?? null);
+        setFigureWeapon(ma, era.weapon[mateKind] ?? null);
+      }
       const looks = this.looks[u.side];
       if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);
       // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.

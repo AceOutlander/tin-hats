@@ -314,7 +314,7 @@ export const M1010: MissionDef = {
         { kind: 'tank', count: 2, x: 6600 },
         { kind: 'lightTank', count: 1, x: 6400 },
       ],
-      announce: 'A tank company and four PTRD teams are up.',
+      announce: 'A tank company and four AT Rifle Teams are up.',
     },
     // The counter-attack on Pitomnik as it falls (the brief's 300 s; the airfield falls at about 170 s).
     {
