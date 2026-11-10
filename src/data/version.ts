@@ -20,6 +20,16 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.16.0',
+    items: [
+      'The Soviet anti-tank unit is now the AT Rifle Team: two men with the long PTRD rifle, no rockets.',
+      'At Brest and Dubno the early-war Tank Hunters crawl up to tanks and throw grenade bundles and petrol bottles.',
+      'German anti-tank teams use rifles until late 1943, when the Panzerschreck arrives.',
+      'Briefings are Soviet combat orders, and each call-in in the loadout is named.',
+      'Labels that were cut off now fit, sandbags sit on the ground, and the pause menu blocks taps underneath.',
+    ],
+  },
+  {
     version: '0.15.1',
     items: [
       'Every flag now flies from a proper flagpole, fixed to the roof, the ground or the sandbags.',
