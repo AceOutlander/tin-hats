@@ -86,8 +86,8 @@ export const titleScreen: ScreenFactory = (ctx) => {
     className: 'th-btn-primary th-btn-big',
     onTap: () => {
       ctx.app.uiSound('confirm');
-      // The campaign select when there is a choice to make; with one campaign on offer, straight to its map.
-      ctx.go((ctx.view().campaigns?.length ?? 0) > 1 ? 'campaigns' : 'campaign');
+      // Always the campaign select (owner, 2026-11-09): the playable campaigns and the ones still to come.
+      ctx.go('campaigns');
     },
   });
   play.dataset.primary = '';

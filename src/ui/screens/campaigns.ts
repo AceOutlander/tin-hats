@@ -1,9 +1,12 @@
 /**
  * Campaign select screen (FOUNDATIONS.md section 6): one dossier card per campaign, in the registry's order
  * (src/data/campaigns.ts), each with its nation's flag, its name and dates, a one-line pitch and how far the save has
- * got. Tapping a card puts that campaign on the map. Shown from the title's Play button; the title storm keeps running
- * behind it. Cards sit side by side in landscape and stack on a narrow screen; arrow keys move between them.
+ * got. Tapping a card puts that campaign on the map, where its Shop and Quartermaster are. The campaigns still to come
+ * are greyed "Coming soon" cards that never start. Shown from the title's Play button (always, owner 2026-11-09); the
+ * title storm keeps running behind it. The cards are large and sit side by side; when they do not fit the row scrolls
+ * sideways (a swipe, the wheel or the arrow keys).
  */
+import type { CampaignId } from '../../data/schema';
 import type { CampaignCardView } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
 import { glyph } from '../shell/icons';
@@ -32,7 +35,7 @@ export const campaignsScreen: ScreenFactory = (ctx) => {
   add(head, back, stencil('h1', 'CAMPAIGNS', 'th-campaigns-title'));
   const list = el('div', 'th-campaigns-list');
   list.setAttribute('role', 'list');
-  // Stacked on a narrow screen, the cards may need to scroll (the page lockdown lets a data-scroll element scroll).
+  // When the cards do not fit, the row scrolls sideways (the page lockdown lets a data-scroll element scroll).
   list.dataset.scroll = '';
   add(plate, head, list);
   root.append(plate);
@@ -40,13 +43,13 @@ export const campaignsScreen: ScreenFactory = (ctx) => {
   let cards: HTMLButtonElement[] = [];
 
   function open(c: CampaignCardView): void {
-    if (c.locked) {
+    if (c.locked || c.comingSoon) {
       ctx.app.uiSound('deny');
       return;
     }
     ctx.app.uiSound('confirm');
     if (!c.current) {
-      ctx.app.selectCampaign?.(c.id);
+      ctx.app.selectCampaign?.(c.id as CampaignId);
       // The map picks its own mission for a campaign it has not shown yet.
       ctx.session.missionId = 0;
     }
@@ -72,12 +75,13 @@ export const campaignsScreen: ScreenFactory = (ctx) => {
 
   function card(c: CampaignCardView): HTMLButtonElement {
     const done = c.cleared >= c.total && c.total > 0;
-    const stampText = c.locked ? 'Locked' : done ? 'Complete' : c.cleared > 0 ? 'In progress' : 'New';
+    const stampText = c.comingSoon ? 'Coming soon' : c.locked ? 'Locked' : done ? 'Complete' : c.cleared > 0 ? 'In progress' : 'New';
     const top = el('div', 'th-camp-top');
     const titles = el('div', 'th-camp-titles');
-    add(titles, stencil('h2', c.title, 'th-camp-name'), el('p', 'th-type th-camp-dates', c.subtitle));
+    const years = el('p', 'th-type th-camp-dates', `${c.years} · ${c.nationName}`);
+    add(titles, stencil('h2', c.title, 'th-camp-name'), years);
     const stamp = el('span', 'th-stamp th-camp-stamp', stampText);
-    stamp.dataset.state = c.locked ? 'locked' : done ? 'cleared' : 'open';
+    stamp.dataset.state = c.comingSoon ? 'soon' : c.locked ? 'locked' : done ? 'cleared' : 'open';
     add(top, flag(c), titles, stamp);
 
     const pitch = el('p', 'th-type th-camp-pitch', c.pitch);
@@ -89,23 +93,32 @@ export const campaignsScreen: ScreenFactory = (ctx) => {
       if (i < c.cleared) tick.classList.add('is-on');
       bar.append(tick);
     }
-    const count = el('span', 'th-type th-camp-count', `${c.cleared} / ${c.total}`);
+    const count = el('span', 'th-type th-camp-count', c.comingSoon ? 'Not yet playable' : `${c.cleared} / ${c.total} missions`);
     count.dataset.testid = `campaign-progress-${c.id}`;
-    add(progress, bar, count);
-    const nextText = c.locked ? (c.lockNote ?? 'Locked') : c.next ? `Next: ${c.next.number}. ${c.next.title}` : 'Every mission cleared';
+    if (c.comingSoon) progress.append(count);
+    else add(progress, bar, count);
+    const nextText = c.comingSoon
+      ? 'Coming in a later update'
+      : c.locked
+        ? (c.lockNote ?? 'Locked')
+        : c.next
+          ? `Next: mission ${c.next.number}, ${c.next.title}`
+          : 'Every mission cleared';
     const next = el('p', 'th-type th-camp-next', nextText);
+    const status = c.comingSoon ? ' Coming soon.' : ` ${c.cleared} of ${c.total} missions completed.${c.locked ? ' Locked.' : ''}`;
     const node = button({
       testid: `campaign-${c.id}`,
       bare: true,
       className: 'th-paper th-camp',
-      aria: `${c.title}, ${c.subtitle}. ${c.pitch} ${c.cleared} of ${c.total} missions cleared.${c.locked ? ' Locked.' : ''}`,
+      aria: `${c.title}, ${c.years}, ${c.nationName}. ${c.pitch}${status}`,
       content: [top, pitch, progress, next],
       onTap: () => open(c),
     });
     node.setAttribute('role', 'listitem');
     node.dataset.state = stamp.dataset.state;
     node.classList.toggle('is-current', c.current);
-    if (c.locked) node.setAttribute('aria-disabled', 'true');
+    node.classList.toggle('is-soon', c.comingSoon);
+    if (c.locked || c.comingSoon) node.setAttribute('aria-disabled', 'true');
     // Enter with nothing focused opens the campaign on the map (or the first one).
     if (c.current) node.dataset.primary = '';
     return node;

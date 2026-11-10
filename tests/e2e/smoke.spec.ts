@@ -9,29 +9,7 @@
  */
 import { MISSIONS } from '../../src/data/missions';
 import type { DebugApi } from '../../src/app/debug';
-import {
-  BATTLE_LOAD_MS,
-  audioStats,
-  camera,
-  expect,
-  fastForward,
-  firstUnit,
-  grantSupplies,
-  open,
-  playThroughMenus,
-  playToEnd,
-  reasonText,
-  savedGame,
-  setTimeScale,
-  shot,
-  startMission,
-  state,
-  tap,
-  test,
-  touchDrag,
-  weatherStats,
-  type Hooked,
-} from './helpers';
+import { audioStats, BATTLE_LOAD_MS, camera, expect, fastForward, firstUnit, grantSupplies, type Hooked, open, playThroughMenus, playToEnd, reasonText, savedGame, setTimeScale, shot, startMission, state, tap, test, toMap, touchDrag, weatherStats } from './helpers';
 
 test.describe('debug hooks', () => {
   test('are absent without ?debug=1', async ({ page, problems }) => {
@@ -121,7 +99,7 @@ test.describe('wiring in the built game', () => {
     await open(page);
     const before = await audioStats(page);
     expect(before.state, 'no sound context before a gesture').not.toBe('running');
-    await tap(page, 'play');
+    await toMap(page);
     await expect.poll(async () => (await audioStats(page)).state, { timeout: 10_000 }).toBe('running');
     const afterMenu = (await audioStats(page)).played;
     expect(afterMenu, 'the menu tap makes a click').toBeGreaterThan(0);
@@ -233,7 +211,7 @@ test.describe('menus', () => {
     await expect(page.getByTestId('play')).toBeVisible();
 
     // Campaign map and Quartermaster.
-    await tap(page, 'play');
+    await toMap(page);
     await tap(page, 'quartermaster');
     await expect(page.getByTestId('points-available').last()).toBeVisible();
     await page.waitForTimeout(500);
@@ -432,7 +410,7 @@ test.describe('whole battles at high speed', () => {
     await page.reload();
     await page.waitForFunction(() => (window as unknown as Hooked).__TH?.ready === true, null, { timeout: 60_000 });
     expect((await savedGame(page))?.cleared[String(MISSIONS[0].id)]).toEqual(['normal']);
-    await tap(page, 'play');
+    await toMap(page);
     await expect(page.getByTestId('points-available')).toHaveText(String(award));
     if (MISSIONS.length > 1) {
       await page.getByTestId(`mission-pin-${MISSIONS[1].id}`).tap();

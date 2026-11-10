@@ -112,17 +112,32 @@ describe('map lettering and pins', () => {
     expect(shifts[0]).toEqual({ dx: 0, dy: 0 });
     const second = { ...label(100, 100), x: 100 + shifts[1].dx, y: 100 + shifts[1].dy };
     expect(labelHitsRect(second, labelBounds(label(100, 100)), 3)).toBe(false);
-    // A pin the size of the whole neighbourhood cannot be escaped within 20 px: the label stays.
+    // A pin the size of the whole neighbourhood cannot be escaped within twice 20 px: the label stays.
     const wall: Obstacle = { x0: -500, y0: -500, x1: 500, y1: 500 };
     expect(clearLabels([label(0, 0)], [wall], 20, 4, 3)[0]).toEqual({ dx: 0, dy: 0 });
   });
 
-  it('clears every real map label of every pin in the campaign layout', () => {
+  it('keeps a name inside the sheet: one that would run off the edge is moved in, even with no pin near', () => {
+    const sheet: Obstacle = { x0: 0, y0: 0, x1: 400, y1: 300 };
+    // Half off the left edge, and off the bottom-right corner.
+    const shifts = clearLabels([label(10, 100), label(395, 298)], [], 70, 4, 3, sheet);
+    for (const [i, l] of [label(10, 100), label(395, 298)].entries()) {
+      const r = labelBounds({ ...l, x: l.x + shifts[i].dx, y: l.y + shifts[i].dy });
+      expect(r.x0).toBeGreaterThanOrEqual(0);
+      expect(r.x1).toBeLessThanOrEqual(400);
+      expect(r.y0).toBeGreaterThanOrEqual(0);
+      expect(r.y1).toBeLessThanOrEqual(300);
+    }
+    // Inside already: left alone.
+    expect(clearLabels([label(200, 150)], [], 70, 4, 3, sheet)[0]).toEqual({ dx: 0, dy: 0 });
+  });
+
+  it('clears every real map label of every pin, and keeps it on the sheet, in the campaign layout at phone sizes', () => {
     const MAP_LABELS = STALINGRAD_MAP.labels;
     const proj = projection(STALINGRAD_MAP.bounds);
     const mapX = (lon: number): number => proj.x(lon);
     const mapY = (lat: number): number => proj.y(lat);
-    for (const [viewW, viewH] of [[568, 320], [844, 390], [1000, 412]] as const) {
+    for (const [viewW, viewH] of [[568, 320], [667, 375], [844, 390], [932, 430], [1000, 412]] as const) {
       const layout = layoutPins(LONS, LATS, viewW - 200, viewH, proj);
       const u = layout.size.w / CAMPAIGN_MAP_VIEW.minWidthPx;
       // Rough label sizes: the real painter (src/ui/screens/mapPaint.ts) measures its font, this uses the average letter
@@ -137,10 +152,18 @@ describe('map lettering and pins', () => {
         return { x: mapX(l.lon) * layout.size.w + dx, y: mapY(l.lat) * layout.size.h, hw, hh: px * 0.6, angle: ((l.angle ?? 0) * Math.PI) / 180 };
       });
       const pins = layout.xs.map((x, i) => pin(x, layout.ys[i]));
-      const shifts = clearLabels(boxes, pins, CAMPAIGN_MAP_VIEW.labelMaxShiftPx, 4, 3);
+      // The painter keeps every name inside the inner neatline (9 u from the edge of the sheet).
+      const sheet: Obstacle = { x0: 9 * u, y0: 9 * u, x1: layout.size.w - 9 * u, y1: layout.size.h - 9 * u };
+      const shifts = clearLabels(boxes, pins, CAMPAIGN_MAP_VIEW.labelMaxShiftPx, 4, 3, sheet);
       boxes.forEach((b, i) => {
         const moved = { ...b, x: b.x + shifts[i].dx, y: b.y + shifts[i].dy };
-        for (const p of pins) expect(labelHitsRect(moved, p, 0), `${MAP_LABELS[i].text} at ${viewW}x${viewH}`).toBe(false);
+        const where = `${MAP_LABELS[i].text} at ${viewW}x${viewH}`;
+        for (const p of pins) expect(labelHitsRect(moved, p, 0), where).toBe(false);
+        const r = labelBounds(moved);
+        expect(r.x0, where).toBeGreaterThanOrEqual(sheet.x0 - 0.01);
+        expect(r.x1, where).toBeLessThanOrEqual(sheet.x1 + 0.01);
+        expect(r.y0, where).toBeGreaterThanOrEqual(sheet.y0 - 0.01);
+        expect(r.y1, where).toBeLessThanOrEqual(sheet.y1 + 0.01);
       });
     }
   });

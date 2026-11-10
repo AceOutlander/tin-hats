@@ -5,7 +5,7 @@
  */
 import { CAMPAIGN_MAP_VIEW, frontOn, projection, type CampaignMapDef, type MapFront, type MapProjection, type MapShape } from '../../data/campaignMap';
 import { STALINGRAD_MAP } from '../../data/campaignMapStalingrad';
-import { clearLabels, type LabelBox, type Obstacle } from './mapLayout';
+import { clearLabels, labelBounds, type LabelBox, type Obstacle } from './mapLayout';
 
 /**
  * The room a mission pin takes on the map (CSS px around its centre): the 30 px disc and its selection ring, and
@@ -285,7 +285,7 @@ export function paintCampaignMap(
   pins: readonly MapPin[],
   map: CampaignMapDef = STALINGRAD_MAP,
   dateIso?: string,
-): void {
+): Obstacle[] {
   const dpr = Math.min(CAMPAIGN_MAP_VIEW.maxPixelRatio, Math.max(1, window.devicePixelRatio || 1));
   const pw = Math.round(cssW * dpr);
   const ph = Math.round(cssH * dpr);
@@ -296,7 +296,7 @@ export function paintCampaignMap(
   canvas.style.width = `${cssW}px`;
   canvas.style.height = `${cssH}px`;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) return [];
 
   const proj = projection(map.bounds);
   const B = map.bounds;
@@ -519,7 +519,10 @@ export function paintCampaignMap(
     x1: p.x + PIN_FOOTPRINT.halfW,
     y1: p.y + PIN_FOOTPRINT.down,
   }));
-  const shifts = clearLabels(boxes, footprints, PIN_FOOTPRINT.maxShift, PIN_FOOTPRINT.step, PIN_FOOTPRINT.pad);
+  // Every name stays inside the inner neatline, so none is cut off at the edge of the sheet.
+  const sheet: Obstacle = { x0: 9 * u, y0: 9 * u, x1: w - 9 * u, y1: h - 9 * u };
+  const shifts = clearLabels(boxes, footprints, PIN_FOOTPRINT.maxShift, PIN_FOOTPRINT.step, PIN_FOOTPRINT.pad, sheet);
+  const placed = boxes.map((b, i) => labelBounds({ ...b, x: b.x + shifts[i].dx, y: b.y + shifts[i].dy }));
   map.labels.forEach((label, i) => {
     ctx.fillStyle = looks[i].fill;
     ctx.font = looks[i].font;
@@ -588,4 +591,5 @@ export function paintCampaignMap(
   vignette.addColorStop(1, 'rgba(60, 44, 20, 0.28)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
+  return placed;
 }

@@ -273,14 +273,18 @@ export interface FactionDef {
  * A new campaign adds its id here.
  */
 export type CampaignId = 'stalingrad';
+/** The campaigns still to come: shown on the select screen as greyed "Coming soon" cards, never playable. */
+export type UpcomingCampaignId = 'dday' | 'berlin' | 'africa';
 
 export interface CampaignDef {
   id: CampaignId;
   /** The player's nation: the card's flag and colours. */
   nation: NationId;
   title: string;
-  /** Dates line for the card, e.g. 'June 1941 to February 1943'. */
+  /** Dates line, e.g. 'June 1941 to February 1943'. */
   subtitle: string;
+  /** The years on the select screen card, e.g. '1941–1943'. */
+  years: string;
   /** Every mission id of the campaign lies in [first, last]. */
   missionRange: { first: number; last: number };
   /** Mission ids in play order. */

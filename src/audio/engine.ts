@@ -25,6 +25,7 @@ import {
   CATALOGUE_LEVEL,
   busOf,
   layerGainSum,
+  startSkipOf,
   volumeGain,
   type AudioBus,
   type LoopDef,
@@ -1205,7 +1206,10 @@ class AudioEngine implements GameAudio {
       source.buffer = buffer;
       source.playbackRate.value = rate;
       source.connect(voice.gain);
-      source.start(when);
+      // A sound with startSkip (the incoming whistle) starts that much later and that far into its buffer: it is heard
+      // shorter, but ends exactly when it would have (at the shell's impact).
+      const skip = startSkipOf(def, buffer.duration, this.rng());
+      source.start(when + skip / rate, skip);
       voice.sources.push(source);
       level = volume * this.catalogue[index];
       end = when + buffer.duration / rate;

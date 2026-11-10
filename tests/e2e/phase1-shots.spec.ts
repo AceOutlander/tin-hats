@@ -7,23 +7,7 @@
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { MISSIONS } from '../../src/data/missions';
-import {
-  BATTLE_LOAD_MS,
-  expect,
-  field,
-  grantSupplies,
-  lookAt,
-  open,
-  playToEnd,
-  setTimeScale,
-  SHOT_DIR,
-  startMission,
-  state,
-  tap,
-  tapIfThere,
-  test,
-  waitForState,
-} from './helpers';
+import { BATTLE_LOAD_MS, expect, field, grantSupplies, lookAt, open, playToEnd, setTimeScale, SHOT_DIR, startMission, state, tap, tapIfThere, test, toMap, waitForState } from './helpers';
 
 // One CSS pixel per device pixel: the smallest, plainest picture of what a player sees.
 test.use({ deviceScaleFactor: 1 });
@@ -50,7 +34,7 @@ test.describe('phase 1 screenshots', () => {
     await page.waitForTimeout(600);
     await p1(page, 'title');
 
-    await tap(page, 'play');
+    await toMap(page);
     await tap(page, `mission-pin-${MISSION.id}`);
     await page.waitForTimeout(700);
     await p1(page, 'campaign');

@@ -51,7 +51,7 @@ import {
 import type { BattleView, WeatherMode } from '../render/contracts';
 import { createBattle, directorScore, structureHealth } from '../sim';
 import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
-import { buildCampaignCards, buildCampaignView, buildResult, progressOf } from './campaignView';
+import { buildCampaignCards, buildCampaignView, buildResult, buildUpcomingCards, progressOf } from './campaignView';
 import { FpsMeter } from './fpsMeter';
 import { GameLoop } from './loop';
 import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
@@ -588,7 +588,8 @@ export class App implements AppApi {
     view.campaignId = c.id;
     view.campaignTitle = def.title;
     view.map = def.map;
-    view.campaigns = buildCampaignCards(this.save, this.offered, c.id);
+    // The playable campaigns, then the greyed "Coming soon" ones (owner, 2026-11-09).
+    view.campaigns = [...buildCampaignCards(this.save, this.offered, c.id), ...buildUpcomingCards()];
     return view;
   }
 

@@ -15,7 +15,7 @@ import { BATTLE_TRACKS } from '../../src/data/musicTracks';
 import { CAMPAIGNS } from '../../src/data/campaigns';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef } from '../../src/data/schema';
-import { arrived, expect, open, state, tap, test, type Hooked } from './helpers';
+import { arrived, expect, type Hooked, open, state, tap, test, toMap } from './helpers';
 
 const battle = (page: Page): Promise<BattleMusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.stats() as BattleMusicStats);
 const loop = (page: Page): Promise<MusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.music.stats() as MusicStats);
@@ -165,7 +165,7 @@ test.describe('campaign map music', () => {
     // On the title: the menu theme, and nothing of the map track rendered yet.
     expect((await loop(page)).wanted).toBe('menu');
     expect(await page.evaluate((name) => (window as unknown as Hooked).__TH?.music.analyse(name) ?? null, MAP_TRACK)).toBeNull();
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign')).toBeVisible();
     expect((await loop(page)).wanted).toBe(MAP_TRACK);
     await expect.poll(async () => (await loop(page)).render, { timeout: 120_000 }).toBe('ready');

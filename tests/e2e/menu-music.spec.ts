@@ -12,7 +12,7 @@ import type { MixReport } from '../../src/audio/music';
 import { CAMPAIGNS } from '../../src/data/campaigns';
 import { MUSIC } from '../../src/data/music';
 import { AUDIO, VOLUME, volumeGain } from '../../src/data/sounds';
-import { arrived, audioStats, expect, open, tap, tapIn, test, type Hooked } from './helpers';
+import { arrived, audioStats, expect, type Hooked, mapToTitle, open, tap, tapIn, test, toMap } from './helpers';
 
 const stats = (page: Page): Promise<MusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.music.stats() as MusicStats);
 const analyse = (page: Page): Promise<MusicAnalysis | null> => page.evaluate(() => (window as unknown as Hooked).__TH?.music.analyse() ?? null);
@@ -151,12 +151,12 @@ test.describe('menu music', () => {
     // Leaving the menu fades it out; coming back starts it again.
     await tapIn(page, 'settings', 'back');
     await expect(arrived(page, 'title')).toBeVisible();
-    await tap(page, 'play');
+    await toMap(page);
     await expect(arrived(page, 'campaign')).toBeVisible();
     // The campaign map has its own track (the owner's request, 2026-11; Stalingrad's, the only campaign): the menu theme gives way to it.
     expect((await stats(page)).wanted).toBe(CAMPAIGNS.stalingrad.mapMusic);
     await expect.poll(async () => (await stats(page)).current, { timeout: 5000 }).not.toBe('menu');
-    await tapIn(page, 'campaign', 'back');
+    await mapToTitle(page);
     await expect(arrived(page, 'title')).toBeVisible();
     await expect.poll(async () => (await stats(page)).current, { timeout: 5000 }).toBe('menu');
     await expect.poll(async () => (await stats(page)).fade, { timeout: (MUSIC.player.fadeIn + 3) * 1000 }).toBeGreaterThan(0.98);

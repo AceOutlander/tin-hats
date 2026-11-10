@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { BarrageWeapon, SupportKind } from '../../src/data/schema';
-import { SOUNDS, soundDuration, type SoundDef } from '../../src/data/sounds';
+import { SOUNDS, soundDuration, startSkipOf, type SoundDef } from '../../src/data/sounds';
 import { OFF_MAP, SUPPORTS, offMapFire } from '../../src/data/supports';
 import { WEAPONS } from '../../src/data/weapons';
 import { targetMarkerPeak } from '../../src/render/effects/callinMath';
@@ -126,18 +126,50 @@ describe('the target marker', () => {
 });
 
 describe('the incoming whistle', () => {
-  const rising = (def: SoundDef): boolean =>
-    def.layers.every((l) => l.src !== 'tone' || (l.freqEnd !== undefined && l.freqEnd > l.freq));
+  const sweeps = (def: SoundDef, dir: 1 | -1): boolean =>
+    def.layers.every((l) => l.src !== 'tone' || (l.freqEnd !== undefined && (l.freqEnd - l.freq) * dir > 0));
 
-  it.each(Object.keys(OFF_MAP) as BarrageWeapon[])('%s: rises in pitch for exactly its fall and is heard from far off', (weapon) => {
+  it.each(Object.keys(OFF_MAP) as BarrageWeapon[])('%s: lasts exactly its fall, ends at impact and is heard from far off', (weapon) => {
     const name = OFF_MAP[weapon].sound;
     const def = SOUNDS[name];
     expect(WEAPONS[weapon]).toBeDefined();
     expect(def, name).toBeDefined();
-    expect(rising(def), name).toBe(true);
     expect(Math.abs(soundDuration(def) - OFF_MAP[weapon].fall)).toBeLessThan(0.05);
     // Heard well beyond the view: an enemy barrage's whistle is the warning to take cover.
     expect(def.reach).toBeGreaterThanOrEqual(2);
+  });
+
+  it('is the classic falling-shell sound: high and quiet, dropping in pitch as it swells, cut off at impact (owner, 2026-11-09)', () => {
+    const def = SOUNDS.incomingWhistle;
+    expect(sweeps(def, -1)).toBe(true);
+    for (const l of def.layers) {
+      // Swells over nearly the whole fall and stops dead: no ring-out past the hit.
+      expect(l.attack, l.src).toBeGreaterThan(1.2);
+      expect(l.decay, l.src).toBeLessThanOrEqual(0.02);
+      if (l.src === 'tone') expect(l.freq / (l.freqEnd ?? l.freq)).toBeGreaterThan(2);
+    }
+    // The rocket shriek is a different sound and still climbs.
+    expect(sweeps(SOUNDS.rocketShriek, 1)).toBe(true);
+  });
+
+  it('varies per shell in pitch and length, yet every whistle still ends at its own impact', () => {
+    const def = SOUNDS.incomingWhistle;
+    // A playback-rate jitter would stretch it past the hit: the variety comes from renders and a skipped start instead.
+    expect(def.pitchJitter).toBe(0);
+    expect(def.variants).toBeGreaterThan(1);
+    expect(def.layers.some((l) => (l.jitter?.freq ?? 0) > 0)).toBe(true);
+    expect(def.layers.every((l) => (l.jitter?.at ?? 0) === 0)).toBe(true);
+    const fall = OFF_MAP.artilleryShell.fall;
+    const lengths = new Set<number>();
+    for (const r of [0, 0.25, 0.5, 0.75, 1]) {
+      const skip = startSkipOf(def, fall, r);
+      // The engine starts it `skip` later and `skip` into the buffer: heard for fall - skip, ending at fall.
+      expect(skip).toBeLessThanOrEqual(fall / 2);
+      lengths.add(Math.round((fall - skip) * 100));
+    }
+    expect(lengths.size).toBeGreaterThan(3);
+    // Sounds without startSkip are never cut.
+    expect(startSkipOf(SOUNDS.rocketShriek, 1.3, 1)).toBe(0);
   });
 
   it('is only for fire from off the map', () => {

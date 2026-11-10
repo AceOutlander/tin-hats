@@ -68,7 +68,7 @@ const EXPECT: Record<OneShotName, Expectation> = {
   grenadeExplosion: { dur: [0.25, 0.7], trend: 'falling', centroid: [150, 2000] },
   mortarLaunch: { dur: [0.1, 0.35], centroid: [100, 900] },
   shellWhistle: { dur: [0.8, 1.1], trend: 'falling', centroid: [600, 2600], slowStart: true },
-  incomingWhistle: { dur: [1.4, 1.7], trend: 'rising', centroid: [600, 3000], slowStart: true },
+  incomingWhistle: { dur: [1.4, 1.7], trend: 'falling', centroid: [600, 3000], slowStart: true },
   rocketShriek: { dur: [1.1, 1.4], trend: 'rising', centroid: [500, 3500], slowStart: true },
   explosionMedium: { dur: [0.8, 1.7], trend: 'falling', centroid: [120, 1500] },
   explosionLarge: { dur: [1.6, 3], trend: 'falling', centroid: [100, 1200] },
