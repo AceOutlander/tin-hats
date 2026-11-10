@@ -5,6 +5,14 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
+## NEXT job after the campaign-select release: Soviet anti-tank units by era (owner, 2026-11-09)
+
+Owner, verbatim: "Bug: the Soviet "Tank Hunters" fire rockets, which is wrong. The Soviets had no shoulder-fired rocket launchers in this period, and the button label "Hunters" doesn't tell players what the unit is.
+- Rename the Soviet anti-tank unit to "AT Rifle Team" (button label "AT Rifle"), and make it a two-man team with the long PTRD anti-tank rifle firing armour-piercing shots: a loud crack and a tracer, no rocket or backblast.
+- In missions before late 1941 (Brest, Dubno), use the era version instead: "Tank Hunters" who throw grenade bundles and Molotov cocktails at tanks up close (short range, dangerous, and fire on hit). Give it a clear button label like "AT Grenades".
+- Check every nation's anti-tank unit for era and weapon accuracy, and make sure every unit's button label says clearly what it is."
+Notes for the job: use the era table (src/data/eras.ts, equipment.ts) for the Brest/Dubno version; keep every AT counter in the balance tests (tanks powerful between shots, vulnerable while reloading, DECISIONS 424-427); re-run the Stalingrad balance tests for the missions that field it, the hud-labels spec (every label must fit), and the unit tests.
+
 ## NEXT after Stalingrad went live (v0.13.0): Armoury and Shop inside the campaign (owner, 2026-11-09)
 
 Owner, verbatim: "Change: the Armoury (and the Shop) opens from inside a campaign, after I select it, not from a general menu.
