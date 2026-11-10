@@ -1,7 +1,7 @@
 /** Fakes for the view, the audio and the UI, so the app controller runs in Node. */
 import type { AudioBus, GameAudio, MixStats } from '../../src/audio';
 import type { MissionDef } from '../../src/data/schema';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import type { AttachOptions, BattleCamera, BattleView, RenderStats } from '../../src/render/contracts';
 import { HpReveal } from '../../src/render/hpReveal';
 import type { Battle } from '../../src/sim';
@@ -27,6 +27,8 @@ export interface FakeView extends BattleView {
   darkness: number[];
   controlled: number[];
   targeting: (string | null)[];
+  /** Every placement ghost the session showed (null = hidden). */
+  placing: ({ x: number; width: number; ok: boolean } | null)[];
   frame: ((dtMs: number) => void) | null;
   /** The title storm scene: whether it is up, and the storm dt and fade of every menu frame drawn. */
   menuScene: boolean;
@@ -84,6 +86,7 @@ export function createFakeView(): FakeView {
     darkness: [],
     controlled: [],
     targeting: [],
+    placing: [],
     frame: null,
     menuScene: false,
     menuFrames: [],
@@ -111,6 +114,9 @@ export function createFakeView(): FakeView {
     },
     setControlled(id) {
       view.controlled.push(id);
+    },
+    setPlacing(p) {
+      view.placing.push(p);
     },
     setTargeting(kind) {
       view.targeting.push(kind);
@@ -161,6 +167,8 @@ export interface FakeAudio extends GameAudio {
   /** Looping tracks let go of, the battle track asked for (null once released), the layers asked for, battle ends. */
   releasedMusic: string[];
   battleTrack: string | null;
+  /** Battle tracks asked to be rendered before their battle (loadBattleMusic), in order. */
+  battleLoads: string[];
   battleLayers: string[];
   battleEnds: [boolean, boolean][];
 }
@@ -244,8 +252,14 @@ export function createFakeAudio(): FakeAudio {
       audio.releasedMusic.push(name);
     },
     battleTrack: null,
+    battleLoads: [],
     battleLayers: [],
     battleEnds: [],
+    loadBattleMusic(name, onProgress) {
+      audio.battleLoads.push(name);
+      onProgress?.(1, 1);
+      return Promise.resolve(true);
+    },
     prepareBattleMusic(name) {
       audio.battleTrack = name;
     },
@@ -279,6 +293,8 @@ export function createFakeAudio(): FakeAudio {
     }),
     battleMusic: () => null,
     whenReady: () => Promise.resolve(),
+    // The fake's load is all or nothing: its own promise says when (a test making it hang tests the timeout).
+    battleMusicStartable: () => new Promise<boolean>(() => undefined),
     getStats: () => ({ voices: 0, played: 0, dropped: 0, stolen: 0, rendered: 0, state: 'running' }),
   };
   return audio;
@@ -319,9 +335,9 @@ export function createFakeUi(): FakeUi {
   return ui;
 }
 
-/** Mission 1 with the numbers changed so a battle ends within a few simulated seconds. */
+/** The test field (./fixtures.ts) with the numbers changed so a battle ends within a few simulated seconds. */
 export function quickMission(id: number, playerWins: boolean): MissionDef {
-  const m: MissionDef = structuredClone(M01);
+  const m: MissionDef = structuredClone(FIELD);
   m.id = id;
   m.key = `quick${id}`;
   m.events = [];

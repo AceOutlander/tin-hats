@@ -3,9 +3,11 @@
  * src/app/menuStorm.ts). A few raindrops run down the front of the plate, drawn on a small canvas over it that never
  * takes a touch; they are faint and small so the lettering and both buttons stay fully readable.
  */
+import { BASIC_TRAINING_ID } from '../../data/missions/training';
 import type { PanelDropsState } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
 import { helmetIcon } from '../shell/icons';
+import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import type { ScreenFactory } from '../shell/types';
 
 /** Size (px) of the pre-drawn drop head and trail images. */
@@ -84,10 +86,27 @@ export const titleScreen: ScreenFactory = (ctx) => {
     className: 'th-btn-primary th-btn-big',
     onTap: () => {
       ctx.app.uiSound('confirm');
-      ctx.go('campaign');
+      // The campaign select when there is a choice to make; with one campaign on offer, straight to its map.
+      ctx.go((ctx.view().campaigns?.length ?? 0) > 1 ? 'campaigns' : 'campaign');
     },
   });
   play.dataset.primary = '';
+  // Basic Training, the standalone tutorial: always here to replay; offered with a line of its own until it has been
+  // finished or turned down (an app without it shows no button).
+  // It starts once its battle music is made (missionLoad shows the progress on the button).
+  const startTraining = ctx.app.startTraining?.bind(ctx.app);
+  let starter: MissionStarter | null = null;
+  const training = startTraining
+    ? button({
+        testid: 'basic-training',
+        label: 'Basic Training',
+        className: 'th-btn-big th-btn-training',
+        onTap: () => {
+          if (starter?.start(BASIC_TRAINING_ID, startTraining)) ctx.app.uiSound('confirm');
+        },
+      })
+    : null;
+  if (training) starter = missionStarter(ctx.app, training);
   const settings = button({
     testid: 'settings',
     label: 'Settings',
@@ -98,7 +117,33 @@ export const titleScreen: ScreenFactory = (ctx) => {
       ctx.go('settings');
     },
   });
-  add(actions, play, settings);
+  add(actions, play);
+  if (training) actions.append(training);
+  actions.append(settings);
+
+  // The first-launch offer: one line under the buttons, never in the way of Play.
+  const offer = el('div', 'th-title-offer');
+  offer.dataset.testid = 'training-offer';
+  const offerText = el('p', 'th-type th-title-offer-text');
+  const skip = button({
+    testid: 'training-skip',
+    label: 'No thanks',
+    className: 'th-btn-small th-title-offer-skip',
+    onTap: () => {
+      ctx.app.uiSound('click');
+      ctx.app.skipTraining?.();
+    },
+  });
+  add(offer, offerText, skip);
+
+  function showOffer(): void {
+    const t = ctx.view().training;
+    const on = training !== null && t !== undefined && t.offer;
+    offer.hidden = !on;
+    if (training) training.classList.toggle('is-offered', on);
+    if (on && t) offerText.textContent = `New to Tin Hats? Basic Training shows you the ropes in five minutes and pays ${t.reward} medals.`;
+  }
+  showOffer();
 
   // Raindrops running down the front of the plate.
   const rain = el('canvas', 'th-title-rain');
@@ -143,10 +188,15 @@ export const titleScreen: ScreenFactory = (ctx) => {
     pen.globalAlpha = 1;
   }
 
-  add(plate, logo, actions, rain);
+  add(plate, logo, actions, offer, rain);
   const version = el('div', 'th-type th-version', ctx.opts.version ?? '');
   version.dataset.testid = 'version';
   add(root, plate, version);
 
-  return { el: root, mounted: measure, resize: measure, drops: drawDrops };
+  function refresh(): void {
+    showOffer();
+    measure();
+  }
+
+  return { el: root, mounted: measure, resize: measure, drops: drawDrops, refresh, destroy: () => starter?.cancel() };
 };

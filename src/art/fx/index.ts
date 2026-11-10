@@ -8,8 +8,9 @@ import { flashSprites } from './flashes';
 import { markSprites } from './marks';
 import { shotSprites } from './shots';
 import { smokeSprites } from './smoke';
+import { sovietShotSprites } from './sovietShots';
 
 /** Every effect SpriteSpec, for the renderer to rasterise into its atlas. */
 export function listFxSprites(): SpriteSpec[] {
-  return [...smokeSprites(), ...flashSprites(), ...bitSprites(), ...shotSprites(), ...markSprites()];
+  return [...smokeSprites(), ...flashSprites(), ...bitSprites(), ...shotSprites(), ...sovietShotSprites(), ...markSprites()];
 }

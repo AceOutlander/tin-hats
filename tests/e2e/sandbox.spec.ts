@@ -4,9 +4,12 @@
  * real tap, drag or key press; the debug hooks only grant supplies and population, set the time scale and read
  * the sim back. Pictures go to docs/screenshots/e2e-sandbox-*.png.
  */
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
+import { MISSIONS } from '../../src/data/missions';
 import type { SupportKind, UnitKind } from '../../src/data/schema';
 import {
+  BATTLE_LOAD_MS,
   Fingers,
   buttonRects,
   camera,
@@ -19,6 +22,7 @@ import {
   open,
   openCallIns,
   setTimeScale,
+  SHOT_DIR,
   shot,
   startMission,
   startSandbox,
@@ -47,7 +51,7 @@ const VIEWPORTS = [
 async function begin(page: Page, seed: number): Promise<void> {
   await open(page);
   expect(await startSandbox(page, seed)).toBe(true);
-  await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('order-hold')).toBeVisible({ timeout: 20_000 });
 }
 
@@ -59,7 +63,7 @@ test.describe('proving ground (Phase 2)', () => {
     await open(page);
     await expect(page.getByTestId('play')).toBeVisible();
     await tap(page, 'play');
-    await expect(page.getByTestId('mission-pin-1')).toBeVisible();
+    await expect(page.getByTestId('mission-pin-1001')).toBeVisible();
     await expect(page.getByTestId('mission-pin-901')).toHaveCount(0);
     expect(await startSandbox(page, 1, true)).toBe(true);
     await expect.poll(async () => (await state(page)).missionId).toBe(902);
@@ -188,12 +192,14 @@ test.describe('proving ground (Phase 2)', () => {
 
   test('a mission shows only the units and call-ins it allows', async ({ page }) => {
     await open(page);
-    expect(await startMission(page, 1)).toBe(true);
+    // The first mission (Brest) fields its own four types and no call-in.
+    const first = MISSIONS[0];
+    expect(first.supports[0]).toEqual([]);
+    expect(await startMission(page, first.id)).toBe(true);
     await expect(page.getByTestId('order-hold')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('train-rifle')).toBeVisible();
-    await expect(page.getByTestId('train-sapper')).toBeVisible();
-    for (const kind of TRAIN_KINDS.filter((k) => k !== 'rifle' && k !== 'sapper')) {
-      await expect(page.getByTestId(`train-${kind}`), `${kind} is not in mission 1`).toHaveCount(0);
+    for (const kind of first.units[0]) await expect(page.getByTestId(`train-${kind}`), `${kind} is in mission ${first.id}`).toBeVisible();
+    for (const kind of TRAIN_KINDS.filter((k) => !first.units[0].includes(k))) {
+      await expect(page.getByTestId(`train-${kind}`), `${kind} is not in mission ${first.id}`).toHaveCount(0);
     }
     for (const kind of SUPPORTS) await expect(page.getByTestId(`support-${kind}`)).toHaveCount(0);
     expect((await state(page)).supports.artillery.available).toBe(false);
@@ -253,7 +259,8 @@ test.describe('proving ground (Phase 2)', () => {
     }
 
     // Now call each one for real.
-    const at: Record<SupportKind, number> = { smoke: 1450, artillery: 1900, airStrike: 1650, bomber: 1650, fighter: 1650, recon: 1650 };
+    // The proving ground offers no Katyusha (a Soviet call-in): its target is listed only to keep the table complete.
+    const at: Record<SupportKind, number> = { smoke: 1450, artillery: 1900, airStrike: 1650, bomber: 1650, fighter: 1650, recon: 1650, katyusha: 1900 };
     for (const kind of SUPPORTS) {
       const blasts = (await state(page)).tally.explosion;
       await tapCallIn(page, kind);
@@ -289,6 +296,13 @@ test.describe('proving ground (Phase 2)', () => {
       } else if (kind === 'recon') {
         // The recon plane drops nothing: it shows the enemy's health around the target for a while.
         await waitForState(page, 'recon over the target', (s) => s.tally.supportIncoming.recon >= 1, 30_000);
+      } else if (kind === 'artillery') {
+        // Realistic artillery: shells from guns off the map land one by one over several seconds. The picture is taken
+        // in real time just after the first lands, with more still falling from above the screen.
+        await setTimeScale(page, 1);
+        await waitForState(page, 'artillery blasts', (s) => s.tally.explosion > blasts, 30_000);
+        await page.waitForTimeout(450);
+        await page.screenshot({ path: join(SHOT_DIR, 'artillery.png') });
       } else {
         await waitForState(page, `${kind} blasts`, (s) => s.tally.explosion > blasts, 30_000);
       }
@@ -445,15 +459,23 @@ test.describe('proving ground (Phase 2)', () => {
       if (s.trenches.some((t) => t.owner === 0 && t.id !== 1)) tookTrench = true;
       if (s.pillboxes.some((p) => !p.alive)) razedPillbox = true;
     };
+    // The clock stands still while the player taps, then runs about ten battle seconds: at 40x a round of eight taps
+    // took 80 to 160 battle seconds on a loaded machine, so the "keen" player trained once every two minutes, his army
+    // came forward in driblets and was beaten (DECISIONS 213, 325). Played every 5 to 20 battle seconds the same orders
+    // take a trench and raze a pillbox in two to three battle minutes on every seed tried.
     while (Date.now() < deadline && !s.over && !(tookTrench && razedPillbox)) {
+      await setTimeScale(page, 0);
       await grantSupplies(page, 1500);
-      for (const kind of army) {
-        await tapIfThere(page, `train-${kind}`);
-        await look();
-      }
+      for (const kind of army) await tapIfThere(page, `train-${kind}`);
+      await look();
       if (!advanced && s.units[0].rifle >= 10 && s.units[0].tank >= 2) {
         await tapIfThere(page, 'order-advance');
         advanced = true;
+      }
+      await setTimeScale(page, 40);
+      for (let i = 0; i < 3 && !s.over; i++) {
+        await page.waitForTimeout(80);
+        await look();
       }
     }
     await setTimeScale(page, 0);

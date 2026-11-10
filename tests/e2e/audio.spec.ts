@@ -3,6 +3,7 @@
  * reload; the audio frozen while the battle is paused and while the page is hidden (menus included).
  */
 import type { Page } from '@playwright/test';
+import { MISSIONS } from '../../src/data/missions';
 import { audioStats, expect, open, playThroughMenus, savedGame, state, tap, tapIn, test } from './helpers';
 
 /** Make the page believe it was sent to the background (or brought back), the way a phone does when you switch app. */
@@ -13,6 +14,9 @@ async function setVisibility(page: Page, state: 'hidden' | 'visible'): Promise<v
     document.dispatchEvent(new Event('visibilitychange'));
   }, state);
 }
+
+/** The campaign's first mission (Brest, 1001, since the British placeholder missions were removed). */
+const FIRST = MISSIONS[0].id;
 
 const muted = async (page: Page): Promise<boolean> => (await audioStats(page)).muted;
 
@@ -36,7 +40,7 @@ test.describe('sound', () => {
     await expect(page.locator('.th-screen.is-out')).toHaveCount(0);
 
     // Battle: the button in the top bar.
-    await playThroughMenus(page, 1, false);
+    await playThroughMenus(page, FIRST, false);
     await tap(page, 'mute');
     await expect.poll(() => muted(page)).toBe(true);
     await expect(page.getByTestId('mute')).toBeVisible();
@@ -75,7 +79,7 @@ test.describe('sound', () => {
     // A battle: hidden pauses it and freezes the sound; coming back changes neither until the player taps Resume.
     await tapIn(page, 'campaign', 'back');
     await expect(page.locator('.th-screen.is-out')).toHaveCount(0);
-    await playThroughMenus(page, 1, false);
+    await playThroughMenus(page, FIRST, false);
     await expect.poll(async () => (await state(page)).paused).toBe(false);
     await setVisibility(page, 'hidden');
     await expect.poll(async () => (await state(page)).paused).toBe(true);

@@ -7,12 +7,15 @@
  * Pictures: docs/screenshots/e2e-mission-NN.png (battle) and e2e-mission-NN-result.png.
  */
 import type { Page } from '@playwright/test';
-import { FACTIONS } from '../../src/data/factions';
+import { APP } from '../../src/data/app';
+import { missionEra } from '../../src/data/eras';
+import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
 import type { MissionDef, MissionEventDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
 import { UNITS } from '../../src/data/units';
 import {
+  BATTLE_LOAD_MS,
   arrived,
   expect,
   fastForward,
@@ -40,6 +43,9 @@ import type { DebugApi } from '../../src/app/debug';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
+/** The airdrop notice as the HUD words it (APP.notices.airdrop), any amount. */
+const AIRDROP_NOTICE = new RegExp('^' + APP.notices.airdrop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('\\{n\\}', '\\d+') + '$');
+
 /** Battle seconds of the first firing of an event, or null for one that waits for something to happen. */
 function firstFire(event: MissionEventDef): number | null {
   const when = event.when;
@@ -61,7 +67,7 @@ function expectedTexts(m: MissionDef, window: number): { hints: string[]; announ
     else if (e.type === 'wave') {
       if (e.announce !== undefined) out.announcements.push(e.announce);
       else if (e.side === 1 && m.mode === 'survival') out.plainWave = true;
-    } else if (e.side === 0) out.airdrop = true;
+    } else if (e.type === 'airdrop' && e.side === 0) out.airdrop = true;
   }
   return out;
 }
@@ -107,15 +113,23 @@ for (const m of MISSIONS) {
     const newUnits = [...(m.newUnit ? [m.newUnit] : []), ...(m.unlocks ?? [])];
     const cards = newUnits.length + (m.newSupport ? 1 : 0);
     await expect(briefing.locator('.th-new')).toHaveCount(cards);
-    if (newUnits.length > 0) await expect(briefing.locator('.th-new-name').first()).toHaveText(FACTIONS.british.unitNames[newUnits[0]]);
-    if (m.newSupport) await expect(briefing.locator('.th-new-name').last()).toHaveText(FACTIONS.british.supportNames[m.newSupport]);
+    // In the names of the player's nation at the mission's date (the Red Army's, in 1941 to 1943).
+    const era = missionEra(m, m.start[0].faction);
+    if (newUnits.length > 0) await expect(briefing.locator('.th-new-name').first()).toHaveText(era.names[newUnits[0]]);
+    if (m.newSupport) await expect(briefing.locator('.th-new-name').last()).toHaveText(era.supportNames[m.newSupport]);
     await expect(briefing.getByTestId('difficulty-normal')).toHaveAttribute('aria-pressed', 'true');
     if (cards >= 2) {
       await page.waitForTimeout(2800); // let the typewriter finish
       await shot(page, `campaign-briefing-${pad(m.id)}`);
     }
     await tap(page, 'begin');
-    await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
+    // A defensive mission opens with its prep phase (tests/e2e/prep.spec.ts plays one): Ready starts the battle.
+    if (m.prep) {
+      await expect(page.getByTestId('prep-panel')).toBeVisible({ timeout: 20_000 });
+      await tap(page, 'prep-ready');
+      await expect.poll(async () => (await state(page)).prep?.active ?? false, { timeout: 10_000 }).toBe(false);
+    }
     await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
 
     // --- The HUD describes this mission ---------------------------------------------------------------------------
@@ -123,9 +137,10 @@ for (const m of MISSIONS) {
     expect(start.missionId).toBe(m.id);
     expect(start.difficulty).toBe('normal');
     const obj = page.locator('.th-obj');
-    if (m.timer) {
+    // The plate counts down whichever clock runs (the mission's, or its first phase's on the director); else the objective.
+    if (start.clock) {
       await expect(obj).toHaveClass(/has-timer/);
-      await expect(page.locator('.th-obj-text')).toHaveText(m.timer.label);
+      await expect(page.locator('.th-obj-text')).toHaveText(start.clock.label);
       await expect(page.locator('.th-obj-time')).toHaveText(/^\d+:\d\d$/);
       await expect(obj).not.toHaveClass(/is-urgent/);
     } else {
@@ -139,7 +154,11 @@ for (const m of MISSIONS) {
     }
     if (!m.units[0].includes('sapper')) await expect(page.getByTestId('train-sapper')).toHaveCount(0);
     if (!m.units[0].includes('tank')) await expect(page.getByTestId('train-tank')).toHaveCount(0);
-    for (const kind of m.supports[0]) await expect(page.getByTestId(`support-${kind}`), `support button for ${kind}`).toHaveCount(1);
+    // A button for each call-in the battle offers the player now: on the mission's list, brought from the briefing's
+    // loadout or lent (a call-in with no charge stays home), and not held back for a later phase (`supportsOff`).
+    for (const kind of m.supports[0]) {
+      await expect(page.getByTestId(`support-${kind}`), `support button for ${kind}`).toHaveCount(start.supports[kind].available ? 1 : 0);
+    }
     expect(start.darkness, 'the sky starts in its own light').toBeLessThan(0.01);
 
     // --- Train a unit and give every order, with real taps ----------------------------------------------------------
@@ -173,6 +192,10 @@ for (const m of MISSIONS) {
     // --- Call in the support the mission introduces ------------------------------------------------------------------
     if (m.newSupport) {
       const support = m.newSupport;
+      // Every new call-in of the campaign is held back for a later phase; offer it as the director does then.
+      if (!(await state(page)).supports[support].available) {
+        expect(await page.evaluate((k) => ((window as unknown as Hooked).__TH as DebugApi).offerSupport(k), support)).toBe(true);
+      }
       await setTimeScale(page, 8);
       await expect.poll(async () => (await state(page)).supports[support].cooldown, { timeout: 60_000 }).toBeLessThanOrEqual(0);
       await setTimeScale(page, 1);
@@ -191,7 +214,7 @@ for (const m of MISSIONS) {
     const seen = await seenHud(page);
     for (const text of wanted.hints) expect(seen.hints, `hint "${text}"`).toContain(text);
     for (const text of wanted.announcements) expect(seen.banners, `announcement "${text}"`).toContain(text);
-    if (wanted.airdrop) expect(seen.banners.some((b) => /^Airdrop: \+\d+ supplies$/.test(b)), `an airdrop notice among ${JSON.stringify(seen.banners)}`).toBe(true);
+    if (wanted.airdrop) expect(seen.banners.some((b) => AIRDROP_NOTICE.test(b)), `an airdrop notice among ${JSON.stringify(seen.banners)}`).toBe(true);
     if (wanted.plainWave) expect(seen.banners.some((b) => b === 'Enemy wave incoming' || wanted.announcements.includes(b)), 'a wave notice').toBe(true);
 
     const mid = await state(page);
@@ -280,7 +303,10 @@ for (const m of MISSIONS) {
     const saved = await savedGame(page);
     if (won) {
       expect(saved?.cleared[String(m.id)], 'a win is saved').toEqual(['normal']);
-      await expect(page.getByTestId('result-points'), 'the first clear is worth two points').toContainText('+2');
+      // A first win pays medals for how well it went (src/meta/medals.ts), at least a rough clear's.
+      const award = (await lastResult(page))?.pointsAwarded ?? 0;
+      expect(award, 'a first win pays at least a rough clear').toBeGreaterThanOrEqual(MEDALS.rough);
+      await expect(page.getByTestId('result-points'), 'the result shows what the win paid').toContainText(`+${award}`);
       if (m.id < MISSIONS[MISSIONS.length - 1].id) await expect(page.getByTestId('result-next')).toBeVisible();
     } else {
       expect(saved?.cleared[String(m.id)], 'a loss is not saved').toBeUndefined();

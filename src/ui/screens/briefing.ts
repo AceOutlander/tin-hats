@@ -6,6 +6,7 @@ import type { Difficulty } from '../../data/schema';
 import type { MissionCard } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
 import { glyph, supportIcon, unitIcon } from '../shell/icons';
+import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import { withScrollCue } from '../shell/scrollCue';
 import type { ScreenCtx, ScreenFactory } from '../shell/types';
 
@@ -23,6 +24,22 @@ function newCard(kindLabel: string, icon: Element, name: string, blurb: string):
   add(text, top, el('div', 'th-new-name', name), el('p', 'th-new-blurb', blurb));
   add(card, iconBox, text);
   return card;
+}
+
+/** The intelligence summary: two short lists, the enemy's forces and ours, side by side where there is room. */
+function intelBlock(intel: NonNullable<MissionCard['intel']>): HTMLElement {
+  const box = el('div', 'th-intel');
+  box.dataset.testid = 'briefing-intel';
+  const column = (label: string, lines: readonly string[], side: 'enemy' | 'friendly'): HTMLElement => {
+    const col = el('div', 'th-intel-col');
+    col.dataset.side = side;
+    const list = el('ul', 'th-type th-intel-list');
+    for (const line of lines) list.append(el('li', undefined, line));
+    add(col, el('div', 'th-intel-label', label), list);
+    return col;
+  };
+  add(box, column('Enemy intelligence', intel.enemy, 'enemy'), column('Our forces', intel.friendly, 'friendly'));
+  return box;
 }
 
 function findMission(ctx: ScreenCtx): MissionCard | undefined {
@@ -49,8 +66,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const orders = el('div', 'th-type th-orders');
   const objective = el('div', 'th-objective');
   add(objective, el('span', 'th-objective-label', 'Objective'), el('span', 'th-type th-objective-text', mission ? mission.objective : ''));
-  // The objective comes first so it is on screen at once even on the shortest phones; the orders type out below it.
-  add(sheet, sheetHead, title, meta, objective, orders);
+  // The objective comes first so it is on screen at once even on the shortest phones, then the intelligence (the
+  // enemy's forces and ours, a few short lines each); the orders type out below them.
+  add(sheet, sheetHead, title, meta, objective, mission && mission.intel ? intelBlock(mission.intel) : null, orders);
 
   // Typewriter: every paragraph is laid out in full (so nothing reflows) and revealed a character at a time.
   const typed: Text[] = [];
@@ -179,6 +197,46 @@ export const briefingScreen: ScreenFactory = (ctx) => {
     loan.dataset.testid = 'briefing-loans';
     diffBox.append(loan);
   }
+  // The loadout: the call-ins brought, each a toggle with its charges ("x3"; "+2 lent" for those the mission lends,
+  // which always come). Charges are bought in the Shop on the map (owner, 2026-11-09).
+  const callIns = mission?.callIns ?? [];
+  const loadout = el('div', 'th-loadout');
+  loadout.dataset.testid = 'briefing-loadout';
+  const slots = view.loadoutSlots ?? 0;
+  loadout.append(el('div', 'th-label', `Call-ins (up to ${slots})`));
+  if (callIns.length === 0) loadout.append(el('p', 'th-type th-brief-loan', 'No call-in charges: buy them in the Shop.'));
+  const chips = el('div', 'th-loadout-chips');
+  // The screen's own copy of what is brought (the view is cached while a screen is up); the app keeps the save's.
+  const brought = new Set(callIns.filter((c) => c.chosen).map((c) => c.kind));
+  const ownBrought = (): number => callIns.filter((c) => c.loan <= 0 && brought.has(c.kind)).length;
+  for (const c of callIns) {
+    const parts: Node[] = [supportIcon(c.kind), el('span', undefined, c.owned > 0 ? `×${c.owned}` : '')];
+    if (c.loan > 0) parts.push(el('span', undefined, `+${c.loan} lent`));
+    const chip = button({
+      testid: `loadout-${c.kind}`,
+      className: `th-load-chip${c.chosen ? ' is-on' : ''}${c.loan > 0 ? ' is-lent' : ''}`,
+      aria: `${c.name}: ${c.owned} held${c.loan > 0 ? `, ${c.loan} lent for this mission` : ''}, ${c.chosen ? 'brought' : 'left behind'}`,
+      content: parts,
+      onTap: () => {
+        // Lent call-ins always come; a full loadout takes no more.
+        const on = !brought.has(c.kind);
+        if (c.loan > 0 || !ctx.app.toggleCallIn || (on && ownBrought() >= slots)) {
+          ctx.app.uiSound('deny');
+          return;
+        }
+        ctx.app.uiSound('click');
+        ctx.app.toggleCallIn(c.kind);
+        if (on) brought.add(c.kind);
+        else brought.delete(c.kind);
+        chip.classList.toggle('is-on', on);
+        chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+      },
+    });
+    chip.setAttribute('aria-pressed', c.chosen ? 'true' : 'false');
+    chips.append(chip);
+  }
+  loadout.append(chips);
+  diffBox.append(loadout);
 
   const actions = el('div', 'th-brief-actions');
   const back = button({
@@ -189,6 +247,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
       ctx.go('campaign');
     },
   });
+  // The battle starts once its music is made (begun when the briefing opens); Begin shows the progress meanwhile.
+  let starter: MissionStarter | null = null;
+  let preload = 0;
   const begin = button({
     testid: 'begin',
     label: 'Begin',
@@ -198,10 +259,15 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         ctx.app.uiSound('deny');
         return;
       }
-      ctx.app.uiSound('confirm');
-      ctx.app.startMission(mission.id, difficulty);
+      const id = mission.id;
+      // A tap before the preload's tick: Begin's own load starts the render, and the preload must not follow it (a
+      // later loadMission call takes over, and Begin's wait would then end without starting the battle).
+      if (preload !== 0) window.clearTimeout(preload);
+      preload = 0;
+      if (starter?.start(id, () => ctx.app.startMission(id, difficulty))) ctx.app.uiSound('confirm');
     },
   });
+  starter = missionStarter(ctx.app, begin);
   begin.dataset.primary = '';
   begin.disabled = !mission || !mission.unlocked;
   add(actions, back, begin);
@@ -223,6 +289,14 @@ export const briefingScreen: ScreenFactory = (ctx) => {
         reveal(0);
         raf = requestAnimationFrame(tick);
       }
+      // The battle music renders while the orders are read (after the screen change has let go of the last battle's).
+      if (mission && mission.unlocked && ctx.app.loadMission) {
+        const id = mission.id;
+        preload = window.setTimeout(() => {
+          preload = 0;
+          void ctx.app.loadMission?.(id);
+        }, 0);
+      }
     },
     resize() {
       sheetCue.update();
@@ -234,6 +308,9 @@ export const briefingScreen: ScreenFactory = (ctx) => {
     destroy() {
       if (raf !== 0) cancelAnimationFrame(raf);
       raf = 0;
+      if (preload !== 0) window.clearTimeout(preload);
+      preload = 0;
+      starter?.cancel();
       sheetCue.destroy();
       newsCue.destroy();
     },

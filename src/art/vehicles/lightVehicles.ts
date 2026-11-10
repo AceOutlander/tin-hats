@@ -9,8 +9,9 @@
 import { ART_COLORS as C, ELITE_TANK_LOOK as E, TANK_LAYOUT, type VehicleLook } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import { FIGURE } from '../../data/figure';
-import { brodiePath, stahlhelmPath } from '../figure/parts';
-import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, mix, recognitionFlash, rgba, rimPoly, rimRect, strokeLine } from '../props/kit';
+import type { FactionId, HelmetShape } from '../../data/schema';
+import { helmetShapePath } from '../figure/parts';
+import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, mix, recognitionFlash, redStar, rgba, rimPoly, rimRect, strokeLine } from '../props/kit';
 import type { TankPalette } from './tanks';
 
 function disc(ctx: Ctx, x: number, y: number, r: number, color: string): void {
@@ -21,7 +22,7 @@ function disc(ctx: Ctx, x: number, y: number, r: number, color: string): void {
 }
 
 /** A soldier's head and helmet, origin at the head centre, scaled to `k` of a figure head. */
-export function crewHead(ctx: Ctx, x: number, y: number, k: number, shape: 'brodie' | 'stahlhelm', tint: string): void {
+export function crewHead(ctx: Ctx, x: number, y: number, k: number, shape: HelmetShape, tint: string): void {
   const hr = FIGURE.headRadius * k;
   disc(ctx, x, y, hr + 0.7, FIGURE.colors.rim);
   disc(ctx, x, y, hr, FIGURE.colors.body);
@@ -30,8 +31,7 @@ export function crewHead(ctx: Ctx, x: number, y: number, k: number, shape: 'brod
   const s = (FIGURE.headRadius / 5.4) * k;
   ctx.scale(s, s);
   ctx.beginPath();
-  if (shape === 'brodie') brodiePath(ctx);
-  else stahlhelmPath(ctx);
+  helmetShapePath(ctx, shape);
   ctx.lineWidth = 1.4 / s;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = FIGURE.colors.rim;
@@ -72,7 +72,8 @@ export function smallTankHull(ctx: Ctx, P: TankPalette): void {
   disc(ctx, 48.2, -41.8, 1.5, P.bodyDark);
 }
 
-function smallTankTurretBody(ctx: Ctx, P: TankPalette): void {
+/** The Panzer III turret without its marking (the cruiser and the later Panzer IIIs build on it). */
+export function smallTankTurretBody(ctx: Ctx, P: TankPalette): void {
   // A short box turret with a squared rear bin and the drum cupola set at the back.
   rimPoly(ctx, [-26, 0, -30, -4, -27, -18, -23, -20, 12, -20, 24, -12, 26, -3, 23, 0], P.body, P.rim, 1.3);
   fillPoly(ctx, [-24, -3, -25, -16, -21.5, -17.6, 11, -17.6, 21, -11, 22.5, -3], P.panel);
@@ -117,7 +118,7 @@ export function carrierSide(ctx: Ctx, P: TankPalette): void {
   for (const cx of [-13, 13]) rimPoly(ctx, [cx - 4, -19, cx + 4, -19, cx + 2, -11, cx - 2, -11], P.panel, P.rim, 0.8);
 }
 
-export function carrierHull(ctx: Ctx, P: TankPalette): void {
+export function carrierHull(ctx: Ctx, P: TankPalette, faction: FactionId = 'british'): void {
   // Track guards.
   rimPoly(ctx, [-60, -21, -58, -24, 58, -24, 62, -21], P.body, P.rim, 0.9);
   // The open steel tub: low sides, the raised front plate with the driver's hood and the gunner's Bren slot.
@@ -129,14 +130,16 @@ export function carrierHull(ctx: Ctx, P: TankPalette): void {
   rimRect(ctx, -46, -36.5, 16, 4, 1, P.panelLit, P.rim, 0.8);
   disc(ctx, -62, -28, 5.4, '#11120e');
   disc(ctx, -62, -28, 3, P.panel);
+  // The Red Army's carriers wore a red star on the hull side (and the British paint was soon painted over).
+  if (FACTIONS[faction].look.flag === 'sovietRed') redStar(ctx, -12, -28.4, 3.6);
   // The driver's head beside the gunner, low behind the front plate.
-  const look = FACTIONS.british.look;
+  const look = FACTIONS[faction].look;
   crewHead(ctx, 16, -36, 0.8, look.helmet, look.tint);
 }
 
 /** The Bren gunner in the front compartment (origin = his seat on the hull rim). */
-export function carrierGunner(ctx: Ctx): void {
-  const look = FACTIONS.british.look;
+export function carrierGunner(ctx: Ctx, faction: FactionId = 'british'): void {
+  const look = FACTIONS[faction].look;
   // Shoulders just over the plate, head and helmet.
   ctx.fillStyle = FIGURE.colors.rim;
   ellipse(ctx, 0, -4, 6.6, 5.4);
@@ -153,6 +156,21 @@ export function brenOnMount(ctx: Ctx, P: TankPalette, len: number): void {
   rimRect(ctx, -4, -2.6, 10, 4.6, 0.8, C.ink, P.rim, 0.8);
   fillPoly(ctx, [0, -2.4, 2, -7.6, 4.6, -7.4, 3.4, -2.4], C.ink);
   rimRect(ctx, len - 3, -1.9, 3, 3.8, 0.6, C.ink, P.rim, 0.8);
+}
+
+/** The Soviet carrier's DP on its mount: the perforated barrel jacket, and the flat pan magazine lying on top. */
+export function dpOnMount(ctx: Ctx, P: TankPalette, len: number): void {
+  rimRect(ctx, -6, -1.3, len + 6, 2.6, 0.6, C.ink, P.rim, 0.8);
+  rimRect(ctx, 6, -1.9, len - 9, 3.8, 0.8, C.ink, P.rim, 0.8);
+  ctx.fillStyle = rgba(P.rim, 0.5);
+  for (let x = 8; x < len - 4; x += 2.8) ctx.fillRect(x, -0.5, 1.1, 1);
+  rimRect(ctx, -4, -2.4, 10, 4.4, 0.8, C.ink, P.rim, 0.8);
+  ellipse(ctx, 1, -3.4, 6.4, 1.6);
+  ctx.fillStyle = C.ink;
+  ctx.fill();
+  ctx.strokeStyle = rgba(P.rim, 0.75);
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
 }
 
 // ---------------------------------------------------------------------------

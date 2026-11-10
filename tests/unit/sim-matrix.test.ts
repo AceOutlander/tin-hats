@@ -20,7 +20,7 @@ function tough(kind: UnitKind): { upgrades: Record<string, number>; upgradeDefs:
 const posted = (kind: UnitKind, x: number, count = 1): ForceDef => ({ kind, count, x, behaviour: 'guard' });
 
 /** The kind of target each column is tested against, on a 3000 wu field with side 0's line at 850. */
-function targetSide(cls: TargetClass, x: number): Pick<MissionDef, 'trenches' | 'pillboxes'> & { b: object } {
+function targetSide(cls: TargetClass, x: number): Pick<MissionDef, 'trenches' | 'pillboxes' | 'buildings' | 'props'> & { b: object } {
   const none = { trenches: [], pillboxes: [] };
   switch (cls) {
     case 'infantryOpen':
@@ -34,6 +34,16 @@ function targetSide(cls: TargetClass, x: number): Pick<MissionDef, 'trenches' | 
       return { ...none, b: { forces: [posted('tank', x)] } };
     case 'hq':
       return { ...none, b: { hqHpMul: 50 } };
+    case 'infantryBuilding':
+      // Walls tough enough that no floor falls in the test.
+      return {
+        ...none,
+        buildings: [{ id: 1, x, width: 120, floors: 1, slotsPerFloor: 6, hpMul: 50, owner: 1, look: 'house' }],
+        b: { forces: [{ kind: 'rifle', count: 4, buildingId: 1 }] },
+      };
+    case 'rubbleCover':
+      // A cover prop is rubble cover from the start.
+      return { ...none, props: [{ id: 1, x, width: 120, slots: 6, look: 'wagons', owner: 1 }], b: { forces: [{ kind: 'rifle', count: 4, buildingId: 1 }] } };
   }
 }
 
@@ -63,6 +73,12 @@ const CELLS: Cell[] = [
   { dtype: 'antiTank', cls: 'fortification', weapon: 'rocket', shooter: { kind: 'at', count: 2 }, x: 1050 },
   { dtype: 'antiTank', cls: 'vehicle', weapon: 'rocket', shooter: { kind: 'at', count: 2 }, x: 1050 },
   { dtype: 'antiTank', cls: 'hq', weapon: 'rocket', shooter: posted('at', 2530), x: 0 },
+  { dtype: 'bullet', cls: 'infantryBuilding', weapon: 'rifle', shooter: { kind: 'rifle', count: 4 }, x: 1150 },
+  { dtype: 'explosive', cls: 'infantryBuilding', weapon: 'mortar', shooter: posted('mortar', 700), x: 1250 },
+  { dtype: 'antiTank', cls: 'infantryBuilding', weapon: 'rocket', shooter: { kind: 'at', count: 2 }, x: 1030 },
+  { dtype: 'bullet', cls: 'rubbleCover', weapon: 'rifle', shooter: { kind: 'rifle', count: 4 }, x: 1150 },
+  { dtype: 'explosive', cls: 'rubbleCover', weapon: 'mortar', shooter: posted('mortar', 700), x: 1250 },
+  { dtype: 'antiTank', cls: 'rubbleCover', weapon: 'rocket', shooter: { kind: 'at', count: 2 }, x: 1030 },
 ];
 
 /** The hits of this cell's damage type on this cell's target class. */
@@ -73,6 +89,8 @@ function cellHits(events: Seen[], cell: Cell): number[] {
       switch (cell.cls) {
         case 'infantryOpen':
         case 'infantryTrench':
+        case 'infantryBuilding':
+        case 'rubbleCover':
           return e.type === 'unitHit' && e.side === 1 && e.kind === 'rifle';
         case 'vehicle':
           return e.type === 'unitHit' && e.side === 1 && e.kind === 'tank';
@@ -88,7 +106,7 @@ function cellHits(events: Seen[], cell: Cell): number[] {
 describe('the damage matrix', () => {
   it('lists the factor of every damage type against every target class', () => {
     for (const cell of CELLS) expect(DAMAGE[cell.dtype][cell.cls]).toBeGreaterThan(0);
-    expect(CELLS).toHaveLength(15);
+    expect(CELLS).toHaveLength(21);
   });
 
   for (const cell of CELLS) {

@@ -938,3 +938,59 @@ Division), the M1939 helmet.
 - **Colonial context**: the African campaign's African soldiers served in colonial armies, and many were not
   volunteers in the modern sense. The briefings speak in a period commander's voice but must not demean them; the
   epilogue (Job Maseko) and the victory screens honour them by name of unit.
+
+---
+
+## 8. Stalingrad history check before the missions are written (2026-11-08, second pass)
+
+Every historical detail in `STALINGRAD.md` was re-checked against the sources below before the mission data is
+written. Each mission there now carries a **Checked** note with its sources. Where this pass and section 1 above
+disagree, this pass wins. Changes made to `STALINGRAD.md`:
+
+| Mission | What was wrong or overstated | Now |
+| --- | --- | --- |
+| 1 Brest | Two Stuka raids (phase 2 on B3, phase 3 on the HQ), although the enemy table already said there was no air on the first day. Wikipedia: the 45th Division had no aircraft and no air attack on 22 June is documented; the first raids were Ju 88s on 29 June. | A 15 cm Nebelwerfer salvo on B3 and a 21 cm mortar barrage on the HQ. The "how mighty" line no longer lists Stukas for Brest. StuG III Ausf. B is the likely model, not confirmed. |
+| 2 Dubno | The briefing had the group "turn south-west". Popel attacked from the south-west through Verba toward Dubno, so it struck north-east. The player force (2 KV-1, 1 KV-2, 4 T-34) overstated the modern tanks: the 34th Tank Division had 8 KV-1s, 48 T-35s, 25 BT-7s and 249 T-26s on 22 June (Russian Wikipedia); the KVs and T-34s with Popel came mostly from the 12th Tank Division's regiments. | Briefing: "north-east through Verba". Force: 1 KV-1, 1 KV-2, 3 T-34, 3 BT-7, 2 T-26. History adds Colonel Ivan Vasiliev (killed in the encirclement), the 11th Panzer's rear, encirclement from 28 June, and that sources differ on whether the town or only its edge was taken. The 8th Mechanized Corps article dates the strike group's order to 26 June; the attack itself was 27 June at 14:00. |
+| 3 Volokolamsk | The player's rear village was "Nelidovo", but German battle groups took Petelino and Nelidovo by 10:00 on 16 November. "Anti-tank rifles had just been issued" overstated their number. | Rear sector renamed "the battalion's rear". History adds Colonel Kaprov, the 4th Company of the 2nd Battalion (over a hundred casualties), German occupation to 20 December. PTRD: "a handful" (one account: eight to the 1075th); PTRD production began 22 September 1941; the 1075th as first user is consistent across sources but has no primary record. The briefing says "a few" rifles. |
+| 4 Klin | The enemy table gave the 7th Panzer's Pz 38(t)s; the mission placed Panzer IIIs in Klin. Ziemke and Bauer name the 1st Panzer Division as the force that turned back to hold Klin open (the Third Panzer Group's only road west, cut on 10 December). | Table: Panzer III and IV of the 1st Panzer Division. History adds the 8th Tank Brigade and 1st Shock Army, 15 tanks abandoned on 7 December, about -26 °C on 15 December. Briefing: "their only road home". |
+| 5 Volga | Nothing wrong found. | Checked note only: the 42nd Guards finished crossing on the 15th; Dragan led fewer than fifty men; the vanguard battalion and the nail factory are secondary or from section 1. |
+| 6 Kurgan | Date 18 September: the 95th crossed on the night of 18 to 19 September and attacked on the 19th. The 16 September retake was credited to "the 13th Guards"; it was two battalions of its 39th Guards Regiment with two of the 416th Regiment, and the summit then changed hands several times. "More than 5,000 in a week": the report gives 5,186 killed and wounded, 19 to 25 September. | Date `1942-09-19` (summary table too). History lines rewritten; hand-over to the 284th dated 28 September. Water tanks as blockhouses not re-confirmed this pass. |
+| 7 Pavlov | Nothing wrong found; the trench "back to the mill" is supported only by secondary wargame and tourism pages (Wikipedia names a communication trench to Soviet positions, not the mill). | History adds the mill note, flagged. Briefing unchanged. |
+| 8 Factories | "This summer it made tanks": the tractor factory built T-34s from 1940. "Keep the Germans off the Volga bank" and "the Volga bank must be ours in the morning": on 14 October the 14th Panzer reached the Volga and split the 62nd Army. "Command post buried": the record says Zholudev was trapped in the dugout, breathing through a pipe. | Briefing line 1 "since before the war it has made tanks"; line 3 "every hour they spend here is an hour the rest of the bank holds". History corrected; the game objective (no Germans at the river until dark) stays as the delay rule. |
+| 9 Uranus | The Don Front was missing. The link-up was credited loosely; it was the 45th Tank Brigade (4th Tank Corps) and the 36th Mechanized Brigade (4th Mechanized Corps). The briefing's 26th Tank Corps narrator implied his corps made the link-up. | Don Front added (19 November; Stalingrad Front 20 November); times: Siren 07:20, Katyushas 07:30, assault 08:50; Perelazovsky by the end of 20 November; the Kalach bridge versions (Wikipedia: two captured German tanks and a scout car; others: Filippov with headlights). Briefing: "on with the corps beside us to Sovetsky". KV-1S presence at Uranus not confirmed (in service from August 1942, so within the era window). |
+| 10 Ring | The briefing (eve of 10 January) said terms were offered "two days ago": offered 8 January, deadline 10:00 on 9 January, so "yesterday". It placed the army HQ "under the department store": the Sixth Army HQ moved from Gumrak to the Univermag cellar only on 26 January. "Largest bombardment to that date" and "the last He 111 left that day" had no source. | Briefing fixed ("yesterday"; the HQ "out at Gumrak", to be dug out of the ruins). History: 7,000 guns, rocket launchers and mortars of seven armies; Gumrak's loss ended the flights out of the wounded; the 26 January split by the 21st Army and 13th Guards north of Mamayev Kurgan; the HQ move. "Panzerknacker charges" became "magnetic charges". |
+| Enemy table | The Hafthohlladung had no date. | Marked in service from May 1942 (Wikipedia), so fine for the city missions. |
+
+Sources fetched or found in this pass (in addition to those in section 1):
+- https://en.wikipedia.org/wiki/Defense_of_Brest_Fortress
+- https://warfarehistorynetwork.com/?p=103751
+- https://en.wikipedia.org/wiki/Battle_of_Brody_(1941)
+- https://en.wikipedia.org/wiki/8th_Mechanized_Corps_(Soviet_Union)
+- https://en.wikipedia.org/wiki/34th_Tank_Division_(Soviet_Union)
+- https://ru.wikipedia.org/wiki/34-я_танковая_дивизия_(СССР)
+- https://military-review.com/12490346-commissar-popel-and-the-feat-of-soviet-soldiers-near-dubno (search summary)
+- https://en.wikipedia.org/wiki/316th_Rifle_Division
+- https://en.wikipedia.org/wiki/Panfilov%27s_Twenty-Eight_Guardsmen
+- https://en.wikipedia.org/wiki/PTRD-41
+- https://nationalinterest.org/node/118526 (search summary only; the page refused direct fetching)
+- https://www.ibiblio.org/hyperwar/USA/USA-EF-Decision/USA-EF-Decision-4.html (Ziemke and Bauer, *Moscow to
+  Stalingrad: Decision in the East*, chapter 4)
+- https://en.wikipedia.org/wiki/13th_Guards_Rifle_Division
+- https://steve-noon.co.uk/photo_17053499.html (artwork caption, secondary)
+- https://en.wikipedia.org/wiki/95th_Rifle_Division
+- https://en.wikipedia.org/wiki/Mamayev_Kurgan
+- https://en.wikipedia.org/wiki/Pavlov%27s_House
+- https://en.wikipedia.org/wiki/Gerhardt%27s_Mill
+- https://wargameds.com/blogs/news/pavlovs-house (secondary)
+- https://en.wikipedia.org/wiki/37th_Guards_Rifle_Division
+- https://en.wikipedia.org/wiki/Stalingrad_Tractor_Factory
+- https://www.ww2-weapons.com/diary-october-14-1942 (search summary)
+- https://en.wikipedia.org/wiki/Operation_Uranus
+- https://en.wikipedia.org/wiki/Operation_Koltso
+- https://stalingradtours.com/en/tours/articul/museum_memory
+- https://lexanteinternet.blogspot.com/2023/01/friday-january-8-1943-ultimatum.html (search summary, secondary)
+- https://en.wikipedia.org/wiki/Hafthohlladung
+
+Still open after this pass: the StuG model at Brest; KV-1S at Uranus; the water tanks on Mamayev Kurgan; the mill
+trench at Pavlov's House; the nail factory by the station; day-by-day weather at Dubno. (The `t26` look for the T-26
+is drawn since; mission 1002 fields two, see STALINGRAD_BUILD.md, era-correct forces.)

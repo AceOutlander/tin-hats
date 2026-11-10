@@ -54,3 +54,11 @@ export function showAlpha(age: number, time: number, fadeIn: number, fadeOut: nu
   if (fadeOut > 0 && left < fadeOut) return left / fadeOut;
   return 1;
 }
+
+/**
+ * Peak opacity of the target marker over a call-in or barrage fired by `side` when the player commands `playerSide`:
+ * a faint one for the player's own, none (0) for the enemy's, whose whistles are the only warning (owner, 2026-11-09).
+ */
+export function targetMarkerPeak(side: number, playerSide: number): number {
+  return side === playerSide ? RENDER.fx.flight.ownMarkerPeak : 0;
+}

@@ -14,7 +14,7 @@ const stats = (page: Page) => page.evaluate(() => (window as unknown as Probed).
 test.describe('performance hooks', () => {
   test('the probe reports every phase of the frame while a battle runs', async ({ page }) => {
     await open(page, '?debug=1');
-    expect(await startMission(page, 1)).toBe(true);
+    expect(await startMission(page, 1002)).toBe(true);
     await page.evaluate(() => (window as unknown as Probed).__THPERF?.reset());
     await waitForState(page, '10 battle seconds', (s) => s.inBattle && s.time >= 10, 120_000);
     const report = await page.evaluate(() => (window as unknown as Probed).__THPERF?.report());
@@ -49,7 +49,7 @@ test.describe('performance hooks', () => {
     expect(low?.dpr).toBe(1.5);
     expect(low && full ? low.canvasW / full.canvasW : 0).toBeCloseTo(0.75, 1);
 
-    expect(await startMission(page, 1)).toBe(true);
+    expect(await startMission(page, 1002)).toBe(true);
     await setTimeScale(page, 4);
     const s = await waitForState(page, '20 battle seconds at the lowest quality', (x) => x.inBattle && x.time >= 20, 120_000);
     expect(s.tick).toBeGreaterThan(100);

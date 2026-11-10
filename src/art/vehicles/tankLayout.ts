@@ -8,7 +8,7 @@
  *
  * Draw order, back to front: track, wheels (in array order), hull, barrel, turret.
  */
-import { GEAR_LOOKS, TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, VEHICLE_LOOK_EXTRA, VEHICLE_LOOKS, type ArtPoint, type GearLook, type VehicleLook } from '../../data/artLayout';
+import { GEAR_LOOKS, TANK_LAYOUT, TANK_LOOKS, TANK_MAX_WHEELS, VEHICLE_LOOK_EXTRA, VEHICLE_LOOK_RIG, VEHICLE_LOOKS, type ArtPoint, type GearLook, type VehicleLook } from '../../data/artLayout';
 import { FACTIONS } from '../../data/factions';
 import type { FactionId, UnitKind } from '../../data/schema';
 import { makeBelt } from './belt';
@@ -73,16 +73,29 @@ function wheelKey(look: VehicleLook, i: number): string {
   return first && first.r !== w.r ? `veh/${look}/wheel/${w.kind}/${w.r}` : `veh/${look}/wheel/${w.kind}`;
 }
 
+/** The look whose track and wheel sprites a look uses (an era look on another look's rig shares them). */
+export function rigOf(look: VehicleLook): VehicleLook {
+  return VEHICLE_LOOK_RIG[look]?.rig ?? look;
+}
+
+/** The look whose hull sprite a look uses. */
+export function hullOf(look: VehicleLook): VehicleLook {
+  return VEHICLE_LOOK_RIG[look]?.hull ?? look;
+}
+
 function buildKeys(look: VehicleLook): TankKeys {
   const L = TANK_LAYOUT[look];
+  const rig = rigOf(look);
   const track: string[] = [];
-  for (let i = 0; i < L.trackFrames; i++) track.push(`veh/${look}/track/${i}`);
+  for (let i = 0; i < L.trackFrames; i++) track.push(`veh/${rig}/track/${i}`);
+  // The KV-2's turret and howitzer keep the keys they were registered under before the era looks (KV2_KEYS).
+  const kv2 = look === 'kv2';
   return {
-    hull: `veh/${look}/hull`,
-    turret: `veh/${look}/turret`,
-    barrel: `veh/${look}/barrel`,
+    hull: `veh/${hullOf(look)}/hull`,
+    turret: kv2 ? 'veh/kv1/turret/kv2' : `veh/${look}/turret`,
+    barrel: kv2 ? 'veh/kv1/barrel/kv2' : `veh/${look}/barrel`,
     track,
-    wheels: L.wheels.map((_, i) => wheelKey(look, i)),
+    wheels: L.wheels.map((_, i) => wheelKey(rig, i)),
     husk: `veh/${look}/husk`,
     passengers: L.passengers ? `veh/${look}/passengers` : null,
   };

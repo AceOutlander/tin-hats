@@ -32,7 +32,8 @@ const num = (name: string, fallback: number): number => {
   const v = raw === null ? NaN : Number(raw);
   return Number.isFinite(v) ? v : fallback;
 };
-const faction: FactionId = params.get('f') === 'german' ? 'german' : 'british';
+const fParam = params.get('f');
+const faction: FactionId = fParam === 'german' || fParam === 'soviet' ? fParam : 'british';
 const showAnchors = params.get('anchors') === '1';
 const zoom = num('zoom', 1);
 const viewOx = num('ox', 0);

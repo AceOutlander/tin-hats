@@ -6,12 +6,13 @@
  * Pause, restart, quit and mute are app-level and not handled here.
  */
 import { APP } from '../data/app';
-import type { Difficulty, MissionDef, SupportKind } from '../data/schema';
+import { PREP } from '../data/prep';
+import type { BuildableId, Difficulty, MissionDef, SupportKind } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
-import type { AdminAction, Battle, UnitState } from '../sim';
-import type { BattleCamera } from '../render/contracts';
+import { airGrounded, buildProblem, type AdminAction, type Battle, type UnitState } from '../sim';
+import type { BattleCamera, PlacingGhost } from '../render/contracts';
 import type { HudAction, HudState } from '../ui/contracts';
-import { HudModel, type HpShownQuery } from './hudModel';
+import { HudModel, nextDeploy, type HpShownQuery } from './hudModel';
 import { playBossWarning, playClockTick, playEventSound, playWaveWarning, type SfxAudio } from './sfx';
 import type { Tutorial } from './tutorial';
 
@@ -21,6 +22,8 @@ export interface SessionView {
   afterStep(): void;
   setControlled(unitId: number): void;
   setTargeting(kind: SupportKind | null): void;
+  /** The prep phase's placement ghost, or null to hide it. */
+  setPlacing(p: PlacingGhost | null): void;
   /** Whose unit health the player sees (the battle view's HpReveal). */
   readonly hpReveal?: HpShownQuery;
 }
@@ -32,6 +35,8 @@ export interface SessionOptions {
   sound(): boolean;
   /** The battleEnded event was seen. Called once. */
   onEnded(): void;
+  /** One of the player's call-in charges was spent (a call accepted by the sim; a scripted raid spends none). */
+  onChargeUsed?(kind: SupportKind): void;
   /** The guided tips of this battle, if it has any (campaign missions only). */
   tutorial?: Tutorial | null;
 }
@@ -80,6 +85,13 @@ export class BattleSession {
   readonly tally: EventTally = newTally();
 
   private targeting: SupportKind | null = null;
+  /** Prep phase: the build being placed, where its ghost stands, and whether the player has tapped a spot for it. */
+  private placing: BuildableId | null = null;
+  private placeX = 0;
+  private placePinned = false;
+  private readonly ghost: PlacingGhost = { x: 0, width: 0, ok: false };
+  /** Ids of the sites this player placed, newest last (Undo takes the newest still standing). */
+  private readonly placed: number[] = [];
   private stickX = 0;
   private fireDown = false;
   private abilityQueued = false;
@@ -92,6 +104,8 @@ export class BattleSession {
   /** The whole second of the mission clock that last ticked (-1 = none yet). */
   private lastTick = -1;
   private viewControlled = -1;
+  /** The player's charges left per call-in at the last look (-1 = not limited), to report each one spent. */
+  private readonly chargesSeen = new Int32Array(SUPPORT_KINDS.length);
 
   constructor(
     readonly battle: Battle,
@@ -102,6 +116,8 @@ export class BattleSession {
     private readonly opts: SessionOptions,
   ) {
     this.hud.begin(battle);
+    const own = battle.state.sides[0].supportCharges;
+    for (let k = 0; k < SUPPORT_KINDS.length; k++) this.chargesSeen[k] = own[SUPPORT_KINDS[k]];
     const events = battle.events;
     for (let i = 0; i < events.count; i++) if (events.items[i].type === 'bossArrived' && events.items[i].side === 1) this.bossAtStart = true;
   }
@@ -137,6 +153,16 @@ export class BattleSession {
     return n;
   }
 
+  /** Report every charge of the player's spent since the last look (opts.onChargeUsed). */
+  private noteCharges(): void {
+    const own = this.battle.state.sides[0].supportCharges;
+    for (let k = 0; k < SUPPORT_KINDS.length; k++) {
+      const now = own[SUPPORT_KINDS[k]];
+      for (let n = this.chargesSeen[k]; n > now && now >= 0; n--) this.opts.onChargeUsed?.(SUPPORT_KINDS[k]);
+      this.chargesSeen[k] = now;
+    }
+  }
+
   private handleEvents(): void {
     const battle = this.battle;
     const events = battle.events;
@@ -161,8 +187,32 @@ export class BattleSession {
           // The enemy wave that the player is told about is also sounded.
           if (sound && e.type === 'wave' && e.side === 1 && (e.text !== null || battle.state.mode === 'survival')) playWaveWarning(this.audio);
           break;
+        case 'buildStarted':
+          if (e.side === 0) this.placed.push(e.targetIndex);
+          break;
+        case 'prepEnded':
+          this.endPlacing();
+          if (!this.bannerUp()) this.showBanner(APP.notices.prepEnded);
+          break;
         case 'bossArrived':
           if (e.side === 1) this.bossWarning();
+          break;
+        // The mission director: a new phase is announced with a horn; a scripted banner with its own sound.
+        case 'phaseStarted':
+          if (e.text !== null) this.showBanner(e.text);
+          if (sound) playWaveWarning(this.audio);
+          break;
+        case 'banner':
+          if (e.text !== null) this.showBanner(e.text);
+          if (sound) {
+            if (e.value === 2) playBossWarning(this.audio);
+            else playWaveWarning(this.audio);
+          }
+          break;
+        case 'objectiveDone':
+          // A side objective earned is worth a short notice (never over another banner); the phase's own objectives
+          // show on the phase line.
+          if (e.value === 1 && e.text !== null && !this.bannerUp()) this.showBanner(APP.notices.sideObjective.replace('{text}', e.text));
           break;
         case 'airdrop':
           if (e.side === 0 && !this.bannerUp()) this.showBanner(APP.notices.airdrop.replace('{n}', String(Math.round(e.value))));
@@ -184,7 +234,10 @@ export class BattleSession {
           if (e.source === 'unit' && e.side === 0 && e.unitId === this.viewControlled) this.tally.controlledShots++;
           break;
         case 'supportCalled':
-          if (e.support !== null && e.side === 0) this.tally.supportCalled[e.support]++;
+          if (e.support !== null && e.side === 0) {
+            this.tally.supportCalled[e.support]++;
+            this.noteCharges();
+          }
           break;
         case 'supportIncoming':
           if (e.support !== null && e.side === 0) this.tally.supportIncoming[e.support]++;
@@ -263,7 +316,67 @@ export class BattleSession {
     }
     if (controlled && id >= 0) this.followControlled(controlled.x);
     if (this.targeting !== null && (this.ended || !side.supportAvailable[this.targeting])) this.endTargeting();
+    this.fillPlacing(st);
     return st;
+  }
+
+  /**
+   * Prep phase placement: the ghost stands in the middle of the view (so dragging the battlefield carries it along)
+   * until the player taps the ground, which pins it there; it is green where the build can go.
+   */
+  private fillPlacing(st: HudState): void {
+    const prep = st.prep;
+    if (this.placing !== null && (prep === null || this.ended)) this.endPlacing();
+    const kind = this.placing;
+    if (prep === null) return;
+    prep.placing = kind;
+    if (kind === null) {
+      prep.placeOk = false;
+      return;
+    }
+    if (!this.placePinned) this.placeX = Math.round(this.view.camera.centerX);
+    const ok = buildProblem(this.battle.state, 0, kind, this.placeX) === null;
+    prep.placeOk = ok;
+    this.ghost.x = this.placeX;
+    this.ghost.width = PREP.buildables[kind].width;
+    this.ghost.ok = ok;
+    this.view.setPlacing(this.ghost);
+  }
+
+  private beginPlacing(kind: BuildableId): void {
+    if (this.ended || this.battle.state.prep?.active !== true) return;
+    this.endTargeting();
+    this.placing = kind;
+    this.placePinned = false;
+  }
+
+  private endPlacing(): void {
+    if (this.placing === null) return;
+    this.placing = null;
+    this.placePinned = false;
+    this.view.setPlacing(null);
+  }
+
+  /** Place the build where its ghost stands (if it can go there) and stop placing. */
+  private confirmBuild(): void {
+    const kind = this.placing;
+    if (kind === null) return;
+    if (buildProblem(this.battle.state, 0, kind, this.placeX) === null) {
+      this.battle.command(0, { type: 'build', kind, x: this.placeX });
+      this.endPlacing();
+    }
+  }
+
+  /** Take back the newest of this player's sites still being built. */
+  private undoBuild(): void {
+    const sites = this.battle.state.sites;
+    while (this.placed.length > 0) {
+      const id = this.placed.pop() as number;
+      if (sites.some((s) => s.id === id)) {
+        this.battle.command(0, { type: 'cancelBuild', site: id });
+        return;
+      }
+    }
   }
 
   /**
@@ -326,6 +439,30 @@ export class BattleSession {
       case 'minimap':
         this.view.camera.jumpToFrac(action.frac);
         return true;
+      case 'build':
+        this.beginPlacing(action.kind);
+        return true;
+      case 'confirmBuild':
+        this.confirmBuild();
+        return true;
+      case 'cancelPlacing':
+        this.endPlacing();
+        return true;
+      case 'undoBuild':
+        this.undoBuild();
+        return true;
+      case 'ready':
+        this.endPlacing();
+        this.battle.command(0, { type: 'ready' });
+        return true;
+      case 'deploy':
+        this.battle.command(0, { type: 'deploy', at: nextDeploy(this.battle.state) });
+        return true;
+      case 'clear': {
+        const chip = this.hud.state.clear;
+        if (chip && !chip.busy) this.battle.command(0, { type: 'clear', x: chip.x });
+        return true;
+      }
       case 'dismissTip':
         return true;
       default:
@@ -335,6 +472,12 @@ export class BattleSession {
 
   /** A tap on the battlefield ground at world x. */
   tapGround(x: number): void {
+    if (this.placing !== null && !this.ended) {
+      // Prep phase: the tap moves the ghost there (Place confirms it).
+      this.placeX = Math.round(x);
+      this.placePinned = true;
+      return;
+    }
     if (this.targeting === null || this.ended) return;
     const kind = this.targeting;
     const side = this.battle.state.sides[0];
@@ -360,6 +503,7 @@ export class BattleSession {
   /** Stop targeting, release control: used when the player leaves the battle or pauses. */
   stopInputs(): void {
     this.endTargeting();
+    this.endPlacing();
     this.stickX = 0;
     this.fireDown = false;
     this.abilityQueued = false;
@@ -368,7 +512,9 @@ export class BattleSession {
   private beginTargeting(kind: SupportKind): void {
     if (this.ended) return;
     const side = this.battle.state.sides[0];
-    if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0) return;
+    if (!side.supportAvailable[kind] || side.supportCooldown[kind] > 0 || side.supportCharges[kind] === 0) return;
+    // Grounded by the weather or the night: nothing to aim.
+    if (airGrounded(this.battle.state, 0, kind) !== null) return;
     this.targeting = kind;
     this.view.setTargeting(kind);
   }

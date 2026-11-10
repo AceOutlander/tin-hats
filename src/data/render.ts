@@ -8,6 +8,8 @@ export const RENDER = {
   atlasMaxSize: 4096,
   /** Empty texture pixels between atlas frames, filled by repeating the frame's edge pixels. */
   atlasPadding: 2,
+  /** Texture pixels per wu of a battle's building and cover-prop pieces (big and plain, so below VIEW.textureScale). */
+  buildingTextureScale: 1.5,
 
   /** Camera. */
   camera: {
@@ -84,6 +86,12 @@ export const RENDER = {
     cullMargin: 160,
     /** Tank barrel recoil: seconds for the gun to run out again. */
     tankRecoilTime: 0.45,
+    /**
+     * The reload bar over the player's own tanks (DECISIONS 424): a thin bar that fills while the main gun reloads and
+     * hides when it is ready. Width and height (wu), lift above the health pips (wu), fill and backing colours, opacity,
+     * and the shortest main-gun reload that gets one (the T-60's quick autocannon does not).
+     */
+    reloadBar: { w: 26, h: 1.6, lift: 4, fill: 0xe6cf7a, back: 0x101010, alpha: 0.8, minCooldown: 4 },
     /**
      * Tank suspension (view only). bobAmp: hull bounce over the ground (wu) at bobFullSpeed (wu/s) and above, with
      * bobFreq bumps per wu travelled; rollRock: pitch wobble while rolling (fraction of the look's rockMax). The pitch
@@ -204,6 +212,23 @@ export const RENDER = {
   },
 
   /** Markers. */
+  /** The prep phase (src/render/buildSites.ts): build sites, their progress bars and the placement ghost (wu, colours). */
+  buildSites: {
+    patch: 0x6b5638,
+    patchAlpha: 0.55,
+    patchH: 3,
+    barY: 46,
+    barH: 3,
+    barMinW: 30,
+    barBack: 0x1d1c16,
+    barFill: 0x9ccf5c,
+    /** A site no sapper is working on yet. */
+    barIdle: 0xc9a43a,
+    ghostOk: 0x7fe07a,
+    ghostBad: 0xe0564a,
+    ghostAlpha: 0.32,
+    ghostH: 34,
+  },
   marker: {
     /** Select ring under the controlled unit: scale and alpha; a tank's ring widens by its length / ringBaseW, its height by at most ringMaxTall. */
     ringScale: 1,
@@ -316,11 +341,15 @@ export const RENDER = {
       dropMax: 26,
       /** Air-dropped ordnance starts this high above the ground (wu) at the launch x (just under the aircraft). */
       airAltitude: 195,
+      /** Off-map fire (artillery, rockets, scripted barrages) enters this far above the top of the scene (y = 0) and falls steeply. */
+      plungeTop: 60,
+      /** Peak opacity of the faint target marker over the player's own barrage or call-in; the enemy's get none (owner, 2026-11-09). */
+      ownMarkerPeak: 0.4,
       /** Sprite size multiplier and spin (rad/s) by look. */
-      scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5 } as Readonly<Record<string, number>>,
-      spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0 } as Readonly<Record<string, number>>,
+      scale: { grenade: 1, mortar: 1.2, rocket: 1.2, shell: 1.3, bomb: 1.5, katyusha: 1.3 } as Readonly<Record<string, number>>,
+      spin: { grenade: 11, mortar: 0, rocket: 0, shell: 0, bomb: 0, katyusha: 0 } as Readonly<Record<string, number>>,
       /** Smoke trail preset by look ('' for none); it puffs at the preset's own interval. */
-      trail: { grenade: '', mortar: 'projTrailThin', rocket: 'rocketTrail', shell: 'projTrailThin', bomb: 'projTrailThin' } as Readonly<Record<string, string>>,
+      trail: { grenade: '', mortar: 'projTrailThin', rocket: 'rocketTrail', shell: 'projTrailThin', bomb: 'projTrailThin', katyusha: 'katyushaTrail' } as Readonly<Record<string, string>>,
       /** Shots at weapons that are not hitscan, with no projectile event the same step, are drawn as a fast flight of at least this length (s). */
       provisionalMin: 0.12,
       provisionalMax: 0.9,
@@ -363,7 +392,7 @@ export const RENDER = {
   /** Sound hookup (src/render/effects/sound.ts). */
   audio: {
     /** Smallest real-time gap (s) between plays of one sound, and a ceiling on all plays per second. */
-    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, mortarLaunch: 0.12, shellWhistle: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
+    minGap: { rifleShot: 0.03, sniperShot: 0.05, smgShot: 0.04, mgShot: 0.045, bunkerMg: 0.05, tankGun: 0.15, tankGunHeavy: 0.2, mortarLaunch: 0.12, shellWhistle: 0.12, incomingWhistle: 0.15, rocketShriek: 0.12, rocketLaunch: 0.12, grenadeExplosion: 0.06, explosionMedium: 0.08, explosionLarge: 0.12, unitTrained: 0.2, suppliesDelivered: 0.25, airdrop: 1, planeFlyby: 1.5, bomberDrone: 3, fighterFlyby: 1.2, reconFlyby: 2, flameBurst: 0.15, aaGun: 0.07, pistolShot: 0.05, speechCue: 0.4, bossWarning: 4, fuelIgnite: 0.3, thunder: 0.5, ricochet: 0.15, dirtHit: 0.15 } as Readonly<Record<string, number>>,
     defaultGap: 0.05,
     maxPerSecond: 70,
     /** Shots further off screen than this many view widths are not played at all. */

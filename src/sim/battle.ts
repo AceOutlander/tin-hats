@@ -3,18 +3,27 @@
  */
 import { CONFIG } from '../data/config';
 import { DIFFICULTIES } from '../data/difficulty';
-import type { MissionDef, Order, Side, SupportKind, UnitKind } from '../data/schema';
+import type { MissionDef, MissionEventDef, MissionPrepDef, Order, PhaseDef, Side, SupportKind, UnitKind } from '../data/schema';
 import { SUPPORTS, SUPPORT_KINDS } from '../data/supports';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
 import { applyAdmin, cheatSupplies, cheatTraining, inspectAi } from './admin';
+import { createBuildings, layoutBuildings, updateBuildings } from './buildings';
+import { updateClears } from './clear';
+import { createMinefields, updateMines } from './mines';
+import { createObstacles, updateObstacles } from './obstacles';
+import { createBridges, createFerries, layBridges, updateBridges, updateFerries } from './water';
 import { applyDamage } from './combat';
 import { applyCommands } from './commands';
 import { createAi, runCommanders } from './commander';
 import { updateEconomy } from './economy';
 import { EventQueue } from './events';
+import { createDirector, directorEvents, normalPhases, resetTriggerClocks, startDirector } from './director';
+import { createSky, updateSky } from './sky';
 import { checkEnd, placeStartingForces, updateMission } from './mission';
 import { fireUnits, moveUnits, senseUnits } from './orders';
+import { createPrep, updateBuilds, updatePrep } from './prep';
+import { createPoints, updatePoints } from './points';
 import { Rng } from './rng';
 import { updateProjectiles, updateSmokes } from './projectiles';
 import { computeFronts, fireStructures, senseStructures } from './structures';
@@ -38,10 +47,16 @@ import type {
   TrenchState,
   WireState,
 } from './types';
+import { DEPLOY_AUTO, DEPLOY_HQ } from './types';
 import { createMount, createUnit, resetMount } from './units';
 import {
+  CMD_BUILD,
+  CMD_CANCEL_BUILD,
+  CMD_CLEAR,
+  CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
+  CMD_DEPLOY,
   CMD_FOLLOW,
   CMD_FOLLOW_ALL,
   CMD_KIND_ORDER,
@@ -51,7 +66,9 @@ import {
   CommandQueue,
   DamageQueue,
   applyUpgrades,
+  buildGroundField,
   createSideMods,
+  type GroundField,
   type AiState,
   type ReserveGroup,
   type SideMods,
@@ -83,6 +100,7 @@ function supportRecord<T>(value: T): Record<SupportKind, T> {
 class ProgressRecord implements Record<UnitKind, number> {
   sapper = 0.5;
   rifle = 0.5;
+  conscript = 0.5;
   lmg = 0.5;
   assault = 0.5;
   mortar = 0.5;
@@ -105,6 +123,7 @@ class CooldownRecord implements Record<SupportKind, number> {
   bomber = 0.5;
   fighter = 0.5;
   recon = 0.5;
+  katyusha = 0.5;
 }
 
 function progressRecord(): Record<UnitKind, number> {
@@ -119,10 +138,20 @@ function cooldownRecord(): Record<SupportKind, number> {
   return out;
 }
 
-/** Each support's full cooldown for a side: the data cooldown divided by its upgrade (supportRate). */
-function fullCooldownRecord(mods: SideMods): Record<SupportKind, number> {
+/** Each support's full cooldown for a side: the data cooldown (or the mission's own, SideStart.supportCooldown) divided by its upgrade (supportRate). */
+function fullCooldownRecord(mods: SideMods, own: Partial<Record<SupportKind, number>> | undefined): Record<SupportKind, number> {
   const out = new CooldownRecord();
-  for (let k = 0; k < SUPPORT_KINDS.length; k++) out[SUPPORT_KINDS[k]] = SUPPORTS[SUPPORT_KINDS[k]].cooldown / mods.supportRate[k];
+  for (let k = 0; k < SUPPORT_KINDS.length; k++) {
+    const kind = SUPPORT_KINDS[k];
+    out[kind] = (own?.[kind] ?? SUPPORTS[kind].cooldown) / mods.supportRate[k];
+  }
+  return out;
+}
+
+/** Charges left per call-in: the side's own (SideStart.supportCharges; a kind it does not list has none), or -1 for each without one. */
+function chargesRecord(own: Partial<Record<SupportKind, number>> | undefined): Record<SupportKind, number> {
+  const out = new CooldownRecord();
+  for (const kind of SUPPORT_KINDS) out[kind] = own === undefined ? -1 : Math.max(0, Math.floor(own[kind] ?? 0));
   return out;
 }
 
@@ -142,6 +171,7 @@ function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
     alive: true,
     garrison: 0,
     gun,
+    look: mission.start[side].hqLook ?? '',
   };
 }
 
@@ -155,6 +185,8 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
   }
   const supportAvailable = supportRecord(false);
   for (const kind of mission.supports[side]) supportAvailable[kind] = true;
+  // Offered later by a `support` event (FOUNDATIONS.md 3.3).
+  for (const kind of start.supportsOff ?? []) supportAvailable[kind] = false;
   return {
     side,
     faction: start.faction,
@@ -173,12 +205,15 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
     alive: kindRecord(0),
     supportAvailable,
     supportCooldown: cooldownRecord(),
-    supportCooldownFull: fullCooldownRecord(mods),
+    supportCooldownFull: fullCooldownRecord(mods, start.supportCooldown),
+    supportCharges: chargesRecord(start.supportCharges),
     hq: start.hasHq ? createHq(mission, side, mods) : null,
     holdLineX: 0,
     controlled: -1,
-    stats: { trained: 0, lost: 0, kills: 0, suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
+    stats: { trained: 0, lost: 0, kills: 0, killsByKind: kindRecord(0), lostByKind: kindRecord(0), suppliesGathered: 0, suppliesSpent: 0, damageDealt: 0 },
     cheats: { invincible: false, hqInvincible: false, holdSupplies: -1, instantTrain: false },
+    deploy: DEPLOY_AUTO,
+    deployPoint: -1,
   };
 }
 
@@ -225,7 +260,10 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     owner: t.owner,
     occupants: 0,
     capturedAt: -1,
+    building: -1,
   }));
+  // Buildings and cover props: their slot records go after the mission's trenches (FOUNDATIONS.md 4.3).
+  const buildings = createBuildings(mission, trenches);
   const pillboxes: PillboxState[] = mission.pillboxes.map((p) => {
     const gun = createMount();
     resetMount(gun, CONFIG.pillboxGunWeapon, p.x);
@@ -243,6 +281,8 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
 
   const hq0 = sides[0].hq;
   const hq1 = sides[1].hq;
+  // After the buildings: a point that is a building follows the building's slot record.
+  const points = createPoints(mission, trenches);
   return {
     tick: 0,
     time: 0,
@@ -259,10 +299,21 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
     trenches,
     pillboxes,
     wires,
+    points,
+    buildings,
     dumps: [
       hq0 ? { side: 0, x: hq0.doorX + CONFIG.dumpDistance } : null,
       hq1 ? { side: 1, x: hq1.doorX - CONFIG.dumpDistance } : null,
     ],
+    prep: createPrep(mission, hq0 ? hq0.x : null),
+    sites: [],
+    // Obstacles and water (FOUNDATIONS.md 4.4, 4.6 and 4.8): all empty for a mission without them.
+    obstacles: createObstacles(mission),
+    minefields: createMinefields(mission),
+    bridges: createBridges(mission, points),
+    ferries: createFerries(mission, points),
+    clears: [],
+    sandbags: [],
     timer: mission.timer
       ? {
           secondsLeft: mission.timer.seconds,
@@ -272,6 +323,8 @@ function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleSt
           label: mission.timer.label,
         }
       : null,
+    director: createDirector(normalPhases(mission).length, [mods[0].income, mods[1].income]),
+    sky: createSky(mission),
   };
 }
 
@@ -291,9 +344,13 @@ class BattleImpl implements Battle, World {
   readonly cells: [Uint8Array, Uint8Array];
   readonly doorTimer = new Float64Array(2);
   readonly trainLeft = new Float64Array(2 * KIND_COUNT);
+  readonly squadLeft = new Int32Array(2 * KIND_COUNT);
   readonly ai: [AiState | null, AiState | null];
   readonly eventFired: Uint8Array;
   readonly eventNext: Float64Array;
+  readonly phases: PhaseDef[];
+  readonly missionEvents: MissionEventDef[];
+  prepDef: MissionPrepDef | null;
   readonly reserve: ReserveGroup[] = [];
   nextUnitId = 1;
   readonly spawnCount = new Int32Array(2);
@@ -303,12 +360,15 @@ class BattleImpl implements Battle, World {
   readonly holdTrench = new Int32Array(2);
   readonly formBase = new Float64Array(2);
   readonly lineFront = new Float64Array(2);
-  readonly trenchSlot0: Int32Array;
-  readonly trenchTaken: Int32Array;
-  readonly trenchHalf: Float64Array;
-  readonly slotX: Float64Array;
-  readonly slotUnit: Int32Array;
-  readonly trenchInside: Int32Array;
+  readonly holdPoint = new Int32Array(2).fill(-1);
+  ground: GroundField | null;
+  trenchSlot0: Int32Array;
+  trenchTaken: Int32Array;
+  trenchHalf: Float64Array;
+  slotX: Float64Array;
+  slotUnit: Int32Array;
+  slotFloor: Int8Array;
+  trenchInside: Int32Array;
   readonly cluster = new Uint8Array(CONFIG.maxUnits);
   readonly clusterOrder: [Int32Array, Int32Array] = [new Int32Array(CONFIG.maxUnits), new Int32Array(CONFIG.maxUnits)];
   readonly clusterLen = new Int32Array(2);
@@ -330,6 +390,7 @@ class BattleImpl implements Battle, World {
   readonly escorts = new Int32Array(2 * KIND_COUNT);
   readonly auraUnit = new Int32Array(2).fill(-1);
   readonly speechCount = new Int32Array(2);
+  nextSiteId = 1;
   readonly aaEngaged = new Uint8Array(CONFIG.maxUnits);
   aaAny = 0;
 
@@ -359,28 +420,37 @@ class BattleImpl implements Battle, World {
     const cellCount = CONFIG.formationColumns * CONFIG.rows;
     this.cells = [new Uint8Array(cellCount), new Uint8Array(cellCount)];
     this.state = createState(config, this.mods);
-    const trenchCount = mission.trenches.length;
-    const slots = slotCount(mission.trenches);
+    this.ground = buildGroundField(mission);
+    layBridges(this); // standing bridges are road over the river
+    // The mission's trenches, then the slot records of its buildings and cover props.
+    const trenchCount = this.state.trenches.length;
+    const slots = slotCount(this.state.trenches);
     this.trenchSlot0 = new Int32Array(trenchCount);
     this.trenchTaken = new Int32Array(trenchCount);
     this.trenchHalf = new Float64Array(trenchCount);
     this.trenchInside = new Int32Array(trenchCount * 2);
     this.slotX = new Float64Array(slots);
     this.slotUnit = new Int32Array(slots);
+    this.slotFloor = new Int8Array(slots);
     layoutTrenches(this);
+    layoutBuildings(this);
 
-    this.eventFired = new Uint8Array(mission.events.length);
-    this.eventNext = new Float64Array(mission.events.length);
-    for (let i = 0; i < mission.events.length; i++) {
-      const when = mission.events[i].when;
-      if ('every' in when) this.eventNext[i] = when.from;
-    }
+    this.phases = normalPhases(mission);
+    this.missionEvents = directorEvents(mission, this.phases);
+    this.prepDef = mission.prep ?? this.phases[0].prep ?? null;
+    this.eventFired = new Uint8Array(this.missionEvents.length);
+    this.eventNext = new Float64Array(this.missionEvents.length);
+    resetTriggerClocks(this);
 
     this.ai = [createAi(this, config.commanders[0]), createAi(this, config.commanders[1])];
 
     computeFronts(this); // hold lines, needed to place the starting formation
     placeStartingForces(this);
+    updateBuildings(this); // the men placed in buildings
+    updatePoints(this, 0); // points that are trenches or buildings take their garrisons' owner; where each side deploys
     computeFronts(this);
+    // The first phase begins with the forces in place (garrisons own their trenches).
+    startDirector(this);
     // The spawn events of the starting forces stay readable until the first step.
   }
 
@@ -393,17 +463,27 @@ class BattleImpl implements Battle, World {
 
     applyCommands(this);
     runCommanders(this); // their commands apply at the start of the next tick, like the player's
+    updatePrep(this); // the countdown; the mission clock and events wait while it runs
     updateMission(this);
+    updateSky(this); // a weather or time change past its midpoint takes effect; flares burn out
     cheatTraining(this); // admin panel: instant training
     updateEconomy(this);
+    updateFerries(this); // boats put out and land the men who waited for them
+    updateBuilds(this); // sappers on build sites; a finished site becomes its structure
+    updateClears(this); // sappers on Clear jobs at enemy minefields and obstacles
     updateSupports(this); // cooldowns; strikes launch their rounds and lay their smoke
 
     computeFronts(this);
     senseUnits(this);
     senseStructures(this, s.tick % this.retargetTicks === 0);
-    moveUnits(this); // wire slows and is crushed here
+    moveUnits(this); // wire slows and is crushed here; obstacles and rivers stop vehicles
+    updateMines(this); // whoever moved through an enemy minefield rolls for a blast
+    updateObstacles(this); // vehicles held at an obstacle work it loose
     updateCarriers(this); // men climb into APCs, loaded APCs unload at the front
     updateTrenches(this); // drop into slots, captures
+    updateBuildings(this); // who holds and who is inside each building
+    updatePoints(this, this.dt); // capture points change hands; contested points; where each side deploys
+    updateBridges(this); // a bridge follows its point; holding it cuts the charges
     updateProjectiles(this); // rounds already in flight land on the new positions
     updateAuras(this); // each side's commander
     fireAntiAir(this); // guns with a plane in reach fire at it (and hold their fire at the ground)
@@ -453,6 +533,24 @@ class BattleImpl implements Battle, World {
       }
       case 'control':
         q.push(side, CMD_CONTROL).unit = cmd.unit;
+        break;
+      case 'build': {
+        const c = q.push(side, CMD_BUILD);
+        c.build = cmd.kind;
+        c.x = cmd.x;
+        break;
+      }
+      case 'cancelBuild':
+        q.push(side, CMD_CANCEL_BUILD).unit = cmd.site;
+        break;
+      case 'ready':
+        q.push(side, CMD_READY);
+        break;
+      case 'deploy':
+        q.push(side, CMD_DEPLOY).unit = cmd.at === 'auto' ? DEPLOY_AUTO : cmd.at === 'hq' ? DEPLOY_HQ : cmd.at;
+        break;
+      case 'clear':
+        q.push(side, CMD_CLEAR).x = cmd.x;
         break;
       case 'controlInput': {
         const c = q.push(side, CMD_CONTROL_INPUT);

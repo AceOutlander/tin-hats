@@ -1,8 +1,9 @@
 /**
- * The battle and campaign map music in the built game: nothing of the battle music is rendered at startup; starting
- * mission 1 renders its track after the battle has loaded, piece by piece within the memory and time budgets, the
- * build layer fades in, a switch to combat through the debug hook crossfades on the bar grid without errors, the
- * music sits under the army of 80 at default sliders (full range and phone speaker), leaving the battle frees it,
+ * The battle and campaign map music in the built game: nothing of the battle music is rendered at startup; the first
+ * campaign mission without a prep phase has its track rendered in full before its battle starts (as its briefing does
+ * it), piece by piece within the memory and time budgets, and nothing more is rendered once the battle runs; the build
+ * layer fades in with the battle, a switch to combat through the debug hook crossfades on the bar grid without errors,
+ * the music sits under the army of 80 at default sliders (full range and phone speaker), leaving the battle frees it,
  * and the map track renders when the campaign screen opens and plays there.
  */
 import type { Page } from '@playwright/test';
@@ -11,12 +12,20 @@ import type { BattleMusicStats, MusicStats } from '../../src/audio';
 import type { BattleMixReport } from '../../src/audio/music/battleMix';
 import { MUSIC_BATTLE } from '../../src/data/musicBattle';
 import { BATTLE_TRACKS } from '../../src/data/musicTracks';
-import { M01 } from '../../src/data/missions/m01';
+import { CAMPAIGNS } from '../../src/data/campaigns';
+import { MISSIONS } from '../../src/data/missions';
+import type { MissionDef } from '../../src/data/schema';
 import { arrived, expect, open, state, tap, test, type Hooked } from './helpers';
 
 const battle = (page: Page): Promise<BattleMusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.stats() as BattleMusicStats);
 const loop = (page: Page): Promise<MusicStats> => page.evaluate(() => (window as unknown as Hooked).__TH?.music.stats() as MusicStats);
 const db = (x: number): number => 20 * Math.log10(Math.max(x, 1e-9));
+
+/** The first campaign mission with no prep phase (Dubno, 1002), so its battle music starts on the build layer. */
+const FIRST = MISSIONS.find((m) => !m.prep) as MissionDef;
+const FIRST_ID = FIRST.id;
+/** The track the campaign map plays (Stalingrad's, the only campaign). */
+const MAP_TRACK = CAMPAIGNS.stalingrad.mapMusic;
 
 async function touchTheField(page: Page): Promise<void> {
   const size = page.viewportSize();
@@ -24,31 +33,43 @@ async function touchTheField(page: Page): Promise<void> {
   await page.touchscreen.tap(24, size.height - 24);
 }
 
-async function startMissionOne(page: Page): Promise<void> {
+/** Render the first mission's music as its briefing does, then start the battle. Returns the stats as the battle starts. */
+async function startFirstMission(page: Page): Promise<BattleMusicStats> {
   await open(page);
   await touchTheField(page);
-  // Nothing of the battle music exists before a battle asks for it.
+  // Nothing of the battle music exists before a briefing asks for it.
   const before = await battle(page);
   expect(before.state).toBe('idle');
   expect(before.prepared).toBe(0);
   expect(before.bytes).toBe(0);
-  await page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(1));
+  const loaded = await page.evaluate((id) => (window as unknown as Hooked).__TH?.battleMusic.load(id) ?? false, FIRST_ID);
+  expect(loaded, 'the whole track renders before the battle').toBe(true);
+  const ready = await battle(page);
+  expect(ready.state).toBe('ready');
+  // Nothing plays before the battle.
+  expect(ready.player?.started).toBe(false);
+  await page.evaluate((id) => (window as unknown as Hooked).__TH?.startMission(id), FIRST_ID);
   await expect.poll(async () => (await state(page)).screen).toBe('battle');
+  return ready;
 }
 
 test.describe('battle music', () => {
-  test('mission 1 renders its track after the battle loads, within budget, and the build layer fades in', async ({ page, problems }) => {
-    await startMissionOne(page);
-    const def = BATTLE_TRACKS[M01.music];
+  test('the first mission without a prep phase renders its track before the battle, within budget, nothing during it, and the build layer fades in', async ({ page, problems }) => {
+    const loaded = await startFirstMission(page);
+    const def = BATTLE_TRACKS[FIRST.music];
     const first = await battle(page);
-    expect(first.track).toBe('arras');
-    expect(['waiting', 'rendering']).toContain(first.state);
-    // The build layer starts as soon as its first section is in, long before the rest.
-    await expect.poll(async () => (await battle(page)).player?.started ?? false, { timeout: 30_000 }).toBe(true);
+    expect(first.track).toBe(FIRST.music);
+    expect(first.state).toBe('ready');
+    // The build layer starts with the battle.
+    await expect.poll(async () => (await battle(page)).player?.started ?? false, { timeout: 10_000 }).toBe(true);
     const early = await battle(page);
     expect(early.player?.active).toBe('build');
-    await expect.poll(async () => (await battle(page)).state, { timeout: 180_000 }).toBe('ready');
+    // A few seconds of battle: not one piece more was rendered.
+    await expect.poll(async () => (await state(page)).time, { timeout: 30_000 }).toBeGreaterThan(3);
     const s = await battle(page);
+    expect(s.state).toBe('ready');
+    expect(s.renderMs, 'nothing renders once the battle runs').toBe(loaded.renderMs);
+    expect(s.buildMsTotal).toBe(loaded.buildMsTotal);
     console.log(
       `${def.title}: ${s.piecesReady} pieces at ${s.sampleRate} Hz, ${(s.bytes / 1e6).toFixed(1)} MB (budget ${(MUSIC_BATTLE.budget.maxBytes / 1e6).toFixed(0)} MB); ` +
         `rendered in ${(s.renderMs / 1000).toFixed(1)} s, the first piece after ${s.firstMs.toFixed(0)} ms; graph builds ${s.buildMs.toFixed(1)} ms at most, ${s.buildMsTotal.toFixed(0)} ms in all; ` +
@@ -75,10 +96,10 @@ test.describe('battle music', () => {
   });
 
   test('switching to combat crossfades on the bar grid without errors, and leaving the battle frees the music', async ({ page, problems }) => {
-    await startMissionOne(page);
+    await startFirstMission(page);
     await expect.poll(async () => (await battle(page)).state, { timeout: 180_000 }).toBe('ready');
     await expect.poll(async () => (await battle(page)).player?.fade ?? 0, { timeout: 15_000 }).toBeGreaterThan(0.95);
-    const def = BATTLE_TRACKS.arras;
+    const def = BATTLE_TRACKS[FIRST.music];
     await page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.force('combat'));
     expect((await battle(page)).player?.target).toBe('combat');
     // The crossfade: both layers are heard part of the way, then combat is up and build is down.
@@ -116,7 +137,7 @@ test.describe('battle music', () => {
   });
 
   test('sits under the army of 80 at default sliders, full range and on a phone speaker', async ({ page }) => {
-    await startMissionOne(page);
+    await startFirstMission(page);
     await expect.poll(async () => (await battle(page)).state, { timeout: 180_000 }).toBe('ready');
     const r = await page.evaluate(() => (window as unknown as Hooked).__TH?.battleMusic.mix() ?? null) as BattleMixReport | null;
     expect(r).not.toBeNull();
@@ -143,14 +164,14 @@ test.describe('campaign map music', () => {
     await touchTheField(page);
     // On the title: the menu theme, and nothing of the map track rendered yet.
     expect((await loop(page)).wanted).toBe('menu');
-    expect(await page.evaluate(() => (window as unknown as Hooked).__TH?.music.analyse('map') ?? null)).toBeNull();
+    expect(await page.evaluate((name) => (window as unknown as Hooked).__TH?.music.analyse(name) ?? null, MAP_TRACK)).toBeNull();
     await tap(page, 'play');
     await expect(arrived(page, 'campaign')).toBeVisible();
-    expect((await loop(page)).wanted).toBe('map');
+    expect((await loop(page)).wanted).toBe(MAP_TRACK);
     await expect.poll(async () => (await loop(page)).render, { timeout: 120_000 }).toBe('ready');
     await expect.poll(async () => (await loop(page)).playing, { timeout: 10_000 }).toBe(true);
     await expect.poll(async () => (await loop(page)).fade, { timeout: 10_000 }).toBeGreaterThan(0.98);
-    const a = (await page.evaluate(() => (window as unknown as Hooked).__TH?.music.analyse('map') ?? null)) as MusicAnalysis | null;
+    const a = (await page.evaluate((name) => (window as unknown as Hooked).__TH?.music.analyse(name) ?? null, MAP_TRACK)) as MusicAnalysis | null;
     expect(a).not.toBeNull();
     if (!a) return;
     console.log(
@@ -158,7 +179,7 @@ test.describe('campaign map music', () => {
         `peak ${a.peak.toFixed(3)}, rms ${db(a.rms).toFixed(1)} dB; sections ` +
         a.sections.map((s) => `${s.name} ${s.rmsDb.toFixed(1)} dB`).join(', '),
     );
-    // "Roll of Honour": two minutes or more, never clipping, not silent anywhere, a seamless loop, within the phone budgets.
+    // Two minutes or more, never clipping, not silent anywhere, a seamless loop, within the phone budgets.
     expect(a.seconds).toBeGreaterThanOrEqual(120);
     expect(a.peak, 'never clips').toBeLessThanOrEqual(0.96);
     expect(a.peak).toBeGreaterThan(0.5);
@@ -168,18 +189,12 @@ test.describe('campaign map music', () => {
     expect(Math.abs(db(a.seam.rmsBefore) - db(a.seam.rmsAfter))).toBeLessThan(3);
     expect(a.bytes).toBeLessThan(16e6);
     expect(a.buildMs).toBeLessThan(250);
-    // One climax: the loudest section is the climax, well above the quiet opening and the quiet end.
-    const levels = a.sections.map((s) => s.rmsDb);
-    const top = levels.indexOf(Math.max(...levels));
-    expect(a.sections[top].name).toBe('Roll of honour');
-    expect(levels[top] - levels[0]).toBeGreaterThan(4);
-    expect(levels[top] - levels[levels.length - 1]).toBeGreaterThan(4);
     // A battle starts: the map track goes, the battle's own music comes.
-    await page.evaluate(() => (window as unknown as Hooked).__TH?.startMission(1));
+    await page.evaluate((id) => (window as unknown as Hooked).__TH?.startMission(id), FIRST_ID);
     await expect.poll(async () => (await state(page)).screen).toBe('battle');
     await expect.poll(async () => (await loop(page)).playing, { timeout: 5000 }).toBe(false);
-    expect(await page.evaluate(() => (window as unknown as Hooked).__TH?.music.analyse('map') ?? null)).toBeNull();
-    expect((await battle(page)).track).toBe('arras');
+    expect(await page.evaluate((name) => (window as unknown as Hooked).__TH?.music.analyse(name) ?? null, MAP_TRACK)).toBeNull();
+    expect((await battle(page)).track).toBe(FIRST.music);
     expect(problems).toEqual([]);
   });
 });

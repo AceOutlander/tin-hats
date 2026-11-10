@@ -392,7 +392,8 @@ describe('audio engine on a context', () => {
       const panners = ctx.nodes.filter((node) => node.kind === 'panner' && node.pan.events.length > 0);
       return panners[panners.length - 1].pan.value;
     };
-    const step = 1;
+    // Longer than a tank gun's boom (1.3 s since DECISIONS 424), so each shot finds the first voice free again.
+    const step = 2;
     audio.playAt('tankGun', 1000);
     expect(panOf()).toBeCloseTo(0, 6);
     ctx.currentTime += step;

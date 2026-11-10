@@ -2,7 +2,7 @@
  * The battle tracks and the campaign map track on the music preview page: render a battle track piece by piece as the
  * game does (timings, memory, peaks), play it with the game's own player, switch layers live to hear the crossfades,
  * fire the stings, and measure the army of 80 against every layer. ?battle=<track> renders and measures on load and
- * sets window.__battle for scripts.
+ * sets window.__battle for scripts; ?loop=<menu|map|stalingradMap> renders that looping track and sets window.__loop.
  */
 import { createAudio } from '../src/audio';
 import { MusicPlayer, renderTrack } from '../src/audio/music';
@@ -12,7 +12,7 @@ import { BattleMusicPlayer } from '../src/audio/music/battlePlayer';
 import { db, peakOf, rmsOf } from '../src/audio/music';
 import { findOfflineContext } from '../src/audio/render';
 import { createNoiseBank } from '../src/audio/synth';
-import { MUSIC, MUSIC_TRACKS } from '../src/data/music';
+import { MUSIC, MUSIC_TRACKS, type MusicTrackName } from '../src/data/music';
 import { MUSIC_BATTLE, MUSIC_LAYERS, type MusicLayer } from '../src/data/musicBattle';
 import { BATTLE_TRACKS, BATTLE_TRACK_NAMES, type BattleTrackName } from '../src/data/musicTracks';
 
@@ -199,6 +199,18 @@ async function main(): Promise<void> {
         `(graph ${track.buildMs.toFixed(0)} ms), peak before levelling ${track.rawPeak.toFixed(2)}.`;
     });
   });
+  const loopName = new URLSearchParams(window.location.search).get('loop') as MusicTrackName | null;
+  if (loopName && loopName in MUSIC_TRACKS) {
+    const Offline = findOfflineContext();
+    try {
+      if (!Offline) throw new Error('no OfflineAudioContext');
+      const t = await renderTrack(MUSIC_TRACKS[loopName], Offline);
+      Reflect.set(window, '__loop', { track: MUSIC_TRACKS[loopName].title, seconds: t.loopSeconds, bytes: t.bytes, renderMs: t.renderMs, buildMs: t.buildMs, rawPeak: t.rawPeak });
+    } catch (err) {
+      Reflect.set(window, '__loopError', String(err));
+    }
+    Reflect.set(window, '__loopReady', true);
+  }
   const auto = new URLSearchParams(window.location.search).get('battle') as BattleTrackName | null;
   if (auto && auto in BATTLE_TRACKS) {
     try {

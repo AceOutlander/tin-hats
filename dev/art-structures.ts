@@ -9,6 +9,7 @@ import {
   DAMAGE_STATES,
   FLAG_LAYOUT,
   HQ_LAYOUT,
+  KV2_TURRET,
   PILLBOX_LAYOUT,
   SUPPLY_LAYOUT,
   TANK_LAYOUT,
@@ -16,9 +17,11 @@ import {
   WIRE_LAYOUT,
   type DamageState,
 } from '../src/data/artLayout';
+import { FACTION_IDS } from '../src/data/factions';
 import type { FactionId } from '../src/data/schema';
 import { VIEW } from '../src/data/view';
 import { DECAL_KEYS, RUBBLE_KEYS, SUPPLY_KEYS, propSpecs } from '../src/art/props';
+import { truckKey, truckSpecs } from '../src/art/props/supplyLooks';
 import {
   FLAG_KEYS,
   TRENCH_KEYS,
@@ -33,8 +36,14 @@ import {
   tileSpan,
   wirePieceLayout,
 } from '../src/art/structures';
-import { AIR_KEYS, TANK_KEYS, TANK_LOOKS, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
+import { AIR_KEYS, KATYUSHA_LAUNCHER_KEY, KV2_KEYS, TANK_KEYS, TANK_LOOKS, VEHICLE_LOOKS, aircraftLookKey, createTankPose, layoutTank, vehicleSpecs, type TankState } from '../src/art/vehicles';
 import type { SpriteSpec } from '../src/art/types';
+import { buildingKey, buildingSpecs, coverPropSpecs, propKey, windowXs, type BuildingPiece } from '../src/art/structures/buildings';
+import { OBSTACLE_KEYS as OK, obstacleSpecs } from '../src/art/structures/obstacles';
+import { OBSTACLE_ART as OA } from '../src/data/obstacles';
+import { missionHqKey, missionHqSpecs } from '../src/art/structures/hqBuildings';
+import { BUILDING_LAYOUT, MISSION_HQ_STYLES } from '../src/data/looksBuilding';
+import type { BuildingLook, CoverPropLook } from '../src/data/schema';
 
 declare global {
   interface Window {
@@ -44,7 +53,7 @@ declare global {
 }
 
 type Ctx = CanvasRenderingContext2D;
-type Look = (typeof TANK_LOOKS)[number];
+type Look = (typeof VEHICLE_LOOKS)[number];
 
 const SCENE_W = 1200;
 const STAGE_H = 280;
@@ -94,14 +103,167 @@ function put(ctx: Ctx, key: string, x: number, y: number, rot = 0, flip = false,
 // Options
 // ---------------------------------------------------------------------------
 
-type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags';
+type SceneId = 'hq' | 'field' | 'tanks' | 'air' | 'flags' | 'soviet' | 'buildings' | 'obstacles';
 const SCENES: { id: SceneId; h: number }[] = [
   { id: 'hq', h: 560 },
   { id: 'field', h: 620 },
   { id: 'tanks', h: 560 },
   { id: 'air', h: 560 },
   { id: 'flags', h: 340 },
+  { id: 'soviet', h: 560 },
+  { id: 'buildings', h: 1840 },
+  { id: 'obstacles', h: 920 },
 ];
+
+/** The building types the buildings scene shows: look, width, slots per floor, floors. */
+const BUILDING_SHOW: [BuildingLook, number, number, number][] = [
+  ['casemate', 160, 6, 2],
+  ['church', 140, 5, 2],
+  ['izba', 130, 4, 1],
+  ['house', 150, 3, 2],
+  ['apartment', 220, 7, 4],
+  ['station', 200, 4, 2],
+  ['factoryHall', 210, 8, 2],
+  ['waterTank', 130, 6, 1],
+  ['hangar', 220, 6, 1],
+  ['sheds', 180, 5, 1],
+  ['apartment', 180, 3, 3],
+  ['mill', 200, 5, 3],
+  ['store', 240, 6, 3],
+];
+const PROP_SHOW: [CoverPropLook, number][] = [
+  ['wagons', 150],
+  ['ju52Wreck', 190],
+  ['he111Wreck', 170],
+];
+
+function buildingSpecList(): SpriteSpec[] {
+  const out: SpriteSpec[] = [];
+  const seen = new Set<string>();
+  for (const [look, w, n] of BUILDING_SHOW) {
+    const k = buildingKey(look, w, n, 'ground');
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(...buildingSpecs(look, w, n));
+  }
+  for (const [look, w] of PROP_SHOW) out.push(...coverPropSpecs(look, w));
+  for (const style of MISSION_HQ_STYLES) out.push(...missionHqSpecs(style, 'soviet'));
+  return out;
+}
+
+/** A building as the battle draws it: interior, facades (a man at some windows), roof; `standing` floors left. */
+function building(ctx: Ctx, look: BuildingLook, w: number, n: number, floors: number, x: number, gy: number, damaged: boolean, standing: number): void {
+  const L = BUILDING_LAYOUT;
+  const key = (p: BuildingPiece): string => buildingKey(look, w, n, p);
+  if (standing <= 0) {
+    put(ctx, key('rubbleBack'), x, gy);
+    figure(ctx, x - 10, gy + VIEW.trenchDepth * 1.6, 1, 1, 'stand');
+    put(ctx, key('rubbleFront'), x, gy);
+    return;
+  }
+  ctx.fillStyle = '#15130f';
+  ctx.fillRect(x - w / 2, gy - standing * L.floorH, w, standing * L.floorH);
+  const xs = windowXs(w, n);
+  for (let f = 0; f < standing; f++) {
+    for (let i = 0; i < xs.length; i++) if ((i + f) % 2 === 0) figure(ctx, x + xs[i], gy + L.occupantDy - f * L.floorH, 1, 1, 'stand');
+  }
+  for (let f = 0; f < standing; f++) put(ctx, key(f === 0 ? (damaged ? 'groundDamaged' : 'ground') : damaged ? 'upperDamaged' : 'upper'), x, gy - f * L.floorH);
+  put(ctx, key(standing < floors ? 'roofBroken' : 'roof'), x, gy - standing * L.floorH);
+}
+
+function buildingsScene(ctx: Ctx): void {
+  const rows = [300, 600, 900, 1200, 1500, 1800];
+  rows.forEach((gy, r) => stage(ctx, r === 0 ? 0 : rows[r - 1] + 1, gy + 20, gy));
+  let x = 60;
+  let row = 0;
+  for (const [look, w, n, floors] of BUILDING_SHOW) {
+    if (x + w > SCENE_W - 20) {
+      x = 60;
+      row++;
+    }
+    building(ctx, look, w, n, floors, x + w / 2, rows[row], false, floors);
+    label(ctx, `${look} (${floors} x ${n})`, x + w / 2, rows[row] + 16);
+    x += w + 40;
+  }
+  // Damage, a fallen floor, rubble.
+  row = 3;
+  building(ctx, 'apartment', 220, 7, 4, 150, rows[row], true, 4);
+  label(ctx, 'damaged', 150, rows[row] + 16);
+  building(ctx, 'apartment', 220, 7, 4, 420, rows[row], true, 2);
+  label(ctx, 'two floors fallen', 420, rows[row] + 16);
+  building(ctx, 'apartment', 220, 7, 4, 680, rows[row], true, 0);
+  label(ctx, 'rubble cover', 680, rows[row] + 16);
+  building(ctx, 'izba', 130, 4, 1, 900, rows[row], true, 1);
+  building(ctx, 'factoryHall', 210, 8, 2, 1080, rows[row], true, 1);
+  row = 4;
+  x = 100;
+  for (const [look, w] of PROP_SHOW) {
+    put(ctx, propKey(look, w, 'back'), x + w / 2, rows[row]);
+    figure(ctx, x + w / 2, rows[row] + VIEW.trenchDepth * 1.6, 1, 1, 'stand');
+    put(ctx, propKey(look, w, 'front'), x + w / 2, rows[row]);
+    label(ctx, look, x + w / 2, rows[row] + 16);
+    x += w + 40;
+  }
+  x = 220;
+  for (const style of MISSION_HQ_STYLES) {
+    put(ctx, missionHqKey(style, 'soviet', 'intact'), x, rows[5]);
+    label(ctx, `HQ ${style}`, x, rows[5] + 16);
+    x += 380;
+  }
+}
+
+/**
+ * Obstacles and water (FOUNDATIONS.md 4.4, 4.6, 4.8): tank traps and a road block with a man between their halves and
+ * their wrecks; a sandbag wall with a man behind it and a sandbagged front; a minefield's signs and mines; a girder
+ * bridge, its broken end and a pontoon bridge over the water; the ferry boat with its load.
+ */
+function obstaclesScene(ctx: Ctx): void {
+  const rows = [300, 620, 900];
+  rows.forEach((gy, r) => stage(ctx, r === 0 ? 0 : rows[r - 1] + 1, gy + 20, gy));
+  let gy = rows[0];
+  const piece = (back: string, front: string, x: number, man: boolean): void => {
+    put(ctx, back, x, gy);
+    if (man) figure(ctx, x + 6, gy + VIEW.rowDy[2], 1, 1, 'stand');
+    put(ctx, front, x, gy);
+  };
+  piece(OK.hedgehogBack, OK.hedgehogFront, 100, true);
+  piece(OK.hedgehogBack, OK.hedgehogFront, 100 + OA.piecePitch, false);
+  label(ctx, 'tank traps', 122, gy + 70);
+  put(ctx, OK.hedgehogDown, 260, gy);
+  label(ctx, 'tank traps, gone', 260, gy + 70);
+  piece(OK.roadBlockBack, OK.roadBlockFront, 400, true);
+  label(ctx, 'road block', 400, gy + 70);
+  put(ctx, OK.roadBlockDown, 520, gy);
+  label(ctx, 'road block, gone', 520, gy + 70);
+  put(ctx, OK.sandbagBack, 640, gy);
+  figure(ctx, 672, VIEW.trenchFeetY - VIEW.groundY + gy, 1, 1, 'stand');
+  put(ctx, OK.sandbagFront, 640, gy);
+  label(ctx, 'sandbag wall', 672, gy + 70);
+  put(ctx, OK.sandbagLow, 780, gy + 44);
+  put(ctx, OK.sandbagLow, 780 + OA.lowTileW, gy + 44);
+  label(ctx, 'sandbagged front', 840, gy + 70);
+  put(ctx, OK.mineSign, 960, gy - 34);
+  for (let i = 0; i < 9; i++) put(ctx, OK.mine, 980 + i * 21, gy + VIEW.rowDy[i % 4]);
+  put(ctx, OK.mineSign, 1170, gy - 34);
+  label(ctx, 'minefield (seen)', 1060, gy + 70);
+  gy = rows[1];
+  for (let i = 0; i < 4; i++) put(ctx, OK.deck, 60 + i * OA.deckTileW, gy);
+  figure(ctx, 200, gy + VIEW.rowDy[1], 1, 1, 'stand');
+  for (let i = 0; i < 4; i++) put(ctx, OK.deckNear, 60 + i * OA.deckTileW, gy);
+  label(ctx, 'bridge', 250, gy - 110);
+  put(ctx, OK.deckBroken, 520, gy);
+  put(ctx, OK.deckBroken, 700, gy, 0, true);
+  label(ctx, 'blown', 610, gy - 110);
+  for (let i = 0; i < 3; i++) put(ctx, OK.pontoonDeck, 820 + i * OA.deckTileW, gy);
+  for (let i = 0; i < 3; i++) put(ctx, OK.pontoonNear, 820 + i * OA.deckTileW, gy);
+  label(ctx, 'pontoon', 960, gy - 110);
+  gy = rows[2];
+  put(ctx, OK.boat, 200, gy + OA.boatDy);
+  put(ctx, OK.boatLoad, 200, gy + OA.boatDy);
+  label(ctx, 'ferry, loaded', 200, gy + 70);
+  put(ctx, OK.boat, 500, gy + OA.boatDy, 0, true);
+  label(ctx, 'ferry, empty', 500, gy + 70);
+}
 
 const params = new URLSearchParams(location.search);
 const num = (name: string, fallback: number): number => {
@@ -481,7 +643,14 @@ function tanksScene(ctx: Ctx, t: number): void {
     { gy: 225, facing: 1, speed: 34 },
     { gy: STAGE_H + 225, facing: -1, speed: 0 },
   ];
-  const xs: Record<Look, number> = { churchill: 215, panzer4: 565, kingTiger: 905 };
+  // ?soviet=1 shows the Soviet KV-1, T-34 and T-60; ?soviet=2 the Soviet carrier beside the British one and the T-60.
+  // ?looks=t26,bt7,kv2 shows any three looks (the era looks of src/data/eras.ts among them).
+  const sov = params.get('soviet');
+  const custom = (params.get('looks') ?? '').split(',').filter((l): l is Look => (VEHICLE_LOOKS as readonly string[]).includes(l));
+  const xs: Partial<Record<Look, number>> =
+    custom.length > 0
+      ? Object.fromEntries(custom.slice(0, 3).map((l, i) => [l, 215 + i * 350]))
+      : sov === '1' ? { kv1: 215, t34: 565, t60: 905 } : sov === '2' ? { carrierSoviet: 215, carrier: 565, t60: 905 } : { churchill: 215, panzer4: 565, kingTiger: 905 };
   rows.forEach((row, r) => {
     stage(ctx, r * STAGE_H, (r + 1) * STAGE_H, row.gy);
     // Ground marks sliding backwards so the track speed can be judged against the ground.
@@ -490,8 +659,10 @@ function tanksScene(ctx: Ctx, t: number): void {
       const x = (((i * 61 - row.speed * t * row.facing) % SCENE_W) + SCENE_W) % SCENE_W;
       ctx.fillRect(x, row.gy + 40 + (i % 3) * 9, 8, 2);
     }
-    for (const look of TANK_LOOKS) {
-      const x = row.facing === 1 ? xs[look] : SCENE_W - xs[look] + 40;
+    for (const look of VEHICLE_LOOKS) {
+      const at = xs[look];
+      if (at === undefined) continue;
+      const x = row.facing === 1 ? at : SCENE_W - at + 40;
       drawTank(ctx, { look, x, gy: row.gy, facing: row.facing, speed: row.speed, firePhase: look.length * 0.37 }, t);
       rowFigure(ctx, x + row.facing * (TANK_LAYOUT[look].length / 2 + 26), row.gy, 3, false, -row.facing, 'stand');
       label(ctx, look + (row.facing === -1 ? ' (mirrored)' : ''), x, row.gy + 48);
@@ -536,21 +707,63 @@ function airScene(ctx: Ctx, t: number): void {
 }
 
 // ---------------------------------------------------------------------------
-// Scene: flags at 4x
+// Scene: the Red Army's extra vehicles (the air strike planes, the KV-2, the trucks and the Katyusha launcher)
+// ---------------------------------------------------------------------------
+
+function sovietScene(ctx: Ctx): void {
+  const ga = 225;
+  stage(ctx, 0, STAGE_H, ga);
+  put(ctx, AIR_KEYS.plane, 160, 90);
+  label(ctx, 'air strike: generic', 160, 150);
+  put(ctx, AIR_KEYS.il2, 450, 90);
+  label(ctx, 'air strike: Il-2 (soviet)', 450, 150);
+  put(ctx, aircraftLookKey('i16'), 655, 80);
+  label(ctx, 'fighter, 1941: I-16', 655, 140);
+  // The KV-2: the KV-1's track, wheels and hull under the KV-2 turret and howitzer, standing.
+  const x = 860;
+  const L = TANK_LAYOUT.kv1;
+  const keys = TANK_KEYS.kv1;
+  layoutTank({ look: 'kv1', distance: 0, turretAim: 0, recoil: 0, hullRock: 0 }, pose);
+  ctx.save();
+  ctx.translate(x, ga);
+  put(ctx, keys.track[0], pose.track.x, pose.track.y);
+  for (let i = 0; i < pose.wheelCount; i++) put(ctx, keys.wheels[i], pose.wheels[i].x, pose.wheels[i].y);
+  put(ctx, keys.hull, pose.hull.x, pose.hull.y);
+  put(ctx, KV2_KEYS.barrel, L.turretRing.x + KV2_TURRET.trunnion.x, L.turretRing.y + KV2_TURRET.trunnion.y);
+  put(ctx, KV2_KEYS.turret, L.turretRing.x, L.turretRing.y);
+  ctx.restore();
+  rowFigure(ctx, x + L.length / 2 + 30, ga, 3, false, -1, 'stand');
+  label(ctx, 'KV-2 (1941, registered)', x, ga + 48);
+
+  const gb = STAGE_H + 225;
+  stage(ctx, STAGE_H, STAGE_H * 2, gb);
+  FACTION_IDS.forEach((f, i) => {
+    put(ctx, truckKey(f, 'loaded'), 110 + i * 170, gb);
+    label(ctx, ` truck`, 110 + i * 170, gb + 30);
+  });
+  put(ctx, truckKey('soviet', 'wreck'), 620, gb);
+  label(ctx, 'soviet wreck', 620, gb + 30);
+  put(ctx, KATYUSHA_LAUNCHER_KEY, 880, gb);
+  rowFigure(ctx, 970, gb, 3, false, -1, 'stand');
+  label(ctx, 'BM-13 Katyusha (ZiS-6)', 880, gb + 30);
+}
+
+// ---------------------------------------------------------------------------
+// Scene: flags at 3x
 // ---------------------------------------------------------------------------
 
 function flagsScene(ctx: Ctx, t: number): void {
   stage(ctx, 0, 340, 300);
-  const k = 4;
-  const keys = [FLAG_KEYS.unionJack, FLAG_KEYS.balkenkreuz];
+  const k = 3;
+  const keys = [FLAG_KEYS.unionJack, FLAG_KEYS.balkenkreuz, FLAG_KEYS.sovietRed];
   keys.forEach((key, i) => {
-    const x = 40 + i * 290;
+    const x = 20 + i * 190;
     const r = sprite(key);
     ctx.drawImage(r.canvas, x, 20, FLAG_LAYOUT.w * k, FLAG_LAYOUT.h * k);
     waveFlag(ctx, key, x + 600, 20, t, k);
   });
-  label(ctx, 'flat (4x)', 160, 190);
-  label(ctx, 'waving, 12 strips (4x)', 760, 190);
+  label(ctx, 'flat (3x)', 300, 150);
+  label(ctx, 'waving, 12 strips (3x)', 900, 150);
   // Actual size, on poles.
   keys.forEach((key, i) => {
     const x = 120 + i * 120;
@@ -601,6 +814,15 @@ function render(t: number): void {
     case 'flags':
       flagsScene(ctx, t);
       break;
+    case 'soviet':
+      sovietScene(ctx);
+      break;
+    case 'buildings':
+      buildingsScene(ctx);
+      break;
+    case 'obstacles':
+      obstaclesScene(ctx);
+      break;
   }
 }
 
@@ -620,7 +842,14 @@ function buildNav(): void {
 }
 
 function boot(): void {
-  const specs = [...structureSpecs(), ...vehicleSpecs(), ...propSpecs()];
+  const specs = [
+    ...structureSpecs(),
+    ...vehicleSpecs(),
+    ...propSpecs(),
+    ...FACTION_IDS.flatMap((f) => truckSpecs(f)),
+    ...buildingSpecList(),
+    ...obstacleSpecs(),
+  ];
   for (const spec of specs) rasters.set(spec.key, rasterise(spec));
   window.__stats = { sprites: specs.length };
   buildNav();

@@ -91,6 +91,9 @@ export const FX_KEYS = {
     rocket: 'fx/proj/rocket',
     shell: 'fx/proj/shell',
     bomb: 'fx/proj/bomb',
+    /** The Soviet F-1 grenade and the Katyusha's M-13 rocket. */
+    f1Grenade: 'fx/proj/f1Grenade',
+    katyusha: 'fx/proj/katyusha',
   },
   rain: {
     far: 'fx/rain/far',
@@ -120,11 +123,13 @@ export const FX_TRACERS: Record<TracerLook, { sprite: string; speed: number; alp
 
 /** Projectile sprite for each WeaponDef.projectileLook; grenades differ per faction. */
 export const FX_PROJECTILE_SPRITE: Record<ProjectileLook, Record<FactionId, string>> = {
-  grenade: { british: FX_KEYS.projectile.millsBomb, german: FX_KEYS.projectile.stickGrenade },
-  mortar: { british: FX_KEYS.projectile.mortar, german: FX_KEYS.projectile.mortar },
-  rocket: { british: FX_KEYS.projectile.rocket, german: FX_KEYS.projectile.rocket },
-  shell: { british: FX_KEYS.projectile.shell, german: FX_KEYS.projectile.shell },
-  bomb: { british: FX_KEYS.projectile.bomb, german: FX_KEYS.projectile.bomb },
+  grenade: { british: FX_KEYS.projectile.millsBomb, german: FX_KEYS.projectile.stickGrenade, soviet: FX_KEYS.projectile.f1Grenade },
+  mortar: { british: FX_KEYS.projectile.mortar, german: FX_KEYS.projectile.mortar, soviet: FX_KEYS.projectile.mortar },
+  rocket: { british: FX_KEYS.projectile.rocket, german: FX_KEYS.projectile.rocket, soviet: FX_KEYS.projectile.rocket },
+  shell: { british: FX_KEYS.projectile.shell, german: FX_KEYS.projectile.shell, soviet: FX_KEYS.projectile.shell },
+  bomb: { british: FX_KEYS.projectile.bomb, german: FX_KEYS.projectile.bomb, soviet: FX_KEYS.projectile.bomb },
+  // Only the Katyusha salvo fires these (the Soviet signature call-in), so every nation's row is the M-13.
+  katyusha: { british: FX_KEYS.projectile.katyusha, german: FX_KEYS.projectile.katyusha, soviet: FX_KEYS.projectile.katyusha },
 };
 
 /* ------------------------------------------------------------------ */
@@ -321,6 +326,19 @@ export const FX_PRESETS = {
     ],
   },
 
+  /**
+   * The Katyusha's M-13 in flight: a thick, long-lived white-grey streak with a hot glow at the motor, so a salvo of
+   * sixteen leaves a sky full of trails. dir = opposite to its flight.
+   */
+  katyushaTrail: {
+    interval: 0.022,
+    emitters: [
+      { sprites: S.smokeLight, layer: 'effects', count: [1, 1], life: [1.2, 1.9], aim: 'dir', spread: 0.35, speed: [6, 26], gravity: -6, drag: 1.6, wind: 0.9, scale: [0.2, 0.28], grow: 3.2, growEase: 1.6, alpha: 0.62, fadeOut: 0.5, rotation: 'random', spin: [0.2, 0.8] },
+      { sprites: S.smoke, layer: 'effects', count: [0, 1], life: [0.5, 0.8], aim: 'dir', spread: 0.6, speed: [10, 36], gravity: -10, drag: 2, wind: 0.6, scale: [0.12, 0.18], grow: 2.4, growEase: 2, alpha: 0.45, fadeOut: 0.3, rotation: 'random', spin: [0.3, 1.2] },
+      { sprites: S.glow, layer: 'glow', count: [1, 1], life: [0.06, 0.1], aim: 'dir', spread: 0, speed: [0, 0], forward: [4, 4], scale: [0.32, 0.42], alpha: 0.6, fadeOut: 0.4 },
+    ],
+  },
+
   /** Smoke trail behind a rocket. dir = opposite to its flight. */
   rocketTrail: {
     interval: 0.03,
@@ -380,6 +398,21 @@ export const FX_PRESETS = {
       { sprites: S.smokeDark, layer: 'effects', count: [4, 5], delay: [0.04, 0.3], life: [2, 3], aim: 'up', spread: 0.6, speed: [60, 150], jitterX: 16, gravity: -34, drag: 1.2, wind: 1, scale: [0.7, 1], grow: 2.2, growEase: 2, alpha: 0.5, fadeIn: 0.08, fadeOut: 0.35, rotation: 'random', spin: [0.15, 0.5] },
       { sprites: S.smoke, layer: 'effects', count: [10, 14], delay: [0.06, 0.8], life: [2.2, 3.6], aim: 'up', spread: 0.8, speed: [50, 170], jitterX: 26, gravity: -32, drag: 1.2, wind: 1, scale: [0.75, 1.2], grow: 2.2, growEase: 2, alpha: 0.58, fadeIn: 0.08, fadeOut: 0.35, rotation: 'random', spin: [0.1, 0.5] },
       { sprites: S.dust, layer: 'effects', count: [8, 10], life: [0.8, 1.3], aim: 'sides', spread: 0.3, speed: [180, 360], gravity: -6, drag: 3.6, wind: 0.5, scale: [0.6, 0.9], grow: 2.4, growEase: 2, alpha: 0.42, fadeOut: 0.3, rotation: 'random', spin: [0.2, 0.7] },
+    ],
+  },
+
+  /** A tank shell's impact (DECISIONS 424): a big, low cloud of dust rolling out both ways and hanging in the air. */
+  shellDust: {
+    emitters: [
+      { sprites: S.dust, layer: 'effects', count: [9, 12], life: [1.6, 2.6], aim: 'sides', spread: 0.25, speed: [160, 380], jitterX: 18, gravity: -10, drag: 2.4, wind: 0.8, scale: [0.8, 1.2], grow: 2.6, growEase: 2, alpha: 0.5, fadeIn: 0.04, fadeOut: 0.4, rotation: 'random', spin: [0.1, 0.5] },
+      { sprites: S.dust, layer: 'effects', count: [6, 8], delay: [0.05, 0.3], life: [2.4, 3.6], aim: 'up', spread: 1.1, speed: [40, 120], jitterX: 40, gravity: -14, drag: 1.4, wind: 1, scale: [0.9, 1.3], grow: 2.4, growEase: 2, alpha: 0.42, fadeIn: 0.1, fadeOut: 0.45, rotation: 'random', spin: [0.05, 0.3] },
+    ],
+  },
+
+  /** Smoke curling from a tank's barrel after a shot: the tell that its gun is reloading. dir = the barrel direction. */
+  barrelSmoke: {
+    emitters: [
+      { sprites: S.smoke, layer: 'effects', count: [3, 4], delay: [0.15, 1.2], life: [1.4, 2.2], aim: 'up', spread: 0.4, speed: [12, 30], forward: [2, 6], gravity: -26, drag: 1.6, wind: 1.2, scale: [0.12, 0.18], grow: 2.6, growEase: 2, alpha: 0.4, fadeIn: 0.1, fadeOut: 0.5, rotation: 'random', spin: [0.1, 0.6] },
     ],
   },
 

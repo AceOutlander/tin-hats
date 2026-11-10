@@ -17,6 +17,11 @@ export type Hooked = { __TH?: DebugApi };
 
 export const SHOT_DIR = resolve('docs', 'screenshots');
 export const SAVE_KEY = 'tinhats.save';
+/**
+ * How long a start button (Begin, Retry, Basic Training) may take to reach the battle: it waits for the mission's
+ * battle music to be rendered (src/ui/shell/missionLoad.ts), about 5 to 11 s from the tap in headless Chromium.
+ */
+export const BATTLE_LOAD_MS = 90_000;
 
 /** A test whose page must stay clean: any console error, uncaught exception, failed request or HTTP error fails it. */
 export const test = base.extend<{ problems: string[] }>({
@@ -96,8 +101,9 @@ export const memorySave = (page: Page) => page.evaluate(() => ((window as unknow
 
 /** The result text the app shows for how a battle ended. */
 export function reasonText(end: DebugState): string {
-  const label = MISSIONS.find((m) => m.id === end.missionId)?.timer?.label ?? null;
-  return describeEnd(end.endReason, end.winner === 0, label);
+  // The director's clock label and its own end text (a lose condition such as a breakthrough), as the result screen uses.
+  const label = end.timerLabel ?? MISSIONS.find((m) => m.id === end.missionId)?.timer?.label ?? null;
+  return describeEnd(end.endReason, end.winner === 0, label, end.endText);
 }
 
 /** The screen that is on show (a screen that is leaving stays in the page for its fade, marked `inert`). */
@@ -271,13 +277,14 @@ export async function playThroughMenus(page: Page, missionId: number, shots: boo
     await shot(page, 'briefing');
   }
   await tap(page, 'begin');
-  await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
 }
 
 /**
- * Play at a high time scale until the battle ends. `win` = a keen player: keeps buying riflemen with granted
- * supplies and sends the army forward. Otherwise the player does nothing.
+ * Play at a high time scale until the battle ends. `win` = a keen player: keeps buying riflemen (and machine
+ * gunners where the mission has them) with granted supplies and sends the army forward; in a survival mission (no
+ * enemy HQ, like Brest) it holds the line instead. Otherwise the player does nothing.
  */
 export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
   await setTimeScale(page, win ? 40 : APP.maxTimeScale);
@@ -287,7 +294,10 @@ export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
     if (win) {
       await grantSupplies(page, 800);
       for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
-      if (s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
+      await tapIfThere(page, 'train-lmg');
+      const survival = s.hq[1] === null;
+      if (survival && s.order !== 'hold') await tapIfThere(page, 'order-hold');
+      if (!survival && s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
     }
     await page.waitForTimeout(250);
     s = await state(page);

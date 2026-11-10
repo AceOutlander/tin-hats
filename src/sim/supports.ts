@@ -1,16 +1,30 @@
 /**
- * Support call-ins: artillery barrages, smoke screens, air strikes and aircraft (bomber, fighter,
- * recon), and the anti-aircraft fire against them. Each side has its own
+ * Support call-ins: artillery barrages, smoke screens, air strikes, aircraft (bomber, fighter,
+ * recon) and the Soviet Katyusha salvo (a scatter barrage like artillery, much wider and longer to
+ * reload), and the anti-aircraft fire against them. Each side has its own
  * cooldown per kind. A call (validated in commands.ts) starts the cooldown and a strike: the first
- * round leaves SUPPORTS[kind].delay seconds later and the rest follow evenly over `duration`.
+ * round leaves SUPPORTS[kind].delay seconds later and the rest follow evenly over `duration`. Off-map fire (artillery,
+ * the Katyusha: OFF_MAP) lands its first round at `delay` instead, each round falling steeply for its fall time.
  * Rounds are ordinary projectiles (splash through the deferred damage queue, friendly units
  * unharmed); smoke is an ordinary cloud.
  */
 import { CONFIG } from '../data/config';
-import type { SupportDef, SupportKind } from '../data/schema';
-import { ANTI_AIR, PLANES, SUPPORTS, SUPPORT_COST, SUPPORT_KINDS, TOP_ATTACK_SUPPORTS, type PlaneDef } from '../data/supports';
+import type { Side, SupportDef, SupportKind } from '../data/schema';
+import {
+  ANTI_AIR,
+  PLANES,
+  SUPPORTS,
+  SUPPORT_KINDS,
+  TOP_ATTACK_SUPPORTS,
+  UNLIMITED_SUPPORT_COST,
+  offMapFire,
+  type OffMapFire,
+  type PlaneDef,
+} from '../data/supports';
 import { LAUNCH, launch, spawnSmoke } from './projectiles';
+import { airGrounded } from './sky';
 import { KIND_ANTI_AIR, weaponIndex } from './tables';
+import { spotMinefields } from './mines';
 import type { UnitState } from './types';
 import type { World } from './world';
 
@@ -29,17 +43,28 @@ export const PLANE_BROKE_OFF = 2;
 const PLANE_DEFS: readonly (PlaneDef | null)[] = SUPPORT_KINDS.map((kind) => PLANES[kind] ?? null);
 /** Per support index: 1 if its rounds come down from above (aircraft, and the Typhoon air strike). */
 const TOP_ATTACK: Uint8Array = Uint8Array.from(SUPPORT_KINDS, (kind) => (TOP_ATTACK_SUPPORTS.includes(kind) ? 1 : 0));
+/**
+ * Per support index: its off-map fire (artillery, the Katyusha), or null. Such a strike's `delay` counts to the first
+ * landing; each round is fired its fall time earlier, unseen, and comes down steeply from above the screen.
+ */
+const OFF_MAP_FIRE: readonly (OffMapFire | null)[] = SUPPORT_DEFS.map((def, k) => (PLANE_DEFS[k] === null && def.pattern === 'scatter' && def.rounds > 0 ? offMapFire(def.weapon) : null));
+/** Per support index: seconds from the call to the first round leaving (its delay less any off-map fall). */
+const FIRST_ROUND: Float64Array = Float64Array.from(SUPPORT_DEFS, (def, k) => Math.max(0, def.delay - (OFF_MAP_FIRE[k]?.fall ?? 0)));
 
-/** True if the side may call this support right now (offered by the mission, off cooldown, battle running). */
+/** True if the side may call this support right now (offered by the mission, a charge left, off cooldown, battle running). */
 export function canCallSupport(w: World, si: number, kind: SupportKind): boolean {
   const side = w.state.sides[si];
   return (
     !w.state.over &&
     side.supportAvailable[kind] === true &&
     side.supportCooldown[kind] <= 0 &&
-    side.supplies >= SUPPORT_COST[kind] &&
+    // A charge left (the player's Shop charges, no money: owner, 2026-11-09); a side without charges (-1, the AI)
+    // pays its own rule's price instead.
+    (side.supportCharges[kind] > 0 || (side.supportCharges[kind] < 0 && side.supplies >= UNLIMITED_SUPPORT_COST[kind])) &&
     // One aircraft of a kind per side at a time (its run may outlast a short cooldown).
-    w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE
+    w.planeState[si * SUPPORT_COUNT + SUPPORT_KINDS.indexOf(kind)] === PLANE_NONE &&
+    // No aircraft in fog or a blizzard, nor at night but for the nation's night flyers (FOUNDATIONS.md 4.7).
+    airGrounded(w.state, si as Side, kind) === null
   );
 }
 
@@ -158,6 +183,8 @@ function reveal(w: World, si: number, k: number): void {
   e.x = w.strikeX[si * SUPPORT_COUNT + k];
   e.value = def.spread * w.mods[si].supportReach[k];
   e.x2 = def.duration * w.mods[si].supportTime[k];
+  // The observer marks the minefields he flies over (FOUNDATIONS.md 4.6).
+  if (w.state.minefields.length > 0) spotMinefields(w, si, e.x, e.value);
 }
 
 /** Advance aircraft k of side si to `t` seconds after its call: enter, drop its rounds or look, leave. */
@@ -200,16 +227,20 @@ function fireRound(w: World, si: number, k: number, n: number): void {
   }
   if (land < 0) land = 0;
   else if (land > s.length) land = s.length;
-  let from = land - dir * def.launchOffset;
+  // Off-map fire comes down steeply from above, a little short of where it lands on the firer's side; anything else
+  // (an aircraft's rounds) leaves from launchOffset behind.
+  const off = OFF_MAP_FIRE[k];
+  let from = land - dir * (off !== null ? off.slant : def.launchOffset);
   if (from < 0) from = 0;
   else if (from > s.length) from = s.length;
   LAUNCH[0] = from;
   LAUNCH[1] = land;
   LAUNCH[2] = 1;
-  LAUNCH[3] = 0;
+  LAUNCH[3] = off !== null ? off.fall : 0;
   LAUNCH[4] = def.hqDamageMul;
   LAUNCH[5] = def.vehicleDamageMul;
   LAUNCH[6] = TOP_ATTACK[k];
+  LAUNCH[7] = off !== null ? 1 : 0;
   launch(w, si, SUPPORT_WEAPON[k], n % CONFIG.rows, -1, null, 'none');
 }
 
@@ -226,6 +257,7 @@ export function updateSupports(w: World): void {
     if (cd.bomber > 0) cd.bomber = cd.bomber > dt ? cd.bomber - dt : 0;
     if (cd.fighter > 0) cd.fighter = cd.fighter > dt ? cd.fighter - dt : 0;
     if (cd.recon > 0) cd.recon = cd.recon > dt ? cd.recon - dt : 0;
+    if (cd.katyusha > 0) cd.katyusha = cd.katyusha > dt ? cd.katyusha - dt : 0;
     for (let k = 0; k < SUPPORT_COUNT; k++) {
       const slot = si * SUPPORT_COUNT + k;
       if (w.strikeTime[slot] < 0) continue;
@@ -237,7 +269,8 @@ export function updateSupports(w: World): void {
         updatePlane(w, si, k, t);
         continue;
       }
-      if (t < def.delay - 1e-9) continue;
+      const first = FIRST_ROUND[k];
+      if (t < first - 1e-9) continue;
 
       if (def.rounds <= 0) {
         // Smoke: one cloud at the target.
@@ -246,7 +279,7 @@ export function updateSupports(w: World): void {
         continue;
       }
       const interval = def.rounds > 1 ? def.duration / (def.rounds - 1) : 0;
-      while (w.strikeFired[slot] < def.rounds && t >= def.delay + w.strikeFired[slot] * interval - 1e-9) {
+      while (w.strikeFired[slot] < def.rounds && t >= first + w.strikeFired[slot] * interval - 1e-9) {
         if (SUPPORT_WEAPON[k] >= 0) fireRound(w, si, k, w.strikeFired[slot]);
         w.strikeFired[slot]++;
       }

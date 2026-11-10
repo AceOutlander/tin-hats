@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/data/config';
 import { DIFFICULTIES } from '../../src/data/difficulty';
 import { getMission, MISSIONS } from '../../src/data/missions';
+import { FIELD } from './fixtures';
 import type { MissionDef, UnitKind } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import {
@@ -25,7 +26,8 @@ import {
   unitsOf,
 } from './sim-helpers';
 
-const MISSION_1 = getMission(1) as MissionDef;
+/** The test field (./fixtures.ts): the plain battle these engine tests were written on. */
+const MISSION_1: MissionDef = FIELD;
 const KINDS = Object.keys(UNITS) as UnitKind[];
 
 function runChecked(b: Battle, seconds: number): void {
@@ -251,7 +253,7 @@ describe('side symmetry', () => {
   });
 });
 
-describe('mission 1 and the commanders', () => {
+describe('the test field and the commanders', () => {
   it('is won by the reasonable-player bot on Normal in three to five minutes', () => {
     const times: number[] = [];
     for (let seed = 1; seed <= 12; seed++) {
@@ -289,8 +291,9 @@ describe('mission 1 and the commanders', () => {
     expect(b.state.sides[0].supplies).toBeGreaterThan(MISSION_1.start[0].supplies);
   });
 
-  it('fields exactly the units and forces the briefing promises', () => {
-    expect(MISSIONS).toContain(MISSION_1);
+  it('fields exactly the units and forces its data lists', () => {
+    // A fixture, not a campaign mission.
+    expect(MISSIONS).not.toContain(MISSION_1);
     expect(MISSION_1.units[0]).toEqual(['sapper', 'rifle']);
     expect(MISSION_1.units[1]).toEqual(['sapper', 'rifle']);
     expect(MISSION_1.trenches).toHaveLength(0);
@@ -303,7 +306,7 @@ describe('mission 1 and the commanders', () => {
 });
 
 describe('scripted events', () => {
-  it('fires mission 1 hints at their times and the HQ warning once', () => {
+  it('fires the test field hints at their times and the HQ warning once', () => {
     const b = makeBattle({ mission: MISSION_1 });
     const hints = collect(b, 80, 'hint');
     const timed = MISSION_1.events.filter((e) => e.type === 'hint' && 'at' in e.when);

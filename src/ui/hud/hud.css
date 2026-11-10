@@ -404,6 +404,28 @@
   animation: th-pulse 0.8s ease-in-out infinite;
 }
 
+/* The mission director's phase line (FOUNDATIONS.md 3.4): a smaller plate under the objective, only in a mission of
+   several phases. One line; a long objective is cut with an ellipsis rather than pushing the plate wider. */
+.th-obj-phase {
+  display: none;
+  max-width: min(100%, 46vw);
+  padding: 2px 10px 3px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--th-brass);
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-center.has-phase .th-obj-phase {
+  display: block;
+}
+
 .th-target {
   display: none;
   align-items: stretch;
@@ -839,6 +861,34 @@
   visibility: hidden;
 }
 
+/* The charges left on a call-in (the Shop's and those lent), in the top-right corner; "Out" when none are left. */
+.th-sbtn-count {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: calc(var(--sbtn) * 0.22);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--th-paper);
+  pointer-events: none;
+}
+.th-sbtn-count:empty {
+  display: none;
+}
+.th-sbtn.is-out .th-sbtn-sec {
+  font-size: calc(var(--sbtn) * 0.26);
+  text-transform: uppercase;
+  color: var(--th-paper-dim);
+}
+
+/* Grounded by the weather or the night: a short word in place of the clock. */
+.th-sbtn.is-grounded .th-sbtn-sec {
+  font-size: calc(var(--sbtn) * 0.26);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--th-paper-dim);
+}
+
 .th-sbtn:not(.is-ready) .th-sbtn-name {
   color: var(--th-paper-dim);
 }
@@ -955,11 +1005,123 @@
   opacity: 1;
 }
 
-/* Buttons give up a few pixels (never below 54) before the bar starts to scroll. */
+/*
+ * "Deploy at" (FOUNDATIONS.md 4.5): the training bar's first button, outside its scrolling part, so nothing of the
+ * battlefield is hidden (owner, 2026-11-09). A narrow column: the caption, the place on two short lines at most, and
+ * a "Front" mark while it follows the front.
+ */
+.th-trainwrap.has-deploy {
+  display: flex;
+  --dep-w: calc(var(--tbtn-w) + 12px);
+}
+
+.th-trainwrap.has-deploy .th-train {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-left: 0;
+}
+
+.th-trainwrap.has-deploy .th-more-l {
+  left: calc(var(--dep-w) + 7px);
+}
+
+.th-deploy {
+  flex: none;
+  width: var(--dep-w);
+  min-width: 48px;
+  height: var(--tbtn-h);
+  margin: 3px;
+  padding: 3px 2px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 5px;
+  overflow: hidden;
+  color: var(--th-brass);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.th-deploy-cap {
+  flex: none;
+  opacity: 0.8;
+}
+
+.th-deploy-text {
+  flex: none;
+  max-width: 100%;
+  color: var(--th-paper);
+  /* A long word (Perelazovsky) is set a little smaller (--dep-fit, from the HUD) rather than broken or cut. */
+  font-size: calc(var(--fs-xs) * var(--dep-fit, 1));
+  letter-spacing: 0;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.th-deploy-front {
+  display: none;
+  flex: none;
+  opacity: 0.8;
+}
+
+.th-deploy.is-front .th-deploy-front {
+  display: block;
+}
+
+.th-deploy[hidden] {
+  display: none;
+}
+
+.th-deploy.is-closed .th-deploy-text {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* "Clear" (FOUNDATIONS.md 4.6 and 4.8): a small tab on the training bar's top edge, at its right end. */
+.th-clear {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 3px);
+  max-width: calc(100% - 12px);
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  color: var(--th-brass);
+  font-size: var(--fs-s);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+.th-clear[hidden] {
+  display: none;
+}
+
+.th-clear.is-busy {
+  opacity: 0.6;
+}
+
+/*
+ * Buttons give up a few pixels before the bar starts to scroll, never below a width that grows with the name line's
+ * font (both follow the screen height), so every unit name fits at every phone size (tests/e2e/hud-labels.spec.ts).
+ */
 .th-tbtn {
   flex: 0 1 auto;
   width: var(--tbtn-w);
-  min-width: 54px;
+  min-width: clamp(54px, 15.5vh, 76px);
   height: var(--tbtn-h);
   padding: 2px 2px 3px;
   flex-direction: column;
@@ -1548,6 +1710,43 @@
   color: var(--th-brass);
 }
 
+/* The side objectives on the pause screen: ticked when earned, struck through when failed. */
+.th-pause-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-s);
+  letter-spacing: 0.05em;
+}
+
+.th-pause-objectives:empty {
+  display: none;
+}
+
+.th-pause-objectives-title {
+  color: var(--th-brass);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: var(--fs-xs);
+}
+
+.th-pause-objective::before {
+  content: '\25A1\00A0';
+}
+
+.th-pause-objective.is-done {
+  color: var(--th-good);
+}
+
+.th-pause-objective.is-done::before {
+  content: '\2713\00A0';
+}
+
+.th-pause-objective.is-failed {
+  color: var(--th-bad);
+  text-decoration: line-through;
+}
+
 .th-pbtn {
   gap: 8px;
   min-height: 50px;
@@ -1735,4 +1934,108 @@
 
 .th-hud.has-fps .th-fps {
   display: block;
+}
+
+/* ----- Prep phase panel (src/ui/hud/prep.ts) ----- */
+.th-prep {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px;
+  background: var(--plate-bg);
+  border: 1px solid var(--th-brass);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px var(--th-shadow);
+  pointer-events: auto;
+}
+
+.th-prep[hidden],
+.th-prep-builds[hidden],
+.th-prep-place[hidden],
+.th-prep-btn[hidden] {
+  display: none;
+}
+
+.th-prep-head,
+.th-prep-builds,
+.th-prep-place {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.th-prep-label {
+  font-size: var(--fs-s);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  padding-left: 4px;
+}
+
+.th-prep-time {
+  font-size: var(--fs-l, 1.2em);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
+}
+
+.th-prep-tip {
+  flex: 1 1 auto;
+  font-size: var(--fs-s);
+  opacity: 0.85;
+  padding-left: 4px;
+}
+
+.th-prep-btn {
+  flex: 0 0 auto;
+  min-width: var(--th-touch);
+  min-height: var(--th-touch);
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: var(--fs-s);
+  color: inherit;
+  background: var(--tex), linear-gradient(180deg, #5e5a40, #3b3826);
+  border: 1px solid var(--th-brass);
+  border-radius: 4px;
+}
+
+.th-prep-btn:disabled {
+  opacity: 0.45;
+}
+
+.th-prep-build {
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.1;
+}
+
+.th-prep-build.is-active {
+  outline: 2px solid var(--th-brass);
+}
+
+.th-prep-cost {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.9;
+}
+
+.th-prep-secs {
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.th-prep-ready,
+.th-prep-confirm {
+  background: var(--tex), linear-gradient(180deg, #5f8a3a, #34501d);
+}
+
+.th-prep-undo .th-ico,
+.th-prep-btn .th-ico {
+  font-size: 1.2em;
 }

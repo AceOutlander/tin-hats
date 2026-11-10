@@ -127,8 +127,50 @@ export const BRITISH_ANSWER: Motif = {
   ],
 };
 
+/**
+ * The Soviet campaign motif, "The Long Winter" (Stalingrad, docs/campaigns/STALINGRAD.md), in natural minor:
+ *   1 1 7 1 - | 4 . 3 5 2 3 | 5(low) - -     (degrees counted from 1 here; 0-based in the data, -3 is the low fifth)
+ * Level and hushed: the tonic twice, the step below and back, held; then up to the fourth, the minor third, the fifth,
+ * a fall of a fourth to the second, the third, and a drop of a fourth below the tonic to end open on the low dominant,
+ * held for a whole bar. Three bars of 4/4 (the brief's rhythm adds up to twelve beats), so with its one-bar answer a
+ * phrase is four bars. After the fifth the brief had the fourth and the third; they became the second and the third,
+ * because the brief's "3 5 4 3" (from 1; F A G F in D minor) is a phrase of
+ * Korobeiniki. Compared (from their well-known melodies, not from scores) with Polyushko-pole, Svyashchennaya voyna,
+ * Katyusha, Korobeiniki and Kalinka: no run of four notes matches one of theirs. Written for Tin Hats.
+ */
+export const SOVIET_MOTIF: Motif = {
+  name: 'The Long Winter',
+  beats: 12,
+  notes: [
+    [0, 1, 0],
+    [1, 0.5, 0],
+    [1.5, 0.5, -1],
+    [2, 2, 0],
+    [4, 1.5, 3],
+    [5.5, 0.5, 2],
+    [6, 1, 4],
+    [7, 1, 1],
+    [8, 1, 2],
+    [9, 3, -3],
+  ],
+};
+
+/** Its answer, one bar: from the low dominant back up through the tonic, the third and the fourth, and home. */
+export const SOVIET_ANSWER: Motif = {
+  name: 'The Long Winter, answered',
+  beats: 4,
+  notes: [
+    [0, 0.5, -3],
+    [0.5, 0.5, 0],
+    [1, 1, 2],
+    [2, 0.5, 3],
+    [2.5, 1.5, 0],
+  ],
+};
+
 export const THEMES = {
   british: { motif: BRITISH_MOTIF, answer: BRITISH_ANSWER },
+  sovietWinter: { motif: SOVIET_MOTIF, answer: SOVIET_ANSWER },
 } as const;
 
 export type ThemeName = keyof typeof THEMES;

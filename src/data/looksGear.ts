@@ -7,7 +7,7 @@
  */
 import type { GearLook, PlaneKind } from './artLayout';
 import { FIGURE_GAIT_CARRY, FIGURE_STANCES, FIGURE_UPPERS, type FigureKind, type GaitProfile, type StanceDef, type UpperDef } from './figure';
-import type { FactionId } from './schema';
+import type { FactionId, HelmetShape } from './schema';
 import { GEAR_STEPS, SAPPER_CART_HANDLE, type GearLevels, type GearPiece, type GearStep, type TankGearPiece } from './upgradeLooks';
 
 /** Gear level 0 on both tracks: the unit's normal look. */
@@ -74,14 +74,109 @@ export const FIGURE_GEAR_STEPS: Partial<Record<FigureKind, readonly GearStep<Fig
 /** A kind that wears no pack gets this style instead of the full pack (a haversack on the back). */
 export const GEAR_NO_PACK_STYLE: FigureGearStyle = 'haversack';
 
-/**
- * Per nation: the grenades hung on the belt (they follow the nation's hand grenade), and the light colours of the
- * fuller belt kit (pouches, water bottle and its cap) that make it read against the black body at phone size.
- */
-export const FIGURE_GEAR_NATION: Record<FactionId, { grenades: 'mills' | 'stick'; pouch: string; bottle: string; cap: string }> = {
-  british: { grenades: 'mills', pouch: '#cdbf8e', bottle: '#cdbf8e', cap: '#2e2d24' },
-  german: { grenades: 'stick', pouch: '#a9ab8f', bottle: '#8c6a42', cap: '#2b2c28' },
+/** Which belt and back kit a nation's figures wear: the shared pack and pouches, or the Red Army's own. */
+export type FigureKitStyle = 'standard' | 'soviet';
+
+export interface FigureGearNation {
+  /** The grenades hung on the belt (they follow the nation's hand grenade). */
+  grenades: 'mills' | 'stick' | 'f1';
+  kit: FigureKitStyle;
+  /** Kinds that wear the rolled greatcoat over one shoulder (the Red Army's skatka) in the bandolier slot at gear 0; a
+   * bandolier or aid strap upgrade replaces it. */
+  coatRoll: readonly FigureKind[];
+  /** The light colours of the fuller belt kit (pouches, water bottle and its cap) that make it read against the black
+   * body at phone size. */
+  pouch: string;
+  bottle: string;
+  cap: string;
+}
+
+export const FIGURE_GEAR_NATION: Record<FactionId, FigureGearNation> = {
+  british: { grenades: 'mills', kit: 'standard', coatRoll: [], pouch: '#cdbf8e', bottle: '#cdbf8e', cap: '#2e2d24' },
+  german: { grenades: 'stick', kit: 'standard', coatRoll: [], pouch: '#a9ab8f', bottle: '#8c6a42', cap: '#2b2c28' },
+  // NATIONS.md section 3, 1941 to 1942: the greatcoat roll over the shoulder, the duffel bag (veshchmeshok) on the back,
+  // two-cell ammunition pouches, the bread bag and the MPL-50 spade on the belt, the F-1 grenade. The fuller kit is
+  // khaki canvas with a cloth-covered bottle (first guess, not yet looked at on a figure).
+  soviet: {
+    grenades: 'f1',
+    kit: 'soviet',
+    coatRoll: ['rifle', 'conscript', 'lmg', 'mortar', 'at', 'sapper'],
+    pouch: '#b9ad84',
+    bottle: '#9a9670',
+    cap: '#2c2b22',
+  },
 };
+
+/**
+ * Headgear a figure can wear in place of its nation's helmet (setFigureHeadgear in src/art/figure): the Red Army's
+ * pilotka side cap, the ushanka fur cap, the SSh-40 worn over the ushanka in winter, and the snow smock's white hood
+ * pulled over the helmet (NATIONS.md section 3, eras); and on German figures the Stahlhelm under a white snow cover
+ * (winter 1942 to 1943) and the Romanian look's khaki Adrian helmet (mission 1009's Romanian line, NATIONS.md section 8).
+ * Which one a unit wears is the era's call (src/data/eras.ts, by the mission's date and climate).
+ */
+export type FigureHeadgear = 'pilotka' | 'ushanka' | 'helmetUshanka' | 'snowHood' | 'helmetCover' | 'adrian';
+/** The Red Army's caps and hood. */
+export const FIGURE_HEADGEAR_LIST: readonly FigureHeadgear[] = ['pilotka', 'ushanka', 'helmetUshanka', 'snowHood'];
+
+/** The headgear each nation can wear (anything else falls back to its helmet). */
+export const FIGURE_HEADGEAR: Record<FactionId, readonly FigureHeadgear[]> = {
+  british: [],
+  german: ['helmetCover', 'adrian'],
+  soviet: FIGURE_HEADGEAR_LIST,
+};
+
+/** The Romanian look's cloth and helmet colours (NATIONS.md section 8: khaki-brown). */
+export const ROMANIAN_COLORS = { tint: '#7a6a47', tintDark: '#4f442c' } as const;
+
+/**
+ * Winter clothing a figure can wear over its body (setFigureClothing in src/art/figure): the Red Army's quilted
+ * telogreika jacket, and the two-piece white snow smock of ski troops, scouts and snipers (NATIONS.md section 3, eras;
+ * with the snowHood headgear). They replace the torso, arm and (smock) thigh sprites; the dark body shows at the hands,
+ * shins and boots, and the light rim still outlines the figure. German figures wear the same white two-piece cloth as
+ * the white side of the reversible winter suit (winter 1942 to 1943), and the Romanian look a khaki-brown greatcoat
+ * to the knee. Which units wear them is the era's call (src/data/eras.ts, by the mission's date and climate).
+ */
+export type FigureClothing = 'telogreika' | 'snowSmock' | 'greatcoatRomanian';
+/** The Red Army's winter clothing. */
+export const FIGURE_CLOTHING_LIST: readonly FigureClothing[] = ['telogreika', 'snowSmock'];
+
+/** The clothing each nation can wear (anything else falls back to the plain body). */
+export const FIGURE_CLOTHING: Record<FactionId, readonly FigureClothing[]> = {
+  british: [],
+  german: ['snowSmock', 'greatcoatRomanian'],
+  soviet: FIGURE_CLOTHING_LIST,
+};
+
+/** Clothing look: cloth colours (near and far side), the stitching, and how much the padded cloth stands proud of the
+ * body (wu added to the limb radius). */
+export const FIGURE_CLOTHING_ART: Record<FigureClothing, { near: string; far: string; seam: string; grow: number; legs: boolean }> = {
+  // Quilted khaki cotton, darker than the tunic, with its sewn channels.
+  telogreika: { near: '#4d4a33', far: '#3a3828', seam: '#2a281c', grow: 0.3, legs: false },
+  // Off-white cotton over everything down to the knees (the dark valenki and shins still show).
+  snowSmock: { near: '#d6d4c8', far: '#b3b1a5', seam: '#9b998d', grow: 0.35, legs: true },
+  // The Romanian khaki-brown wool greatcoat, to the knee (NATIONS.md section 8; ROMANIAN_COLORS).
+  greatcoatRomanian: { near: '#6e5f3f', far: '#54482f', seam: '#3b3221', grow: 0.3, legs: true },
+};
+
+/** Colours of the Red Army's own kit and caps (the canvas pieces take the nation tint). */
+export const SOVIET_KIT_COLORS = {
+  /** Greatcoat cloth: grey-brown, darker than the tunic. */
+  coat: '#6a6252',
+  coatDark: '#47402f',
+  coatLight: '#8a8170',
+  /** Ushanka fur (artificial fur for the ranks) and its lighter tips. */
+  fur: '#6c6249',
+  furLight: '#8e8466',
+  furDark: '#463f2c',
+  /** Leather of belts and pouches. */
+  leather: '#4b3a26',
+  leatherLight: '#6a5236',
+  /** Enamel of the red star cap badge. */
+  star: '#c0302a',
+  /** Birch stocks with a reddish shellac. */
+  wood: '#5a3622',
+  woodLight: '#7c4d2e',
+} as const;
 
 /**
  * Sizes and colours of the figure gear sprites, in wu (a standing figure is 58 wu, about 55 CSS px on a phone, so
@@ -116,7 +211,8 @@ export const FIGURE_GEAR_ART = {
   scrim: {
     brodie: [-6.0, -4.0, 1.3, -2.8, -6.8, 1.6, 1.0, -7.8, 1.6, 4.4, -5.8, 1.4],
     stahlhelm: [-5.0, -5.0, 1.4, -2.0, -8.6, 1.6, 2.0, -8.8, 1.5, -6.4, -1.4, 1.2],
-  } as Record<'brodie' | 'stahlhelm', readonly number[]>,
+    ssh40: [-5.0, -4.6, 1.3, -2.0, -8.0, 1.6, 2.2, -8.0, 1.5, 5.0, -4.8, 1.3],
+  } as Record<HelmetShape, readonly number[]>,
   /** Full pack: body (x, y, w, h) and the blanket roll on top (x, y, length, radius). */
   fullPack: { x: -9.6, y: -7.8, w: 7.0, h: 9.6, rollX: -10.8, rollY: -9.6, rollW: 9.2, rollR: 2.1 },
   /** Haversack worn by kinds without a pack. */
@@ -202,7 +298,32 @@ export interface TankGearArt {
  * sides, sandbags on the deck; their "turret" is the gunner, so the stowage is ammunition boxes behind him, the cupola
  * MG a second gun on a post behind him, and the long gun a heavier barrel with a flash hider.
  */
-export const TANK_GEAR_ART: Record<GearLook, TankGearArt> = {
+const DRAWN_TANK_GEAR_ART: Record<Exclude<GearLook, 'carrierSoviet'>, TankGearArt> = {
+  // KV-1: spare links on the upper glacis, the 1941 bolted screens (ekranami) on the hull side, sandbags on the engine
+  // deck behind the turret, a box on the turret overhang, a DT on a pintle by the hatch; the long gun is a longer
+  // ZiS-5 with no muzzle brake, like the T-34's.
+  kv1: {
+    hullPad: [6, 12, 0],
+    turretPad: [0, 9, 12],
+    links: { x: 70, y: -68.4, dx: 6.4, dy: 3.3, n: 3, w: 4.8, h: 6.6 },
+    applique: [-74, -66.5, 34, 20, -34, -66.5, 34, 20, 6, -66.5, 34, 20],
+    sandbags: { x: -88, y: -72, dx: 10.5, dy: 0, n: 4, w: 10.5, h: 5.6 },
+    stowage: [-60, -20, 12, 14],
+    cupolaMg: { x: -16, y: -26.5, len: 15, post: 4, angle: 0 },
+    longGun: { extra: 16, brakeLen: 0, brakeHalf: 0 },
+  },
+  // T-34: spare links on the glacis, plates on the sloped hull side, sandbags on the engine deck, a box on the turret
+  // overhang; the long gun is the 76 mm ZiS-5 length, with no muzzle brake.
+  t34: {
+    hullPad: [6, 12, 0],
+    turretPad: [0, 9, 10],
+    links: { x: 66, y: -55, dx: 6.2, dy: 3.0, n: 4, w: 4.6, h: 6.4 },
+    applique: [-60, -52, 34, 14, -20, -52, 34, 14, 20, -52, 30, 14],
+    sandbags: { x: -76, y: -59, dx: 10, dy: 0, n: 4, w: 10, h: 5.4 },
+    stowage: [-54, -20, 12, 13],
+    cupolaMg: { x: -14, y: -30, len: 15, post: 4, angle: 0 },
+    longGun: { extra: 18, brakeLen: 0, brakeHalf: 0 },
+  },
   churchill: {
     hullPad: [6, 12, 0],
     turretPad: [0, 9, 12],
@@ -259,6 +380,12 @@ export const TANK_GEAR_ART: Record<GearLook, TankGearArt> = {
   },
 };
 
+/** The Soviet carrier is the British vehicle (TANK_LAYOUT) and carries its gear in the same places. */
+export const TANK_GEAR_ART: Record<GearLook, TankGearArt> = {
+  ...DRAWN_TANK_GEAR_ART,
+  carrierSoviet: DRAWN_TANK_GEAR_ART.carrier,
+};
+
 /** Which tank piece each step adds, as a sprite: health pieces build up on the hull, stowage and the MG on the turret, the long gun is a new barrel. */
 export const TANK_GEAR_PART: Record<TankGearPiece, 'hull' | 'turret' | 'barrel'> = {
   trackLinks: 'hull',
@@ -309,8 +436,10 @@ export const PLANE_GEAR_ART: Record<PlaneKind, PlaneGearArt> = {
   },
 };
 
-/** Plane gear colours per nation: invasion stripes (British) or a yellow band (German), and the painted nose. */
+/** Plane gear colours per nation: invasion stripes (British), a yellow band (German) or a white band (Soviet), and the painted nose. */
 export const PLANE_GEAR_NATION: Record<FactionId, { stripes: readonly string[]; nose: string; tally: string; tank: string }> = {
   british: { stripes: ['#ece6d2', '#141410'], nose: '#b8352a', tally: '#ece6d2', tank: '#5d6150' },
   german: { stripes: ['#d8b33a', '#d8b33a'], nose: '#e6e0c8', tally: '#ece6d2', tank: '#4f5552' },
+  // Red Army: a plain white band and the red nose (the red spinner and cowling of many Soviet fighters).
+  soviet: { stripes: ['#e6e0c8', '#e6e0c8'], nose: '#b3261e', tally: '#ece6d2', tank: '#4f5a3c' },
 };

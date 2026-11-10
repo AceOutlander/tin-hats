@@ -148,15 +148,18 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   putJ(out[S_RIM_NEAR_BOOT], R.boot, j, J_NANKLE, p[P_NFP]);
   // The helmet wobbles on the head a moment behind the body (secondary motion).
   const helmRot = p[P_NECK] + HALF_PI + a.helm;
-  putJ(out[S_RIM_HELMET], G.helmetRim, j, J_HEAD, helmRot);
+  const cap = a.headgear;
+  putJ(out[S_RIM_HELMET], cap ? cap.rim : G.helmetRim, j, J_HEAD, helmRot);
   putJ(out[S_RIM_NEAR_UA], R.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_RIM_NEAR_FA], R.forearm, j, J_NELBOW, p[P_NFA]);
 
-  // Far side.
-  putJ(out[S_FAR_UA], B.upperArmFar, j, J_FSHOULDER, p[P_FUA]);
-  putJ(out[S_FAR_FA], B.forearmFar, j, J_FELBOW, p[P_FFA]);
-  putJ(out[S_FAR_ITEM], keys.item[a.item], j, J_FHAND, p[P_FFA], a.itemFar);
-  putJ(out[S_FAR_TH], B.thighFar, j, J_HIP, p[P_FTH]);
+  // Far side. Winter clothing (setFigureClothing) is drawn in place of the body parts it covers.
+  const cl = a.clothing;
+  putJ(out[S_FAR_UA], (cl && cl.upperArmFar) ?? B.upperArmFar, j, J_FSHOULDER, p[P_FUA]);
+  putJ(out[S_FAR_FA], (cl && cl.forearmFar) ?? B.forearmFar, j, J_FELBOW, p[P_FFA]);
+  const item = a.item === 'rocket' && a.rocketKey !== null ? a.rocketKey : keys.item[a.item];
+  putJ(out[S_FAR_ITEM], item, j, J_FHAND, p[P_FFA], a.itemFar);
+  putJ(out[S_FAR_TH], (cl && cl.thighFar) ?? B.thighFar, j, J_HIP, p[P_FTH]);
   putJ(out[S_FAR_SH], B.shinFar, j, J_FKNEE, p[P_FSH]);
   putJ(out[S_FAR_BOOT], B.bootFar, j, J_FANKLE, p[P_FFP]);
 
@@ -164,13 +167,13 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   // The pack bounces along the back (secondary motion).
   const ch = p[P_CHEST];
   put(out[S_PACK], G.pack, j[J_CHEST * 2] - Math.cos(ch) * a.pack, j[J_CHEST * 2 + 1] - Math.sin(ch) * a.pack, ch + HALF_PI, G.packShow);
-  putJ(out[S_TORSO_LO], B.torsoLower, j, J_HIP, p[P_SPINE]);
-  putJ(out[S_TORSO_UP], B.torsoUpper, j, J_CHEST, p[P_CHEST]);
+  putJ(out[S_TORSO_LO], (cl && cl.torsoLower) ?? B.torsoLower, j, J_HIP, p[P_SPINE]);
+  putJ(out[S_TORSO_UP], (cl && cl.torsoUpper) ?? B.torsoUpper, j, J_CHEST, p[P_CHEST]);
   putJ(out[S_POUCHES], G.pouches, j, J_HIP, p[P_SPINE] + HALF_PI, G.pouchesShow);
   putJ(out[S_BANDOLIER], G.bandolier, j, J_CHEST, ch + HALF_PI);
 
   // Near leg, satchel, head and helmet.
-  putJ(out[S_NEAR_TH], B.thigh, j, J_HIP, p[P_NTH]);
+  putJ(out[S_NEAR_TH], (cl && cl.thigh) ?? B.thigh, j, J_HIP, p[P_NTH]);
   putJ(out[S_NEAR_SH], B.shin, j, J_NKNEE, p[P_NSH]);
   putJ(out[S_NEAR_BOOT], B.boot, j, J_NANKLE, p[P_NFP]);
   const sp = p[P_SPINE];
@@ -178,23 +181,24 @@ export function layoutFigure(a: FigureAnim, out: FigurePart[]): void {
   const sy = j[J_HIP * 2 + 1] + Math.sin(sp) * 1.6 + Math.cos(sp) * 1.2;
   put(out[S_SATCHEL], G.satchel, sx, sy, p[P_SATCHEL], G.satchelShow);
   putJ(out[S_HEAD], a.kind === 'flame' ? B.headMask : B.head, j, J_NECK, p[P_NECK]);
-  putJ(out[S_HELMET], G.helmet, j, J_HEAD, helmRot);
+  putJ(out[S_HELMET], cap ? cap.helmet : G.helmet, j, J_HEAD, helmRot);
 
   // Weapon (or crate), its bipod and baseplate, hand items.
   const wa = p[P_WA];
   const gx = j[J_GRIP * 2];
   const gy = j[J_GRIP * 2 + 1];
-  put(out[S_PLATE], keys.plate[a.kind], gx, gy, 0, a.weaponVisible && a.plate > 0.5);
+  const wk = a.weaponKeys;
+  put(out[S_PLATE], wk ? wk.plate : keys.plate[a.kind], gx, gy, 0, a.weaponVisible && a.plate > 0.5);
   const g = a.geom;
   const c = Math.cos(wa);
   const s = Math.sin(wa);
-  put(out[S_BIPOD], keys.bipod[a.kind], gx + g.bipodX * c - g.bipodY * s, gy + g.bipodX * s + g.bipodY * c, p[P_BIPOD], a.weaponVisible);
+  put(out[S_BIPOD], wk ? wk.bipod : keys.bipod[a.kind], gx + g.bipodX * c - g.bipodY * s, gy + g.bipodX * s + g.bipodY * c, p[P_BIPOD], a.weaponVisible);
   if (a.crateVisible) put(out[S_WEAPON], a.crateKey ?? keys.crate, gx, gy, wa);
-  else put(out[S_WEAPON], keys.weapon[a.kind], gx, gy, wa, a.weaponVisible);
-  putJ(out[S_NEAR_ITEM], keys.item[a.item], j, J_NHAND, p[P_NFA], !a.itemFar);
+  else put(out[S_WEAPON], wk ? wk.weapon : keys.weapon[a.kind], gx, gy, wa, a.weaponVisible);
+  putJ(out[S_NEAR_ITEM], item, j, J_NHAND, p[P_NFA], !a.itemFar);
 
   // Near arm.
-  putJ(out[S_NEAR_UA], B.upperArm, j, J_NSHOULDER, p[P_NUA]);
+  putJ(out[S_NEAR_UA], (cl && cl.upperArm) ?? B.upperArm, j, J_NSHOULDER, p[P_NUA]);
   putJ(out[S_ARMBAND], B.armband, j, J_NSHOULDER, p[P_NUA], a.kind === 'medic');
-  putJ(out[S_NEAR_FA], B.forearm, j, J_NELBOW, p[P_NFA]);
+  putJ(out[S_NEAR_FA], (cl && cl.forearm) ?? B.forearm, j, J_NELBOW, p[P_NFA]);
 }

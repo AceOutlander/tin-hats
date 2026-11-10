@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { BattleSession } from '../../src/app/session';
 import { APP } from '../../src/data/app';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import type { MissionDef, UnitKind } from '../../src/data/schema';
 import { createBattle, type Battle, type Command, type UnitState } from '../../src/sim';
 import { createFakeAudio, createFakeView } from './app-helpers';
 
-function setup(mission: MissionDef = M01) {
+function setup(mission: MissionDef = FIELD) {
   const battle = createBattle({ mission, difficulty: 'normal', seed: 3, upgrades: {}, commanders: ['human', 'ai'] });
   const sent: Command[] = [];
   const command = battle.command.bind(battle);
@@ -22,7 +22,7 @@ function setup(mission: MissionDef = M01) {
 }
 
 function withSupports(): MissionDef {
-  const m: MissionDef = structuredClone(M01);
+  const m: MissionDef = structuredClone(FIELD);
   m.supports = [['smoke', 'artillery'], []];
   return m;
 }
@@ -37,7 +37,7 @@ function firstOwnUnit(battle: Battle, kind: UnitKind): UnitState {
 
 /** Mission 1 with one lone British rifleman on the open field and three German machine guns dug in ahead of him. */
 function loneRifleman(): MissionDef {
-  const m: MissionDef = structuredClone(M01);
+  const m: MissionDef = structuredClone(FIELD);
   m.events = [];
   m.start[0].forces = [{ kind: 'rifle', count: 1, x: 3000 }];
   m.start[1].forces = [{ kind: 'lmg', count: 3, x: 3500, behaviour: 'guard' }];
@@ -99,7 +99,7 @@ describe('BattleSession', () => {
     const { session } = setup();
     for (let i = 0; i < 70; i++) session.step();
     session.fill(false, false);
-    expect(session.hud.state.hint).toContain('Sappers carry supplies');
+    expect(session.hud.state.hint).toContain('Sappers carry boxes');
     // The second hint (16 s) has come and gone by 33 s; the third arrives at 38 s.
     for (let i = 0; i < 30 * 31; i++) session.step();
     session.fill(false, false);
@@ -107,7 +107,7 @@ describe('BattleSession', () => {
   });
 
   it('suppresses hints when they are switched off', () => {
-    const battle = createBattle({ mission: M01, difficulty: 'normal', seed: 3, upgrades: {}, commanders: ['human', 'ai'] });
+    const battle = createBattle({ mission: FIELD, difficulty: 'normal', seed: 3, upgrades: {}, commanders: ['human', 'ai'] });
     const session = new BattleSession(battle, 'normal', 3, createFakeView(), createFakeAudio(), { hints: () => false, sound: () => true, onEnded: () => undefined });
     for (let i = 0; i < 100; i++) session.step();
     session.fill(false, false);
@@ -115,7 +115,7 @@ describe('BattleSession', () => {
   });
 
   it('shows announcements as banners with a changing counter', () => {
-    const mission: MissionDef = structuredClone(M01);
+    const mission: MissionDef = structuredClone(FIELD);
     mission.events = [
       { type: 'announce', when: { at: 1 }, text: 'First' },
       { type: 'announce', when: { at: 10 }, text: 'Second' },
@@ -133,7 +133,7 @@ describe('BattleSession', () => {
   });
 
   it('reports the end of the battle once', () => {
-    const mission: MissionDef = structuredClone(M01);
+    const mission: MissionDef = structuredClone(FIELD);
     mission.start[0].hqHpMul = 0.01;
     mission.start[1].forces = [{ kind: 'rifle', count: 8, x: 700 }];
     const { session, ended } = setup(mission);
@@ -146,7 +146,7 @@ describe('BattleSession', () => {
   });
 
   function lostBattle(sound: boolean) {
-    const mission: MissionDef = structuredClone(M01);
+    const mission: MissionDef = structuredClone(FIELD);
     mission.start[0].hqHpMul = 0.01;
     mission.start[1].forces = [{ kind: 'rifle', count: 8, x: 700 }];
     const battle = createBattle({ mission, difficulty: 'normal', seed: 3, upgrades: {}, commanders: ['human', 'ai'] });
@@ -161,7 +161,7 @@ describe('BattleSession', () => {
     expect(session.ended).toBe(true);
     expect(audio.played).toEqual(['defeatSting']);
 
-    const won: MissionDef = structuredClone(M01);
+    const won: MissionDef = structuredClone(FIELD);
     won.start[1].hqHpMul = 0.01;
     won.start[0].forces = [{ kind: 'rifle', count: 8, x: won.length - 700 }];
     const battle = createBattle({ mission: won, difficulty: 'normal', seed: 3, upgrades: {}, commanders: ['human', 'ai'] });
@@ -372,7 +372,7 @@ describe('BattleSession', () => {
     });
 
     it('throws the secondary weapon when the ability button is pressed, and not before', () => {
-      const m: MissionDef = structuredClone(M01);
+      const m: MissionDef = structuredClone(FIELD);
       m.events = [];
       m.trenches = [{ id: 1, x: 3120, width: 130, slots: 6, owner: 1 }];
       m.start[0].forces = [{ kind: 'assault', count: 1, x: 3000 }];
@@ -479,7 +479,7 @@ describe('BattleSession', () => {
       const { session } = setup();
       expect(session.tally.smokeSpawned).toBe(0);
       expect(session.tally.controlLost).toBe(0);
-      expect(session.tally.supportCalled).toEqual({ artillery: 0, smoke: 0, airStrike: 0, bomber: 0, fighter: 0, recon: 0 });
+      expect(session.tally.supportCalled).toEqual({ artillery: 0, smoke: 0, airStrike: 0, bomber: 0, fighter: 0, recon: 0, katyusha: 0 });
     });
   });
 });

@@ -8,10 +8,18 @@
  * Damage goes through the deferred damage queue like every other hit.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import { FIRE_DAMAGE } from '../data/damage';
 import type { Side } from '../data/schema';
+import { splashWalls } from './buildings';
+import { splashMines } from './mines';
+import { splashObstacles } from './obstacles';
+import { hitFerries, splashBridges } from './water';
 import {
+  CLASS_BUILDING,
   CLASS_FORT,
   CLASS_HQ,
+  CLASS_OPEN,
+  CLASS_TRENCH,
   CLASS_VEHICLE,
   DAMAGE_TYPES,
   WEAPON_DTYPE,
@@ -25,6 +33,13 @@ import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './wo
 
 /** Index of 'explosive' in DAMAGE_TYPES: only explosive splash hurts wire. */
 const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
+/** Share of the splash radius inside which a heavy shell blows men dug in out of their slots. */
+const KNOCK_DUG_IN = CONFIG.knockDugIn;
+/** How far past its lethal splash a heavy shell still throws men in the open (x the splash radius). */
+const KNOCK_REACH = CONFIG.knockReach;
+
+/** Fire on men at a building's windows, in place of the matrix value (FIRE_DAMAGE in src/data/damage.ts). */
+const FIRE_BUILDING = FIRE_DAMAGE.infantryBuilding ?? 1;
 
 /**
  * Inputs of launch() that are doubles (passed in a typed array so nothing is boxed, see the
@@ -32,9 +47,11 @@ const EXPLOSIVE = DAMAGE_TYPES.indexOf('explosive');
  * [3] flight time in seconds, or 0 to derive it from the distance and weapon.projectileSpeed,
  * [4] extra multiplier on damage to an HQ and [5] to vehicles (1 for weapons; support call-ins use
  * their hqDamageMul and vehicleDamageMul), [6] 1 for a round dropped from an aircraft (hits from above,
- * so hit-facing armour does not apply), else 0. Set all seven before every call.
+ * so hit-facing armour does not apply), else 0. Set all seven before every call. [7] 1 for a round fired from off the
+ * map (artillery, Katyusha, scripted barrages: the projectile event has hit = true, the view draws it falling from
+ * above the screen top with its incoming whistle); launch() sets it back to 0, so only off-map callers set it.
  */
-export const LAUNCH = new Float64Array(7);
+export const LAUNCH = new Float64Array(8);
 
 /**
  * Put a projectile of weapon `wi` in flight from LAUNCH[0] to LAUNCH[1] and emit its `projectile`
@@ -59,7 +76,10 @@ export function launch(
       break;
     }
   }
-  if (index < 0) return -1;
+  if (index < 0) {
+    LAUNCH[7] = 0;
+    return -1;
+  }
   const weapon = WEAPON_LIST[wi];
   const fromX = LAUNCH[0];
   const toX = LAUNCH[1];
@@ -103,7 +123,24 @@ export function launch(
   e.value = flight;
   e.targetIndex = index;
   e.dir = toX >= fromX ? 1 : -1;
+  e.hit = LAUNCH[7] !== 0;
+  LAUNCH[7] = 0;
   return index;
+}
+
+/**
+ * A heavy shell's blast throws a man in the open `by` wu (signed): the larger of what is left of an earlier throw and
+ * this one. He stops what he is doing and loses his aim (moveUnits carries him; DECISIONS 424).
+ */
+export function knockBack(u: UnitState, by: number): void {
+  if (u.def.class !== 'infantry' || u.inside || by === 0) return;
+  if ((by > 0 ? by : -by) <= (u.knock > 0 ? u.knock : -u.knock)) return;
+  u.knock = by;
+  const m = u.mount;
+  if (m.weapon !== null) {
+    m.aim = m.weapon.aimTime;
+    m.burstLeft = 0;
+  }
 }
 
 /** Remove a belt of wire. `explosive` = blown apart by splash rather than crushed. */
@@ -133,6 +170,12 @@ function explode(w: World, pi: number): void {
   const direct = weapon.delivery === 'direct';
   const flew = p.toX >= p.fromX ? DMG_FLEW_POS : DMG_FLEW_NEG;
   const base = (p.top ? DMG_TOP : 0) | (flush ? DMG_FLUSH : 0);
+  // Heavy shells (tank cannon): men in the open are thrown, men dug in near the burst are blown out of their slots, and
+  // fortifications take fortMul times the blast (DECISIONS 424).
+  const knock = weapon.knockback;
+  const fort = weapon.fortMul;
+  // The throw reaches past the lethal splash: men further out are thrown but not hurt.
+  const reach = knock > 0 ? r * KNOCK_REACH : r;
 
   const e = w.events.emit('explosion');
   e.side = side;
@@ -147,13 +190,25 @@ function explode(w: World, pi: number): void {
     const t = units[i];
     if (!t.alive || t.side !== enemy || t.inside) continue;
     const d = (t.x > x ? t.x - x : x - t.x) - t.def.width / 2;
-    if (d > r) continue;
-    const falloff = d <= 0 ? 1 : 1 - d / r;
+    if (d > reach) continue;
     const cls = unitClass(t);
+    // Thrown in the open; blown out of a trench or sandbags close to the burst (with or without a wound).
+    let thrown = 0;
+    if (knock > 0) {
+      if (cls === CLASS_OPEN) knockBack(t, (t.x >= x ? 1 : -1) * knock * (d <= 0 ? 1 : 1 - d / reach));
+      else if (cls === CLASS_TRENCH && d <= reach * KNOCK_DUG_IN) thrown = DMG_FLUSH;
+    }
+    if (d > r) {
+      if (thrown !== 0) w.damage.push(TARGET_UNIT, i, t.id, 0, side, dtype, t.x >= x ? 1 : -1, base | thrown);
+      continue;
+    }
+    const falloff = d <= 0 ? 1 : 1 - d / r;
     const mul = cls === CLASS_VEHICLE ? p.damageMul * p.vehicleMul : p.damageMul;
     let amount = weapon.damage * mul * falloff * damageFactor(dtype, cls);
-    if (flush && t.trenchId >= 0) amount *= SPECIALS.flameTrenchMul;
-    const flags = direct && d <= 0 ? base | flew : base;
+    if (flush && cls === CLASS_BUILDING) amount = weapon.damage * mul * falloff * FIRE_BUILDING;
+    else if (flush && t.trenchId >= 0) amount *= SPECIALS.flameTrenchMul;
+    else if (flush && cls === CLASS_VEHICLE) amount *= SPECIALS.flameVehicleMul;
+    const flags = (direct && d <= 0 ? base | flew : base) | thrown;
     w.damage.push(TARGET_UNIT, i, t.id, amount, side, dtype, t.x >= x ? 1 : -1, flags);
   }
 
@@ -164,7 +219,7 @@ function explode(w: World, pi: number): void {
     const d = (b.x > x ? b.x - x : x - b.x) - CONFIG.pillboxWidth / 2;
     if (d > r) continue;
     const falloff = d <= 0 ? 1 : 1 - d / r;
-    let amount = weapon.damage * p.damageMul * falloff * damageFactor(dtype, CLASS_FORT);
+    let amount = weapon.damage * p.damageMul * fort * falloff * damageFactor(dtype, CLASS_FORT);
     if (flush) amount *= SPECIALS.flamePillboxMul;
     w.damage.push(TARGET_PILLBOX, i, -1, amount, side, dtype, b.x >= x ? 1 : -1, base);
   }
@@ -179,6 +234,9 @@ function explode(w: World, pi: number): void {
     }
   }
 
+  // The walls of the buildings it lands among (not the flamethrower's: fire burns the men, not the brick).
+  if (!flush && s.buildings.length > 0) splashWalls(w, side, wi, x, r, weapon.damage * p.damageMul * fort, x >= p.fromX ? 1 : -1);
+
   if (dtype === EXPLOSIVE) {
     const wires = s.wires;
     for (let i = 0; i < wires.length; i++) {
@@ -187,10 +245,17 @@ function explode(w: World, pi: number): void {
       const d = (wire.x > x ? wire.x - x : x - wire.x) - wire.width / 2;
       if (d > r) continue;
       const falloff = d <= 0 ? 1 : 1 - d / r;
-      wire.hp -= weapon.damage * p.damageMul * falloff;
+      wire.hp -= weapon.damage * p.damageMul * fort * falloff;
       if (wire.hp <= 0) destroyWire(w, wire, true);
     }
+    // Obstacles and water (FOUNDATIONS.md 4.4, 4.6, 4.8): blasts wear down obstacles and bridges and set mines off.
+    const dmg = weapon.damage * p.damageMul;
+    if (s.obstacles.length > 0) splashObstacles(w, x, r, dmg * fort);
+    if (s.minefields.length > 0) splashMines(w, side, x, r, dmg);
+    if (s.bridges.length > 0) splashBridges(w, side, x, r, dmg);
   }
+  // A boat crossing under the barrage (FOUNDATIONS.md 4.4).
+  if (s.ferries.length > 0) hitFerries(w, side, x);
 }
 
 /** Move every projectile in flight; those that arrive explode. Runs before anyone fires this tick. */

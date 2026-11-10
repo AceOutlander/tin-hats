@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/data/config';
 import { DAMAGE } from '../../src/data/damage';
-import { getMission } from '../../src/data/missions';
+import { FIELD } from './fixtures';
 import type { ForceDef, MissionDef, UpgradeDef } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import { WEAPONS } from '../../src/data/weapons';
@@ -392,9 +392,7 @@ describe('winning and losing', () => {
   });
 
   it('runBattle reports who won and the final numbers', () => {
-    const mission = getMission(1);
-    expect(mission).toBeDefined();
-    if (!mission) return;
+    const mission = FIELD;
     const result = runBattle(configOf({ mission, commanders: ['bot', 'ai'], seed: 3 }), 900);
     expect(result.timedOut).toBe(false);
     expect(result.winner).toBe(0);
@@ -408,9 +406,7 @@ describe('winning and losing', () => {
 
 describe('bookkeeping', () => {
   it('keeps the per-side stats in step with the events', () => {
-    const mission = getMission(1);
-    expect(mission).toBeDefined();
-    if (!mission) return;
+    const mission = FIELD;
     const b = makeBattle({ mission, commanders: ['bot', 'ai'], seed: 5 });
     const died = [0, 0];
     const done = [0, 0];

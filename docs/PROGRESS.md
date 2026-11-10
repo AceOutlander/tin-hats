@@ -44,133 +44,22 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
-## STOPPED for the owner's restart at 2026-11-09 16:55Z (read this first)
+## Stalingrad final state (2026-11-09, read this first)
 
-Nothing running: all workflows stopped, no test browsers, dev servers or node processes. Nothing pushed; live is Beta v0.12.0.
+Branch `stalingrad` (worktree C:\dev\tin-hats-stalingrad), NOT live, waits for the owner's "push to live" (then update the Tin Hats card text on hunteracedev.com). All ten missions tuned, Basic Training finished, economy with charges and the Shop, Poland 2,999 medals. Checks: typecheck, lint, build pass; unit 1,831/1,831; balance 207/207; browser suite 98/135 before the spec fixes of DECISIONS 440-441, NOT re-run after them. Next: re-run the browser suite; fix the battle memory (Phaser addCanvas keeps CPU copies, DECISIONS 441) and the Brest briefing fit; retake the 1004 and 1007 screenshots. Owner summary: docs/MORNING_REPORT.md.
 
-Owner's budget rule (2026-11-09): about 10% of the weekly limit per day (weekly was 40% at 16:50Z, resets Sunday
-2026-11-15 20:00Z); one job at a time, no parallel agents unless a job truly needs them; run only the tests related to
-the change (full browser suite only when Stalingrad is ready to go live); screenshots and long reports only when asked;
-check usage before each job; when the day's budget is used, stop at a clean point, update this file, schedule a resume
-for the next morning. Priority this week: finish Stalingrad incl. the three new changes and the fixes. Everything else waits.
+## Earlier state (2026-11-09 evening run)
 
-Where each job stands:
-- `stalingrad` (C:dev	in-hats-stalingrad) at 8b4bddf: everything merged (c584b01; unit 1772/1772, lint, typecheck, build
-  passed there). 8b4bddf is a WIP checkpoint of the owner's fixes job, part 1 (Begin under 2 s: backdrop/view work and a
-  begin-timing spec), unverified. Not started yet: label fit + test, compact Deploy at, the medal economy (Stick War:
-  Legacy benchmark in the session scratchpad stickwar-economy.json; summary below), realistic artillery, tank cannons.
-- `stalingrad-core` (C:dev	in-hats-stal-core) at 4bd4360: the review job was stopped mid-way (owner: one job at a time;
-  it was running the full browser suite). Its finished commit 7f92b0b is already in stalingrad; 4bd4360 is an
-  unverified audio.spec edit: check it and merge into stalingrad or drop it. Worktrees stal-e2..e5 are merged and can go.
-Next, one job at a time, in this order: finish the fixes (Begin, labels, Deploy at) -> economy -> artillery -> tank
-cannons -> related tests -> mission tuning one mission at a time -> Basic Training -> campaign check -> full checks and
-the browser suite -> final MORNING_REPORT -> tell the owner it is ready to check.
-Benchmark summary: first clear 20/30/40 gems (Normal/Hard/Insane), 2nd win 10, later 5; campaign bonus 500/1000/1500;
-12 stages; cheap spells 20-50 gems (about 1 level), big summons 500-1000 (about a campaign); upgrade points 2 per stage,
-1 point per level.
+v0.12.0 on main: units unlocked by missions again (DECISIONS 280). Medals buy upgrades (re-priced 10/20/30 a level)
+and the plane call-ins; save version 8 refunds medals spent on units and keeps them unlocked; NEW cards and "New:"
+hints only for what a mission really unlocks; Lieutenant m5, Flamethrower m6, Carrier m8, Bofors m10. Balance bot: a
+first Normal run earns 250 medals, nothing on loan, buys 25 of 93 upgrade levels. See below for push status.
 
-## Stalingrad state at 16:25Z (owner back; read this first)
-
-- `stalingrad` (C:dev	in-hats-stalingrad) at c584b01 + 54b4b52: everything merged (art, music, systems, era, campaign
-  map, placeholders removed, the five engine clusters). Unit 1772/1772, lint, typecheck, build pass. Interim
-  docs/MORNING_REPORT.md there.
-- Running: (a) review of stalingrad-core (engine workflow wpl7t6j6q, run wf_ae472a8e-d30); its later commits must be
-  merged into stalingrad when it ends; (b) workflow wkts2xarg (run wf_0d1c849d-882, script
-  stalingrad-prelaunch-changes) on stalingrad, one agent at a time: the owner's fixes (Begin under 2 s, labels that
-  fit, compact Deploy at), the medal economy on the Stick War: Legacy benchmark with call-in charges and a Shop
-  (research: scratchpad stickwar-economy.json), realistic artillery, tank cannons, a verifier. QUEUE.md has the
-  owner's words.
-- Then: the missions/playtest workflow (scratchpad stalingrad-missions.js: ten missions two at a time, Basic Training,
-  campaign critic, final checks, MORNING_REPORT). Stalingrad stays off the live site until the owner says "push to live".
-
-## RESUMED after the usage limit (main session c19d9338, 13:12Z); was paused at 12:25Z
-
-Paused cleanly at 87%. Nothing pushed; live is still Beta v0.12.0. No test browsers, servers or node processes running.
-- `stalingrad-core` (C:dev	in-hats-stal-core) at 1e2e6b9, clean: era table, campaign select + map + briefings +
-  unlocks, British placeholders removed (save version 10), and the mission director (phases, objectives, side
-  objectives, triggers, events, medal scoring; all 10 missions rewritten on it and passing the balance checks).
-- `stalingrad-e2` (C:dev	in-hats-stal-e2) at 38699c2: ground sectors, capture points, forward deploy, rally Fall Back
-  (sim, render, HUD); WIP checkpoint, not finished.
-- `stalingrad-e3` (C:dev	in-hats-stal-e3) at ec57957: buildings and rubble (sim, tests, art and renderer in
-  progress); WIP checkpoint, not finished.
-- `stalingrad` (C:dev	in-hats-stalingrad) at 18a2b28: art + music + systems; WIP checkpoint of the browser-spec job.
-Resume steps (max two jobs):
-1. Resume the engine workflow: Workflow({scriptPath: 'C:UsersmarcmAppDataLocalTempclaudefb17822dcadfc66c19d9338-3067-4e3f-9234-d869d35b29c3scratchpadstalingrad-engine.js',
-   resumeFromRunId: 'wf_ae472a8e-d30', args: the same {clusters: [...]} as the first launch (the audit clusters,
-   journal of run wf_b14b3c19-35c, first result)}). The director replays from cache; e2 and e3 rerun and continue in
-   their worktrees; then merge 1, pair 2 (weather, obstacles), merge 2, review.
-2. The browser-spec workflow (stalingrad-browser-specs-wf_96d5ba93-8c8.js, 'wf_96d5ba93-8c8') resumes only when a job
-   slot is free (after the engine pairs).
-3. Then merge stalingrad-core into stalingrad, the missions/playtest phase, a campaign critic, final checks and
-   docs/MORNING_REPORT.md.
-
-## RESUMED after the usage limit (main session c19d9338, 08:12Z); was paused at 07:30Z
-
-Paused cleanly at 85% of the 5-hour window. Nothing pushed; live is still Beta v0.12.0. No processes running.
-State of each branch:
-- `stalingrad` (C:dev	in-hats-stalingrad) at 6333431: Soviet art + all 10 battle tracks + music rendered at mission
-  load + merge of stalingrad-systems (e953490; unit tests 1414/1414). 6333431 is a WIP checkpoint of the browser-spec
-  job (Basic Training pillbox hpMul 0.08, a missions.spec wait; DECISIONS 321 still to write; untracked scratch files
-  tests/e2e/zz-begin-load.tmp.spec.ts and tools/bt-walk.tmp.ts).
-- `stalingrad-core` (C:dev	in-hats-stal-core) at ef02c02, clean: audit, era table + later Panzer III (18f6b79..46d0adb),
-  campaign select + Stalingrad map + briefings + per-mission unlocks (1162c01..ef02c02). Not yet done: removing the
-  British placeholder missions, the engine gaps from the audit, the review.
-Resume steps:
-1. Resume workflow wjsiti813: Workflow({scriptPath: <session>/workflows/scripts/stalingrad-core-wf_b14b3c19-35c.js,
-   resumeFromRunId: 'wf_b14b3c19-35c'}) (audit, era and campaign agents replay from cache; placeholders runs next).
-2. Resume workflow wpqyagmv9 the same way (stalingrad-browser-specs-wf_96d5ba93-8c8.js, 'wf_96d5ba93-8c8'); it reruns
-   from its WIP checkpoint.
-3. When core finishes: merge stalingrad-core into stalingrad (renumber DECISIONS: core took 287-302+, stalingrad
-   287-320), then the missions/playtest phase, then docs/MORNING_REPORT.md.
-
-## Overnight Stalingrad run (main session, 2026-11-09 05:20Z; read this first)
-
-The main session owns Stalingrad tonight; the resume-queue session stopped after v0.12.0 and its stalingrad-systems work.
-Three Stalingrad branches, merged together by the main session only (never into main, never live):
-- `stalingrad` (C:dev	in-hats-stalingrad): Soviet art done (to f0b26f6); music workflow w9dzzvxxd composing the
-  8 missing battle tracks (brest, dubno, klin, volga done in ea39e4b; kurgan, pavlov, uranus, ring next), then battle
-  music rendered at mission load, then a music critic.
-- `stalingrad-systems` (C:dev	in-hats-stal-systems): finished (Money, prep phase, waves fix, Basic Training prep lesson).
-- `stalingrad-core` (C:dev	in-hats-stal-core, from stalingrad-systems b5d2b34): workflow wjsiti813: audit of mission
-  gaps, era table + later Panzer III, campaign select + Stalingrad map + map music + briefings + per-mission unlocks,
-  removal of the British placeholder missions with a save migration, engine gaps from the audit, review.
-Next: merge all three into `stalingrad` (DECISIONS numbers will collide again: renumber), then finish the missions,
-fix Basic Training's 2 browser specs, headless playtests tuned to 15-30 min, then docs/MORNING_REPORT.md.
-A guarded resume (tin-hats-resume-queue, 08:15Z) only acts if this file says the run paused for the usage limit.
-
-## Latest state (2026-11-09 evening run; read this first)
-
-**Live as Beta v0.12.0** (commit 880853c, deployed and checked on hunteracedev.com): units unlocked by missions again
-(DECISIONS 280). Medals buy upgrades (re-priced 10/20/30 a level) and the plane call-ins; save version 8 refunds medals
-spent on units and keeps them unlocked; NEW cards and "New:" hints only for what a mission really unlocks; Lieutenant
-m5, Flamethrower m6, Carrier m8, Bofors m10. Balance bot: a first Normal run earns 250 medals, nothing on loan, buys 25
-of 93 upgrade levels.
-
-Stalingrad is now worked on in TWO places (keep them apart, merge `stalingrad` into `stalingrad-systems` often):
-- `stalingrad` (worktree C:\dev\tin-hats-stalingrad): another session ("Tin Hats RTS game") was drawing the Soviet art
-  there during this run (vehicles, aircraft, winter figures; commits 61f9adf..f0b26f6). Do not edit that worktree while
-  it is active. The uncommitted WIP found there was committed as 0857b26 and main v0.11.0 merged in as 5af2847.
-- `stalingrad-systems` (worktree C:\dev\tin-hats-stal-systems, from `stalingrad`): this run's non-art work, all checks
-  green (unit 1323/1323, lint, typecheck, build; browser spec prep.spec 1/1):
-  - main v0.12.0 merged in (98a0bd7): Basic Training's save step became 8 -> 9 (saveVersion 9); its reward test now asks
-    for a few first upgrade levels.
-  - Money rename (3dfe443, DECISIONS 281): texts and a banknote HUD icon; code names unchanged.
-  - Prep phase, job 6 (05805ea, 4f385a9, DECISIONS 282): sim (countdown, Ready, enemy and mission clock wait, sappers
-    build wire/foxhole/trench/pillbox, Undo/cancel), HUD panel, ghost placement, build sites drawn, music prep layer,
-    test bot plan; missions 1001, 1003, 1007, 1008 use it. Tank traps not yet (need a vehicle blocker).
-  - Waves at a fixed x never spawn behind the enemy line (8d2fa7e, DECISIONS 283): Stalingrad balance 11 failures -> 4.
-  - Latest `stalingrad` (Soviet art) merged in (bd9e8aa); their DECISIONS 280-282 renumbered 284-286.
-  - Basic Training opens with a 45 s prep phase and teaches building first (3689a98): lesson `prepPhase` points at
-    the Barbed Wire button; tutorial conditions `placed` and `prepOver`. The walkthrough spec now places wire and opens
-    the folded call-ins. basic-training.spec still has 2 failures to look at: the walkthrough's end is flaky (11.6 and
-    33 battle minutes in two runs, limit 10) and "quits back to the title ... paying nothing" finds no training-offer
-    element after quitting. Neither comes from the prep work.
-- Stalingrad still to do (none of it may go live until the owner says push): balance of 1002 (idle once undecided),
-  1004 (lines cross near the German HQ at the map's end) and 1005 (bot wins 12/16, needs 14); missions 1006-1010 have
-  no balance test yet; campaign select screen and the Stalingrad map/music wiring; era-by-date names and looks; eight
-  more cold battle tracks (only `volokolamsk` and `factories` exist); buildings/rubble/snow (FOUNDATIONS); removing the
-  10 placeholder British missions (with a save migration that keeps medals, units, upgrades); the
-  hunteracedev.com card text.
+Stalingrad branch (worktree C:\dev\tin-hats-stalingrad): the uncommitted WIP there was committed as 0857b26 and main
+(v0.11.0) merged in as 5af2847. Typecheck, lint (apart from a stray untracked dist-bt/ folder), build pass; unit 1281/1282:
+basic-training.test.ts "pays enough for the first unit in the Armoury" must be redefined now units are not sold. The
+branch has Soviet art, music, missions 1001-1010 data and Basic Training; it does NOT have the Money rename or the prep
+phase yet. Its Basic Training save step is 7 -> 8 and clashes with main's new 7 -> 8: on the next merge it becomes 8 -> 9.
 
 Before this run: live as **Beta v0.11.0** (main; v0.10.0 added upgrades for every buyable unit and call-in plus the upgrade visuals audit, v0.11.0 the hidden admin panel; both done). Earlier, v0.9.0: new units, medals and the Armoury (prices 3x the original, a win pays 3 to 30 medals,
 missions lend 2 of every expected type not bought, every bought type usable in every mission), the playtest follow-ups

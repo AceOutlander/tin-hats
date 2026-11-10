@@ -15,7 +15,9 @@ import { MUSIC_TRACKS, type MusicTrackName } from '../data/music';
 import { MUSIC_BATTLE, type MusicLayer } from '../data/musicBattle';
 import { RENDER } from '../data/render';
 import { SANDBOX, SANDBOX_MIRROR } from '../data/missions/sandbox';
-import type { Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
+import { BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
+import { getStalingradMission } from '../data/missions/stalingrad';
+import type { CampaignId, Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import type { SaveData } from '../meta';
@@ -48,6 +50,12 @@ export interface DebugState {
   /** 0 or 1, or -1 while running and for a draw. */
   winner: number;
   endReason: EndReason;
+  /** The mission director's own words for how it ended (a lose condition, a scripted end), or null. */
+  endText: string | null;
+  /** The clock's label as the director runs it (or the mission's), for the result text; null without a clock. */
+  timerLabel: string | null;
+  /** The countdown on the objective plate (the phase's clock, the mission's, or a hold-out objective), or null. */
+  clock: { label: string; secondsLeft: number } | null;
   /** Player supplies, rounded down. */
   supplies: number;
   pop: number;
@@ -65,6 +73,8 @@ export interface DebugState {
   timeScale: number;
   /** Seconds left on the mission timer, or null. */
   timer: number | null;
+  /** The prep phase: running or not, seconds left, and build sites still being built; null for a mission without one. */
+  prep: { active: boolean; secondsLeft: number; sites: number; trenches: number; wires: number; pillboxes: number } | null;
   /** The upgrade levels this battle was built with (empty outside a battle). */
   upgrades: UpgradeLevels;
   /** How far toward night the view has been told to darken the sky (0..1; only a deadline mission darkens). */
@@ -74,7 +84,7 @@ export interface DebugState {
   /** The player's unit under direct control, or null. `inTrench` = it holds a trench slot. */
   controlled: { id: number; kind: UnitKind; x: number; hp: number; maxHp: number; action: string; inTrench: boolean } | null;
   /** Availability and seconds of cooldown left (0 = ready) of each support for the player. */
-  supports: Record<SupportKind, { available: boolean; cooldown: number }>;
+  supports: Record<SupportKind, { available: boolean; cooldown: number; /** Charges left, -1 = not limited. */ charges: number }>;
   /** The support the player is aiming (the targeting banner is up), or null. */
   targeting: SupportKind | null;
   /** Live smoke clouds. */
@@ -90,7 +100,8 @@ export interface DebugState {
 /** Where the two armies are, for tests and screenshots that wait for a moment on the battlefield. */
 export interface FieldInfo {
   playerHqX: number;
-  enemyHqX: number;
+  /** Null in a survival mission (the enemy has no HQ). */
+  enemyHqX: number | null;
   /** World x of the player's / the enemy's foremost fighting unit (sappers and garrisoned units excluded), or null. */
   playerFrontX: number | null;
   enemyFrontX: number | null;
@@ -150,8 +161,12 @@ export interface DebugMission {
 
 export interface DebugApi {
   ready: boolean;
-  /** The campaign in order. */
+  /** The campaign on the map, in order. */
   missions(): DebugMission[];
+  /** The campaigns the select screen offers, in its order, and the one on the map. */
+  campaigns(): { offered: CampaignId[]; current: CampaignId };
+  /** Put an offered campaign on the map (as its card on the select screen does). False if it is not offered. */
+  selectCampaign(id: CampaignId): boolean;
   /** Open every mission on the campaign map. Records no clear and awards nothing. */
   unlockAll(): void;
   /** Replace the upgrade levels (unknown upgrades dropped, levels capped; the points are not checked). Saved. */
@@ -164,6 +179,14 @@ export interface DebugApi {
   giveMedals(n: number): number;
   /** Take medals, never below zero (saved). Returns the new balance. */
   takeMedals(n: number): number;
+  /** Upgrade points to spend (the Quartermaster). */
+  points(): number;
+  /** Take upgrade points, never below zero (saved). Returns the new balance. */
+  takePoints(n: number): number;
+  /** Give upgrade points (whole numbers; saved). Returns the new balance. */
+  givePoints(n: number): number;
+  /** Give charges of every call-in the Shop sells (saved). */
+  giveCharges(n: number): void;
   /** The result of the last finished battle, or null. */
   result(): ResultView | null;
   /** Every living unit (empty outside a battle). */
@@ -187,12 +210,26 @@ export interface DebugApi {
    * listed in the campaign and never saved. `mirror` = the symmetric ground used for fairness tests.
    */
   startSandbox(seed?: number, mirror?: boolean): boolean;
+  /** Start a Stalingrad mission (1001 to 1010) on its own, outside the campaign, never saved (startMission plays it as a campaign mission). */
+  startStalingrad(id: number, difficulty?: Difficulty, seed?: number): boolean;
+  /** Start Basic Training, as the title screen's button does. */
+  startTraining(): boolean;
+  /**
+   * The guided tip on screen (null when none), and how far the battle's steps have got: `done` of `total` steps have
+   * ended, `finished` once all have. Null outside a battle with guided tips.
+   */
+  tutorial(): { tip: { id: string; text: string; target: string } | null; done: number; total: number; finished: boolean } | null;
   state(): DebugState;
   setTimeScale(n: number): void;
   getTimeScale(): number;
   grantSupplies(n: number): void;
   /** Raise the player's population cap by n, never above CONFIG.popCap (100 everywhere, even in test battles). */
   grantPopulation(n: number): void;
+  /**
+   * Offer the player a call-in the mission holds back for a later phase (what the director's `support` event does), so
+   * a test need not play to that phase. Only a call-in on the mission's own list for the player.
+   */
+  offerSupport(kind: SupportKind): boolean;
   forceWeather(w: WeatherMode): void;
   forceThunder(): void;
   weatherStats(): WeatherStats;
@@ -280,6 +317,12 @@ export interface BattleSeamReport {
 
 export interface BattleMusicHooks {
   stats(): BattleMusicStats;
+  /**
+   * Render a battle's music before starting it, as the briefing does (startMission and the other start hooks start at
+   * once and render nothing, so without this their battle is silent): a mission id (campaign or Basic Training) or
+   * 'sandbox' for the proving ground. True once every piece is in.
+   */
+  load(mission: number | 'sandbox'): Promise<boolean>;
   /** Hold the music on a layer (null hands it back to the battle), as the intensity rules would ask for it. */
   force(layer: MusicLayer | null): void;
   /** The prep phase hook. */
@@ -326,7 +369,7 @@ function noKindOrders(): Record<UnitKind, Order | null> {
 
 function noSupports(): DebugState['supports'] {
   const out = {} as DebugState['supports'];
-  for (const kind of SUPPORT_KINDS) out[kind] = { available: false, cooldown: 0 };
+  for (const kind of SUPPORT_KINDS) out[kind] = { available: false, cooldown: 0, charges: -1 };
   return out;
 }
 
@@ -357,11 +400,22 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
     },
 
     unlockAll: () => app.unlockAll(),
+    campaigns: () => ({ offered: app.offered.map((c) => c.id), current: app.current.id }),
+    selectCampaign(id) {
+      if (!app.offered.some((c) => c.id === id)) return false;
+      app.selectCampaign(id);
+      ui.refresh();
+      return true;
+    },
     setUpgrades: (levels) => app.setUpgrades(levels),
     save: () => structuredClone(app.save),
     medals: () => app.save.medals,
     giveMedals: (n) => app.giveMedals(Math.max(0, Math.floor(Number(n) || 0))),
     takeMedals: (n) => app.giveMedals(-Math.max(0, Math.floor(Number(n) || 0))),
+    points: () => app.save.points,
+    takePoints: (n) => app.givePoints(-Math.max(0, Math.floor(Number(n) || 0))),
+    givePoints: (n) => app.givePoints(Math.max(0, Math.floor(Number(n) || 0))),
+    giveCharges: (n) => app.giveCharges(Math.floor(Number(n) || 0)),
     result: () => (app.lastResult ? { ...app.lastResult } : null),
 
     audio() {
@@ -414,8 +468,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       const s = session.battle.state;
       const mine = s.sides[0].hq;
       const theirs = s.sides[1].hq;
-      if (!mine || !theirs) return null;
-      const dir = theirs.x >= mine.x ? 1 : -1;
+      if (!mine) return null;
+      // A survival mission has no enemy HQ: the player's side faces +x, as everywhere.
+      const dir = theirs === null || theirs.x >= mine.x ? 1 : -1;
       let playerFront: number | null = null;
       let enemyFront: number | null = null;
       let carrying = 0;
@@ -432,7 +487,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       }
       return {
         playerHqX: mine.x,
-        enemyHqX: theirs.x,
+        enemyHqX: theirs ? theirs.x : null,
         playerFrontX: playerFront,
         enemyFrontX: enemyFront,
         gap: playerFront !== null && enemyFront !== null ? Math.abs(enemyFront - playerFront) : null,
@@ -448,9 +503,30 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       app.autopilot = on;
     },
 
+    startStalingrad(id, difficulty, seed) {
+      const m = getStalingradMission(id);
+      if (!m) return false;
+      app.beginUnlisted(m, difficulty ?? 'normal', seed);
+      return true;
+    },
+
     startSandbox(seed, mirror) {
       app.beginUnlisted(mirror === true ? SANDBOX_MIRROR : SANDBOX, 'normal', seed);
       return true;
+    },
+
+    startTraining() {
+      app.startTraining();
+      return app.session !== null;
+    },
+
+    tutorial() {
+      const tutorial = app.tutorial;
+      if (tutorial === null) return null;
+      const tip = tutorial.tip;
+      const id = tutorial.activeId;
+      const { done, total } = tutorial.progress;
+      return { tip: tip !== null && id !== null ? { id, text: tip.text, target: tip.target } : null, done, total, finished: tutorial.finished };
     },
 
     state() {
@@ -472,6 +548,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           over: false,
           winner: -1,
           endReason: 'none',
+          endText: null,
+          timerLabel: null,
+          clock: null,
           supplies: 0,
           pop: 0,
           popCap: 0,
@@ -481,6 +560,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           units: [zeroCounts(), zeroCounts()],
           hq: [null, null],
           timer: null,
+          prep: null,
           upgrades: {},
           darkness: 0,
           resultReady: app.lastResult !== null,
@@ -501,7 +581,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         return h ? { hp: h.hp, max: h.maxHp } : null;
       };
       const supports = noSupports();
-      for (const kind of SUPPORT_KINDS) supports[kind] = { available: me.supportAvailable[kind], cooldown: me.supportCooldown[kind] };
+      for (const kind of SUPPORT_KINDS) supports[kind] = { available: me.supportAvailable[kind], cooldown: me.supportCooldown[kind], charges: me.supportCharges[kind] };
       const under = me.controlled >= 0 ? s.units[me.controlled] : null;
       let smokes = 0;
       for (const smoke of s.smokes) if (smoke.alive) smokes++;
@@ -518,6 +598,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         over: s.over,
         winner: s.winner,
         endReason: s.endReason,
+        endText: s.director.endText,
+        timerLabel: s.director.timer?.label ?? session.mission.timer?.label ?? null,
+        clock: session.hud.state.timer ? { label: session.hud.state.timer.label, secondsLeft: session.hud.state.timer.secondsLeft } : null,
         supplies: Math.floor(me.supplies),
         pop: me.pop,
         popCap: me.popCap,
@@ -527,6 +610,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         units: [copyCounts(s.sides[0].alive), copyCounts(s.sides[1].alive)],
         hq: [hq(0), hq(1)],
         timer: s.timer ? s.timer.secondsLeft : null,
+        prep: s.prep
+          ? { active: s.prep.active, secondsLeft: s.prep.secondsLeft, sites: s.sites.length, trenches: s.trenches.length, wires: s.wires.length, pillboxes: s.pillboxes.length }
+          : null,
         upgrades: { ...session.battle.config.upgrades },
         darkness: app.darkness,
         resultReady: app.lastResult !== null,
@@ -560,6 +646,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         const side = session.battle.state.sides[0];
         side.popCap = Math.min(CONFIG.popCap, side.popCap + n);
       }
+    },
+
+    offerSupport(kind) {
+      const session = app.session;
+      if (!session || !session.mission.supports[0].includes(kind)) return false;
+      session.battle.state.sides[0].supportAvailable[kind] = true;
+      return true;
     },
 
     forceWeather(w) {
@@ -676,6 +769,10 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
 
     battleMusic: {
       stats: () => JSON.parse(JSON.stringify(audio.battleMusicStats())) as BattleMusicStats,
+      load(mission) {
+        const def = mission === 'sandbox' ? SANDBOX : mission === BASIC_TRAINING_ID ? trainingMission() : app.missions.find((m) => m.id === mission);
+        return def ? audio.loadBattleMusic(def.music) : Promise.resolve(false);
+      },
       force: (layer) => app.forceMusicLayer(layer),
       setPrep: (on) => app.setPrepPhase(on),
       intensity() {

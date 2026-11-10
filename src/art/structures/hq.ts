@@ -544,13 +544,179 @@ export function paintGermanBunker(ctx: Ctx, state: DamageState, L: BunkerFrame, 
   footing(ctx, -176, 176, 2, 9, rand);
 }
 
+// ---------------------------------------------------------------------------
+// Soviet: the DOT, a concrete pillbox earthed over, the embrasure facing the enemy
+// ---------------------------------------------------------------------------
+
+/** A few tufts of dry grass along a bank (x, y pairs). */
+export function grassTufts(ctx: Ctx, pts: readonly number[], rand: () => number): void {
+  for (let i = 0; i < pts.length; i += 2) {
+    const x = pts[i];
+    const y = pts[i + 1];
+    for (let j = 0; j < 4; j++) {
+      const dx = (rand() - 0.5) * 6;
+      strokeLine(ctx, [x + dx, y + 1, x + dx + (rand() - 0.5) * 4, y - 3 - rand() * 4], rgba(j % 2 === 1 ? C.earthRim : C.grass, 0.85), 0.9);
+    }
+  }
+}
+
+function sovietBody(ctx: Ctx, L: BunkerFrame, rand: () => number, gunTip: ArtPoint | null): void {
+  const body = mix(C.concrete, C.earth, 0.12);
+  const bodyDark = mix(C.concreteDark, C.earth, 0.15);
+  // The concrete block with its chamfered front.
+  const block = [-150, 2, -150, -92, 128, -92, 152, -70, 152, 2];
+  rimPoly(ctx, block, body, C.concreteRim);
+  inside(
+    ctx,
+    (c) => poly(c, block),
+    () => {
+      concreteFace(ctx, -150, 152, -92, 2, rand);
+      // Lines left by the shuttering, and rain streaks down from the roof.
+      for (let y = -78; y < 0; y += 14) strokeLine(ctx, [-150, y, 152, y], rgba(bodyDark, 0.35), 0.8);
+      for (let i = 0; i < 9; i++) {
+        const x = -140 + rand() * 280;
+        fillPoly(ctx, [x, -92, x + 3 + rand() * 3, -92, x + 2, -50 + rand() * 30, x - 1, -60 + rand() * 30], rgba(bodyDark, 0.4));
+      }
+      ctx.fillStyle = rgba(C.void, 0.4);
+      ctx.fillRect(-150, -92, 302, 7);
+    },
+  );
+  // The embrasure: a deep stepped opening in the front corner.
+  fillPoly(ctx, [104, -64, 133, -64, 152, -48, 152, -30, 104, -30], bodyDark);
+  strokeLine(ctx, [104, -64.4, 133, -64.4], rgba(C.concreteRim, 0.7), 0.9);
+  fillPoly(ctx, [110, -59, 137, -59, 152, -45, 152, -34, 110, -34], mix(bodyDark, C.void, 0.55));
+  fillPoly(ctx, [116, -54, 141, -54, 150, -46, 150, -38, 116, -38], C.void);
+  if (gunTip) machineGun(ctx, gunTip, 24);
+  // The roof slab's thick edge, overhanging the front.
+  rimPoly(ctx, [-112, -90, -112, -99, 133, -99, 158, -72, 152, -67, 128, -90], mix(body, C.concreteRim, 0.16), C.concreteRim, 1.5);
+  strokeLine(ctx, [-110, -89.4, 128, -89.4], rgba(C.void, 0.55), 1.4);
+  // Earth heaped over the roof and down the back, with the sod growing on it.
+  rimmed(
+    ctx,
+    (c) => {
+      c.beginPath();
+      c.moveTo(-180, 2);
+      c.quadraticCurveTo(-156, -60, -122, -104);
+      c.quadraticCurveTo(-40, -138, 60, -128);
+      c.quadraticCurveTo(116, -120, 138, -98);
+      c.lineTo(-112, -98);
+      c.quadraticCurveTo(-100, -40, -76, 2);
+      c.closePath();
+    },
+    C.earth,
+    C.earthRim,
+  );
+  grassTufts(ctx, [-162, -40, -144, -76, -112, -110, -70, -124, -30, -130, 10, -131, 50, -128, 90, -120, 122, -106], rand);
+  // A low bank of earth along the front, up to the embrasure.
+  rimmed(
+    ctx,
+    (c) => {
+      c.beginPath();
+      c.moveTo(92, 2);
+      c.quadraticCurveTo(134, -30, 178, -4);
+      c.lineTo(178, 2);
+      c.closePath();
+    },
+    C.earth,
+    C.earthRim,
+  );
+  grassTufts(ctx, [118, -14, 140, -20, 164, -12], rand);
+  // Periscope and vent pipe through the earth.
+  rimRect(ctx, 30, -142, 5, 18, 1, C.steel, C.steelRim);
+  rimRect(ctx, 27, -146, 11, 5, 1, C.steel, C.steelRim);
+  rimRect(ctx, -54, -140, 4, 12, 1, C.steel, C.steelRim);
+  // Entrance: a concrete portal with an armoured door standing ajar.
+  const dx = L.doorX;
+  const hw = L.doorW / 2;
+  fillPoly(ctx, [dx - hw - 7, 2, dx - hw - 7, -L.doorH - 9, dx + hw + 7, -L.doorH - 9, dx + hw + 7, 2], bodyDark);
+  strokeLine(ctx, [dx - hw - 7, -L.doorH - 9.4, dx + hw + 7, -L.doorH - 9.4], rgba(C.concreteRim, 0.8), 0.9);
+  ctx.fillStyle = C.void;
+  ctx.fillRect(dx - hw, -L.doorH, L.doorW, L.doorH + 2);
+  const glow = ctx.createRadialGradient(dx + 3, -L.doorH + 14, 1, dx + 3, -L.doorH + 14, 26);
+  glow.addColorStop(0, 'rgba(196,170,110,0.26)');
+  glow.addColorStop(1, 'rgba(196,170,110,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(dx - hw, -L.doorH, L.doorW, L.doorH);
+  rimPoly(ctx, [dx + hw, -L.doorH, dx + hw - 9, -L.doorH + 3, dx + hw - 9, -1, dx + hw, 2], C.steel, C.steelRim);
+  ctx.fillStyle = rgba(C.steelRim, 0.8);
+  for (const ry of [-50, -30, -10]) ctx.fillRect(dx + hw - 4, ry, 1.4, 1.4);
+  // Bags and a couple of logs by the door.
+  bagPile(ctx, dx + hw + 10, 2, 2, 2, BAG_W, BAG_H, 1);
+  beam(ctx, dx - hw - 34, -3, dx - hw - 10, -3, 5);
+  beam(ctx, dx - hw - 30, -8, dx - hw - 12, -8, 4.5);
+}
+
+/** The Soviet DOT in one damage state; gunTip = muzzle of the gun in the embrasure, or null for an empty one. */
+export function paintSovietBunker(ctx: Ctx, state: DamageState, L: BunkerFrame, gunTip: ArtPoint | null): void {
+  const rand = rng(1942);
+  const ruin = state === 'ruin';
+  if (!ruin) flagpole(ctx, L);
+  sovietBody(ctx, L, rand, gunTip);
+
+  if (state !== 'intact') {
+    const drand = rng(43);
+    bite(ctx, [96, -150, 100, -116, 112, -106, 124, -96, 136, -100, 144, -112, 150, -150]);
+    shellHole(ctx, 40, -56, 9, drand);
+    shellHole(ctx, -110, -24, 6, drand);
+    shellHole(ctx, -10, -112, 7, drand);
+    scorch(ctx, 40, -56, 36, 28, 0.6);
+    scorch(ctx, 120, -96, 30, 22, 0.7);
+    scorch(ctx, -10, -112, 28, 16, 0.5);
+    rebar(ctx, 118, -98, drand);
+  }
+
+  if (ruin) {
+    const rrand = rng(943);
+    const profile = [
+      -180, -10, -160, -30, -146, -58, -132, -50, -120, -80, -104, -72, -90, -90, -74, -66, -60, -74, -44, -46, -30, -52, -14, -30, 0,
+      -40, 16, -62, 30, -80, 46, -70, 60, -52, 74, -60, 90, -40, 104, -50, 118, -66, 132, -48, 146, -30, 160, -16, 180, -6,
+    ];
+    breakAbove(ctx, profile, -232);
+    behind(
+      ctx,
+      [-150, 2, -148, -62, -128, -90, -110, -78, -92, -96, -72, -76, -54, -66, -36, -74, -20, -50, 0, -58, 18, -76, 36, -88, 54, -72, 70,
+        -80, 88, -58, 108, -66, 126, -52, 142, -38, 150, 2],
+      mix(C.concreteDark, C.char, 0.55),
+    );
+    poleStump(ctx, L, -40);
+    heap(ctx, -176, 0, 4, 26, rrand, C.earth, C.earthRim);
+    heap(ctx, 10, 176, 4, 22, rrand, mix(C.concreteDark, C.earth, 0.5), C.concreteRim);
+    // Broken slabs of the roof, tipped into the hole.
+    rimPoly(ctx, [-96, -8, -40, -44, -32, -36, -86, 2], mix(C.concrete, C.earth, 0.2), C.concreteRim, 1.4);
+    rimPoly(ctx, [30, -6, 92, -34, 98, -24, 38, 4], mix(C.concrete, C.earth, 0.2), C.concreteRim, 1.4);
+    rebar(ctx, -64, -34, rrand);
+    rebar(ctx, 64, -24, rrand);
+    rebar(ctx, 120, -40, rrand);
+    for (let i = 0; i < 16; i++) {
+      chunk(ctx, -150 + rrand() * 300, -2 - rrand() * 16, 7 + rrand() * 10, rrand, mix(C.concrete, C.concreteDark, rrand()), C.concreteRim);
+    }
+    looseBag(ctx, -150, -4, 0.4, 0);
+    looseBag(ctx, 150, -3, -0.5, -0.2);
+    charOver(ctx, -178, -232, 360, 250, 0.42);
+    for (const f of L.fires) {
+      ember(ctx, f.x, f.y + 14, 16, 0.55);
+      ember(ctx, f.x + 9 - rrand() * 18, f.y + 20, 5, 0.8);
+    }
+    for (let i = 0; i < 9; i++) ember(ctx, -130 + rrand() * 260, -6 - rrand() * 30, 2 + rrand() * 2.5, 0.75);
+  } else if (state === 'damaged') {
+    const drand = rng(44);
+    for (let i = 0; i < 7; i++) {
+      chunk(ctx, -90 + drand() * 240, -1 - drand() * 3, 5 + drand() * 6, drand, mix(C.concrete, C.concreteDark, drand()), C.concreteRim);
+    }
+    heap(ctx, 100, 150, 2, 10, drand, C.earth, C.earthRim);
+  }
+  footing(ctx, -178, 178, 2, 9, rand);
+}
+
 export function hqSpecs(): SpriteSpec[] {
   const specs: SpriteSpec[] = [];
   for (const state of DAMAGE_STATES) {
     const B = HQ_LAYOUT.british;
     const G = HQ_LAYOUT.german;
+    const S = HQ_LAYOUT.soviet;
     specs.push(makeSpec(hqKey('british', state), B.box, (ctx) => paintBritishBunker(ctx, state, B, B.gunSlit)));
     specs.push(makeSpec(hqKey('german', state), G.box, (ctx) => paintGermanBunker(ctx, state, G, G.gunSlit)));
+    specs.push(makeSpec(hqKey('soviet', state), S.box, (ctx) => paintSovietBunker(ctx, state, S, S.gunSlit)));
   }
   return specs;
 }

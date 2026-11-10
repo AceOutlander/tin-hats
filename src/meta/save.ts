@@ -8,11 +8,11 @@
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { MEDALS } from '../data/medals';
 import { META } from '../data/meta';
-import { MISSIONS } from '../data/missions';
-import type { Difficulty, MissionDef, UnitKind, UpgradeDef, UpgradeLevels } from '../data/schema';
+import type { Difficulty, SupportKind, UnitKind, UpgradeDef, UpgradeLevels } from '../data/schema';
 import { clampVolume } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
-import { costUpTo, maxLevel } from './campaign';
+import { maxLevel } from './campaign';
+import { missionPoints, starterCharges, starterLoadout } from './medals';
 
 /** The part of Storage the game uses. */
 export interface StorageLike {
@@ -75,24 +75,56 @@ export function cleanSetting<K extends keyof SaveSettings>(key: K, value: unknow
   }
 }
 
+/** Basic Training, the standalone tutorial (version 8). */
+export interface TrainingRecord {
+  /** Finished at least once: its one-time medal reward has been paid. */
+  done: boolean;
+  /** The player turned down the offer on the title screen (it is not offered again; the button stays). */
+  skipped: boolean;
+}
+
 export interface SaveData {
   version: number;
   /** Mission id (as text) to the difficulties it has been cleared on. */
   cleared: Record<string, Difficulty[]>;
-  /** Upgrade id to level. Absent = level 0. Levels are paid for in medals when bought, so they are not checked again. */
-  upgrades: UpgradeLevels;
-  /** Medals to spend (the Armoury and the Quartermaster). */
-  medals: number;
   /**
-   * Plane call-ins bought in the Armoury, and unit types bought before version 8 (units were sold from v0.9.0 to
-   * v0.11.0; they stay unlocked). Free types are never listed.
+   * Upgrade id to level. Absent = level 0. Levels are paid for when bought (in upgrade points since version 11, in
+   * medals before), so they are not checked again.
+   */
+  upgrades: UpgradeLevels;
+  /** Medals to spend (the Shop). */
+  medals: number;
+  /** Upgrade points to spend (the Quartermaster, version 11). */
+  points: number;
+  /** Call-in charges held, per call-in (version 11): each use in battle spends one. Absent = none. */
+  charges: Partial<Record<SupportKind, number>>;
+  /** The call-ins the player brings to a mission, chosen on the briefing (version 11; MEDALS.loadoutSlots at most). */
+  loadout: SupportKind[];
+  /**
+   * Unit types bought before version 8 (units were sold from v0.9.0 to v0.11.0) and unit types the removed British
+   * missions had unlocked (version 10): they all stay unlocked. Free types are never listed. (Plane call-ins bought
+   * here before version 11 became charges.)
    */
   armoury: string[];
   /** Mission id (as text) to wins per difficulty: the replay decay of the medals. */
   wins: Record<string, Partial<Record<Difficulty, number>>>;
   /** The mission last started from the campaign, or 0 when none (the map opens on it). */
   lastMission: number;
+  /** Basic Training: finished (reward paid) and offer turned down. */
+  training: TrainingRecord;
   settings: SaveSettings;
+  /** Progress on the removed British placeholder missions (version 10), kept as it was; absent when there was none. */
+  legacy?: LegacyRecord;
+}
+
+/**
+ * The British placeholder campaign's progress (mission ids 1 to 10), archived by the step to version 10 when those
+ * missions were removed: their clears and wins as they stood, so nothing a player did is thrown away. Nothing reads it
+ * to play; the medals, upgrades, call-ins and unit types it earned stay in the save's own fields.
+ */
+export interface LegacyRecord {
+  cleared: Record<string, Difficulty[]>;
+  wins: Record<string, Partial<Record<Difficulty, number>>>;
 }
 
 /**
@@ -110,6 +142,11 @@ export interface LoadResult {
 export interface SaveRules {
   /** Missions that exist, in campaign order. Progress on any other mission, or beyond the first mission not cleared, is dropped. */
   missionIds?: readonly number[];
+  /**
+   * With several campaigns: each campaign's mission ids in its own order (together the same ids as `missionIds`). The
+   * "no progress past the first mission not cleared" rule then holds per campaign, not across the joined list.
+   */
+  campaigns?: readonly (readonly number[])[];
   /** The Quartermaster table. Unknown upgrades are dropped and levels are capped. */
   upgradeDefs?: readonly UpgradeDef[];
 }
@@ -124,9 +161,13 @@ export function defaultSave(): SaveData {
     cleared: {},
     upgrades: {},
     medals: 0,
+    points: 0,
+    charges: starterCharges(),
+    loadout: starterLoadout(),
     armoury: [],
     wins: {},
     lastMission: 0,
+    training: { done: false, skipped: false },
     settings: defaultSettings(),
   };
 }
@@ -135,14 +176,14 @@ export function defaultSave(): SaveData {
  * Cleared missions of a version 5 (or older) document, as that version counted them: mission key to the valid
  * difficulties, in campaign order, stopping at the first mission not cleared.
  */
-function legacyCleared(raw: unknown, missions: readonly MissionDef[]): Map<string, Difficulty[]> {
+function legacyCleared(raw: unknown, ids: readonly number[]): Map<string, Difficulty[]> {
   const out = new Map<string, Difficulty[]>();
   if (!isRecord(raw)) return out;
-  for (const m of missions) {
-    const list = raw[String(m.id)];
+  for (const id of ids) {
+    const list = raw[String(id)];
     const ds = Array.isArray(list) ? DIFFICULTY_LIST.filter((d) => list.includes(d)) : [];
     if (ds.length === 0) break;
-    out.set(String(m.id), ds);
+    out.set(String(id), ds);
   }
   return out;
 }
@@ -153,14 +194,15 @@ function legacyCleared(raw: unknown, missions: readonly MissionDef[]): Map<strin
  * paid for are cut (in the Quartermaster's order). Upgrades bought stay; the points left unspent become medals at
  * META.legacyPointMedals each (plane call-ins were never part of a version 5 save, so nothing is marked bought: since
  * version 8 the missions a save has reached unlock their unit types again, see unitsUnlocked in medals.ts); and
- * each cleared mission and difficulty counts as one win, so a replay pays half.
+ * each cleared mission and difficulty counts as one win, so a replay pays half. A save that old played the British
+ * campaign (ids 1 to 10, META.legacyCampaign), the only one there was.
  */
 export function migrateToMedals(
   doc: Record<string, unknown>,
-  missions: readonly MissionDef[] = MISSIONS,
+  ids: readonly number[] = META.legacyCampaign.ids,
   defs: readonly UpgradeDef[] = UPGRADES,
 ): void {
-  const cleared = legacyCleared(doc.cleared, missions);
+  const cleared = legacyCleared(doc.cleared, ids);
   let budget = cleared.size * META.firstClearPoints;
   const oldLevels = isRecord(doc.upgrades) ? doc.upgrades : {};
   // Upgrades this table does not know are left for sanitizeSave to keep or drop by its own rules.
@@ -208,14 +250,105 @@ export function migrateToUnlocks(doc: Record<string, unknown>, defs: readonly Up
     const level = levels[def.id];
     if (typeof level !== 'number' || !Number.isInteger(level) || level < 1) continue;
     const kept = Math.min(level, maxLevel(def));
-    medals += Math.max(0, kept * META.legacyUpgradeLevelMedals - costUpTo(def, kept));
+    let then = 0;
+    for (let n = 0; n < kept; n += 1) then += META.v8UpgradeLevelMedals[n] ?? 0;
+    medals += Math.max(0, kept * META.legacyUpgradeLevelMedals - then);
   }
   doc.medals = Math.min(MEDALS.maxMedals, medals);
 }
 
-/** Ids a save's armoury list may hold: plane call-ins sold there, and unit types bought before version 8. */
+/** The difficulties of one mission's cleared list in a stored document (anything else ignored). */
+function clearedList(raw: unknown): Difficulty[] {
+  return Array.isArray(raw) ? DIFFICULTY_LIST.filter((d) => raw.includes(d)) : [];
+}
+
+/**
+ * Upgrade points, call-in charges and the Shop (version 10 to 11, owner 2026-11-09: the economy pegged to Stick War:
+ * Legacy). Nobody loses value:
+ * - Upgrade levels bought with medals are all kept, and the medals stay spent on them. On top, the save gets in full the
+ *   upgrade points its progress would have earned under the new rule (MEDALS.points: each mission cleared, by its
+ *   hardest difficulty, the British placeholder clears in `legacy` included as far as they run without a gap, and
+ *   Basic Training if finished).
+ * - Every save gets the starter charges (MEDALS.charges[].starter), as a new save does.
+ * - Each plane call-in bought for good in the Armoury becomes charges worth at least its old price: ceil(old price /
+ *   charge price), and never fewer than MEDALS.legacyPlaneMinCharges (it could be used in every battle before). The
+ *   plane leaves the armoury list (unit types stay) and joins the loadout.
+ * - Medals are kept one for one (a win paid 3 to 30 before and 10 to 20 now: none is worth less).
+ */
+export function migrateToCharges(doc: Record<string, unknown>): void {
+  let points = 0;
+  const lists: unknown[] = [];
+  if (isRecord(doc.cleared)) lists.push(...Object.values(doc.cleared));
+  // The British clears as that campaign counted them: in its order, up to the first mission not cleared.
+  if (isRecord(doc.legacy)) lists.push(...legacyCleared(doc.legacy.cleared, META.legacyCampaign.ids).values());
+  for (const list of lists) points += missionPoints(clearedList(list));
+  if (isRecord(doc.training) && doc.training.done === true) points += MEDALS.points.training;
+  doc.points = Math.min(MEDALS.points.max, points);
+  const charges: Partial<Record<SupportKind, number>> = starterCharges();
+  const loadout: SupportKind[] = starterLoadout();
+  const armoury: unknown[] = [];
+  const converted: SupportKind[] = [];
+  for (const id of Array.isArray(doc.armoury) ? (doc.armoury as unknown[]) : []) {
+    const plane = MEDALS.legacyPlanes.find((p) => p.kind === id);
+    if (plane === undefined) {
+      armoury.push(id);
+      continue;
+    }
+    if (converted.includes(plane.kind)) continue;
+    converted.push(plane.kind);
+    const price = MEDALS.charges.find((c) => c.kind === plane.kind)?.price ?? plane.price;
+    const n = Math.max(MEDALS.legacyPlaneMinCharges, Math.ceil(plane.price / price));
+    charges[plane.kind] = Math.min(MEDALS.maxCharges, (charges[plane.kind] ?? 0) + n);
+    if (!loadout.includes(plane.kind)) loadout.push(plane.kind);
+  }
+  doc.armoury = armoury;
+  doc.charges = charges;
+  doc.loadout = loadout.slice(0, MEDALS.loadoutSlots);
+}
+
+/**
+ * The ten British placeholder missions are removed (version 9 to 10, owner 2026-11-08, docs/QUEUE.md). Nothing earned
+ * is lost: medals, upgrade levels, plane call-ins and Basic Training stay as they are, and every unit type the British
+ * missions had unlocked (those of each mission reached: the cleared ones in campaign order and the next one, as
+ * unitsUnlocked counted them) joins the armoury list, so it stays unlocked in every campaign. The British clears and
+ * wins move to the `legacy` block, and the map no longer opens on a British mission. A save without any British
+ * progress gets no legacy block.
+ */
+export function migrateRemoveBritish(doc: Record<string, unknown>): void {
+  const legacy = META.legacyCampaign;
+  const keys = new Set(legacy.ids.map(String));
+  const cleared: Record<string, unknown> = isRecord(doc.cleared) ? { ...doc.cleared } : {};
+  const wins: Record<string, unknown> = isRecord(doc.wins) ? { ...doc.wins } : {};
+  // The unit types of every reached British mission: the first is always reached, each later one once the one before
+  // it was cleared.
+  const kinds: UnitKind[] = [];
+  for (const id of legacy.ids) {
+    for (const kind of legacy.unlocks[id] ?? []) if (!kinds.includes(kind)) kinds.push(kind);
+    const list = cleared[String(id)];
+    if (!Array.isArray(list) || !list.some(isDifficulty)) break;
+  }
+  const armoury: unknown[] = Array.isArray(doc.armoury) ? [...(doc.armoury as unknown[])] : [];
+  for (const kind of kinds) if (!(MEDALS.free as readonly string[]).includes(kind) && !armoury.includes(kind)) armoury.push(kind);
+  doc.armoury = armoury;
+  const old: { cleared: Record<string, unknown>; wins: Record<string, unknown> } = { cleared: {}, wins: {} };
+  for (const key of Object.keys(cleared)) {
+    if (!keys.has(key)) continue;
+    old.cleared[key] = cleared[key];
+    delete cleared[key];
+  }
+  for (const key of Object.keys(wins)) {
+    if (!keys.has(key)) continue;
+    old.wins[key] = wins[key];
+    delete wins[key];
+  }
+  doc.cleared = cleared;
+  doc.wins = wins;
+  if (Object.keys(old.cleared).length > 0 || Object.keys(old.wins).length > 0) doc.legacy = old;
+  if (typeof doc.lastMission === 'number' && keys.has(String(doc.lastMission))) doc.lastMission = 0;
+}
+
+/** Ids a save's armoury list may hold: unit types kept unlocked (bought before version 8, or unlocked by the British missions before version 10). */
 function isArmouryId(id: string): boolean {
-  if (MEDALS.armoury.some((a) => a.id === id)) return true;
   return MEDALS.units.some((u) => u.kind === id) && !(MEDALS.free as readonly string[]).includes(id);
 }
 
@@ -273,6 +406,16 @@ const MIGRATIONS: Readonly<Record<number, (doc: Record<string, unknown>) => void
   },
   // 7 -> 8: units are unlocked by missions again (see migrateToUnlocks).
   7: (doc) => migrateToUnlocks(doc),
+  // 8 -> 9: Basic Training joins the game. Nobody has finished it or turned it down yet, so every player can still
+  // earn its one-time reward and is offered it once on the title screen.
+  8: (doc) => {
+    doc.training = { done: false, skipped: false };
+  },
+  // 9 -> 10: the British placeholder missions are removed; what they earned stays and their progress is archived (see
+  // migrateRemoveBritish).
+  9: (doc) => migrateRemoveBritish(doc),
+  // 10 -> 11: upgrade points, call-in charges and the Shop (see migrateToCharges).
+  10: (doc) => migrateToCharges(doc),
 };
 
 /** Bring an older document up to the current version. Null if it is not a document, or its version is unknown or from the future. */
@@ -291,7 +434,7 @@ export function migrateSave(raw: unknown): Record<string, unknown> | null {
   return doc;
 }
 
-function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly number[] | undefined): void {
+function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly number[] | undefined, campaigns?: readonly (readonly number[])[]): void {
   if (!isRecord(raw)) return;
   const kept: Record<string, Difficulty[]> = {};
   for (const key of Object.keys(raw)) {
@@ -306,12 +449,42 @@ function sanitizeCleared(raw: unknown, out: SaveData, missionIds: readonly numbe
     out.cleared = kept;
     return;
   }
-  // A mission can only have been cleared if the one before it was: progress stops at the first gap.
-  for (const id of missionIds) {
-    const list = kept[String(id)];
-    if (!list) break;
-    out.cleared[String(id)] = list;
+  // A mission can only have been cleared if the one before it (in its own campaign) was: progress stops at the first gap.
+  for (const ids of campaigns ?? [missionIds]) {
+    for (const id of ids) {
+      const list = kept[String(id)];
+      if (!list || !missionIds.includes(id)) break;
+      out.cleared[String(id)] = list;
+    }
   }
+}
+
+/** The legacy block, checked: British mission ids only, valid difficulties and win counts; null when nothing is left. */
+function sanitizeLegacy(raw: unknown): LegacyRecord | null {
+  if (!isRecord(raw)) return null;
+  const keys = new Set(META.legacyCampaign.ids.map(String));
+  const out: LegacyRecord = { cleared: {}, wins: {} };
+  if (isRecord(raw.cleared)) {
+    for (const key of Object.keys(raw.cleared)) {
+      const list = raw.cleared[key];
+      if (!keys.has(key) || !Array.isArray(list)) continue;
+      const ds = DIFFICULTY_LIST.filter((d) => list.includes(d));
+      if (ds.length > 0) out.cleared[key] = ds;
+    }
+  }
+  if (isRecord(raw.wins)) {
+    for (const key of Object.keys(raw.wins)) {
+      const per = raw.wins[key];
+      if (!keys.has(key) || !isRecord(per)) continue;
+      const kept: Partial<Record<Difficulty, number>> = {};
+      for (const d of DIFFICULTY_LIST) {
+        const n = per[d];
+        if (typeof n === 'number' && Number.isInteger(n) && n >= 1) kept[d] = Math.min(MEDALS.maxWins, n);
+      }
+      if (Object.keys(kept).length > 0) out.wins[key] = kept;
+    }
+  }
+  return Object.keys(out.cleared).length > 0 || Object.keys(out.wins).length > 0 ? out : null;
 }
 
 function sanitizeUpgrades(raw: unknown, out: SaveData, defs: readonly UpgradeDef[] | undefined): void {
@@ -333,6 +506,25 @@ function sanitizeMedals(doc: Record<string, unknown>, out: SaveData, missionIds:
     for (const id of doc.armoury) {
       if (typeof id === 'string' && isArmouryId(id) && !out.armoury.includes(id)) out.armoury.push(id);
     }
+  }
+  const points = doc.points;
+  if (typeof points === 'number' && Number.isFinite(points) && points > 0) out.points = Math.min(MEDALS.points.max, Math.floor(points));
+  // Charges and the loadout as stored (a damaged block keeps the starter ones): known call-ins only, whole counts.
+  if (isRecord(doc.charges)) {
+    const charges: Partial<Record<SupportKind, number>> = {};
+    for (const c of MEDALS.charges) {
+      const n = doc.charges[c.kind];
+      if (typeof n === 'number' && Number.isFinite(n) && n >= 1) charges[c.kind] = Math.min(MEDALS.maxCharges, Math.floor(n));
+    }
+    out.charges = charges;
+  }
+  if (Array.isArray(doc.loadout)) {
+    const loadout: SupportKind[] = [];
+    for (const kind of doc.loadout) {
+      const def = MEDALS.charges.find((c) => c.kind === kind);
+      if (def && !loadout.includes(def.kind) && loadout.length < MEDALS.loadoutSlots) loadout.push(def.kind);
+    }
+    out.loadout = loadout;
   }
   if (!isRecord(doc.wins)) return;
   for (const key of Object.keys(doc.wins)) {
@@ -362,9 +554,16 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
   if (!doc) return null;
 
   const out = defaultSave();
-  sanitizeCleared(doc.cleared, out, rules.missionIds);
+  sanitizeCleared(doc.cleared, out, rules.missionIds, rules.campaigns);
   sanitizeUpgrades(doc.upgrades, out, rules.upgradeDefs);
   sanitizeMedals(doc, out, rules.missionIds);
+
+  if (isRecord(doc.training)) {
+    out.training.done = doc.training.done === true;
+    out.training.skipped = doc.training.skipped === true;
+  }
+  const legacy = sanitizeLegacy(doc.legacy);
+  if (legacy) out.legacy = legacy;
 
   const last = doc.lastMission;
   if (typeof last === 'number' && Number.isInteger(last) && last >= 1 && last <= MAX_MISSION_ID) {

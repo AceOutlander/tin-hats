@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { M1001 } from '../../src/data/missions/stalingrad/m1001';
 import { App, MAP_MUSIC } from '../../src/app/app';
+import { BASIC_TRAINING_ID, trainingMission } from '../../src/data/missions/training';
+import { MUSIC_BATTLE } from '../../src/data/musicBattle';
 import { createMemoryStorage } from '../../src/meta';
 import { createFakeAudio, createFakeUi, createFakeView, quickMission } from './app-helpers';
 
@@ -36,7 +39,7 @@ describe('music around the campaign and the battles', () => {
     expect(audio.music).toBe('menu');
   });
 
-  it('starts the mission\'s own track lazily when the battle loads and lets go of the map track', () => {
+  it('starts the mission\'s own track when the battle starts and lets go of the map track', () => {
     const { app, audio } = makeApp();
     app.onScreen('campaign');
     expect(audio.battleTrack).toBe(null);
@@ -46,6 +49,61 @@ describe('music around the campaign and the battles', () => {
     expect(audio.releasedMusic).toContain(MAP_MUSIC);
     expect(audio.music).toBe(null);
     expect(app.musicIntensity).not.toBe(null);
+  });
+
+  it('loads the mission\'s track before its battle (Basic Training too), and asks for no load once it runs', async () => {
+    const { app, view, audio } = makeApp();
+    app.onScreen('campaign');
+    app.onScreen('briefing');
+    const progress: number[] = [];
+    expect(await app.loadMission(1, (f) => progress.push(f))).toBe(true);
+    expect(audio.battleLoads).toEqual([app.missions[0].music]);
+    expect(progress).toEqual([1]);
+    // Loading starts nothing: the battle music begins with the battle.
+    expect(audio.battleTrack).toBe(null);
+    app.startMission(1, 'normal');
+    app.onScreen('battle');
+    play(view, 5);
+    app.dispatch({ type: 'restart' });
+    play(view, 5);
+    expect(audio.battleLoads.length).toBe(1);
+    expect(await app.loadMission(BASIC_TRAINING_ID)).toBe(true);
+    expect(audio.battleLoads[1]).toBe(trainingMission().music);
+    // An unknown mission loads nothing and holds nobody up.
+    expect(await app.loadMission(777)).toBe(true);
+    expect(audio.battleLoads.length).toBe(2);
+  });
+
+  it('starts without music when the load takes too long, and drops a load the player backed out of', async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, audio } = makeApp();
+      audio.loadBattleMusic = (name) => {
+        audio.battleLoads.push(name);
+        return new Promise<boolean>(() => undefined);
+      };
+      app.onScreen('briefing');
+      let answer: boolean | null = null;
+      void app.loadMission(1).then((ok) => {
+        answer = ok;
+      });
+      await vi.advanceTimersByTimeAsync(MUSIC_BATTLE.render.loadTimeoutMs - 100);
+      expect(answer).toBe(null);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(answer, 'the battle may start (without music)').toBe(true);
+      // Back to the map while it loads: the music is let go of and the start is called off.
+      let released = 0;
+      audio.releaseBattleMusic = () => {
+        released++;
+      };
+      const backedOut = app.loadMission(1);
+      app.onScreen('campaign');
+      expect(released).toBe(1);
+      await vi.advanceTimersByTimeAsync(MUSIC_BATTLE.render.loadTimeoutMs);
+      expect(await backedOut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('lets go of the menu theme in a battle and renders it again when the title comes back', () => {
@@ -110,11 +168,13 @@ describe('music around the campaign and the battles', () => {
     expect(audio.battleTrack).toBe(null);
   });
 
-  it('has a prep phase hook for defensive missions', () => {
+  it('plays the prep layer while the prep phase of a defensive mission runs, and leaves it on Ready', () => {
     const { app, view } = makeApp();
-    app.startMission(1, 'normal');
-    app.setPrepPhase(true);
+    app.beginUnlisted(M1001, 'normal');
     play(view, 15);
     expect(app.musicIntensity?.layer).toBe('prep');
+    app.session?.dispatch({ type: 'ready' });
+    play(view, 15);
+    expect(app.musicIntensity?.layer).not.toBe('prep');
   });
 });

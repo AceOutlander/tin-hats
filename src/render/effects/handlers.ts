@@ -9,10 +9,11 @@
  * context.
  */
 import { HQ_LAYOUT, TANK_LAYOUT } from '../../data/artLayout';
+import { CONFIG } from '../../data/config';
 import { FX_TRACERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
 import { ORDER_WHISTLE } from '../../data/sounds';
-import { SUPPORTS } from '../../data/supports';
+import { SUPPORTS, offMapFire } from '../../data/supports';
 import { VIEW } from '../../data/view';
 import { WEAPONS } from '../../data/weapons';
 import { shakeStrength } from '../../fx';
@@ -20,7 +21,7 @@ import type { SimEvent, SimEventType } from '../../sim';
 import type { FlightArc } from './flights';
 import { vehicleLookOf } from '../../art/vehicles';
 import type { FactionId } from '../../data/schema';
-import { isPlaneKind, speechLine, speechOrder } from './callinMath';
+import { isPlaneKind, speechLine, speechOrder, targetMarkerPeak } from './callinMath';
 import type { EffectContext, Point } from './index';
 import { PRESET_DEFS } from './presets';
 
@@ -34,7 +35,20 @@ const X = R.explosion;
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
 /** Size of the muzzle blast for weapons that fire a shell or rocket (1 = a tank gun). */
-const MUZZLE_SIZE: Readonly<Record<string, number>> = { tankGun: 1, heavyGun: 1.35, rocket: 0.6, mortar: 0.55, airRocket: 0.6, artilleryShell: 1.2 };
+const MUZZLE_SIZE: Readonly<Record<string, number>> = {
+  // The tank cannon by calibre (DECISIONS 424): a bigger flash for a bigger gun; the T-60's 20 mm barely a tank's.
+  gun20: 0.45,
+  lightTankGun: 1,
+  gun50L: 1.05,
+  tankGun: 1.35,
+  gun75L: 1.4,
+  heavyGun: 1.75,
+  gun152: 2.1,
+  rocket: 0.6,
+  mortar: 0.55,
+  airRocket: 0.6,
+  artilleryShell: 1.2,
+};
 
 function dirOf(side: number): number {
   return side === 0 ? 1 : -1;
@@ -163,8 +177,10 @@ function onShot(fx: EffectContext, e: SimEvent): void {
       fx.play('tankMuzzle', from.x, from.y, d.x, d.y, gy, size);
     }
     if (!hidden && fx.night > 0.15) fx.play('flashGlow', from.x + dir * 14, from.y, 1, 0, gy, 2.2 * size);
-    if (e.source === 'unit' && (weapon.id === 'tankGun' || weapon.id === 'heavyGun') && fx.lowOk()) {
-      fx.play('shellCasing', from.x - dir * 58, from.y + 22, -dir, 0, gy, 1);
+    if (e.source === 'unit' && weapon.knockback > 0) {
+      if (fx.lowOk()) fx.play('shellCasing', from.x - dir * 58, from.y + 22, -dir, 0, gy, 1);
+      // Smoke curls from the barrel while the gun reloads: the tell that this tank is between shots.
+      if (!hidden) fx.play('barrelSmoke', from.x, from.y, dir, 0, gy, VIEW.rowScale[Math.max(0, e.row)]);
     }
     if (weapon.projectileLook !== 'none' && !fx.flights.has(fx.stepId, weapon.id, e.x)) {
       const faction = fx.state ? fx.state.sides[e.side === 1 ? 1 : 0].faction : 'british';
@@ -201,10 +217,27 @@ function onShot(fx: EffectContext, e: SimEvent): void {
   }
 }
 
+/**
+ * A round from guns off the map (the projectile event's hit flag): no muzzle, the guns are kilometres away. Its whistle
+ * sounds where it will land, as loud for the enemy's as for the player's (the warning to take cover), and it falls
+ * steeply from above the top of the screen for its whole flight time.
+ */
+function incoming(fx: EffectContext, e: SimEvent, weapon: (typeof WEAPONS)[string]): void {
+  fx.sound.at(offMapFire(weapon.id)?.sound ?? weapon.sound, e.x2);
+  if (!fx.onScreen(e.x, e.x2) || weapon.projectileLook === 'none') return;
+  const faction = factionOf(fx, e.side);
+  const ground = fx.groundY(e.row2 >= 0 ? e.row2 : -1);
+  fx.flights.spawn(weapon.projectileLook, faction, 'plunge', e.x, -R.flight.plungeTop, e.x2, ground, e.value, weapon.id, fx.stepId, false);
+}
+
 /** A shell, rocket, grenade or bomb leaves its launcher (phase 2 events): launch effects and a sprite on its arc. */
 function onProjectile(fx: EffectContext, e: SimEvent): void {
   const weapon = e.weapon ? (WEAPONS[e.weapon] as (typeof WEAPONS)[string] | undefined) : undefined;
   if (!weapon || weapon.projectileLook === 'none') return;
+  if (e.hit) {
+    incoming(fx, e, weapon);
+    return;
+  }
   const dupe = fx.flights.has(fx.stepId, weapon.id, e.x);
   if (dupe) fx.flights.cancelProvisional(fx.stepId, weapon.id, e.x);
   else fx.sound.at(weapon.sound, e.x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
@@ -239,7 +272,16 @@ function onExplosion(fx: EffectContext, e: SimEvent): void {
     strafeHit(fx, e);
     return;
   }
-  blast(fx, e.x, e.value > 0 ? e.value : X.smallMax, fx.groundY(e.row >= 0 ? e.row : -1) + (fx.rng() - 0.5) * 12);
+  const ground = fx.groundY(e.row >= 0 ? e.row : -1) + (fx.rng() - 0.5) * 12;
+  const weapon = e.weapon ? (WEAPONS[e.weapon] as (typeof WEAPONS)[string] | undefined) : undefined;
+  const heavy = weapon !== undefined && weapon.knockback > 0;
+  // A tank shell's blast is drawn as far as it throws men (CONFIG.knockReach x its lethal splash).
+  const radius = (e.value > 0 ? e.value : X.smallMax) * (heavy ? CONFIG.knockReach : 1);
+  blast(fx, e.x, radius, ground);
+  // A tank shell (a heavy round that throws men): a big cloud of dust rolls out from the impact (DECISIONS 424).
+  if (heavy && fx.onScreen(e.x - radius, e.x + radius)) {
+    fx.play('shellDust', e.x, ground, 1, 0, ground, clamp(radius / X.refRadius.medium, 0.7, 1.8));
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -344,7 +386,8 @@ function onUnitDied(fx: EffectContext, e: SimEvent): void {
   if (e.kind === 'tank' || e.kind === 'heavyTank' || e.kind === 'apc' || e.kind === 'lightTank') {
     const v = fx.units.findById(e.unitId);
     const faction = e.side === 1 ? 'german' : 'british';
-    const look = vehicleLookOf(e.kind, v ? v.faction : faction);
+    // The look the tank was drawn with (its era's or its force's), else its nation's default.
+    const look = v && 'look' in v ? v.look : vehicleLookOf(e.kind, v ? v.faction : faction);
     const L = TANK_LAYOUT[look];
     const x = v ? v.x : e.x;
     blast(fx, x, e.kind === 'heavyTank' ? 120 : e.kind === 'apc' ? 70 : 88, gy);
@@ -431,9 +474,15 @@ function onSupport(fx: EffectContext, e: SimEvent): void {
   const def = SUPPORTS[e.support];
   const delay = e.value > 0 ? e.value : def.delay;
   const half = e.support === 'smoke' ? def.smokeRadius : def.spread;
-  const own = e.side === fx.playerSide;
-  if (half > 0) fx.targetMarkers.add(e.x, half, delay + def.duration * 0.6, own ? 0.9 : 0.45);
-  if (e.support === 'airStrike') fx.sky.airStrike(e.x, dirOf(e.side), delay);
+  const peak = targetMarkerPeak(e.side, fx.playerSide);
+  if (half > 0 && peak > 0) fx.targetMarkers.add(e.x, half, delay + def.duration * 0.6, peak);
+  if (e.support === 'airStrike') fx.sky.airStrike(e.x, dirOf(e.side), delay, factionOf(fx, e.side));
+}
+
+/** A scripted barrage was ordered: the player's own gets the same faint marker as a call-in; the enemy's, none. */
+function onBarrage(fx: EffectContext, e: SimEvent): void {
+  const peak = targetMarkerPeak(e.side, fx.playerSide);
+  if (peak > 0 && e.value > 0) fx.targetMarkers.add(e.x, e.value, e.x2, peak);
 }
 
 function onBattleEnded(fx: EffectContext, e: SimEvent): void {
@@ -461,6 +510,7 @@ export const EFFECT_HANDLERS: Partial<Record<SimEventType, EffectHandler>> = {
   orderChanged: onOrderChanged,
   supportCalled: onSupport,
   supportIncoming: onSupport,
+  barrageCalled: onBarrage,
   battleEnded: onBattleEnded,
   planePass: onPlanePass,
   planeDown: onPlaneDown,

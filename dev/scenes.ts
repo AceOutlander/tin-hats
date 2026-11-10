@@ -15,8 +15,9 @@
  *             crushing a third flat
  */
 import { CONFIG } from '../src/data/config';
-import type { MissionDef, UnitAction, UnitKind } from '../src/data/schema';
+import type { FactionId, MissionDef, UnitAction, UnitKind } from '../src/data/schema';
 import { UNITS } from '../src/data/units';
+import { WEAPONS } from '../src/data/weapons';
 import type { BattleState, SimEvent, SimEventType, UnitState } from '../src/sim';
 
 export type Emit = (type: SimEventType, fields: Partial<SimEvent>) => void;
@@ -35,6 +36,8 @@ export interface Scene {
   trenches?: { x: number; width: number; owner: 0 | 1 | -1 }[];
   pillboxes?: { x: number; side: 0 | 1 }[];
   wire?: { x: number; width: number; owner: 0 | 1 }[];
+  /** The two sides' nations (default: the base mission's). */
+  nations?: readonly [FactionId, FactionId];
   /** One tick: scene time t (s) after the tick, the scene's units in `forces` order. */
   tick(t: number, k: Kit): void;
 }
@@ -48,6 +51,10 @@ export function sceneMission(base: MissionDef, sc: Scene): MissionDef {
   m.trenches = (sc.trenches ?? []).map((t, i) => ({ id: i, x: t.x, width: t.width, slots: 8, owner: t.owner }));
   m.pillboxes = (sc.pillboxes ?? []).map((p, i) => ({ id: i, x: p.x, side: p.side, hpMul: 1 }));
   m.wire = (sc.wire ?? []).map((w, i) => ({ id: i, x: w.x, width: w.width, owner: w.owner }));
+  if (sc.nations) {
+    m.start[0].faction = sc.nations[0];
+    m.start[1].faction = sc.nations[1];
+  }
   return m;
 }
 
@@ -263,7 +270,15 @@ export const SCENES: Record<string, Scene> = {
     tick(t, k) {
       if (t < 13) k.go(0, 2210, 55, 'aim');
       else k.go(0, 1900, 45, 'aim');
-      if (k.at(4) || k.at(9)) k.launch(0, 'tankGun', 2560, 0.6, 60);
+      // The tank cannon (DECISIONS 424): the shot (flash, recoil, barrel smoke), the shell, a man thrown by the blast,
+      // and the reload bar filling until the next round.
+      if (k.at(4) || k.at(9)) {
+        k.shot(0, 2560, -1, 'tankGun');
+        k.launch(0, 'tankGun', 2560, 0.6, WEAPONS.tankGun.splashRadius);
+      }
+      if (k.at(4.6)) k.kill(5, 'explosive', 1);
+      k.u[0].mount.weapon = WEAPONS.tankGun;
+      k.u[0].weaponCharge = t < 4 ? 1 : Math.min(1, ((t - 4) % 5) / WEAPONS.tankGun.cooldown);
       k.shootCycle(1, 0.5, 1.3, 2520, 1);
       k.shootCycle(2, 0.8, 1.1, 2580, 3);
       k.shootCycle(3, 1.1, 1.5, 2520, 1);
@@ -389,6 +404,80 @@ export const SCENES: Record<string, Scene> = {
       if (k.at(9.8)) k.kill(6, 'explosive', 1);
       if (k.at(10.5)) k.emit('airdrop', { side: 0, x: 2600, value: 150 });
       k.stand(2, 'idle');
+    },
+  },
+
+  /** The Red Army's Katyusha salvo: sixteen M-13s rippling in over a wide strip of the German line (?scene=katyusha). */
+  katyusha: {
+    cam: 2950,
+    nations: ['soviet', 'german'],
+    forces: [
+      { side: 0, kind: 'rifle', x: 2440, row: 1 },
+      { side: 0, kind: 'conscript', x: 2490, row: 3 },
+      { side: 0, kind: 'conscript', x: 2520, row: 2 },
+      { side: 0, kind: 'lmg', x: 2560, row: 0 },
+      { side: 0, kind: 'tank', x: 2360, row: 2 },
+      { side: 1, kind: 'rifle', x: 3020, row: 0 },
+      { side: 1, kind: 'rifle', x: 3090, row: 2 },
+      { side: 1, kind: 'lmg', x: 3170, row: 1 },
+      { side: 1, kind: 'rifle', x: 3260, row: 3 },
+      { side: 1, kind: 'mortar', x: 3340, row: 2 },
+    ],
+    tick(_t, k) {
+      for (let i = 5; i < 10; i++) {
+        k.face(i, -1);
+        k.shootCycle(i, 0.3 * i, 2 + 0.2 * i, 2500, 1 + (i % 3), i === 7 ? 'lmg' : 'rifle');
+      }
+      k.shootCycle(0, 0.2, 1.8, 3090, 2);
+      k.shootCycle(1, 0.7, 2.4, 3020, 3);
+      k.shootCycle(2, 1.1, 2.4, 3170, 2);
+      if (k.at(0.6)) k.emit('supportIncoming', { side: 0, support: 'katyusha', x: 3180, value: 3 });
+      // Sixteen rockets over 2.4 s, scattered over +-420 wu of the mark (SUPPORTS.katyusha).
+      const offs = [-380, 120, -60, 300, -220, 400, 20, -320, 220, -140, 360, -10, 180, -260, 80, -400];
+      for (let r = 0; r < offs.length; r++) {
+        const x = 3180 + offs[r];
+        if (k.at(3.0 + r * 0.15)) k.launch(-1, 'katyushaRocket', x, 1.4, 80, 0, x - 1250);
+      }
+      if (k.at(4.6)) k.kill(5, 'explosive', 1);
+      if (k.at(5.0)) k.kill(7, 'explosive', -1);
+      if (k.at(5.3)) k.kill(9, 'explosive', 1);
+      k.stand(4, 'idle');
+    },
+  },
+
+  /**
+   * The Red Army's own vehicles and aircraft at battle zoom (?scene=redArmour): the KV-1, T-60 and Lend-Lease carrier
+   * rolling up behind the infantry, an Il-2 air strike, a Pe-2, a Yak-1 and a Po-2 passing over.
+   */
+  redArmour: {
+    cam: 2700,
+    nations: ['soviet', 'german'],
+    forces: [
+      { side: 0, kind: 'heavyTank', x: 2250, row: 2 },
+      { side: 0, kind: 'lightTank', x: 2470, row: 0 },
+      { side: 0, kind: 'apc', x: 2600, row: 3 },
+      { side: 0, kind: 'assault', x: 2700, row: 1 },
+      { side: 0, kind: 'sniper', x: 2560, row: 1 },
+      { side: 0, kind: 'at', x: 2650, row: 2 },
+      { side: 1, kind: 'rifle', x: 3060, row: 0 },
+      { side: 1, kind: 'rifle', x: 3120, row: 2 },
+      { side: 1, kind: 'lmg', x: 3200, row: 1 },
+    ],
+    tick(_t, k) {
+      k.go(0, 2500, 30, 'aim');
+      k.go(1, 2640, 34, 'aim');
+      k.go(2, 2780, 38, 'move');
+      k.shootCycle(3, 0.2, 1.4, 3060, 2);
+      k.shootCycle(4, 0.6, 2.6, 3120, 2);
+      k.shootCycle(5, 0.9, 2.2, 3200, 1);
+      for (let i = 6; i < 9; i++) {
+        k.face(i, -1);
+        k.shootCycle(i, 0.3 * i, 2 + 0.2 * i, 2600, 1 + (i % 3), i === 8 ? 'lmg' : 'rifle');
+      }
+      if (k.at(5)) k.emit('supportIncoming', { side: 0, support: 'airStrike', x: 2900, value: 2.5 });
+      if (k.at(0.3)) k.emit('planePass', { side: 0, support: 'bomber', x: 1900, x2: 3800, row: 0, value: 9 });
+      if (k.at(7)) k.emit('planePass', { side: 0, support: 'fighter', x: 2000, x2: 3600, row: 1, value: 5 });
+      if (k.at(1.2)) k.emit('planePass', { side: 0, support: 'recon', x: 2300, x2: 3300, row: 2, value: 12 });
     },
   },
 

@@ -38,6 +38,12 @@ function planeSvg(kind: keyof typeof PLANE_GLYPHS): string {
 }
 
 export const ICONS = {
+  /** A banknote: the money readout and every price (the resource is called money; sappers still carry boxes). */
+  money: svg(
+    `<path ${STROKE} stroke-width="2" d="M2.5 6.5h19v11h-19z"/>` +
+      `<circle ${STROKE} stroke-width="1.6" cx="12" cy="12" r="2.6"/>` +
+      '<path d="M5 9h2v2H5zM17 13h2v2h-2z"/>',
+  ),
   /** Supply crate. */
   crate: svg(
     `<path ${STROKE} stroke-width="2" d="M3 6.5h18v12H3z"/>` +
@@ -89,6 +95,11 @@ export const ICONS = {
   bomber: planeSvg('bomber'),
   fighter: planeSvg('fighter'),
   recon: planeSvg('recon'),
+  /** The Katyusha: a salvo of rockets climbing away from their rails. */
+  katyusha: svg(
+    '<path d="M3 19l1.4 1.4 9-9 0.35-1.75-1.75 0.35zM7.5 19l1.4 1.4 9-9 0.35-1.75-1.75 0.35zM12 19l1.4 1.4 9-9 0.35-1.75-1.75 0.35z"/>' +
+      '<path d="M1.5 21.5h11v1.8h-11z"/>',
+  ),
   /** Direct control. */
   fire: svg(
     `<circle ${STROKE} stroke-width="2.2" cx="12" cy="12" r="6.5"/>` +

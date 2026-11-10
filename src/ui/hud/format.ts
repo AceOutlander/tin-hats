@@ -72,6 +72,17 @@ export function shortName(name: string, maxChars: number): string {
   return n;
 }
 
+/** Longest label that fits a training or support button before it is cut to its first word. */
+export const BUTTON_NAME_CHARS = 10;
+
+/**
+ * The name a training button shows for a unit kind's label (its era's short button name, else its full name).
+ * tests/e2e/hud-labels.spec.ts holds every label of every nation, era and look to the button's width.
+ */
+export function trainButtonName(label: string): string {
+  return shortName(label, BUTTON_NAME_CHARS);
+}
+
 /**
  * Joystick deflection for a horizontal offset of dx pixels from the stick centre.
  * Returns -1..1 with a dead zone in the middle, rounded to 0.05 so tiny finger
@@ -97,4 +108,16 @@ export function stripFrac(x: number, left: number, width: number, pad: number): 
   if (f < 0) return 0;
   if (f > 1) return 1;
   return f;
+}
+
+/** Letters of one word the "Deploy at" button's place line holds at full size; a longer word is set smaller. */
+export const DEPLOY_WORD_CHARS = 10;
+
+/**
+ * The "Deploy at" place line's size factor: 1, or smaller for a word longer than DEPLOY_WORD_CHARS (never below 0.7),
+ * so a long name (Perelazovsky) is set a little smaller rather than broken or cut.
+ */
+export function deployPlaceFit(place: string): number {
+  const longest = place.split(/\s+/).reduce((n, w) => Math.max(n, w.length), 0);
+  return longest <= DEPLOY_WORD_CHARS ? 1 : Math.max(0.7, DEPLOY_WORD_CHARS / longest);
 }

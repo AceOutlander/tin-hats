@@ -3,8 +3,11 @@
  * first gesture, auto-pause when the page loses focus, and the unit icon painter.
  */
 import { paintUnitPortrait } from '../art/icons';
+import { FLAG_KEYS, flagSpecs, type FlagId } from '../art/structures/flags';
 import { paintUpgradePreview } from '../art/upgradePreview';
 import type { GameAudio } from '../audio';
+import { CAMPAIGNS } from '../data/campaigns';
+import { isVehicleKind, missionEra } from '../data/eras';
 import type { FactionId, Side, UnitKind } from '../data/schema';
 import { createMemoryStorage, type StorageLike } from '../meta';
 import type { App } from './app';
@@ -21,19 +24,42 @@ export function browserStorage(win: Window = window): StorageLike {
   }
 }
 
-const DEFAULT_FACTIONS: readonly [FactionId, FactionId] = ['british', 'german'];
+/** Outside a battle: the player's nation in the campaign on the map, against the Germans. */
+function menuFactions(app: App): readonly [FactionId, FactionId] {
+  return [CAMPAIGNS[app.current.id].nation, 'german'];
+}
 
-/** The painter the UI calls for unit portraits: side 0 and 1 are mapped to the factions of the battle in progress. */
+/**
+ * The painter the UI calls for unit portraits: side 0 and 1 are mapped to the factions of the battle in progress, and
+ * outside a battle (the briefing's NEW cards, the Armoury) to the nation of the campaign on the map.
+ */
 export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: UnitKind, side: Side) => void {
   return (canvas, kind, side) => {
-    const faction = app.session ? app.session.battle.state.sides[side].faction : DEFAULT_FACTIONS[side];
-    paintUnitPortrait(canvas, kind, faction);
+    const session = app.session;
+    const faction = session ? session.battle.state.sides[side].faction : menuFactions(app)[side];
+    // A vehicle's portrait shows the mission's era look (the BT-7 in June 1941; src/data/eras.ts).
+    const look = session && isVehicleKind(kind) ? missionEra(session.mission, faction).vehicle[kind] : undefined;
+    paintUnitPortrait(canvas, kind, faction, undefined, look);
+  };
+}
+
+/** The campaign select's flags: a nation's flag (src/art/structures/flags.ts) drawn to fill the canvas. */
+export function createFlagPainter(): (canvas: HTMLCanvasElement, flag: FlagId) => void {
+  const specs = flagSpecs();
+  return (canvas, flag) => {
+    const spec = specs.find((s) => s.key === FLAG_KEYS[flag]);
+    const ctx = canvas.getContext('2d');
+    if (!spec || !ctx) return;
+    ctx.setTransform(canvas.width / spec.w, 0, 0, canvas.height / spec.h, 0, 0);
+    ctx.clearRect(0, 0, spec.w, spec.h);
+    spec.draw(ctx);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   };
 }
 
 /** The Quartermaster's battle previews: the player's nation, its other upgrades at their bought levels. */
 export function createUpgradePainter(app: App): (canvas: HTMLCanvasElement, upgradeId: string, level: number) => boolean {
-  return (canvas, upgradeId, level) => paintUpgradePreview(canvas, upgradeId, level, DEFAULT_FACTIONS[0], app.save.upgrades);
+  return (canvas, upgradeId, level) => paintUpgradePreview(canvas, upgradeId, level, menuFactions(app)[0], app.save.upgrades);
 }
 
 /**
@@ -85,4 +111,13 @@ export function installPageGuards(app: App, audio: GameAudio, doc: Document = do
     win.removeEventListener('focus', onFocus);
     win.removeEventListener('pagehide', onHide);
   };
+}
+
+/**
+ * Whether the campaign select offers the campaigns still being built (`released: false`, src/data/campaigns.ts): on
+ * the dev server, and with ?unreleased=1 in the address (the browser tests and screenshots of a production build).
+ * The live site offers only the released ones.
+ */
+export function showUnreleased(search: string, dev: boolean): boolean {
+  return dev || new URLSearchParams(search).get('unreleased') === '1';
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/data/config';
+import { nationFields } from '../../src/data/factions';
 import { MISSIONS } from '../../src/data/missions';
 import { SANDBOX, SANDBOX_MIRROR } from '../../src/data/missions/sandbox';
 import type { ForceDef, MissionDef, UnitKind } from '../../src/data/schema';
@@ -8,6 +9,8 @@ import { createBattle, runBattle, type Battle } from '../../src/sim';
 import { checkInvariants, configOf, countAlive, makeBattle, run, snapshot } from './sim-helpers';
 
 const ALL_KINDS = Object.keys(UNITS) as UnitKind[];
+/** Every kind the nation of a sandbox side fields (other nations' signature kinds, such as Soviet conscripts, are not). */
+const sideKinds = (side: 0 | 1): UnitKind[] => ALL_KINDS.filter((kind) => nationFields(SANDBOX.start[side].faction, kind));
 
 describe('the sandbox grounds', () => {
   it('give both sides everything on an 8000 wu field with one friendly and two enemy trench lines, wire and two enemy pillboxes', () => {
@@ -19,14 +22,14 @@ describe('the sandbox grounds', () => {
     expect(SANDBOX.pillboxes.filter((p) => p.side === 1)).toHaveLength(2);
     expect(SANDBOX.wire.length).toBeGreaterThan(0);
     for (const side of [0, 1] as const) {
-      expect([...SANDBOX.units[side]].sort()).toEqual([...ALL_KINDS].sort());
+      expect([...SANDBOX.units[side]].sort()).toEqual(sideKinds(side).sort());
       // The player also gets the plane call-ins; the enemy keeps the classic three.
       expect([...SANDBOX.supports[side]].sort()).toEqual(side === 0 ? ['airStrike', 'artillery', 'bomber', 'fighter', 'recon', 'smoke'] : ['airStrike', 'artillery', 'smoke']);
       expect(SANDBOX.start[side].supplies).toBeGreaterThanOrEqual(2000);
     }
     const b = makeBattle({ mission: SANDBOX });
     for (const side of b.state.sides) {
-      for (const kind of ALL_KINDS) expect(side.available[kind]).toBe(UNITS[kind].trainable);
+      for (const kind of ALL_KINDS) expect(side.available[kind]).toBe(UNITS[kind].trainable && nationFields(side.faction, kind));
       expect(side.pop).toBeLessThanOrEqual(side.popCap);
     }
   });

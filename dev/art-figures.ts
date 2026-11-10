@@ -1,8 +1,13 @@
 /**
  * Stick-figure preview page (dev server only). See art-figures.html for the URL options.
  */
-import { createFigureAnim, createFigureInput, drawFigure2d, paintUnitIcon, updateFigure, type FigureAnim, type FigureInput } from '../src/art/figure';
+import { MOLOTOV_KEY, createFigureAnim, createFigureInput, drawFigure2d, paintUnitIcon, setFigureClothing, setFigureGear, setFigureHeadgear, setFigureRocketItem, setFigureWeapon, updateFigure, type FigureAnim, type FigureInput } from '../src/art/figure';
+import { infantryLookOf, missionEra } from '../src/data/eras';
+import { getStalingradMission } from '../src/data/missions/stalingrad';
+import { FIGURE_CLOTHING_LIST, FIGURE_HEADGEAR_LIST, type FigureClothing, type FigureHeadgear } from '../src/data/looksGear';
+import type { LookStage } from '../src/data/upgradeLooks';
 import { ramp } from '../src/art/figure/math';
+import { FACTIONS } from '../src/data/factions';
 import { DEATH_VARIANTS, FIGURE, FIGURE_GAIT_CARRY, FIGURE_KINDS, FIGURE_KIND_LIST, type DeathVariant, type FigureKind } from '../src/data/figure';
 import type { FactionId, UnitAction } from '../src/data/schema';
 import { UNITS } from '../src/data/units';
@@ -25,7 +30,14 @@ const H = window.innerHeight;
 canvas.width = Math.round(W * dpr);
 canvas.height = Math.round(H * dpr);
 
-const FACTION_IDS: readonly FactionId[] = ['british', 'german'];
+/** The two nations shown side by side: ?nations=soviet,german (default British and German). */
+const FACTION_IDS: readonly FactionId[] = nationsParam();
+
+function nationsParam(): FactionId[] {
+  const all = Object.keys(FACTIONS) as FactionId[];
+  const asked = (params.get('nations') ?? '').split(',').filter((n): n is FactionId => (all as string[]).includes(n));
+  return asked.length === 2 ? asked : ['british', 'german'];
+}
 const SUB = 1 / 240;
 
 function num(name: string, def: number): number {
@@ -39,7 +51,8 @@ function kindParam(): FigureKind {
 }
 
 function factionParam(): FactionId {
-  return params.get('faction') === 'german' ? 'german' : 'british';
+  const f = params.get('faction');
+  return f === 'german' || f === 'soviet' ? f : 'british';
 }
 
 /** Advance with small sub-steps, moving at the input's speed. */
@@ -317,9 +330,33 @@ function deathsMode(): void {
 // ---------------------------------------------------------------------------
 // Sheet: every kind and faction in one pose
 // ---------------------------------------------------------------------------
+/** ?headgear=pilotka|ushanka|helmetUshanka puts that cap on the nations that wear it (sheet mode). */
+function headgearParam(): FigureHeadgear | null {
+  const h = params.get('headgear') ?? '';
+  return (FIGURE_HEADGEAR_LIST as readonly string[]).includes(h) ? (h as FigureHeadgear) : null;
+}
+
+/** ?clothing=telogreika|snowSmock puts that winter clothing on the nations that wear it (sheet mode). */
+function clothingParam(): FigureClothing | null {
+  const c = params.get('clothing') ?? '';
+  return (FIGURE_CLOTHING_LIST as readonly string[]).includes(c) ? (c as FigureClothing) : null;
+}
+
+/** ?gear=2,3 draws upgrade gear at health 2, damage 3 (sheet mode). */
+function gearParam(): { health: LookStage; damage: LookStage } | null {
+  const g = (params.get('gear') ?? '').split(',').map(Number);
+  if (g.length !== 2 || g.some((v) => !Number.isInteger(v) || v < 0 || v > 3)) return null;
+  return { health: g[0] as LookStage, damage: g[1] as LookStage };
+}
+
 function sheetMode(): void {
   const actionName = (params.get('action') ?? 'idle') as UnitAction;
-  const kinds = FIGURE_KIND_LIST;
+  // ?kinds=rifle,lmg limits the sheet to those kinds.
+  const only = (params.get('kinds') ?? '').split(',');
+  const kinds = FIGURE_KIND_LIST.filter((k) => only[0] === '' || only.includes(k));
+  const cap = headgearParam();
+  const cloth = clothingParam();
+  const gear = gearParam();
   const cellW = 70;
   const cellH = 84;
   const z = num('z', Math.min((W - 20) / (kinds.length * cellW), (H - 20) / (2 * cellH)));
@@ -331,6 +368,19 @@ function sheetMode(): void {
     const gy = (H - 2 * cellH * z) / 2 + (fi + 0.8) * cellH * z;
     kinds.forEach((k, ki) => {
       const a = createFigureAnim(k, f, 9 + ki);
+      if (gear) setFigureGear(a, gear);
+      setFigureHeadgear(a, cap);
+      setFigureClothing(a, cloth);
+      // ?mission=1009 dresses and arms every figure in that mission's era (src/data/eras.ts); ?look=romanian a force look.
+      const m = getStalingradMission(num('mission', 0));
+      if (m) {
+        const era = missionEra(m, f);
+        const inf = infantryLookOf(params.get('look') ?? '');
+        setFigureHeadgear(a, inf ? inf.headgear : (era.headgear[k] ?? null));
+        setFigureClothing(a, inf ? inf.clothing : (era.clothing[k] ?? null));
+        setFigureWeapon(a, era.weapon[k] ?? null);
+        setFigureRocketItem(a, era.rocketItem[k] ? MOLOTOV_KEY : null);
+      }
       if (params.has('alt')) a.altAim = params.get('alt') === '1';
       const inp = createFigureInput(k);
       inp.carrying = k === 'sapper' && params.get('carry') !== '0';
@@ -389,7 +439,7 @@ function timeline(k: FigureKind): Seg[] {
   return out;
 }
 
-const FIRE_GAP: Record<FigureKind, number> = { sapper: 1, rifle: 0.9, lmg: 0.09, assault: 0.085, mortar: 1.2, sniper: 1.4, medic: 1, at: 1.5, flame: 0.5, commander: 1.1, aa: 0.15 };
+const FIRE_GAP: Record<FigureKind, number> = { sapper: 1, rifle: 0.9, conscript: 1.1, lmg: 0.09, assault: 0.085, mortar: 1.2, sniper: 1.4, medic: 1, at: 1.5, flame: 0.5, commander: 1.1, aa: 0.15 };
 
 function applySeg(a: Actor, seg: Seg, dt: number): void {
   const inp = a.input;

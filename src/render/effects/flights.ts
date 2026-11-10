@@ -3,7 +3,8 @@
  * artillery shells lobbed high, rockets and tank shells flying nearly flat,
  * bombs falling from an aircraft. Each follows its own curve from the launch
  * point to the landing point over the flight time the simulation gives, spins
- * or points along its path, and leaves a smoke trail where its look has one.
+ * or points along its path, and leaves a smoke trail where its look has one. Fire from guns off the map plunges
+ * steeply from above the top of the screen.
  *
  * "Provisional" flights are drawn for a shot event of a lobbed or direct
  * weapon when no projectile event follows in the same step (the simulation
@@ -22,7 +23,7 @@ type Img = Phaser.GameObjects.Image;
 const F = RENDER.fx.flight;
 
 /** The curve a flight follows. */
-export type FlightArc = 'lob' | 'direct' | 'drop';
+export type FlightArc = 'lob' | 'direct' | 'drop' | 'plunge';
 
 /** What a landing provisional flight asks the effects to do. */
 export interface FlightLanding {
@@ -32,6 +33,8 @@ export interface FlightLanding {
 const ARC_LOB = 0;
 const ARC_DIRECT = 1;
 const ARC_DROP = 2;
+/** Off-map fire: a straight, steep fall from above the screen top that speeds up a little as it comes down. */
+const ARC_PLUNGE = 3;
 
 export class FlightPool {
   private readonly images: Img[] = [];
@@ -110,7 +113,7 @@ export class FlightPool {
     this.apex[i] = arc === 'lob' ? Math.min(F.apexMax, Math.max(F.apexMin, dist * F.apexRatio)) : Math.min(F.dropMax, dist * F.dropRatio);
     this.spin[i] = (F.spin[look] ?? 0) * (x1 >= x0 ? 1 : -1);
     this.trailT[i] = 0;
-    this.arc[i] = arc === 'lob' ? ARC_LOB : arc === 'direct' ? ARC_DIRECT : ARC_DROP;
+    this.arc[i] = arc === 'lob' ? ARC_LOB : arc === 'direct' ? ARC_DIRECT : arc === 'plunge' ? ARC_PLUNGE : ARC_DROP;
     this.step[i] = stepId;
     this.provisional[i] = provisional ? 1 : 0;
     this.size[i] = F.scale[look] ?? 1;
@@ -166,6 +169,7 @@ export class FlightPool {
     const lin = this.y0[i] + (this.y1[i] - this.y0[i]) * t;
     let y: number;
     if (this.arc[i] === ARC_DROP) y = this.y0[i] + (this.y1[i] - this.y0[i]) * t * t;
+    else if (this.arc[i] === ARC_PLUNGE) y = this.y0[i] + (this.y1[i] - this.y0[i]) * t * (0.6 + 0.4 * t);
     else y = lin - 4 * this.apex[i] * t * (1 - t);
     this.pos.x = x;
     this.pos.y = y;

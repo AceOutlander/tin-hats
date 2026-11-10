@@ -19,11 +19,12 @@ import { VIEW } from './view';
 
 export type FigureKind = Exclude<UnitKind, 'tank' | 'heavyTank' | 'apc' | 'lightTank'>;
 /** The figure kinds that have their own poses; the new kinds borrow one until the units job draws them. */
-type CoreFigureKind = Exclude<FigureKind, 'flame' | 'commander' | 'aa'>;
+type CoreFigureKind = Exclude<FigureKind, 'flame' | 'commander' | 'aa' | 'conscript'>;
 
 export const FIGURE_KIND_LIST: readonly FigureKind[] = [
   'sapper',
   'rifle',
+  'conscript',
   'lmg',
   'assault',
   'mortar',
@@ -54,10 +55,20 @@ export type WeaponModel =
   | 'piat'
   | 'panzerschreck'
   | 'flamer'
-  | 'pistol';
+  | 'pistol'
+  | 'mosin'
+  | 'mosinScoped'
+  | 'dp27'
+  | 'ppsh'
+  | 'mortar82'
+  | 'ptrd'
+  | 'tt33'
+  // Era weapons (FOUNDATIONS.md 5.1, src/data/eras.ts picks them by date; drawn in src/art/figure/eraWeapons.ts).
+  | 'ppd'
+  | 'pzb39';
 
 /** Small item drawn in a hand: grenades, a mortar bomb, an anti-tank round. */
-export type HandItem = 'none' | 'mills' | 'stick' | 'shell' | 'rocket';
+export type HandItem = 'none' | 'mills' | 'stick' | 'f1' | 'shell' | 'rocket';
 
 /** How a kind works its weapon during the `reload` action. */
 export type ReloadStyle = 'none' | 'bolt' | 'magazine' | 'shell' | 'rocket';
@@ -792,6 +803,8 @@ export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
   flame: CORE_FIGURE_KINDS.assault,
   commander: CORE_FIGURE_KINDS.rifle,
   aa: CORE_FIGURE_KINDS.lmg,
+  // Soviet conscripts move and shoot like riflemen.
+  conscript: CORE_FIGURE_KINDS.rifle,
 };
 
 /** Upper-body poses that are the same for every kind (or only used by one). */
@@ -842,6 +855,25 @@ export const WEAPON_GEOM: Record<WeaponModel, WeaponGeom> = {
   flamer: geom({ muzzleX: 19.4, muzzleY: -0.4 }),
   /** The commander's revolver or pistol. */
   pistol: geom({ muzzleX: 7.6, muzzleY: -1.0, restY: 1.0 }),
+  // Soviet small arms (NATIONS.md section 3), drawn in src/art/figure/soviet.ts. The 1891/30 rifle is a little longer
+  // than the Kar 98k and carries its spike bayonet fixed (the rifle was sighted with it on); the shot leaves the muzzle,
+  // under the bayonet. The sniper's PU-scope rifle has no bayonet.
+  mosin: geom({ muzzleX: 26.4, muzzleY: -0.6 }),
+  mosinScoped: geom({ muzzleX: 26.4, muzzleY: -0.6 }),
+  /** DP-27: the flat pan magazine on top, the bipod hinged near the muzzle end of the ribbed barrel jacket. */
+  dp27: geom({ muzzleX: 27.0, muzzleY: -0.6, bipodX: 21.2, bipodY: 0.5, bipodLen: 9.4, bipodFold: 0.12 }),
+  /** PPSh-41: wooden stock, drum under the receiver, the jacket's slanted muzzle-brake nose. */
+  ppsh: geom({ muzzleX: 15.8, muzzleY: -0.8 }),
+  /** The 82 mm BM-37: set up like the other mortars (same bipod and baseplate points), with its round baseplate. */
+  mortar82: geom({ muzzleX: 22.0, muzzleY: 0, bipodX: 14, bipodY: 0, bipodLen: 15.6, bipodFold: Math.PI - 0.14, baseplate: true, restY: 2.2 }),
+  /** PTRD-41: the two-metre single-shot anti-tank rifle, shouldered like a launcher; bipod folded on the barrel. */
+  ptrd: geom({ muzzleX: 34.0, muzzleY: -2.6, restY: 2.4 }),
+  /** TT-33: the officer's Tokarev, held like the other pistols. */
+  tt33: geom({ muzzleX: 7.8, muzzleY: -1.0, restY: 1.0 }),
+  /** PPD-40 (1940 to 1942): the PPSh's forerunner, a longer wooden stock to the jacket, the drum under the receiver. */
+  ppd: geom({ muzzleX: 16.6, muzzleY: -0.8 }),
+  /** PzB 39 (1939 to 1942): the German anti-tank rifle, shouldered like the PTRD; folding stock, bipod folded. */
+  pzb39: geom({ muzzleX: 30.6, muzzleY: -2.4, restY: 2.2 }),
 };
 
 export interface FigureLoadout {
@@ -854,6 +886,7 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
     weapon: {
       sapper: 'crate',
       rifle: 'enfield',
+      conscript: 'enfield',
       lmg: 'bren',
       assault: 'sten',
       mortar: 'mortar',
@@ -871,6 +904,7 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
     weapon: {
       sapper: 'crate',
       rifle: 'kar98',
+      conscript: 'kar98',
       lmg: 'mg34',
       assault: 'mp40',
       mortar: 'mortar',
@@ -882,6 +916,26 @@ export const FIGURE_LOADOUT: Record<FactionId, FigureLoadout> = {
       aa: 'mg34',
     },
     grenade: 'stick',
+  },
+  // Soviet small arms, 1942 to 1943 (NATIONS.md section 3): Mosin-Nagant 1891/30 with its bayonet fixed, the Mosin with
+  // the PU scope, DP-27, PPSh-41, the 82 mm mortar, PTRD-41, the TT-33 and the F-1 grenade. The AA
+  // crew works the DP like the other nations' light guns.
+  soviet: {
+    weapon: {
+      sapper: 'crate',
+      rifle: 'mosin',
+      conscript: 'mosin',
+      lmg: 'dp27',
+      assault: 'ppsh',
+      mortar: 'mortar82',
+      sniper: 'mosinScoped',
+      medic: 'none',
+      at: 'ptrd',
+      flame: 'flamer',
+      commander: 'tt33',
+      aa: 'dp27',
+    },
+    grenade: 'f1',
   },
 };
 

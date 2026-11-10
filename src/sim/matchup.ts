@@ -13,13 +13,33 @@
  */
 import { MATCHUP } from '../data/balance';
 import { CONFIG } from '../data/config';
-import { M01 } from '../data/missions/m01';
 import type { ArmyEntry, ForceDef, MissionDef, SideStart, UnitKind } from '../data/schema';
 import { UNITS, UNIT_KINDS } from '../data/units';
 import { createBattle } from './battle';
 import type { Battle } from './types';
 
 export type MatchupGround = 'open' | 'trench';
+
+/**
+ * What every duel's mission shares: a plain day on an open French field. These are the values the duels were tuned on
+ * (they came from the old mission 1, removed with the British placeholder campaign), so the matchup tables stay the
+ * same. The AI and bot plans are never used (the harness commands both sides) but a MissionDef needs them.
+ */
+const MATCHUP_BASE: Omit<MissionDef, 'id' | 'key' | 'title' | 'length' | 'newUnit' | 'units' | 'supports' | 'start' | 'trenches' | 'pillboxes' | 'wire' | 'timer' | 'events'> = {
+  location: 'Proving ground',
+  date: '1940',
+  mapPos: { lon: 2.78, lat: 50.29 },
+  briefing: [],
+  objective: 'Destroy the other army.',
+  theatre: 'france',
+  timeOfDay: 'day',
+  mode: 'assault',
+  newSupport: null,
+  ai: { sappers: 1, build: [{ kind: 'rifle', count: 3, after: 0 }], firstAttackAfter: 150 },
+  bot: { sappers: 4, build: [{ kind: 'rifle', count: 4, after: 0 }], firstAttackAfter: 105 },
+  expectedMinutes: [3, 4],
+  music: 'arras',
+};
 
 /** One duel. */
 export interface DuelResult {
@@ -133,7 +153,7 @@ export function matchupMission(a: readonly ArmyEntry[], b: readonly ArmyEntry[],
   // where their HQ's hold line (holdLineOffset in front of it) falls on that line.
   const length = ground === 'trench' && !trench ? startB + CONFIG.holdLineOffset + CONFIG.hqInset : MATCHUP.length;
   return {
-    ...M01,
+    ...MATCHUP_BASE,
     id: 990,
     key: 'matchup',
     title: 'Matchup',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AI } from '../../src/data/ai';
 import { CONFIG } from '../../src/data/config';
-import { getMission } from '../../src/data/missions';
+import { FIELD } from './fixtures';
 import type { MissionAiPlan, MissionDef, UnitKind } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import { collect, makeBattle, mirrored, run, testMission, unitsOf, type MissionOverrides } from './sim-helpers';
@@ -94,7 +94,7 @@ describe('AI economy and build plan', () => {
   });
 
   it('gives the bot the same income whatever the difficulty, and the AI more on harder ones', () => {
-    const mission = getMission(1) as MissionDef;
+    const mission = FIELD;
     const gathered = (difficulty: 'normal' | 'insane'): [number, number] => {
       const b = makeBattle({ mission: mirrored(mission), difficulty, commanders: ['bot', 'ai'] });
       run(b, 40);
@@ -156,7 +156,7 @@ describe('AI orders', () => {
   });
 
   it('never changes its mind faster than minOrderInterval', () => {
-    const mission = mirrored(getMission(1) as MissionDef);
+    const mission = mirrored(FIELD);
     for (const seed of [1, 2]) {
       const b = makeBattle({ mission, seed, commanders: ['ai', 'ai'] });
       const changes = collect(b, 1500, 'orderChanged');

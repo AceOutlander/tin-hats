@@ -21,6 +21,7 @@ import {
 } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
 import type { FigureGearKeys } from './gear';
+import type { ClothingKeys, HeadgearKeys } from './parts';
 import { hash01 } from './math';
 
 // ---------------------------------------------------------------------------
@@ -301,6 +302,14 @@ export class FigureAnim {
   gear: FigureGearKeys | null = null;
   /** Drawn instead of the nation's crate while a sapper carries (setFigureCrateKey); null = the nation's crate. */
   crateKey: string | null = null;
+  /** A cap worn instead of the helmet (setFigureHeadgear); null = the helmet. */
+  headgear: HeadgearKeys | null = null;
+  /** Winter clothing worn over the body (setFigureClothing); null = the plain body. */
+  clothing: ClothingKeys | null = null;
+  /** An era weapon in place of the nation's (setFigureWeapon): its sprite, bipod and baseplate keys; null = the nation's. */
+  weaponKeys: { weapon: string | null; bipod: string | null; plate: string | null } | null = null;
+  /** Drawn for the anti-tank "rocket" hand item instead of the nation's round (setFigureRocketItem); null = the nation's. */
+  rocketKey: string | null = null;
   /** Sapper pushing the handcart (setFigurePushing). */
   pushing = false;
   /** Commander: seconds left of pointing forward with his free arm after an order (setFigurePointing). */
@@ -403,6 +412,10 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.crateVisible = false;
   a.gear = null;
   a.crateKey = null;
+  a.headgear = null;
+  a.clothing = null;
+  a.weaponKeys = null;
+  a.rocketKey = null;
   a.pushing = false;
   a.dead = false;
   a.deathVariant = DEATH_VARIANTS[0];

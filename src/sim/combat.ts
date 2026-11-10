@@ -4,10 +4,15 @@
  * hit rolls, projectile launches, and the deferred damage queue.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import { FIRE_DAMAGE } from '../data/damage';
+import { OBSTACLES } from '../data/obstacles';
+import { damageBuilding } from './buildings';
 import { LAUNCH, launch } from './projectiles';
 import {
+  CLASS_BUILDING,
   CLASS_FORT,
   CLASS_HQ,
+  CLASS_VEHICLE,
   DAMAGE_TYPES,
   DUG_IN_NONE,
   DUG_IN_ONLY,
@@ -30,6 +35,7 @@ import {
   unitClass,
 } from './tables';
 import {
+  TARGET_BUILDING,
   TARGET_HQ,
   TARGET_NONE,
   TARGET_PILLBOX,
@@ -38,12 +44,23 @@ import {
   type MountState,
   type UnitState,
 } from './types';
+import { disguised } from './director';
+import { flareLit } from './sky';
 import { flushUnit } from './trenches';
 import { igniteUnit, killUnit } from './units';
-import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, type World } from './world';
+import { DMG_FLEW_NEG, DMG_FLEW_POS, DMG_FLUSH, DMG_TOP, GROUND_INV_CELL, type World } from './world';
 
 /** Index of the bullet damage type (a bullet in the back ignites a flamethrower). */
 const BULLET = DAMAGE_TYPES.indexOf('bullet');
+const EXPLOSIVE_TYPE = DAMAGE_TYPES.indexOf('explosive');
+
+/** True if the slot record at trench index `ti` is a building with sandbags in its windows (a prep build). */
+function sandbagged(sandbags: readonly { trench: number; building: number }[], ti: number): boolean {
+  for (let i = 0; i < sandbags.length; i++) if (sandbags[i].building >= 0 && sandbags[i].trench === ti) return true;
+  return false;
+}
+/** Fire on men at a building's windows, in place of the matrix value (FIRE_DAMAGE in src/data/damage.ts). */
+const FIRE_BUILDING = FIRE_DAMAGE.infantryBuilding ?? 1;
 
 /** Weight of the preference rank against distance when scoring targets: rank always wins. */
 const RANK_WEIGHT = 1e7;
@@ -116,9 +133,21 @@ function search(w: World, m: MountState, side: number): boolean {
   const wi = m.weaponIndex;
   const weapon = WEAPON_LIST[wi];
   const mask = WEAPON_MASK[wi];
-  const range = weapon.range;
+  // A man on a building's upper floor sees further (m.rangeMul; 1 everywhere else).
+  let range = weapon.range * m.rangeMul;
+  // Fired from high ground (SectorDef.heightBonus, 1006's summit), it reaches further.
+  const g = w.ground;
+  if (g !== null) {
+    let c = (x * GROUND_INV_CELL) | 0;
+    if (c < 0) c = 0;
+    else if (c >= g.count) c = g.count - 1;
+    range *= g.height[c];
+  }
   const minRange = weapon.minRange;
   const direct = weapon.delivery !== 'lob';
+  // Fog, blizzard, dust, smoke and night (src/sim/sky.ts): direct fire picks targets only this far, but where a flare
+  // burns. Equal to range in clear daylight, so nothing changes then.
+  const seen = direct ? range * s.sky.visibility : range;
   const enemy = 1 - side;
   const dir = side === 0 ? 1 : -1;
   foundType = TARGET_NONE;
@@ -130,11 +159,15 @@ function search(w: World, m: MountState, side: number): boolean {
   const units = s.units;
   const spreadWu = CONFIG.targetSpread;
   const offset = m.spread;
+  // A disguised column (the director's disguise event) is not picked out while it holds its fire.
+  const masked = s.director.disguiseSide === enemy;
   for (let i = 0; i < s.unitCount; i++) {
     const t = units[i];
     if (!t.alive || t.side !== enemy || t.inside) continue;
+    if (masked && disguised(s, t)) continue;
     const d = t.x > x ? t.x - x : x - t.x;
     if (d > range || d < minRange) continue;
+    if (d > seen && !flareLit(s, t.x)) continue;
     if ((mask & (1 << unitClass(t))) === 0) continue;
     const rank = unitRank(w, wi, t);
     if (rank < 0) continue;
@@ -164,6 +197,7 @@ function search(w: World, m: MountState, side: number): boolean {
       if (!p.alive || p.side !== enemy) continue;
       const d = p.x > x ? p.x - x : x - p.x;
       if (d > range || d < minRange) continue;
+      if (d > seen && !flareLit(s, p.x)) continue;
       const score = structRank * RANK_WEIGHT + d;
       if (score >= best) continue;
       if (direct && w.smokeCount > 0) {
@@ -184,7 +218,7 @@ function search(w: World, m: MountState, side: number): boolean {
     const hq = s.sides[enemy].hq;
     if (hq && hq.alive) {
       const d = hq.doorX > x ? hq.doorX - x : x - hq.doorX;
-      if (d <= range && d >= minRange) {
+      if (d <= range && d >= minRange && (d <= seen || flareLit(s, hq.doorX))) {
         const score = structRank * RANK_WEIGHT + d;
         let blocked = false;
         if (direct && w.smokeCount > 0) {
@@ -239,6 +273,7 @@ function targetValid(w: World, m: MountState): boolean {
     case TARGET_UNIT: {
       const t = s.units[m.targetIndex];
       if (!t.alive || t.id !== m.targetId || t.inside) return false;
+      if (s.director.disguiseSide === t.side && disguised(s, t)) return false;
       if ((WEAPON_MASK[wi] & (1 << unitClass(t))) === 0) return false;
       if (unitRank(w, wi, t) < 0) return false;
       tx = t.x;
@@ -260,7 +295,17 @@ function targetValid(w: World, m: MountState): boolean {
       return false;
   }
   const d = tx > x ? tx - x : x - tx;
-  if (d > weapon.range || d < weapon.minRange) return false;
+  let range = weapon.range * m.rangeMul;
+  const g = w.ground;
+  if (g !== null) {
+    let c = (x * GROUND_INV_CELL) | 0;
+    if (c < 0) c = 0;
+    else if (c >= g.count) c = g.count - 1;
+    range *= g.height[c];
+  }
+  if (d > range || d < weapon.minRange) return false;
+  // Out of sight in fog or at night (src/sim/sky.ts), unless a flare shows it.
+  if (weapon.delivery !== 'lob' && d > range * s.sky.visibility && !flareLit(s, tx)) return false;
   if (weapon.delivery !== 'lob' && w.smokeCount > 0) {
     SMOKE_LINE[0] = x;
     SMOKE_LINE[1] = tx;
@@ -364,18 +409,23 @@ function fireShot(
     LAUNCH[2] = m.damageMul;
     LAUNCH[3] = 0;
     LAUNCH[4] = 1;
-    LAUNCH[5] = 1;
+    // An anti-tank round fired down from a tall building's top floor (m.vehicleMul; 1 everywhere else).
+    LAUNCH[5] = m.vehicleMul;
     LAUNCH[6] = 0;
     launch(w, side, wi, row, trow, shooter, source);
   } else if (target !== 'ground') {
     let t = weapon.range > 0 ? dist / weapon.range : 0;
     if (t > 1) t = 1;
-    const chance = (weapon.accuracyNear + (weapon.accuracyFar - weapon.accuracyNear) * t) * m.accuracy;
+    // The blizzard spoils long shots (s.sky.accuracyFar; 1 in any other weather).
+    const far = weapon.accuracyFar * s.sky.accuracyFar;
+    const chance = (weapon.accuracyNear + (far - weapon.accuracyNear) * t) * m.accuracy;
     hit = w.rng.next() < chance;
     if (hit) {
       const flush = WEAPON_FLUSH[wi] === 1;
       let amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
       if (flush && cls === CLASS_FORT) amount *= SPECIALS.flamePillboxMul;
+      else if (flush && cls === CLASS_BUILDING) amount = weapon.damage * FIRE_BUILDING * m.damageMul;
+      if (cls === CLASS_VEHICLE) amount *= m.vehicleMul;
       w.damage.push(m.targetType, m.targetIndex, targetId, amount, side, dtype, dir, flush ? DMG_FLUSH : 0);
     }
   }
@@ -498,6 +548,19 @@ export function applyDamage(w: World): void {
           igniteUnit(w, u, dir, by);
           break;
         }
+        // Trunks and broken walls (forest, rubble) cover infantry in the open from bullets.
+        const g = w.ground;
+        if (g !== null && dtype === BULLET && u.trenchId < 0 && u.def.class === 'infantry') {
+          let c = (u.x * GROUND_INV_CELL) | 0;
+          if (c < 0) c = 0;
+          else if (c >= g.count) c = g.count - 1;
+          amount *= g.cover[c];
+        }
+        // Sandbags in the windows of the building he holds (fire still burns him out).
+        if (s.sandbags.length > 0 && u.trenchId >= 0 && (flags & DMG_FLUSH) === 0 && sandbagged(s.sandbags, u.trench)) {
+          if (dtype === BULLET) amount *= OBSTACLES.sandbagBullet;
+          else if (dtype === EXPLOSIVE_TYPE) amount *= OBSTACLES.sandbagExplosive;
+        }
         u.hp -= amount;
         u.hitTime = s.time;
         s.sides[by].stats.damageDealt += amount;
@@ -569,6 +632,10 @@ export function applyDamage(w: World): void {
         }
         break;
       }
+      case TARGET_BUILDING:
+        // Its walls: floors fall and it may become rubble (damage to the men inside is queued behind this one).
+        damageBuilding(w, q.targetIndex[i], amount, by, dtype, dir);
+        break;
       default:
         break;
     }

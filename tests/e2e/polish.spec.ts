@@ -4,7 +4,8 @@
  * that must never fire a navigation or a purchase twice. Pictures: docs/screenshots/e2e-polish-*.png
  */
 import type { Page } from '@playwright/test';
-import { arrived, expect, open, playThroughMenus, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
+import { UPGRADES } from '../../src/data/upgrades';
+import { BATTLE_LOAD_MS, arrived, expect, open, shot, startMission, state, tap, tapIn, test, touchDrag } from './helpers';
 
 const SIZES: Array<[number, number]> = [
   [568, 320],
@@ -15,15 +16,28 @@ const SIZES: Array<[number, number]> = [
   [1000, 412],
 ];
 
-/** A save far enough on that the Quartermaster has points to spend and upgrades to show. */
+/**
+ * A save far enough on that the Quartermaster has medals to spend and upgrades to show: Stalingrad's missions 1001 to
+ * 1005 cleared, so 1006 (Mamayev Kurgan, with call-ins and new units) is the next to play.
+ */
 async function farSave(page: Page): Promise<void> {
   await page.addInitScript(() => {
     if (window.localStorage.getItem('tinhats.save') !== null) return;
     const cleared: Record<string, string[]> = {};
-    for (let i = 1; i <= 7; i++) cleared[String(i)] = ['normal'];
+    for (let i = 1001; i <= 1005; i++) cleared[String(i)] = ['normal'];
     window.localStorage.setItem(
       'tinhats.save',
-      JSON.stringify({ version: 2, cleared, upgrades: { sapperDrill: 1, hqIncome: 2, rifleHealth: 3 }, lastMission: 3, settings: { muted: false, difficulty: 'normal', hints: true } }),
+      JSON.stringify({
+        version: 10,
+        cleared,
+        upgrades: { sapperDrill: 1, hqIncome: 2, rifleHealth: 3 },
+        medals: 160,
+        armoury: [],
+        wins: {},
+        lastMission: 1003,
+        training: { done: true, skipped: false },
+        settings: { muted: false, difficulty: 'normal', hints: true },
+      }),
     );
   });
 }
@@ -118,22 +132,24 @@ test.describe('menus and HUD at every phone size', () => {
         if (w === 844) await shot(page, `polish-qm-${w}`);
         await tapIn(page, 'quartermaster', 'back');
         await settled(page);
-        for (const id of [1, 4]) {
+        for (const id of [1001, 1004]) {
           await page.getByTestId(`mission-pin-${id}`).evaluate((el) => (el as HTMLElement).click());
           await tapIn(page, 'campaign', 'mission-start');
           await settled(page);
           await page.waitForTimeout(2800);
           await expectClean(page, `briefing ${id}`);
-          if (w === 844 && id === 4) await shot(page, 'polish-briefing-844');
+          if (w === 844 && id === 1004) await shot(page, 'polish-briefing-844');
           await tapIn(page, 'briefing', 'back');
           await settled(page);
         }
         // The battle HUD, the pause menu and the tutorial tip, on a mission with a support (so the left column is used).
-        await page.getByTestId('mission-pin-6').evaluate((el) => (el as HTMLElement).click());
+        // Mission 1006, the first this save has not won: its sniper is new to the player, so its "New:" tip comes up. A
+        // mission already won brings nothing new and shows no tip (v0.12.0, DECISIONS 280).
+        await page.getByTestId('mission-pin-1006').evaluate((el) => (el as HTMLElement).click());
         await tapIn(page, 'campaign', 'mission-start');
         await settled(page);
         await tapIn(page, 'briefing', 'begin');
-        await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: BATTLE_LOAD_MS });
         await expect(page.getByTestId('tip')).toBeVisible({ timeout: 20_000 });
         await expectClean(page, 'battle with a tip');
         await tap(page, 'pause');
@@ -151,7 +167,7 @@ test.describe('the briefing', () => {
     await open(page);
     await tap(page, 'play');
     await settled(page);
-    await page.getByTestId('mission-pin-4').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('mission-pin-1004').evaluate((el) => (el as HTMLElement).click());
     await tapIn(page, 'campaign', 'mission-start');
     await settled(page);
     await page.waitForTimeout(2800);
@@ -189,7 +205,7 @@ test.describe('the briefing', () => {
     await open(page);
     await tap(page, 'play');
     await settled(page);
-    await page.getByTestId('mission-pin-1').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('mission-pin-1001').evaluate((el) => (el as HTMLElement).click());
     await tapIn(page, 'campaign', 'mission-start');
     await settled(page);
     await page.waitForTimeout(2800);
@@ -234,14 +250,14 @@ test.describe('rapid taps', () => {
     expect(await shown(page)).toEqual(['campaign']);
     await expect(page.locator('.th-screen[data-screen="campaign"]')).toHaveCount(1);
 
-    await page.getByTestId('mission-pin-2').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('mission-pin-1002').evaluate((el) => (el as HTMLElement).click());
     await doubleTap(page, 'mission-start', 'campaign');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['campaign', 'briefing']);
     await expect(page.locator('.th-screen[data-screen="briefing"]')).toHaveCount(1);
 
     await doubleTap(page, 'begin', 'briefing');
-    await expect.poll(async () => (await state(page)).screen).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['campaign', 'briefing', 'battle']);
     // The second tap landed where the Advance button now is: it must not have given an order.
@@ -282,13 +298,17 @@ test.describe('rapid taps', () => {
     const points = async (): Promise<number> => Number(await arrived(page, 'quartermaster').getByTestId('points-available').textContent());
     const startLevel = await level('hqGun');
     const startPoints = await points();
-    expect(startPoints).toBeGreaterThanOrEqual(3);
+    // The next level's price in medals (10, 20, 30 since v0.12.0).
+    const def = UPGRADES.find((u) => u.id === 'hqGun');
+    if (!def) throw new Error('no hqGun upgrade');
+    const price = def.levelCosts?.[startLevel] ?? def.costPerLevel;
+    expect(startPoints).toBeGreaterThanOrEqual(3 * price);
 
-    // One tap: one level and one point, not two (the list is rebuilt under the finger by the purchase).
+    // One tap: one level and its price, not two (the list is rebuilt under the finger by the purchase).
     await tapIn(page, 'quartermaster', 'upgrade-buy-hqGun');
     await page.waitForTimeout(600);
     expect(await level('hqGun')).toBe(startLevel + 1);
-    expect(await points()).toBe(startPoints - 1);
+    expect(await points()).toBe(startPoints - price);
 
     // Two quick taps are two deliberate purchases, and refunds are free, so a slip costs nothing.
     await doubleTap(page, 'upgrade-refund-hqGun', 'quartermaster');
@@ -299,7 +319,7 @@ test.describe('rapid taps', () => {
   test('start a battle once from the result screen', async ({ page }) => {
     await farSave(page);
     await open(page);
-    await startMission(page, 1, 5);
+    await startMission(page, 1002, 5);
     await expect.poll(async () => (await state(page)).screen).toBe('battle');
     // An idle army loses: fast-forward to the result screen.
     await page.evaluate(() => ((window as unknown as { __TH: { setTimeScale(n: number): void } }).__TH).setTimeScale(240));
@@ -308,17 +328,20 @@ test.describe('rapid taps', () => {
     await page.waitForTimeout(600);
     await watchScreens(page);
     await doubleTap(page, 'result-retry', 'result');
-    await expect.poll(async () => (await state(page)).screen).toBe('battle');
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['battle']);
   });
 });
 
-// Mission 1 start, for the pictures of the finished tutorial tip layout at the smallest size.
+// The first tutorial tip, for the pictures of the finished tip layout at the smallest size. The guided steps live in
+// Basic Training (the campaign's first mission only says what is new to the player), so it is started from its
+// title-screen button.
 test('the first tutorial tip on the smallest phone', async ({ page }) => {
   await page.setViewportSize({ width: 568, height: 320 });
   await open(page);
-  await playThroughMenus(page, 1, false);
+  await tap(page, 'basic-training');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('tip')).toBeVisible({ timeout: 20_000 });
   await shot(page, 'polish-tip-568');
 });

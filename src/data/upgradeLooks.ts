@@ -11,8 +11,12 @@ import type { FactionId, SupportKind, UnitKind, UpgradeDef } from './schema';
 export type LookStage = 0 | 1 | 2 | 3;
 export type Stages<T> = readonly [T, T, T, T];
 
-/** HQ building styles. Tent styles take the nation's canvas tint; the bunkers are one nation's own. */
-export type HqStyle = 'tent' | 'bigTent' | 'dugout' | 'bunkerBritish' | 'bunkerGerman';
+/**
+ * HQ building styles. Tent styles take the nation's canvas tint; the bunkers are one nation's own. The Red Army's four
+ * (NATIONS.md section 3): a tent of buttoned rain capes, the zemlyanka (an earth-covered dugout), the log dugout under
+ * a roof of three courses of logs, and the concrete DOT.
+ */
+export type HqStyle = 'tent' | 'bigTent' | 'dugout' | 'bunkerBritish' | 'bunkerGerman' | 'capeTent' | 'zemlyanka' | 'logDugout' | 'bunkerSoviet';
 /** HQ machine-gun positions, drawn on the ground in front of the HQ (the gun model and helmets follow the nation). */
 export type HqGunStyle = 'gunner' | 'emplacement' | 'tripod' | 'nest';
 /** Supply dump styles. */
@@ -61,6 +65,14 @@ export const NATION_LOOKS: Record<FactionId, NationLooks> = {
     dump: ['crates', 'stacked', 'drums', 'truck'],
     sapper: ['crate', 'bigLoad', 'handcart', 'truck'],
     // The Germans hold prepared positions: a concrete bunker, a fortified gun nest and a well-stocked dump.
+    enemy: { hq: 3, hqGun: 3, dump: 2, sapper: 0 },
+  },
+  // Soviet stages (NATIONS.md section 3): rain-cape tent, zemlyanka, log dugout, concrete DOT.
+  soviet: {
+    hq: ['capeTent', 'zemlyanka', 'logDugout', 'bunkerSoviet'],
+    hqGun: ['gunner', 'emplacement', 'tripod', 'nest'],
+    dump: ['crates', 'stacked', 'drums', 'truck'],
+    sapper: ['crate', 'bigLoad', 'handcart', 'truck'],
     enemy: { hq: 3, hqGun: 3, dump: 2, sapper: 0 },
   },
 };

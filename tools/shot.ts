@@ -11,6 +11,7 @@
  * --wait=500        extra milliseconds to wait before the screenshot
  * --evalFile=x.js   run this JS file's contents in the page before the screenshot (may be async)
  * --strict  exit 1 if the page logged console errors, threw, or had failed requests
+ * --timeout=30000  how long the first page load may take (the dev server's first load can be slow)
  *
  * Starts its own server on a free port and shuts everything down afterwards,
  * so several can run at once and nothing is left running.
@@ -99,7 +100,7 @@ async function main(): Promise<number> {
       if (res.status() >= 400) problems.push(`http ${res.status()}: ${res.url()}`);
     });
 
-    await page.goto(`http://127.0.0.1:${port}/${urlPath.replace(/^\//, '')}`, { waitUntil: 'load' });
+    await page.goto(`http://127.0.0.1:${port}/${urlPath.replace(/^\//, '')}`, { waitUntil: 'load', timeout: Number(flags.get('timeout') ?? 30_000) });
     if (flags.has('ready')) {
       await page.waitForFunction('window.__ready === true', undefined, { timeout: 30_000 });
     }

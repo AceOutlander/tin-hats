@@ -1,0 +1,563 @@
+import { STALINGRAD_MUSIC } from '../../musicCampaigns';
+import type { MissionDef } from '../../schema';
+
+/**
+ * Stalingrad mission 10 (1010): Operation Ring, 10 January to 2 February 1943 (docs/campaigns/STALINGRAD.md, mission
+ * 10). The campaign's finale: the Don Front clears the pocket from the western steppe (trenches 2 and 3) through
+ * Pitomnik airfield (trench 4, the hangar B1, the wrecked transports) and Gumrak (trench 5, the station B2 and the
+ * sheds B3, a Flak pair and a StuG without fuel) into the city's western ruins (trenches 6 and 7, apartment blocks B4 to
+ * B9) and the central square (trench 8, B10 to B12) to the German headquarters in the Univermag (the enemy HQ,
+ * `hqLook` store). The Sixth Army is starving and short of fuel: its tanks are on guard where they ran dry, its income
+ * is low, and it has no aircraft.
+ *
+ * Built on the mission director (docs/campaigns/STALINGRAD_BUILD.md, mission 1010): four phases (two backdrops); the
+ * minefield on the western steppe at x 6,600 is a mixed (AP and AT) field (FOUNDATIONS.md 4.6), unmarked: the fifth
+ * barrage lands on it, showing it and breaking part of it, and sappers clear the rest; the ground is snow and the
+ * steppe under snow, then the city's rubble. Seven
+ * thousand guns: five free barrages, then the western steppe and Pitomnik (P1); Gumrak (P2); the ruins (P3), where
+ * nests show themselves every 120 s and the Germans hold their positions (the three points are open ground taken by
+ * holding it 10 s once the trench in it is cleared, and forward spawns once ours); the Univermag, whose HQ surrenders
+ * below 25% (the closing words are scripted). The tanks without fuel cannot move (leash 0); the German artillery is
+ * short of shells (a 180 s cooldown). Tuned (DECISIONS 437): Pitomnik is held 90 s against a counter-attack and the
+ * ruins 240 s while the pocket is split (with a break-back attempt), the German income falls with Pitomnik and again
+ * with Gumrak (the airlift ends), the Don Front's guns fire on the square as scripted barrages, and a phase-1 clock
+ * (12 min) ends an offensive that never starts. The KV-1S stands in as a T-34 (`tank`); StuG III (look `stug3f`), Panzer III (the
+ * era's Ausf. L) and Panzer IV (look `panzer4g`) are the German `tank` (`lightTank` is the 1939 to 1941 Panzer III
+ * Ausf. E), the Pak 40 crews the `at` kind.
+ *
+ * Weather and time (FOUNDATIONS.md 4.7): an overcast January day on the steppe theatre's winter look, crossfading into
+ * the stalingrad theatre's winter ruins at the city; snow, a blizzard at Gumrak (300 to 420 s of phase 2: no air),
+ * clearing in the ruins, dusk at the Univermag.
+ */
+export const M1010: MissionDef = {
+  id: 1010,
+  key: 'ring',
+  title: 'Operation Ring',
+  location: 'The Stalingrad pocket to the Univermag',
+  date: 'January 1943',
+  dateIso: '1943-01-10',
+  climate: 'winter',
+  // The ring: Pitomnik airfield inside the pocket, where the battle starts (DECISIONS 335).
+  mapPos: { lon: 44.04, lat: 48.73 },
+  briefing: [
+    'The German Sixth Army is inside a ring, and tomorrow the ring begins to close. They were offered honourable terms yesterday and their commander let them lapse. Very well: at dawn seven thousand guns will give our answer, and then the whole front goes forward together.',
+    'They are hungry, frozen and short of everything, but they are not finished, and a starving man in a cellar with a machine gun is still dangerous. First the steppe and the airfield at Pitomnik, where their transports land, then Gumrak, then the ruins. Use every gun we have; we have more than they do now.',
+    'Their army headquarters is out at Gumrak. Take the airfields and it will have nowhere to go but the ruins, and we will dig it out of whatever cellar it chooses. When it falls, the Sixth Army falls with it. Take the city back, street by street, to the river.',
+  ],
+  objective: 'Clear the pocket and take the German headquarters in the Univermag.',
+  intel: {
+    enemy: [
+      'The 6th Army, starving and short of shells and fuel',
+      'About 100 riflemen and MP40 troopers in trenches and ruins',
+      'About 13 tanks and StuGs, most dug in without fuel',
+      'Pak teams, flamethrowers; artillery, no aircraft',
+    ],
+    friendly: [
+      'Don Front: 2 T-34s, a T-60, 8 riflemen, 6 PPSh troopers',
+      '5 conscript squads, 2 DPs, mortars, a sniper, a flamethrower',
+      'More tanks, carriers and squads at every line you take',
+      'Artillery, Katyusha, smoke, the Il-2, the Pe-2 and the Po-2',
+    ],
+  },
+  theatre: 'steppe',
+  timeOfDay: 'overcast',
+  weather: 'snow',
+  mode: 'assault',
+  length: 28000,
+  newUnit: null,
+  newSupport: 'bomber',
+  units: [
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'tank', 'apc', 'flame', 'aa', 'commander', 'conscript'],
+    ['sapper', 'rifle', 'lmg', 'assault', 'mortar', 'sniper', 'medic', 'at', 'flame'],
+  ],
+  supports: [
+    ['artillery', 'smoke', 'katyusha', 'airStrike', 'bomber', 'recon'],
+    ['artillery'],
+  ],
+  start: [
+    {
+      faction: 'soviet',
+      hasHq: true,
+      supplies: 900,
+      hqHpMul: 1,
+      hqLook: 'logDugout',
+      incomeMul: 1,
+      sappers: 5,
+      forces: [
+        { kind: 'rifle', count: 8, trenchId: 1 },
+        { kind: 'lmg', count: 2, trenchId: 1 },
+        // T-34/76s and a T-60; the rest of the armour comes up as the advance goes on.
+        { kind: 'tank', count: 2, x: 1700 },
+        { kind: 'lightTank', count: 1, x: 1300 },
+        { kind: 'assault', count: 6 },
+        { kind: 'conscript', count: 5 },
+        { kind: 'mortar', count: 2 },
+        { kind: 'sniper', count: 1 },
+        { kind: 'flame', count: 1 },
+      ],
+    },
+    {
+      faction: 'german',
+      hasHq: true,
+      supplies: 200,
+      // The Univermag's cellars: the last headquarters is dug deep.
+      hqHpMul: 5,
+      hqLook: 'store',
+      // Starving and short of everything, shells too.
+      supportCooldown: { artillery: 180 },
+      incomeMul: 0.5,
+      sappers: 2,
+      // Their tanks and assault guns have no fuel: dug in where they stopped, they are the pocket's anti-tank guns.
+      forces: [
+        // The western steppe.
+        { kind: 'rifle', count: 4, trenchId: 2 },
+        { kind: 'lmg', count: 1, trenchId: 2 },
+        { kind: 'rifle', count: 3, trenchId: 3, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, trenchId: 3, behaviour: 'garrison' },
+        // Pitomnik airfield.
+        { kind: 'rifle', count: 4, trenchId: 4, behaviour: 'garrison' },
+        { kind: 'at', count: 1, trenchId: 4, behaviour: 'garrison' },
+        { kind: 'tank', count: 1, x: 11500, behaviour: 'guard', leash: 0 },
+        // The hangar's machine gun, and riflemen behind a wrecked transport.
+        { kind: 'lmg', count: 1, buildingId: 1, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 1, behaviour: 'garrison' },
+        { kind: 'rifle', count: 2, buildingId: 13, behaviour: 'garrison' },
+        // Gumrak: the station and an assault gun without fuel (the brief's one StuG).
+        { kind: 'rifle', count: 4, trenchId: 5, behaviour: 'garrison' },
+        { kind: 'at', count: 1, trenchId: 5, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 2, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 2, behaviour: 'garrison' },
+        { kind: 'tank', count: 1, x: 16800, behaviour: 'guard', look: 'stug3f', leash: 0 },
+        // The Flak 88 pair in the ground role beyond the station (anti-tank teams on guard, as at Dubno).
+        { kind: 'at', count: 2, x: 17200, behaviour: 'guard', leash: 0 },
+        // The city's western ruins.
+        { kind: 'rifle', count: 2, trenchId: 6, behaviour: 'garrison' },
+        { kind: 'assault', count: 2, trenchId: 6, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 4, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 4, behaviour: 'garrison' },
+        { kind: 'tank', count: 1, x: 20300, behaviour: 'guard', leash: 0 },
+        { kind: 'rifle', count: 2, trenchId: 7, behaviour: 'garrison' },
+        { kind: 'assault', count: 2, trenchId: 7, behaviour: 'garrison' },
+        { kind: 'at', count: 1, trenchId: 7, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 6, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 6, behaviour: 'garrison' },
+        { kind: 'tank', count: 1, x: 22300, behaviour: 'guard', look: 'panzer4g', leash: 0 },
+        { kind: 'lmg', count: 1, buildingId: 8, behaviour: 'garrison' },
+        { kind: 'sniper', count: 1, buildingId: 9, behaviour: 'garrison' },
+        // The central square.
+        { kind: 'rifle', count: 2, trenchId: 8, behaviour: 'garrison' },
+        { kind: 'assault', count: 2, trenchId: 8, behaviour: 'garrison' },
+        { kind: 'at', count: 1, trenchId: 8, behaviour: 'garrison' },
+        { kind: 'sniper', count: 1, buildingId: 10, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 11, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 11, behaviour: 'garrison' },
+        { kind: 'lmg', count: 1, buildingId: 12, behaviour: 'garrison' },
+        { kind: 'rifle', count: 1, buildingId: 12, behaviour: 'garrison' },
+        { kind: 'tank', count: 2, x: 26300, behaviour: 'guard', leash: 0 },
+      ],
+    },
+  ],
+  trenches: [
+    // The jump-off line.
+    { id: 1, x: 2000, width: 180, slots: 10, owner: 0 },
+    // The western steppe.
+    { id: 2, x: 4500, width: 190, slots: 8, owner: 1 },
+    { id: 3, x: 7000, width: 190, slots: 8, owner: 1 },
+    // Pitomnik airfield.
+    { id: 4, x: 11000, width: 200, slots: 8, owner: 1 },
+    // Gumrak.
+    { id: 5, x: 16500, width: 200, slots: 8, owner: 1 },
+    // The western ruins.
+    { id: 6, x: 20000, width: 200, slots: 8, owner: 1 },
+    { id: 7, x: 22000, width: 200, slots: 8, owner: 1 },
+    // The central square.
+    { id: 8, x: 25500, width: 200, slots: 8, owner: 1 },
+  ],
+  buildings: [
+    // Pitomnik: the hangar.
+    { id: 1, x: 10650, width: 220, floors: 1, slotsPerFloor: 6, hpMul: 1.2, owner: 1, look: 'hangar' },
+    // Gumrak: the station and the goods sheds.
+    { id: 2, x: 16150, width: 200, floors: 2, slotsPerFloor: 4, hpMul: 1.2, owner: 1, look: 'station' },
+    { id: 3, x: 15600, width: 180, floors: 1, slotsPerFloor: 5, hpMul: 0.8, owner: -1, look: 'sheds' },
+    // The city's western ruins: apartment blocks, the strongpoints held, the rest empty shells.
+    { id: 4, x: 19700, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 5, x: 20500, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1.2, owner: -1, look: 'apartment' },
+    { id: 6, x: 21650, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 7, x: 22450, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1.2, owner: -1, look: 'apartment' },
+    { id: 8, x: 23200, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 9, x: 23800, width: 160, floors: 4, slotsPerFloor: 2, hpMul: 1.6, owner: 1, look: 'apartment' },
+    // The central square.
+    { id: 10, x: 24700, width: 180, floors: 3, slotsPerFloor: 3, hpMul: 1.6, owner: 1, look: 'apartment' },
+    { id: 11, x: 26500, width: 200, floors: 4, slotsPerFloor: 3, hpMul: 1.8, owner: 1, look: 'apartment' },
+    { id: 12, x: 27150, width: 160, floors: 3, slotsPerFloor: 3, hpMul: 1.8, owner: 1, look: 'house' },
+  ],
+  // The wrecked transports on Pitomnik's field: a Ju 52 (riflemen behind it) and an He 111.
+  props: [
+    { id: 13, x: 9750, width: 190, slots: 4, look: 'ju52Wreck', owner: 1 },
+    { id: 14, x: 10250, width: 170, slots: 3, look: 'he111Wreck' },
+  ],
+  pillboxes: [],
+  wire: [
+    // The wire on the western steppe and in front of the ruins.
+    { id: 1, x: 4200, width: 140, owner: 1 },
+    { id: 3, x: 19400, width: 140, owner: 1 },
+  ],
+  // The minefield on the western steppe (FOUNDATIONS.md 4.6): anti-tank and anti-personnel mines, unmarked.
+  minefields: [{ id: 1, x: 6600, width: 300, owner: 1, mines: 'mixed', density: 0.6, marked: false }],
+  // The brief's sectors (FOUNDATIONS.md 4.1): the frozen steppe, the airfield and Gumrak under snow, the city's ruins.
+  sectors: [
+    { from: 0, to: 3000, ground: 'snow', label: 'Jump-off line' },
+    { from: 3000, to: 9000, ground: 'steppe', label: 'The western steppe' },
+    { from: 9000, to: 13000, ground: 'snow', label: 'Pitomnik airfield' },
+    { from: 13000, to: 18000, ground: 'snow', label: 'Gumrak' },
+    { from: 18000, to: 24000, ground: 'rubble', label: 'The western ruins', backdrop: 'stalingrad' },
+    { from: 24000, to: 26000, ground: 'rubble', label: 'The central square', backdrop: 'stalingrad' },
+    { from: 26000, to: 28000, ground: 'cobble', label: 'The central square', backdrop: 'stalingrad' },
+  ],
+  // The capture points and forward spawns (4.5): Pitomnik, Gumrak and the ruins, open ground taken by holding it (the
+  // trenches inside them still have to be cleared first).
+  capturePoints: [
+    { id: 'P1', x: 11000, width: 400, label: 'Pitomnik', owner: 1, captureTime: 10, spawn: true, contestRadius: 600 },
+    { id: 'P2', x: 16500, width: 400, label: 'Gumrak', owner: 1, captureTime: 10, spawn: true, contestRadius: 600 },
+    { id: 'P3', x: 22000, width: 400, label: 'The ruins', owner: 1, captureTime: 10, spawn: true, contestRadius: 600 },
+  ],
+  timer: null,
+  // The mission director (FOUNDATIONS.md 3): the four phases of the brief (STALINGRAD.md, mission 10).
+  phases: [
+    {
+      id: 'guns',
+      title: 'Seven thousand guns',
+      // Pitomnik is taken and then held against the counter-attack from the airfield's last defenders.
+      objectives: [{ id: 'steppe', type: 'hold', point: { point: 'P1' }, seconds: 90, text: 'Take Pitomnik and hold it' }],
+      // An army that never moves off lets the pocket break out through the jump-off line, and an offensive that has not
+      // taken the airfield in twelve minutes has stalled (the idle commander's loss; the bot holds it by about 5 min).
+      lose: [{ type: 'enemyReached', x: 3200, count: 4 }],
+      timer: { seconds: 720, label: 'Before the offensive stalls', onExpire: 'lose' },
+      sideObjectives: [
+        { id: 'pitomnik', text: 'Pitomnik in eight minutes', objective: { id: 'pitomnikFast', type: 'capture', point: { point: 'P1' } }, within: 480, bonus: 0.1 },
+        { id: 'quick', text: 'Under 28 minutes', within: 1680, bonus: 0.1 },
+      ],
+      next: 'gumrak',
+    },
+    {
+      id: 'gumrak',
+      title: 'Gumrak',
+      objectives: [{ id: 'gumrak', type: 'capture', point: { point: 'P2' }, text: 'Take Gumrak' }],
+      sideObjectives: [
+        {
+          id: 'flak',
+          text: "Gumrak's Flak without losing a tank",
+          objective: { id: 'gumrakTaken', type: 'capture', point: { point: 'P2' } },
+          failIf: { type: 'lost', count: 1, kinds: ['tank', 'lightTank', 'heavyTank'] },
+          until: 'ruins',
+          bonus: 0.1,
+        },
+      ],
+      next: 'ruins',
+    },
+    {
+      id: 'ruins',
+      title: 'The ruins',
+      // 26 January: the ruins are held while the 21st Army meets the 13th Guards and splits the pocket.
+      objectives: [{ id: 'ruins', type: 'hold', point: { point: 'P3' }, seconds: 200, text: 'Clear the western ruins and hold them' }],
+      next: 'univermag',
+    },
+    {
+      id: 'univermag',
+      title: 'The Univermag',
+      objectives: [{ id: 'surrender', type: 'surrender', side: 1, hqBelow: 0.25, text: 'Break the Univermag' }],
+      next: null,
+    },
+  ],
+  events: [
+    // Snow, the blizzard at Gumrak, clearing in the ruins, dusk at the end (FOUNDATIONS.md 4.7).
+    // The blizzard comes in over Gumrak once the first Il-2s have had their window, and eases at the city's edge.
+    { id: 'blizzard', type: 'weather', when: { phase: 'gumrak', delay: 60 }, to: 'blizzard', over: 30 },
+    { id: 'blizzardEases', type: 'weather', when: { phase: 'ruins' }, to: 'snow', over: 30 },
+    { id: 'clears', type: 'weather', when: { phase: 'ruins', delay: 120 }, to: 'clear', over: 60 },
+    // Pitomnik lost, the transports cannot land; Gumrak lost, only parachutes: the Sixth Army has nothing left to buy with.
+    { type: 'income', when: { pointCapturedBy: 0, point: { point: 'P1' } }, side: 1, mul: 0.25 },
+    { type: 'income', when: { pointCapturedBy: 0, point: { point: 'P2' } }, side: 1, mul: 0.15 },
+    { id: 'dusk', type: 'time', when: { phase: 'univermag' }, to: 'dusk', over: 120 },
+    // The bombardment: five free barrages on the first trench, the second and the minefield, 6 s apart.
+    { id: 'bombardment', type: 'banner', when: { phase: 'guns' }, text: 'The bombardment!', sound: 'horn' },
+    // Each lands one shell at a time (12 rounds over 12 s), so the five overlap into one long bombardment.
+    { id: 'guns1', type: 'barrage', when: { phase: 'guns' }, side: 0, x: 4500, spread: 160, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'guns2', type: 'barrage', when: { phase: 'guns', delay: 6 }, side: 0, x: 7000, spread: 160, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'guns3', type: 'barrage', when: { phase: 'guns', delay: 12 }, side: 0, x: 4200, spread: 120, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    { id: 'guns4', type: 'barrage', when: { phase: 'guns', delay: 18 }, side: 0, x: 4500, spread: 200, rounds: 16, duration: 8, weapon: 'katyushaRocket' },
+    { id: 'guns5', type: 'barrage', when: { phase: 'guns', delay: 24 }, side: 0, x: 6600, spread: 200, rounds: 12, duration: 12, weapon: 'artilleryShell' },
+    // In the ruins the nests show themselves and the Germans hold where they are; once, the Nebelwerfer.
+    { id: 'nests', type: 'posture', when: { phaseEvery: 120, phase: 'ruins', from: 120 }, side: 1, posture: 'hold' },
+    { id: 'ruinsNebelwerfer', type: 'barrage', when: { phase: 'ruins', delay: 60 }, side: 1, x: 19600, spread: 300, rounds: 10, duration: 3, weapon: 'nebelwerfer' },
+    // The last armour and every man who can still stand go in together.
+    { id: 'lastCounter', type: 'posture', when: { phase: 'univermag', delay: 100 }, side: 1, posture: 'counterattack', seconds: 120 },
+    { type: 'announce', when: { at: 2 }, text: 'The bombardment! Seven thousand guns are firing.' },
+    {
+      type: 'hint',
+      when: { at: 4 },
+      text: 'Let the guns land, then tanks and infantry through the wire together. Your tanks crush wire; your men cannot.',
+    },
+    { type: 'hint', when: { at: 30 }, text: 'Artillery breaks the mines too. Then send the sappers to clear the rest.' },
+    {
+      type: 'hint',
+      when: { at: 40 },
+      text: 'The Pe-2 Bomber lays a heavy stick of bombs along a strip of ground. It costs money, so save it for strongpoints and their tanks.',
+    },
+    { type: 'announce', when: { trenchCapturedBy: 0, trenchId: 3 }, text: 'The western steppe is clear. Pitomnik is ahead.' },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 3, delay: 5 },
+      side: 0,
+      forces: [
+        { kind: 'at', count: 4, x: 6800 },
+        { kind: 'tank', count: 2, x: 6600 },
+        { kind: 'lightTank', count: 1, x: 6400 },
+      ],
+      announce: 'A tank company and four PTRD teams are up.',
+    },
+    // The counter-attack on Pitomnik as it falls (the brief's 300 s; the airfield falls at about 170 s).
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 15 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 4, x: 12600, behaviour: 'assault' },
+        { kind: 'assault', count: 4, x: 12800, behaviour: 'assault' },
+      ],
+      announce: 'A counter-attack on Pitomnik!',
+    },
+    // Small, desperate counter-attacks, wherever the ring presses hardest.
+    {
+      type: 'wave',
+      when: { every: 300, from: 600, until: 2100 },
+      side: 1,
+      forces: [
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+        { kind: 'flame', count: 2, behaviour: 'assault' },
+      ],
+      announce: 'A desperate German counter-attack!',
+    },
+    {
+      type: 'hint',
+      when: { at: 320 },
+      text: 'Their tanks have no fuel. They cannot move far, but they can still shoot: take them from the flank or from the air.',
+    },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P1' } }, text: 'Pitomnik has fallen. Their transports have nowhere to land.' },
+    // As each line falls the Sixth Army pulls back what it can into the next one, and at last into the ruins.
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 2, delay: 10 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, x: 11700, behaviour: 'guard' },
+        { kind: 'assault', count: 4, x: 11200, behaviour: 'guard' },
+        { kind: 'rifle', count: 4, x: 11400, behaviour: 'guard' },
+      ],
+      announce: 'They are pulling back on Pitomnik.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 3, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, x: 17000, behaviour: 'guard' },
+        { kind: 'assault', count: 4, x: 16900, behaviour: 'guard' },
+        { kind: 'rifle', count: 4, x: 17100, behaviour: 'guard' },
+      ],
+      announce: 'They are pulling back on Gumrak.',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 2, x: 21400, behaviour: 'guard' },
+        { kind: 'assault', count: 6, x: 21200, behaviour: 'guard' },
+        { kind: 'lmg', count: 2, x: 21600, behaviour: 'guard' },
+      ],
+      announce: 'The Sixth Army is falling back into the ruins.',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 20 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 2, x: 25900, behaviour: 'guard' },
+        { kind: 'assault', count: 6, x: 25700, behaviour: 'guard' },
+        { kind: 'rifle', count: 4, x: 26100, behaviour: 'guard' },
+        // The brief's two mortars in the city, dug in behind the square.
+        { kind: 'mortar', count: 2, x: 27300, behaviour: 'guard', leash: 0 },
+      ],
+      announce: 'Every German who can still fight is round the central square.',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P1' }, delay: 5 },
+      side: 0,
+      forces: [
+        { kind: 'apc', count: 2, x: 10800 },
+        { kind: 'rifle', count: 4, x: 10600 },
+      ],
+      announce: 'Universal Carriers bring a rifle company up to the airfield.',
+    },
+    // The rest of the Don Front's rifle divisions, moving up behind the advance.
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 2, delay: 30 },
+      side: 0,
+      forces: [
+        { kind: 'conscript', count: 5 },
+        { kind: 'rifle', count: 2 },
+      ],
+      announce: 'Another rifle battalion is moving up.',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 30 },
+      side: 0,
+      forces: [
+        { kind: 'conscript', count: 5 },
+        { kind: 'rifle', count: 2 },
+      ],
+      announce: 'Another rifle battalion is moving up.',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 30 },
+      side: 0,
+      forces: [
+        { kind: 'conscript', count: 5 },
+        { kind: 'rifle', count: 2 },
+      ],
+      announce: 'Another rifle battalion is moving up.',
+    },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P2' } }, text: 'Gumrak is ours. Their army headquarters has fled into the city.' },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P2' }, delay: 10 },
+      side: 0,
+      forces: [{ kind: 'tank', count: 2, x: 16200 }],
+      announce: 'Two more T-34s have come up from the steppe.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 6, delay: 5 },
+      side: 0,
+      forces: [{ kind: 'flame', count: 2, x: 19800 }],
+      announce: 'Two ROKS flamethrowers for the cellars.',
+    },
+    { type: 'wave', when: { every: 180, from: 900, until: 1800 }, side: 0, forces: [{ kind: 'flame', count: 1 }] },
+    {
+      type: 'hint',
+      when: { trenchCapturedBy: 0, trenchId: 6, delay: 8 },
+      text: 'In the ruins keep the tanks behind the infantry: magnetic charges wait in the rubble. Mortars and flamethrowers on the strongpoints.',
+    },
+    {
+      type: 'announce',
+      when: { trenchCapturedBy: 0, trenchId: 6, delay: 120 },
+      text: 'A sniper and a machine-gun nest have shown themselves in the ruins.',
+    },
+    {
+      type: 'wave',
+      when: { trenchCapturedBy: 0, trenchId: 6, delay: 200 },
+      side: 1,
+      forces: [
+        { kind: 'flame', count: 2, behaviour: 'assault' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'Pioneers are counter-attacking in the ruins!',
+    },
+    { type: 'announce', when: { pointCapturedBy: 0, point: { point: 'P3' } }, text: 'The western ruins are ours. Hold them: the 21st Army is cutting the pocket in two.' },
+    // While the pocket is split the Germans try to break back into the ruins from the square.
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 90 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, behaviour: 'assault' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+        { kind: 'rifle', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'They are trying to break back into the ruins!',
+    },
+    {
+      type: 'wave',
+      when: { pointCapturedBy: 0, point: { point: 'P3' }, delay: 200 },
+      side: 1,
+      forces: [
+        { kind: 'flame', count: 2, behaviour: 'assault' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'Pioneers with flamethrowers, out of the cellars!',
+    },
+    { type: 'announce', when: { phase: 'univermag' }, text: 'The 21st Army has met the 13th Guards. The pocket is split. Now the Univermag.' },
+    // The last of the Sixth Army comes up out of the cellars round the square.
+    {
+      type: 'wave',
+      when: { phase: 'univermag', delay: 5 },
+      side: 1,
+      forces: [
+        { kind: 'rifle', count: 6, x: 26900, behaviour: 'guard' },
+        { kind: 'assault', count: 4, x: 26600, behaviour: 'guard' },
+        { kind: 'lmg', count: 2, x: 27100, behaviour: 'guard' },
+      ],
+      announce: 'The last of the Sixth Army is coming up out of the cellars.',
+    },
+    // The Don Front's guns on the central square, one strike at a time, and the Pe-2s on the last cellars.
+    { id: 'squareGuns1', type: 'barrage', when: { phase: 'univermag', delay: 30 }, side: 0, x: 25500, spread: 300, rounds: 12, duration: 30, weapon: 'artilleryShell', warning: 'The Don Front is firing on the square.' },
+    { id: 'squareGuns2', type: 'barrage', when: { phase: 'univermag', delay: 200 }, side: 0, x: 26300, spread: 300, rounds: 12, duration: 30, weapon: 'artilleryShell', warning: 'The Don Front is firing on the square.' },
+    { id: 'squareKatyusha', type: 'barrage', when: { phase: 'univermag', delay: 330 }, side: 0, x: 26800, spread: 300, rounds: 16, duration: 10, weapon: 'katyushaRocket', warning: 'Katyushas on the square!' },
+    {
+      type: 'wave',
+      when: { phase: 'univermag', delay: 100 },
+      side: 1,
+      forces: [
+        { kind: 'tank', count: 1, behaviour: 'assault', look: 'stug3f' },
+        { kind: 'assault', count: 4, behaviour: 'assault' },
+        { kind: 'rifle', count: 4, behaviour: 'assault' },
+      ],
+      announce: 'Their last armour and every man who can still stand.',
+    },
+    {
+      type: 'announce',
+      when: { objective: 'surrender' },
+      text: 'The southern pocket surrenders. The battle of Stalingrad is over.',
+    },
+    {
+      type: 'hint',
+      when: { hqHpBelow: 0.5, side: 0 },
+      text: 'They have broken through behind you. Fall Back lets the HQ machine gun fight while you rebuild.',
+    },
+  ],
+  ai: {
+    sappers: 2,
+    // Counts include the garrisons placed at the start (21 riflemen, 2 machine guns, 6 assault troops, 4 Pak crews).
+    build: [
+      { kind: 'rifle', count: 24, after: 0 },
+      { kind: 'lmg', count: 4, after: 120 },
+      { kind: 'at', count: 6, after: 200 },
+      { kind: 'assault', count: 12, after: 240 },
+      { kind: 'mortar', count: 2, after: 400 },
+      { kind: 'flame', count: 2, after: 600 },
+    ],
+    firstAttackAfter: 900,
+  },
+  bot: {
+    sappers: 6,
+    // Counts include the forces placed at the start.
+    build: [
+      { kind: 'rifle', count: 14, after: 0 },
+      { kind: 'at', count: 2, after: 60 },
+      { kind: 'medic', count: 2, after: 120 },
+      { kind: 'tank', count: 7, after: 180 },
+      { kind: 'assault', count: 8, after: 240 },
+      { kind: 'at', count: 4, after: 360 },
+      { kind: 'conscript', count: 20, after: 420 },
+      { kind: 'tank', count: 8, after: 600 },
+    ],
+    firstAttackAfter: 30,
+  },
+  expectedMinutes: [15, 26],
+  music: STALINGRAD_MUSIC.missions[1010],
+};

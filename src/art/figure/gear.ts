@@ -7,42 +7,46 @@
  *   setFigureGear(anim, { health: 2, damage: 1 });   // once, when the unit's view is set up (after resetFigureAnim)
  */
 import { FACTIONS } from '../../data/factions';
-import { FIGURE, FIGURE_KINDS, type FigureKind } from '../../data/figure';
+import { FIGURE, FIGURE_KINDS, FIGURE_LOADOUT, WEAPON_GEOM, type FigureKind, type WeaponModel } from '../../data/figure';
 import {
   FIGURE_GEAR_ART as A,
   FIGURE_GEAR_NATION,
   FIGURE_GEAR_SLOT,
+  FIGURE_CLOTHING,
+  FIGURE_HEADGEAR,
   FIGURE_GEAR_STEPS,
   FIGURE_GEAR_STYLES,
   GEAR_NO_PACK_STYLE,
   type FigureGearSlot,
+  type FigureClothing,
   type FigureGearStyle,
+  type FigureHeadgear,
 } from '../../data/looksGear';
-import type { FactionId } from '../../data/schema';
+import type { FactionId, HelmetShape } from '../../data/schema';
 import { GEAR_STEPS, type GearLevels, type GearStep } from '../../data/upgradeLooks';
 import type { SpriteSpec } from '../types';
 import { TAU } from './math';
 import {
   FACTION_FIGURE_KEYS,
-  brodiePath,
+  HELMET_BOX,
   fillPath,
   flamePackKey,
+  helmetShapePath,
   helmetSpec,
   line,
   makeSpec,
   mix,
+  nationPouchesSpec,
   paintFlamePack,
   paintMills,
   paintStick,
-  pouchesSpec,
   rrect,
   solid,
-  stahlhelmPath,
 } from './parts';
+import { paintF1 } from './soviet';
 import type { FigureAnim } from './pose';
 
 type Ctx = CanvasRenderingContext2D;
-type HelmetShape = 'brodie' | 'stahlhelm';
 
 const C = A.colors;
 const RIM = FIGURE.rimWidth;
@@ -58,8 +62,14 @@ export function gearSpriteKey(f: FactionId, style: FigureGearStyle): string {
   return `fig/${f}/gear/${style}`;
 }
 
+const SCRIM_RIM_KEYS: Record<HelmetShape, string> = {
+  brodie: 'fig/rim/helmetBrodieScrim',
+  stahlhelm: 'fig/rim/helmetStahlhelmScrim',
+  ssh40: 'fig/rim/helmetSsh40Scrim',
+};
+
 function scrimRimKey(shape: HelmetShape): string {
-  return shape === 'brodie' ? 'fig/rim/helmetBrodieScrim' : 'fig/rim/helmetStahlhelmScrim';
+  return SCRIM_RIM_KEYS[shape];
 }
 
 /** The sprite keys a figure draws in its gear slots. */
@@ -114,7 +124,8 @@ function resolve(f: FactionId, kind: FigureKind, health: number, damage: number)
     pouchesShow: pouches !== undefined || K.pouches,
     satchel: satchel ? gearSpriteKey(f, satchel) : base.satchel,
     satchelShow: satchel !== undefined || K.satchel,
-    bandolier: strap ? gearSpriteKey(f, strap) : null,
+    // The Red Army's rolled greatcoat rides in the strap slot until a bandolier or aid strap replaces it.
+    bandolier: strap ? gearSpriteKey(f, strap) : FIGURE_GEAR_NATION[f].coatRoll.includes(kind) ? base.coatRoll : null,
   };
 }
 
@@ -147,6 +158,54 @@ export function setFigureGear(anim: FigureAnim, gear: GearLevels): void {
   anim.gear = figureGearKeys(anim.faction, anim.kind, gear.health, gear.damage);
 }
 
+/**
+ * Wear a cap in place of the helmet (the pilotka, the ushanka, or the helmet over the ushanka; FIGURE_HEADGEAR), or
+ * null for the nation's helmet. A cap the nation does not wear is ignored. The cap replaces the helmet at every gear
+ * level (no net or scrim on a cap). Remembered until resetFigureAnim; allocation free.
+ */
+export function setFigureHeadgear(anim: FigureAnim, id: FigureHeadgear | null): void {
+  anim.headgear = id && FIGURE_HEADGEAR[anim.faction].includes(id) ? (FACTION_FIGURE_KEYS[anim.faction].headgear[id] ?? null) : null;
+}
+
+/**
+ * Wear winter clothing over the body (the quilted telogreika or the white snow smock; FIGURE_CLOTHING), or null for the
+ * plain body. Clothing the nation does not wear is ignored. Remembered until resetFigureAnim; allocation free.
+ */
+export function setFigureClothing(anim: FigureAnim, id: FigureClothing | null): void {
+  anim.clothing = id && FIGURE_CLOTHING[anim.faction].includes(id) ? (FACTION_FIGURE_KEYS[anim.faction].clothing[id] ?? null) : null;
+}
+
+const WEAPON_KEYS = new Map<WeaponModel, { weapon: string | null; bipod: string | null; plate: string | null }>();
+
+/**
+ * Carry an era weapon in place of the nation's (the PPD-40 in 1941, the PzB 39 before the Panzerschreck; src/data/eras.ts),
+ * or null for the nation's own. Its muzzle and bipod geometry come with it. Remembered until resetFigureAnim; allocation
+ * free after the first call for a model.
+ */
+export function setFigureWeapon(anim: FigureAnim, model: WeaponModel | null): void {
+  const m = model ?? FIGURE_LOADOUT[anim.faction].weapon[anim.kind];
+  anim.model = m;
+  anim.geom = WEAPON_GEOM[m];
+  anim.weaponVisible = m !== 'none' && m !== 'crate';
+  if (model === null) {
+    anim.weaponKeys = null;
+    return;
+  }
+  let keys = WEAPON_KEYS.get(m);
+  if (!keys) {
+    const g = WEAPON_GEOM[m];
+    const none = m === 'none' || m === 'crate';
+    keys = { weapon: none ? null : `fig/weapon/${m}`, bipod: g.bipodLen > 0 ? `fig/weapon/${m}Bipod` : null, plate: g.baseplate ? `fig/weapon/${m}Plate` : null };
+    WEAPON_KEYS.set(m, keys);
+  }
+  anim.weaponKeys = keys;
+}
+
+/** Hold this sprite for the anti-tank "rocket" hand item (the Tank Hunters' bottle), or null for the nation's round. */
+export function setFigureRocketItem(anim: FigureAnim, key: string | null): void {
+  anim.rocketKey = key;
+}
+
 /** The key a sapper draws instead of his nation's crate while carrying (null = the nation's crate). */
 export function setFigureCrateKey(anim: FigureAnim, key: string | null): void {
   anim.crateKey = key;
@@ -172,17 +231,13 @@ function drawAt(ctx: Ctx, s: SpriteSpec): void {
   ctx.restore();
 }
 
-function helmetPath(ctx: Ctx, shape: HelmetShape): void {
-  if (shape === 'brodie') brodiePath(ctx);
-  else stahlhelmPath(ctx);
-}
-
 /** Bounds of a helmet with its scrim tufts, in head space (scaled). */
 function helmetBounds(shape: HelmetShape, scrim: boolean, grow: number): [number, number, number, number] {
-  let x0 = shape === 'brodie' ? -10.4 : -9.2;
-  let x1 = shape === 'brodie' ? 10.4 : 7.8;
-  let y0 = shape === 'brodie' ? -9.2 : -10.4;
-  const y1 = shape === 'brodie' ? 0.3 : 3.2;
+  const box = HELMET_BOX[shape];
+  let x0 = box[0];
+  let x1 = box[1];
+  let y0 = box[2];
+  const y1 = box[3];
   if (scrim) {
     const t = A.scrim[shape];
     for (let i = 0; i < t.length; i += 3) {
@@ -214,7 +269,7 @@ function netHelmetSpec(key: string, shape: HelmetShape, tint: string, dark: stri
     ctx.scale(HK, HK);
     // The net: a dark mesh over the shell, and its edge hanging a little past the rim.
     ctx.beginPath();
-    helmetPath(ctx, shape);
+    helmetShapePath(ctx, shape);
     ctx.lineWidth = A.net.edge * 2;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = C.net;
@@ -250,7 +305,7 @@ function scrimRimSpec(shape: HelmetShape): SpriteSpec {
   return makeSpec(scrimRimKey(shape), x0, y0, x1, y1, (ctx) => {
     ctx.scale(HK, HK);
     ctx.beginPath();
-    helmetPath(ctx, shape);
+    helmetShapePath(ctx, shape);
     const t = A.scrim[shape];
     for (let i = 0; i < t.length; i += 3) tuft(ctx, t[i], t[i + 1], t[i + 2]);
     ctx.fillStyle = RIM_COLOR;
@@ -314,7 +369,8 @@ function fullPouchesSpec(key: string, f: FactionId, dark: string, base: SpriteSp
 
 function grenadesSpec(key: string, f: FactionId, dark: string, base: SpriteSpec): SpriteSpec {
   const [px0, py0, px1, py1] = pouchBounds();
-  if (FIGURE_GEAR_NATION[f].grenades === 'mills') {
+  const nade = FIGURE_GEAR_NATION[f].grenades;
+  if (nade === 'mills' || nade === 'f1') {
     const M = A.mills;
     let x0 = px0;
     let y0 = py0;
@@ -335,7 +391,8 @@ function grenadesSpec(key: string, f: FactionId, dark: string, base: SpriteSpec)
         ctx.translate(M.at[i], M.at[i + 1]);
         ctx.rotate(Math.PI / 2);
         ctx.scale(M.rx / 1.7, M.ry / 1.35);
-        paintMills(ctx);
+        if (nade === 'f1') paintF1(ctx);
+        else paintMills(ctx);
         ctx.restore();
       }
     });
@@ -474,7 +531,7 @@ function factionGearSpecs(f: FactionId): SpriteSpec[] {
   const tint = look.tint;
   const dark = look.tintDark;
   const k = (s: FigureGearStyle): string => gearSpriteKey(f, s);
-  const pouchBase = pouchesSpec('', tint, dark);
+  const pouchBase = nationPouchesSpec(f, '');
   const out: SpriteSpec[] = [];
   for (const style of FIGURE_GEAR_STYLES) {
     switch (style) {

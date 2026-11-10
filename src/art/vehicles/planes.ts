@@ -1,18 +1,21 @@
 /**
  * Call-in aircraft seen from the side, facing right (the renderer mirrors them): a twin-engine bomber, a
  * single-engine fighter and a high-wing recon plane for each nation, and a ground shadow per type. The British
- * planes carry a roundel and fin flash, the German ones the plain Balkenkreuz; nothing else.
+ * planes carry a roundel and fin flash, the German ones the plain Balkenkreuz; the Red Army flies its own types
+ * (./sovietPlanes: Pe-2, Yak-1, Po-2) with a red star. Nothing else.
  *
  * The shapes are readable at phone size: a dark body with a light rim like every unit, the nation's tint on the
  * upper surfaces, a pale belly, glazing and a propeller blur.
  */
-import { ART_COLORS as C, PLANE_LAYOUT, type PlaneKind } from '../../data/artLayout';
+import { AIRCRAFT_LOOKS, ART_COLORS as C, PLANE_LAYOUT, type AircraftLook, type PlaneKind } from '../../data/artLayout';
 import { PLANE_GEAR_ART, PLANE_GEAR_NATION } from '../../data/looksGear';
 import { PLANE_GEAR_STEPS, type PlaneGearPiece } from '../../data/upgradeLooks';
 import { FACTIONS } from '../../data/factions';
 import type { FactionId } from '../../data/schema';
-import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, inside, makeSpec, mix, rgba, rimmed } from '../props/kit';
+import { type Ctx, TAU, balkenkreuz, ellipse, fillPoly, makeSpec, rgba, rimmed } from '../props/kit';
 import type { SpriteSpec } from '../types';
+import { RIM, finFlash, marking, propBlur, skin, twoTone } from './planeKit';
+import { SOVIET_PLANES, paintI16 } from './sovietPlanes';
 
 export const PLANE_KINDS: readonly PlaneKind[] = ['bomber', 'fighter', 'recon'];
 
@@ -20,71 +23,16 @@ export function planeKey(kind: PlaneKind, faction: FactionId): string {
   return `veh/air/${kind}/${faction}`;
 }
 
+/** The era aircraft looks (AIRCRAFT_LOOKS: the 1941 I-16 fighter), drawn in their type's box and anchors. */
+const AIRCRAFT_PAINT: Record<AircraftLook, (ctx: Ctx, f: FactionId) => void> = { i16: paintI16 };
+
+/** The sprite of an era aircraft look (src/data/eras.ts picks it by date); no upgrade gear. */
+export function aircraftLookKey(look: AircraftLook): string {
+  return `veh/air/${AIRCRAFT_LOOKS[look].kind}/${look}`;
+}
+
 export function planeShadowKey(kind: PlaneKind): string {
   return `veh/air/shadow/${kind}`;
-}
-
-const RIM = '#9a9d8c';
-const BELLY = '#5d625a';
-
-interface Skin {
-  body: string;
-  top: string;
-  rim: string;
-}
-
-function skin(f: FactionId): Skin {
-  const look = FACTIONS[f].look;
-  return { body: mix(C.ink, look.tintDark, 0.5), top: mix(look.tintDark, look.tint, 0.35), rim: RIM };
-}
-
-function roundel(ctx: Ctx, x: number, y: number, r: number): void {
-  const rings: readonly [number, string][] = [
-    [1, '#e6dcb0'],
-    [0.82, '#2b3d6b'],
-    [0.5, '#e6dcb0'],
-    [0.32, '#8c2a22'],
-  ];
-  for (const [k, c] of rings) {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.arc(x, y, r * k, 0, TAU);
-    ctx.fill();
-  }
-}
-
-function marking(ctx: Ctx, f: FactionId, x: number, y: number, r: number): void {
-  if (FACTIONS[f].look.flag === 'balkenkreuz') balkenkreuz(ctx, x, y, r * 1.7);
-  else roundel(ctx, x, y, r);
-}
-
-function finFlash(ctx: Ctx, f: FactionId, x: number, y: number, w: number, h: number): void {
-  if (FACTIONS[f].look.flag === 'balkenkreuz') return;
-  const cols = ['#8c2a22', '#e6dcb0', '#2b3d6b'];
-  for (let i = 0; i < 3; i++) {
-    ctx.fillStyle = cols[i];
-    ctx.fillRect(x + (i * w) / 3, y, w / 3 + 0.2, h);
-  }
-}
-
-function propBlur(ctx: Ctx, x: number, y: number, h: number): void {
-  ctx.fillStyle = 'rgba(20,20,18,0.16)';
-  ellipse(ctx, x, y, 3.4, h);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(20,20,18,0.22)';
-  ellipse(ctx, x, y, 1.5, h * 0.96);
-  ctx.fill();
-}
-
-/** Paints a body path with the nation's upper surfaces above `split` (y) and the pale belly below. */
-function twoTone(ctx: Ctx, path: (c: Ctx) => void, S: Skin, split: number, w: number): void {
-  rimmed(ctx, path, S.body, S.rim, 0.2, 1.4);
-  inside(ctx, path, () => {
-    ctx.fillStyle = S.top;
-    ctx.fillRect(-w, -60, w * 2, 60 + split - 4);
-    ctx.fillStyle = BELLY;
-    ctx.fillRect(-w, split + 2, w * 2, 60);
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -291,11 +239,22 @@ function paintRecon(ctx: Ctx, f: FactionId): void {
   finFlash(ctx, f, -65, -22, 7, 8);
 }
 
-const PAINT: Record<PlaneKind, (ctx: Ctx, f: FactionId) => void> = {
+const WESTERN_PLANES: Record<PlaneKind, (ctx: Ctx, f: FactionId) => void> = {
   bomber: paintBomber,
   fighter: paintFighter,
   recon: paintRecon,
 };
+
+/** The painters each nation flies: the British and German types share the western shapes, the Red Army has its own. */
+const PLANES_BY_NATION: Record<FactionId, Record<PlaneKind, (ctx: Ctx, f: FactionId) => void>> = {
+  british: WESTERN_PLANES,
+  german: WESTERN_PLANES,
+  soviet: SOVIET_PLANES,
+};
+
+function paintPlane(ctx: Ctx, kind: PlaneKind, f: FactionId): void {
+  PLANES_BY_NATION[f][kind](ctx, f);
+}
 
 // ---------------------------------------------------------------------------
 // Upgrade gear (PLANE_GEAR_STEPS): stripes, a drop tank, a painted nose with mission tallies
@@ -359,7 +318,7 @@ export function planeGearSpecs(kind: PlaneKind, faction: FactionId, level: numbe
   const box = { w: L.box.w, h: L.box.oy + below, ox: L.box.ox, oy: L.box.oy };
   return [
     makeSpec(planeGearKey(kind, faction, level), box, (ctx) => {
-      PAINT[kind](ctx, faction);
+      paintPlane(ctx, kind, faction);
       paintPlaneGear(ctx, kind, faction, level);
     }),
   ];
@@ -383,8 +342,12 @@ export function planeSpecs(): SpriteSpec[] {
   const out: SpriteSpec[] = [];
   for (const kind of PLANE_KINDS) {
     const L = PLANE_LAYOUT[kind];
-    for (const f of Object.keys(FACTIONS) as FactionId[]) out.push(makeSpec(planeKey(kind, f), L.box, (ctx) => PAINT[kind](ctx, f)));
+    for (const f of Object.keys(FACTIONS) as FactionId[]) out.push(makeSpec(planeKey(kind, f), L.box, (ctx) => paintPlane(ctx, kind, f)));
     out.push(makeSpec(planeShadowKey(kind), L.shadowBox, (ctx) => paintPlaneShadow(ctx, kind)));
+  }
+  for (const look of Object.keys(AIRCRAFT_LOOKS) as AircraftLook[]) {
+    const A = AIRCRAFT_LOOKS[look];
+    out.push(makeSpec(aircraftLookKey(look), PLANE_LAYOUT[A.kind].box, (ctx) => AIRCRAFT_PAINT[look](ctx, A.faction)));
   }
   return out;
 }

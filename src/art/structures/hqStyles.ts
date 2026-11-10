@@ -40,7 +40,7 @@ import {
   strokeLine,
 } from '../props/kit';
 import type { SpriteSpec } from '../types';
-import { beam, behind, flagpole, paintBritishBunker, paintGermanBunker } from './hq';
+import { beam, behind, flagpole, grassTufts, paintBritishBunker, paintGermanBunker, paintSovietBunker } from './hq';
 
 export function hqStyleKey(style: HqStyle, faction: FactionId, state: DamageState): string {
   return `st/hqs/${style}/${faction}/${state}`;
@@ -602,12 +602,22 @@ function firingSlit(ctx: Ctx, x: number, y: number): void {
   strokeLine(ctx, [x - 15, y - 6.4, x + 15, y - 6.4], rgba(C.timberRim, 0.8), 0.9);
 }
 
-function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId): void {
-  const L = HQ_STYLE_LAYOUT.dugout;
+/** Height of each extra course of logs on the Soviet log dugout's roof. */
+const LOG_COURSE = 10;
+
+/**
+ * The timber dugout; with logs = 3 it is the Red Army's log dugout: three courses of logs on the roof under earth and
+ * sod, and log cheeks at the door instead of bags.
+ */
+function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId, logs = 1, L: HqStyleLayout = HQ_STYLE_LAYOUT.dugout): void {
   const tint = FACTIONS[faction].look.tint;
   const rand = rng(1917);
   const ruin = state === 'ruin';
-  const { x0, x1, face, beamTop } = DUG;
+  const { x0, x1, face } = DUG;
+  const soviet = logs > 1;
+  // Everything above the first course of logs rises with the extra courses.
+  const lift = (logs - 1) * LOG_COURSE;
+  const beamTop = DUG.beamTop - lift;
   const dl = L.doorX - L.doorW / 2;
   const dr = dl + L.doorW;
 
@@ -619,9 +629,9 @@ function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId): void {
     (c) => {
       c.beginPath();
       c.moveTo(-158, 2);
-      c.quadraticCurveTo(-130, -60, -96, -78);
-      c.quadraticCurveTo(0, -94, 104, -78);
-      c.quadraticCurveTo(136, -60, 160, 2);
+      c.quadraticCurveTo(-130, -60 - lift, -96, -78 - lift);
+      c.quadraticCurveTo(0, -94 - lift, 104, -78 - lift);
+      c.quadraticCurveTo(136, -60 - lift, 160, 2);
       c.closePath();
     },
     C.earth,
@@ -638,27 +648,40 @@ function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId): void {
   for (let i = 1; i < 4; i++) strokeLine(ctx, [dl + 2, -i * 4, dr - 2, -i * 4], rgba(C.timberRim, 0.18), 1.2);
   rimRect(ctx, dl - 5, -L.doorH - 2, 5, L.doorH + 4, 1, C.timber, C.timberRim);
   rimRect(ctx, dr, -L.doorH - 2, 5, L.doorH + 4, 1, C.timber, C.timberRim);
-  for (let r = 0; r < 4; r++) {
-    sandbag(ctx, dl - 5 - BAG_W + (r % 2) * 1.5, -BAG_H - r * 8.2, BAG_W, BAG_H, ((r + 1) % 3) * 0.3 - 0.3);
-    sandbag(ctx, dr + 5 - (r % 2) * 1.5, -BAG_H - r * 8.2, BAG_W, BAG_H, (r % 3) * 0.3 - 0.3);
+  if (soviet) {
+    // Cheeks of short logs stacked either side of the door.
+    for (let r = 0; r < 5; r++) {
+      beam(ctx, dl - 26, -4 - r * 7.4, dl - 6, -4 - r * 7.4, 6.4);
+      beam(ctx, dr + 6, -4 - r * 7.4, dr + 26, -4 - r * 7.4, 6.4);
+    }
+  } else {
+    for (let r = 0; r < 4; r++) {
+      sandbag(ctx, dl - 5 - BAG_W + (r % 2) * 1.5, -BAG_H - r * 8.2, BAG_W, BAG_H, ((r + 1) % 3) * 0.3 - 0.3);
+      sandbag(ctx, dr + 5 - (r % 2) * 1.5, -BAG_H - r * 8.2, BAG_W, BAG_H, (r % 3) * 0.3 - 0.3);
+    }
   }
 
-  // Roof: a heavy beam with the log ends showing, earth and a course of bags on top.
-  rimRect(ctx, x0 - 6, beamTop, x1 - x0 + 12, -beamTop - face, 2, C.timber, C.timberRim);
-  for (let x = x0 + 2; x <= x1 - 2; x += 11.6) {
-    ctx.fillStyle = C.timberDark;
-    ctx.beginPath();
-    ctx.arc(x, beamTop + 5, 4.8, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = mix(C.timber, C.timberRim, 0.35);
-    ctx.beginPath();
-    ctx.arc(x, beamTop + 4.7, 3.7, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = rgba(C.timberDark, 0.8);
-    ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    ctx.arc(x, beamTop + 4.7, 1.7, 0, TAU);
-    ctx.stroke();
+  // Roof: heavy logs with their ends showing (one course, or the Soviet three), earth and a course of bags or sod on top.
+  for (let course = 0; course < logs; course++) {
+    const top = DUG.beamTop - course * LOG_COURSE;
+    const inset = course * 5;
+    const h = course === 0 ? -DUG.beamTop - face : LOG_COURSE;
+    rimRect(ctx, x0 - 6 + inset, top, x1 - x0 + 12 - inset * 2, h, 2, C.timber, C.timberRim);
+    for (let x = x0 + 2 + inset + (course % 2) * 5.8; x <= x1 - 2 - inset; x += 11.6) {
+      ctx.fillStyle = C.timberDark;
+      ctx.beginPath();
+      ctx.arc(x, top + 5, 4.8, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = mix(C.timber, C.timberRim, 0.35);
+      ctx.beginPath();
+      ctx.arc(x, top + 4.7, 3.7, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = rgba(C.timberDark, 0.8);
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.arc(x, top + 4.7, 1.7, 0, TAU);
+      ctx.stroke();
+    }
   }
   rimmed(
     ctx,
@@ -672,7 +695,8 @@ function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId): void {
     mix(C.earth, C.earthRim, 0.12),
     C.earthRim,
   );
-  bagCourse(ctx, -84, 70, beamTop - 18, BAG_W, BAG_H, -84);
+  if (soviet) grassTufts(ctx, [-90, beamTop - 2, -50, beamTop - 10, -10, beamTop - 13, 30, beamTop - 13, 70, beamTop - 9, 100, beamTop - 3], rand);
+  else bagCourse(ctx, -84, 70, beamTop - 18, BAG_W, BAG_H, -84);
 
   // Camouflage net over the roof, hanging to just above the door.
   const nrand = rng(1918);
@@ -682,7 +706,7 @@ function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId): void {
     const drop = Math.sin(u * Math.PI);
     edge.push(x, -26 - drop * 36 + nrand() * 5);
   }
-  const outline = [-104, -86, -40, -96, 40, -96, 104, -86];
+  const outline = [-104, -86 - lift, -40, -96 - lift, 40, -96 - lift, 104, -86 - lift];
   for (let i = edge.length - 2; i >= 0; i -= 2) outline.push(edge[i], edge[i + 1]);
   camoNet(ctx, outline, edge, nrand, tint, 0.8);
 
@@ -764,12 +788,189 @@ function paintDugout(ctx: Ctx, state: DamageState, faction: FactionId): void {
 
 type Painter = (ctx: Ctx, state: DamageState, faction: FactionId) => void;
 
+// ---------------------------------------------------------------------------
+// Soviet: the rain-cape tent and the zemlyanka (the log dugout and the DOT are above and in ./hq)
+// ---------------------------------------------------------------------------
+
+/** A ridge tent of rain capes: the shared small tent, lower bags, with the capes' seams and buttons over the canvas. */
+const CAPE_TENT: TentPlan = {
+  main: { x0: -86, x1: 86, wall: 62, ridge: 104, eave: 6 },
+  bagRows: 1,
+  annexBagRows: 0,
+  net: false,
+  crateX: 60,
+  crates: 1,
+  seed: 1941,
+};
+
+function paintCapeTent(ctx: Ctx, state: DamageState, faction: FactionId): void {
+  const L = HQ_STYLE_LAYOUT.capeTent;
+  paintTent(ctx, state, faction, L, CAPE_TENT);
+  if (state === 'ruin') return;
+  const t = CAPE_TENT.main;
+  const k = tonesFor(faction);
+  const sag = state === 'damaged' ? 11 : 0;
+  // Each cape is a square buttoned to its neighbours: seams run down the roof from the ridge and along the wall.
+  inside(
+    ctx,
+    (c) => roofPath(c, t, sag),
+    () => {
+      const xa = t.x0 - t.eave;
+      const span = t.x1 - t.x0 + 2 * t.eave;
+      for (let i = 0; i <= 6; i++) {
+        const xb = xa + (span * i) / 6;
+        strokeLine(ctx, [xb - 16, -t.ridge, xb + 16, -t.wall + 2], rgba(k.dark, 0.85), 0.9);
+        for (let j = 1; j < 4; j++) {
+          const u = j / 4;
+          ctx.fillStyle = rgba(k.rim, 0.7);
+          ctx.fillRect(xb - 16 + 32 * u - 0.6, -t.ridge + (t.ridge - t.wall + 2) * u - 0.6, 1.2, 1.2);
+        }
+      }
+      strokeLine(ctx, [xa, -t.wall - (t.ridge - t.wall) * 0.5, xa + span, -t.wall - (t.ridge - t.wall) * 0.5 + sag * 0.5], rgba(k.dark, 0.6), 0.8);
+    },
+  );
+  // A low bank of spoil thrown up along the foot of the wall.
+  const rand = rng(1942);
+  rimmed(
+    ctx,
+    (c) => {
+      c.beginPath();
+      c.moveTo(t.x0 - 18, 2);
+      c.quadraticCurveTo(t.x0 - 6, -12, t.x0 + 30, -10);
+      c.lineTo(L.doorX - L.doorW / 2 - 18, -9);
+      c.quadraticCurveTo(L.doorX - L.doorW / 2 - 6, -6, L.doorX - L.doorW / 2 - 2, 2);
+      c.closePath();
+    },
+    C.earth,
+    C.earthRim,
+  );
+  grassTufts(ctx, [t.x0 - 4, -10, t.x0 + 30, -11, -8, -10], rand);
+}
+
+/** The zemlyanka: a dugout under a mound of earth and sod, its entrance cut down into the front with log revetments. */
+function paintZemlyanka(ctx: Ctx, state: DamageState, faction: FactionId): void {
+  const L = HQ_STYLE_LAYOUT.zemlyanka;
+  const tint = FACTIONS[faction].look.tint;
+  const rand = rng(1943);
+  const ruin = state === 'ruin';
+  const dl = L.doorX - L.doorW / 2;
+  const dr = dl + L.doorW;
+  const top = -L.bodyH;
+
+  if (ruin) {
+    const rrand = rng(1944);
+    // The roof logs have given way: a slumped heap of earth, the pit open in the middle, logs jutting out.
+    behind(ctx, [-150, 2, -126, -30, -90, -40, -40, -34, 0, -44, 40, -36, 90, -42, 130, -28, 152, 2], mix(C.earth, C.earthDark, 0.55));
+    heap(ctx, -160, -30, 4, 30, rrand, C.earth, C.earthRim);
+    heap(ctx, -40, 70, 4, 16, rrand, mix(C.earth, C.timberDark, 0.3), C.earthRim);
+    heap(ctx, 80, 160, 4, 26, rrand, C.earth, C.earthRim);
+    beam(ctx, -90, -30, -30, -4, 5);
+    beam(ctx, -20, -6, 40, -36, 5);
+    beam(ctx, 56, -4, 104, -32, 4.5);
+    strokeLine(ctx, [dl - 2, 2, dl + 6, -40], C.timberDark, 5);
+    strokeLine(ctx, [-30, -60, -12, -24], C.steel, 3.4);
+    for (let i = 0; i < 7; i++) tuft(ctx, -120 + rrand() * 240, -6 - rrand() * 22, 3 + rrand() * 2, rrand, tint);
+    fallenPole(ctx, -110, -8, 90, 0.08);
+    charOver(ctx, -L.box.ox, -L.box.oy, L.box.w, L.box.h, 0.38);
+    for (const f of L.fires) {
+      ember(ctx, f.x, f.y + 20, 14, 0.55);
+      ember(ctx, f.x + 9 - rrand() * 18, f.y + 24, 5, 0.8);
+    }
+    for (let i = 0; i < 8; i++) ember(ctx, -110 + rrand() * 220, -6 - rrand() * 22, 2 + rrand() * 2.5, 0.75);
+    footing(ctx, -164, 164, 2, 8, rand);
+    return;
+  }
+
+  flagpole(ctx, L);
+  // Firewood stacked at the back.
+  for (let r = 0; r < 3; r++) for (let i = 0; i < 4 - r; i++) {
+    const x = -150 + i * 9 + r * 4.5;
+    const y = -4 - r * 8;
+    ctx.fillStyle = C.timberDark;
+    ctx.beginPath();
+    ctx.arc(x, y, 4.4, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = mix(C.timber, C.timberRim, 0.3);
+    ctx.beginPath();
+    ctx.arc(x, y - 0.3, 3.3, 0, TAU);
+    ctx.fill();
+  }
+  // The mound: low and long, the sod on top.
+  const mound = (c: Ctx): void => {
+    c.beginPath();
+    c.moveTo(-136, 2);
+    c.quadraticCurveTo(-120, top + 8, -60, top);
+    c.quadraticCurveTo(10, top - 6, 80, top + 4);
+    c.quadraticCurveTo(140, top + 20, 156, 2);
+    c.closePath();
+  };
+  rimmed(ctx, mound, C.earth, C.earthRim);
+  inside(ctx, mound, () => {
+    // Sod: a darker grassy skin over the top, and lumps of turf.
+    ctx.fillStyle = rgba(C.grass, 0.35);
+    ctx.fillRect(-140, top - 10, 300, 22);
+    for (let i = 0; i < 9; i++) {
+      const x = -110 + rand() * 230;
+      fillPoly(ctx, [x - 8, top + 10 + rand() * 6, x + 8, top + 8 + rand() * 6, x + 6, top + 16 + rand() * 6, x - 6, top + 17 + rand() * 6], rgba(C.earthDark, 0.35));
+    }
+  });
+  grassTufts(ctx, [-110, top + 12, -80, top + 3, -40, top - 1, 0, top - 2, 40, top - 1, 80, top + 4, 120, top + 14], rand);
+  // Branches laid over the sod for camouflage.
+  for (const [x, y, a] of [
+    [-70, top + 2, -0.2],
+    [12, top - 2, 0.15],
+    [92, top + 8, 0.35],
+  ] as const) {
+    strokeLine(ctx, [x - 18, y + Math.sin(a) * -18, x + 18, y + Math.sin(a) * 18], C.timberDark, 1.4);
+    for (let i = 0; i < 4; i++) tuft(ctx, x - 14 + i * 9, y - 2 + (i % 2) * 3, 3.4, rand, tint);
+  }
+  // The entrance cut into the front: the dark doorway, log walls stepping down beside it and the lintel log.
+  fillPoly(ctx, [dl - 22, 2, dl - 14, -L.doorH - 6, dr + 14, -L.doorH - 6, dr + 22, 2], mix(C.earth, C.earthDark, 0.6));
+  doorway(ctx, L);
+  for (let i = 1; i < 4; i++) strokeLine(ctx, [dl + 2, -i * 4, dr - 2, -i * 4], rgba(C.timberRim, 0.18), 1.2);
+  for (let r = 0; r < 6; r++) {
+    const y = -4 - r * 9.4;
+    beam(ctx, dl - 20 + r * 1.2, y, dl - 3, y, 7);
+    beam(ctx, dr + 3, y, dr + 20 - r * 1.2, y, 7);
+  }
+  rimRect(ctx, dl - 6, -L.doorH - 2, 5, L.doorH + 4, 1, C.timber, C.timberRim);
+  rimRect(ctx, dr + 1, -L.doorH - 2, 5, L.doorH + 4, 1, C.timber, C.timberRim);
+  beam(ctx, dl - 18, -L.doorH - 5, dr + 18, -L.doorH - 5, 8);
+  // A small window of a single pane low in the mound's flank, and the stovepipe through the roof.
+  fillPoly(ctx, [-96, -30, -76, -30, -76, -18, -96, -18], C.timberDark);
+  fillPoly(ctx, [-94, -28, -78, -28, -78, -20, -94, -20], mix(C.void, '#d6a054', 0.25));
+  const pipeTilt = state === 'damaged' ? 0.5 : 0;
+  ctx.save();
+  ctx.translate(-14, top + 2);
+  ctx.rotate(pipeTilt);
+  rimRect(ctx, -2.5, -30, 5, 30, 1, C.steel, C.steelRim);
+  rimPoly(ctx, [-6, -30, 0, -36, 6, -30], C.steel, C.steelRim, 1);
+  ctx.restore();
+
+  if (state === 'damaged') {
+    const drand = rng(1945);
+    bite(ctx, [-50, top - 20, -44, top + 4, -30, top + 12, -12, top + 8, 4, top + 14, 16, top + 2, 22, top - 20]);
+    beam(ctx, -40, top + 10, -50, top - 4, 3.6);
+    beam(ctx, 4, top + 12, 14, top - 2, 3.6);
+    shellHole(ctx, 100, -22, 6, drand);
+    scorch(ctx, -14, top + 10, 36, 18, 0.6);
+    scorch(ctx, 100, -22, 26, 20, 0.5);
+    scorch(ctx, dl - 30, -18, 22, 16, 0.4);
+    for (let i = 0; i < 3; i++) ember(ctx, -30 + drand() * 40, top + 8 - drand() * 6, 2 + drand() * 2, 0.6);
+  }
+  footing(ctx, -164, 164, 2, 8, rand);
+}
+
 const PAINTERS: Record<HqStyle, Painter> = {
   tent: (ctx, state, faction) => paintTent(ctx, state, faction, HQ_STYLE_LAYOUT.tent, SMALL_TENT),
   bigTent: (ctx, state, faction) => paintTent(ctx, state, faction, HQ_STYLE_LAYOUT.bigTent, BIG_TENT),
-  dugout: paintDugout,
+  dugout: (ctx, state, faction) => paintDugout(ctx, state, faction),
   bunkerBritish: (ctx, state) => paintBritishBunker(ctx, state, HQ_STYLE_LAYOUT.bunkerBritish, null),
   bunkerGerman: (ctx, state) => paintGermanBunker(ctx, state, HQ_STYLE_LAYOUT.bunkerGerman, null),
+  capeTent: paintCapeTent,
+  zemlyanka: paintZemlyanka,
+  logDugout: (ctx, state, faction) => paintDugout(ctx, state, faction, 3, HQ_STYLE_LAYOUT.logDugout),
+  bunkerSoviet: (ctx, state) => paintSovietBunker(ctx, state, HQ_STYLE_LAYOUT.bunkerSoviet, null),
 };
 
 /** The three damage states of one HQ style in one nation's colours. */

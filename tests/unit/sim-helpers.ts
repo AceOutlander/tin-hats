@@ -4,7 +4,7 @@
  * to pooled objects.
  */
 import { CONFIG } from '../../src/data/config';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import type { Difficulty, MissionDef, SideStart, UnitKind, UpgradeDef, UpgradeLevels } from '../../src/data/schema';
 import { UNITS } from '../../src/data/units';
 import {
@@ -27,7 +27,7 @@ export type MissionOverrides = Partial<Omit<MissionDef, 'start'>> & {
 };
 
 /**
- * A mission for one test: mission 1's rules and data on an empty field. Both sides begin with
+ * A mission for one test: the test field's rules and data (./fixtures.ts) with nothing on it. Both sides begin with
  * an HQ, no supplies, no sappers, no forces, full-strength HQs and normal income, and no
  * scripted events, so a test only adds what it needs.
  */
@@ -43,7 +43,7 @@ export function testMission(over: MissionOverrides = {}): MissionDef {
     forces: [],
     ...extra,
   });
-  return { ...M01, events: [], ...rest, start: [blank('british', a), blank('german', b)] };
+  return { ...FIELD, events: [], ...rest, start: [blank('british', a), blank('german', b)] };
 }
 
 /** The same mission with side 1 given side 0's start, so a battle between two identical commanders is fair. */
@@ -208,8 +208,8 @@ export function checkInvariants(b: Battle): void {
     if (u.inside !== (u.action === 'inside')) throw new Error(`${where}: unit ${u.id} inside/action mismatch`);
     if (u.trenchId >= 0 && (u.inside || !u.def.usesTrench)) throw new Error(`${where}: unit ${u.id} ${u.kind} in trench ${u.trenchId}`);
     if (u.inside) {
-      // Men riding in an APC are inside it, not in the HQ garrison.
-      if (u.carrier < 0) inside[u.side]++;
+      // Men riding in an APC are inside it, and men waiting for a ferry or on it are on the boat, not in the HQ garrison.
+      if (u.carrier < 0 && u.ferry < 0) inside[u.side]++;
     } else if (u.side === 0) {
       rightmost0 = Math.max(rightmost0, u.x);
     } else {
@@ -230,7 +230,8 @@ export function checkInvariants(b: Battle): void {
     }
     let queued = 0;
     for (const kind of KINDS) {
-      queued += side.queue[kind] * UNITS[kind].pop;
+      // A training order of a squad kind (the Soviet conscripts) holds the population of the whole squad.
+      queued += side.queue[kind] * UNITS[kind].pop * (UNITS[kind].squad ?? 1);
       if ((byKind[si][kind] ?? 0) !== side.alive[kind]) throw new Error(`${where}: side ${si} alive.${kind} is wrong`);
       if (side.queue[kind] < 0 || side.queue[kind] > CONFIG.maxQueue) throw new Error(`${where}: queue.${kind}`);
       if (side.progress[kind] < 0 || side.progress[kind] > 1 + 1e-9) throw new Error(`${where}: progress.${kind}`);
@@ -271,6 +272,17 @@ export function checkInvariants(b: Battle): void {
       throw new Error(`${where}: projectile ${p.id} at ${p.x} -> ${p.toX}`);
     }
     if (!(p.flightTime > 0) || p.age < 0 || p.age > p.flightTime) throw new Error(`${where}: projectile ${p.id} age ${p.age}/${p.flightTime}`);
+  }
+  for (const p of s.points) {
+    if (p.owner !== -1 && p.owner !== 0 && p.owner !== 1) throw new Error(`${where}: point ${p.id} owner ${p.owner}`);
+    if (!(p.progress >= 0 && p.progress <= 1)) throw new Error(`${where}: point ${p.id} progress ${p.progress}`);
+    if (p.trench >= 0 && p.owner !== s.trenches[p.trench].owner) throw new Error(`${where}: point ${p.id} out of step with its trench`);
+  }
+  for (let si = 0; si < 2; si++) {
+    const k = s.sides[si].deployPoint;
+    if (k >= 0 && (k >= s.points.length || s.points[k].owner !== si || !s.points[k].spawn)) {
+      throw new Error(`${where}: side ${si} deploys at point ${k} it cannot use`);
+    }
   }
   const smokes = s.smokes.filter((smoke) => smoke.alive).length;
   if (smokes !== (b as unknown as { smokeCount: number }).smokeCount) throw new Error(`${where}: smokeCount out of step`);

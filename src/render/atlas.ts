@@ -94,7 +94,8 @@ function rasterisePage(page: PackedPage, scale: number, pad: number): HTMLCanvas
   const canvas = document.createElement('canvas');
   canvas.width = page.w;
   canvas.height = page.h;
-  const ctx = canvas.getContext('2d');
+  // CPU-backed: drawn once, uploaded once (see src/art/backdrops/raster.ts).
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('no 2D context for an atlas page');
   for (const c of page.cells) {
     ctx.save();

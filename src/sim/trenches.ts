@@ -7,7 +7,10 @@
  * infantry do; the old owner's reservations are then cancelled.
  */
 import { CONFIG, SPECIALS } from '../data/config';
-import { KIND_SAPPER } from './tables';
+import type { TrenchDef } from '../data/schema';
+// A cycle by design: a building's slots are a slot record here, and buildings.ts adds what floors and walls do.
+import { floorPreference, seatInBuilding } from './buildings';
+import { CLASS_TRENCH, KIND_SAPPER } from './tables';
 import type { UnitState } from './types';
 import type { World } from './world';
 
@@ -28,6 +31,49 @@ export function layoutTrenches(w: World): void {
   }
 }
 
+/**
+ * A trench dug during the battle (the prep phase): appended to state.trenches, with the slot arrays grown to hold its
+ * slots after every existing one, so no index already handed out changes. Returns its index in state.trenches.
+ */
+export function addTrench(w: World, def: TrenchDef): number {
+  const trenches = w.state.trenches;
+  const t = trenches.length;
+  trenches.push({ id: def.id, x: def.x, width: def.width, slots: def.slots, owner: def.owner, occupants: 0, capturedAt: -1, building: -1 });
+  const grow32 = (a: Int32Array, n: number): Int32Array => {
+    const b = new Int32Array(n);
+    b.set(a.subarray(0, Math.min(a.length, n)));
+    return b;
+  };
+  const grow64 = (a: Float64Array, n: number): Float64Array => {
+    const b = new Float64Array(n);
+    b.set(a.subarray(0, Math.min(a.length, n)));
+    return b;
+  };
+  const grow8 = (a: Int8Array, n: number): Int8Array => {
+    const b = new Int8Array(n);
+    b.set(a.subarray(0, Math.min(a.length, n)));
+    return b;
+  };
+  const total = slotCount(trenches);
+  const first = total - def.slots;
+  w.trenchSlot0 = grow32(w.trenchSlot0, t + 1);
+  w.trenchTaken = grow32(w.trenchTaken, t + 1);
+  w.trenchHalf = grow64(w.trenchHalf, t + 1);
+  w.trenchInside = grow32(w.trenchInside, (t + 1) * 2);
+  w.slotX = grow64(w.slotX, total);
+  w.slotUnit = grow32(w.slotUnit, total);
+  w.slotFloor = grow8(w.slotFloor, total);
+  w.trenchSlot0[t] = first;
+  w.trenchTaken[t] = 0;
+  w.trenchHalf[t] = def.width / 2;
+  const spacing = def.slots > 0 ? Math.min(CONFIG.trenchSlotSpacing, def.width / def.slots) : 0;
+  for (let k = 0; k < def.slots; k++) {
+    w.slotX[first + k] = def.x + (k - (def.slots - 1) / 2) * spacing;
+    w.slotUnit[first + k] = -1;
+  }
+  return t;
+}
+
 /** Total slots over all trenches (the size of the slot arrays). */
 export function slotCount(slots: readonly { slots: number }[]): number {
   let n = 0;
@@ -38,6 +84,7 @@ export function slotCount(slots: readonly { slots: number }[]): number {
 /**
  * Reserve the free slot of trench `t` nearest to the unit; between two equally near slots, the one
  * further back from its side's point of view (slots are scanned rear first), so mirrored sides match.
+ * In a building the floor comes first (floorPreference: the ground floor, or the top for anti-tank teams).
  * Returns false if the trench is full.
  */
 export function claimSlot(w: World, u: UnitState, t: number): boolean {
@@ -47,12 +94,15 @@ export function claimSlot(w: World, u: UnitState, t: number): boolean {
   if (u.flushedUntil > w.state.time) return false;
   const first = w.trenchSlot0[t];
   const last = trench.slots - 1;
+  const floors = trench.building >= 0;
   let best = -1;
   let bestD = Infinity;
   for (let n = 0; n < trench.slots; n++) {
     const g = first + (u.side === 0 ? n : last - n);
-    if (w.slotUnit[g] >= 0) continue;
-    const d = w.slotX[g] > u.x ? w.slotX[g] - u.x : u.x - w.slotX[g];
+    // Free is -1: a slot taken holds a pool index, one on a fallen floor is sealed (buildings.ts).
+    if (w.slotUnit[g] !== -1) continue;
+    let d = w.slotX[g] > u.x ? w.slotX[g] - u.x : u.x - w.slotX[g];
+    if (floors) d += floorPreference(w, u, g);
     if (d < bestD) {
       bestD = d;
       best = g;
@@ -77,6 +127,12 @@ export function releaseSlot(w: World, u: UnitState): void {
   }
   u.trench = -1;
   u.slot = -1;
+  // A building's floor bonuses end with the slot (all 1 already for a trench).
+  u.floor = 0;
+  u.mount.rangeMul = 1;
+  u.mount.vehicleMul = 1;
+  u.mount2.rangeMul = 1;
+  u.mount2.vehicleMul = 1;
 }
 
 /** Change a trench's owner, cancel the old owner's reservations and report it. */
@@ -105,6 +161,8 @@ export function enterSlot(w: World, u: UnitState): void {
   if (trench.owner !== u.side) capture(w, u.trench, u.side);
   u.trenchId = trench.id;
   trench.occupants++;
+  if (trench.building >= 0) seatInBuilding(w, u, trench.building);
+  else u.coverClass = CLASS_TRENCH;
 }
 
 /**

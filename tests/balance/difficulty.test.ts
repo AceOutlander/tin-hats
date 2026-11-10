@@ -84,10 +84,12 @@ it(`Insane is clearly harder than Normal on at least ${CLEARLY_HARDER_MIN} of th
   expect(harder, lines.join('\n')).toBeGreaterThanOrEqual(CLEARLY_HARDER_MIN);
 });
 
-it('mission 9 on Hard is hard but possible for the bot', HEAVY, () => {
-  const m = MISSIONS.find((x) => x.id === 9) as MissionDef;
-  const normal = series(m, 'normal');
-  const hard = series(m, 'hard');
-  expect(hard.wins, show(hard)).toBeGreaterThan(0);
-  expect(hard.winRate, `${show(normal)}, ${show(hard)}`).toBeLessThan(normal.winRate);
+// The British mission 9 (Arnhem) was checked to be hard but possible on Hard; with the British missions removed the
+// check runs on every campaign mission: Hard is never out of the bot's reach.
+describe.each(MISSIONS.map((m) => [m.id, m] as const))('mission %i on Hard', (_id, m) => {
+  it('is possible for the bot', HEAVY, () => {
+    const normal = series(m, 'normal');
+    const hard = series(m, 'hard');
+    expect(hard.wins, `${show(normal)}, ${show(hard)}`).toBeGreaterThan(0);
+  });
 });

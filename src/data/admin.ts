@@ -51,6 +51,10 @@ export interface AdminTunables {
   /** Speed buttons (0 = frozen: nothing moves, the panel still works). */
   timeScales: readonly number[];
   medalGrants: readonly number[];
+  /** Upgrade points the panel gives at a tap. */
+  pointGrants: readonly number[];
+  /** Charges of every call-in the panel gives at a tap. */
+  chargeGrants: readonly number[];
   supplyGrants: readonly number[];
   /** What "infinite" supplies are held at. */
   infiniteSupplies: number;
@@ -79,7 +83,7 @@ export const ADMIN: AdminTunables = {
         { id: 'unlockCampaigns', label: 'Campaigns and nations', pending: 'Arrives with the campaigns job' },
         { id: 'jump', label: 'Jump to mission' },
         { id: 'phase', label: 'Mission phase', pending: 'Arrives with the mission phases job' },
-        { id: 'medals', label: 'Medals (upgrade points)' },
+        { id: 'medals', label: 'Medals, upgrade points, call-in charges' },
         { id: 'upgrades', label: 'Quartermaster levels' },
         { id: 'save', label: 'Save' },
       ],
@@ -88,7 +92,7 @@ export const ADMIN: AdminTunables = {
       id: 'battle',
       label: 'Battle',
       entries: [
-        { id: 'supplies', label: 'Supplies' },
+        { id: 'supplies', label: 'Money' },
         { id: 'instantTrain', label: 'Training' },
         { id: 'instantBuild', label: 'Instant building', pending: 'Arrives with the prep phase (job 6)' },
         { id: 'prep', label: 'Prep phase', pending: 'Arrives with the prep phase (job 6)' },
@@ -132,7 +136,7 @@ export const ADMIN: AdminTunables = {
     {
       id: 'kingTigerSquad',
       label: 'King Tiger squad',
-      // As mission 10 fields it: the tank and its veteran escort.
+      // As the old British mission 10 fielded it: the tank and its veteran escort.
       members: [
         { kind: 'heavyTank', count: 1 },
         { kind: 'rifle', count: 3, veteran: true, behind: 140 },
@@ -142,6 +146,8 @@ export const ADMIN: AdminTunables = {
   fillKind: 'rifle',
   timeScales: [0, 0.25, 0.5, 1, 2, 4, 8],
   medalGrants: [10, 100, 1000],
+  pointGrants: [5, 50],
+  chargeGrants: [1, 10],
   supplyGrants: [500, 5000],
   infiniteSupplies: 99999,
   timesOfDay: [

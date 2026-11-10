@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { App } from '../../src/app/app';
 import { createAudio } from '../../src/audio';
 import {
   barSeconds,
@@ -22,6 +23,8 @@ import { MUSIC_BATTLE, MUSIC_LAYERS, type BattleTrackDef, type MusicEvent } from
 import { bass, hits, ostinato, prog, tile } from '../../src/data/musicKit';
 import { BRITISH_ANSWER, BRITISH_MOTIF, degreeNote, motif, THEMES } from '../../src/data/musicThemes';
 import { BATTLE_TRACK_NAMES, BATTLE_TRACKS } from '../../src/data/musicTracks';
+import { createMemoryStorage } from '../../src/meta';
+import { createFakeUi, createFakeView, quickMission } from './app-helpers';
 
 /** Recording stand-ins for the WebAudio nodes the battle player and the engine touch. */
 class Param {
@@ -245,7 +248,10 @@ describe('the battle track format', () => {
       expect(BATTLE_TRACK_NAMES, `${m.key} names ${m.music}`).toContain(m.music);
       expect(BATTLE_TRACKS[m.music]).toBeDefined();
     }
-    expect(MISSIONS[0].music).toBe('arras');
+    // The British placeholder missions are gone, but their ten tracks stay for the campaigns to come (docs/QUEUE.md).
+    for (const name of ['arras', 'dunkirk', 'crusader', 'alamein', 'primosole', 'cassino', 'sword', 'hill112', 'arnhem', 'reichswald']) {
+      expect(BATTLE_TRACK_NAMES, name).toContain(name);
+    }
   });
 });
 
@@ -436,7 +442,7 @@ describe('the battle music player', () => {
   });
 });
 
-describe('battle music in the engine: rendered lazily, one mission at a time', () => {
+describe('battle music in the engine: rendered before its battle, one mission at a time', () => {
   function engine(): { ctx: Context; audio: ReturnType<typeof createAudio>; rendered: BattlePiece[]; flush: () => Promise<void> } {
     const ctx = new Context();
     const rendered: BattlePiece[] = [];
@@ -454,32 +460,166 @@ describe('battle music in the engine: rendered lazily, one mission at a time', (
     return { ctx, audio, rendered, flush };
   }
 
-  it('renders nothing until a battle asks, then every piece, starting the build layer once the first is in', async () => {
+  it('renders nothing until a load asks, every piece before the battle, and plays only once the battle starts', async () => {
     const { audio, rendered, flush } = engine();
     await flush();
     expect(rendered).toEqual([]);
     expect(audio.battleMusicStats().state).toBe('idle');
     expect(audio.battleMusicStats().bytes).toBe(0);
-    audio.prepareBattleMusic('arras');
-    expect(audio.battleMusicStats().state).toBe('waiting');
+    const progress: [number, number][] = [];
+    const load = audio.loadBattleMusic('arras', (ready, total) => progress.push([ready, total]));
+    expect(audio.battleMusicStats().state).toBe('rendering');
     await flush();
+    expect(await load).toBe(true);
     const s = audio.battleMusicStats();
     expect(s.state).toBe('ready');
     expect(rendered.length).toBe(battlePieces(ARRAS).length);
     expect(s.piecesReady).toBe(s.piecesTotal);
     expect(s.bytes).toBe(trackBytes(ARRAS));
     expect(s.bytes).toBeLessThanOrEqual(MUSIC_BATTLE.budget.maxBytes);
-    expect(s.player?.started).toBe(true);
-    expect(s.player?.active).toBe('build');
+    // The progress the loading button shows: from none to all, never backwards.
+    expect(progress[0]).toEqual([0, s.piecesTotal]);
+    expect(progress[progress.length - 1]).toEqual([s.piecesTotal, s.piecesTotal]);
+    for (let i = 1; i < progress.length; i++) expect(progress[i][0]).toBeGreaterThanOrEqual(progress[i - 1][0]);
+    // Nothing plays on the briefing: the music waits for its battle.
+    audio.tickBattleMusic();
+    expect(audio.battleMusicStats().player?.started).toBe(false);
+    audio.prepareBattleMusic('arras');
+    audio.tickBattleMusic();
+    const p = audio.battleMusicStats().player;
+    expect(p?.started).toBe(true);
+    expect(p?.active).toBe('build');
     audio.setBattleLayer('combat');
     audio.tickBattleMusic();
     expect(audio.battleMusicStats().player?.target).toBe('combat');
   });
 
+  // Owner, 2026-11-09 (DECISIONS 406): the battle starts once the calm layer is in and the rest renders during it, one
+  // piece at a time in idle moments. This replaces the earlier rule "nothing renders once the battle runs".
+  it('once the battle has started: a full load renders nothing more, a load under way finishes one piece at a time in idle moments, a track never loaded stays silent', async () => {
+    // Every render, every wait between pieces and every idle wait is counted; pieces finish only when the test lets them.
+    const ctx = new Context();
+    let renders = 0;
+    let waits = 0;
+    let idles = 0;
+    const pending: (() => void)[] = [];
+    const audio = createAudio({
+      context: ctx as unknown as BaseAudioContext,
+      wait: () => {
+        waits++;
+        return Promise.resolve();
+      },
+      idle: () => {
+        idles++;
+        return Promise.resolve();
+      },
+      renderPiece: (def, piece, rate): Promise<RenderedPiece> => {
+        renders++;
+        return new Promise((resolve) => {
+          pending.push(() => resolve({ piece, buffer: fakeBuffer(pieceFrames(def, piece, rate), rate, piece.sting ?? `${piece.section}/${piece.layer}`) as unknown as AudioBuffer, buildMs: 1, buildMsTotal: 1, renderMs: 2, peak: 0.5 }));
+        });
+      },
+    });
+    const flush = async (): Promise<void> => {
+      for (let i = 0; i < 50; i++) await Promise.resolve();
+    };
+    const finishAll = async (): Promise<void> => {
+      for (let guard = 0; guard < 500 && pending.length > 0; guard++) {
+        pending.shift()?.();
+        await flush();
+      }
+    };
+    /** A minute of battle: frames tick the music, the layers change, the battle ends with a sting. */
+    const battle = async (): Promise<void> => {
+      const layers = ['build', 'combat', 'tense', 'prep', 'build'] as const;
+      for (let f = 0; f < 60 * 20; f++) {
+        ctx.currentTime += 0.05;
+        if (f % 240 === 0) audio.setBattleLayer(layers[(f / 240) % layers.length]);
+        audio.tickBattleMusic();
+        if (f % 60 === 0) await flush();
+      }
+      audio.endBattleMusic(true, true);
+      await flush();
+    };
+    const total = battlePieces(ARRAS).length;
+
+    // 1. Loaded in full on the briefing, then the battle (and a restart, and a second battle).
+    const load = audio.loadBattleMusic('arras');
+    await finishAll();
+    expect(await load).toBe(true);
+    expect(renders).toBe(total);
+    const [r1, w1] = [renders, waits];
+    audio.prepareBattleMusic('arras');
+    await battle();
+    audio.prepareBattleMusic('arras');
+    await battle();
+    await finishAll();
+    expect(renders, 'no piece rendered after the battle started').toBe(r1);
+    expect(waits, 'no render gap scheduled after the battle started').toBe(w1);
+    expect(idles).toBe(0);
+    expect(pending.length).toBe(0);
+    expect(audio.battleMusicStats().state).toBe('ready');
+
+    // 2. Begin as soon as the calm layer is in: the battle starts and the rest of the track renders during it.
+    audio.releaseBattleMusic();
+    renders = 0;
+    waits = 0;
+    const rest = audio.loadBattleMusic('arras');
+    const startable = audio.battleMusicStartable('arras');
+    pending.shift()?.();
+    await flush();
+    expect(await startable, 'the opening calm layer is enough to start').toBe(true);
+    // The first piece renders alone, then MUSIC_BATTLE.render.lanes at a time.
+    const lanes = MUSIC_BATTLE.render.lanes;
+    expect(lanes).toBeGreaterThanOrEqual(1);
+    expect(renders).toBe(1 + lanes);
+    audio.setBattleLayer('combat');
+    audio.prepareBattleMusic('arras');
+    audio.tickBattleMusic();
+    // Until the combat layer is in, the music stays on the calm one.
+    expect(audio.battleMusicStats().player?.started).toBe(true);
+    expect(audio.battleMusicStats().player?.active).toBe('build');
+    expect(audio.battleMusicStats().state).toBe('rendering');
+    // The pieces in flight when the battle started land; after them, one piece at a time, each after an idle wait.
+    const waitsAtStart = waits;
+    for (let i = 0; i < lanes; i++) {
+      pending.shift()?.();
+      await flush();
+    }
+    for (let guard = 0; guard < 200 && pending.length > 0; guard++) {
+      expect(pending.length, 'one piece at a time once the battle runs').toBe(1);
+      const before = idles;
+      pending.shift()?.();
+      await flush();
+      expect(idles, 'each piece in the battle waits for an idle moment').toBe(before + 1);
+    }
+    expect(waits, 'the briefing gap is not used in the battle').toBe(waitsAtStart);
+    expect(await rest).toBe(true);
+    expect(renders, 'every piece once, none twice').toBe(total);
+    expect(audio.battleMusicStats().state).toBe('ready');
+    expect(audio.battleMusicStats().piecesReady).toBe(total);
+    await battle();
+    expect(renders).toBe(total);
+
+    // 3. A battle on a track never loaded (the debug hooks start battles straight away) stays silent.
+    audio.releaseBattleMusic();
+    renders = 0;
+    waits = 0;
+    audio.prepareBattleMusic('arras');
+    await battle();
+    await finishAll();
+    expect(renders).toBe(0);
+    expect(waits).toBe(0);
+    expect(audio.battleMusicStats().state).toBe('skipped');
+    expect(audio.battleMusic()).toBe(null);
+    expect(audio.endBattleMusic(true, true)).toBe(false);
+  });
+
   it('frees the buffers when the battle is left, and drops pieces that finish rendering afterwards', async () => {
     const { audio, rendered, flush } = engine();
-    audio.prepareBattleMusic('arras');
+    void audio.loadBattleMusic('arras');
     await flush();
+    audio.prepareBattleMusic('arras');
     expect(audio.battleMusicStats().bytes).toBeGreaterThan(0);
     const player = audio.battleMusic();
     audio.releaseBattleMusic();
@@ -487,35 +627,139 @@ describe('battle music in the engine: rendered lazily, one mission at a time', (
     expect(audio.battleMusicStats().state).toBe('idle');
     expect(audio.battleMusic()).toBe(null);
     expect(player?.bytes()).toBe(0);
-    // Released while rendering: what was still on its way never lands.
+    // Released while rendering (back to the map from the briefing): what was still on its way never lands.
     rendered.length = 0;
-    audio.prepareBattleMusic('arras');
+    const load = audio.loadBattleMusic('arras');
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     const partly = audio.battleMusic();
     audio.releaseBattleMusic();
+    expect(await load).toBe(false);
     await flush();
     expect(rendered.length).toBeLessThan(battlePieces(ARRAS).length);
     expect(partly?.bytes()).toBe(0);
     expect(audio.battleMusicStats().bytes).toBe(0);
   });
 
-  it('keeps what is rendered for a restart of the same track and starts it from the top', async () => {
+  it('keeps what is rendered for a restart or a replay of the same track and starts it from the top', async () => {
     const { audio, rendered, flush } = engine();
-    audio.prepareBattleMusic('arras');
+    void audio.loadBattleMusic('arras');
     await flush();
+    audio.prepareBattleMusic('arras');
+    audio.tickBattleMusic();
     const count = rendered.length;
     const player = audio.battleMusic();
+    // The result screen's Replay loads again: nothing renders, it is ready at once.
+    const progress: number[] = [];
+    expect(await audio.loadBattleMusic('arras', (ready) => progress.push(ready))).toBe(true);
+    expect(progress).toEqual([count]);
     audio.prepareBattleMusic('arras');
+    audio.tickBattleMusic();
     await flush();
     expect(rendered.length).toBe(count);
     expect(audio.battleMusic()).toBe(player);
     expect(audio.battleMusicStats().player?.sectionsPlayed).toBeGreaterThan(0);
+    // Another track replaces it.
+    void audio.loadBattleMusic('brest');
+    await flush();
+    expect(audio.battleMusic()).not.toBe(player);
+    expect(player?.bytes()).toBe(0);
+    expect(audio.battleMusicStats().track).toBe('brest');
   });
 
-  it('carries on silently without an OfflineAudioContext', () => {
+  it('a second ask joins the load under way, before the battle and during it; every piece renders once', async () => {
+    const { audio, rendered, flush } = engine();
+    const first = audio.loadBattleMusic('arras');
+    const again = audio.loadBattleMusic('arras');
+    expect(again).toBe(first);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    audio.prepareBattleMusic('arras');
+    // A Retry from the result screen while the battle's music is still coming in joins the same load.
+    expect(audio.loadBattleMusic('arras')).toBe(first);
+    expect(await first).toBe(true);
+    await flush();
+    const s = audio.battleMusicStats();
+    expect(s.state).toBe('ready');
+    expect(s.piecesReady).toBe(s.piecesTotal);
+    expect(rendered.length).toBe(battlePieces(ARRAS).length);
+  });
+
+  it('answers false and never hangs when the render fails; the battle then starts without music', async () => {
+    const ctx = new Context();
+    const audio = createAudio({ context: ctx as unknown as BaseAudioContext, wait: () => Promise.resolve(), renderPiece: () => Promise.reject(new Error('no')) });
+    expect(await audio.loadBattleMusic('arras')).toBe(false);
+    expect(audio.battleMusicStats().state).toBe('failed');
+    audio.prepareBattleMusic('arras');
+    audio.tickBattleMusic();
+    expect(audio.battleMusicStats().player?.started ?? false).toBe(false);
+    expect(audio.endBattleMusic(false, true)).toBe(false);
+  });
+
+  it('the app starts a battle once the calm layer is in, the rest rendering during it; a replay renders nothing again', async () => {
+    const ctx = new Context();
+    let renders = 0;
+    const audio = createAudio({
+      context: ctx as unknown as BaseAudioContext,
+      wait: () => Promise.resolve(),
+      renderPiece: (def, piece, rate): Promise<RenderedPiece> => {
+        renders++;
+        return Promise.resolve({ piece, buffer: fakeBuffer(pieceFrames(def, piece, rate), rate, piece.sting ?? `${piece.section}/${piece.layer}`) as unknown as AudioBuffer, buildMs: 1, buildMsTotal: 1, renderMs: 2, peak: 0.5 });
+      },
+    });
+    const view = createFakeView();
+    const app = new App({ view, audio, storage: createMemoryStorage(), missions: [quickMission(1, true)], upgradeDefs: [], random: () => 0.25 });
+    app.attachUi(createFakeUi());
+    const flush = async (): Promise<void> => {
+      for (let i = 0; i < 50; i++) await Promise.resolve();
+    };
+    const frames = async (n: number): Promise<void> => {
+      for (let i = 0; i < n; i++) {
+        ctx.currentTime += 1 / 60;
+        view.frame?.(1000 / 60);
+        if (i % 30 === 0) await flush();
+      }
+    };
+    app.onScreen('campaign');
+    app.onScreen('briefing');
+    const music = app.missions[0].music;
+    const progress: number[] = [];
+    expect(await app.loadMission(1, (f) => progress.push(f))).toBe(true);
+    const all = battlePieces(BATTLE_TRACKS[music]).length;
+    // Begin waits for the opening calm layer only.
+    expect(audio.battleMusicStats().piecesReady).toBeGreaterThanOrEqual(1);
+    expect(renders).toBeLessThan(all);
+    expect(progress[progress.length - 1]).toBe(1);
+    app.startMission(1, 'normal');
+    app.onScreen('battle');
+    await frames(600);
+    expect(renders, 'the rest rendered during the battle, each piece once').toBe(all);
+    expect(audio.battleMusicStats().state).toBe('ready');
+    expect(audio.battleMusicStats().player?.started).toBe(true);
+    // Win it, then Replay from the result screen: the same music, nothing rendered again.
+    app.dispatch({ type: 'order', order: 'advance' });
+    for (let i = 0; i < 2000 && app.lastResult === null; i++) view.frame?.(250);
+    expect(app.lastResult).not.toBe(null);
+    app.onScreen('result');
+    expect(await app.loadMission(1)).toBe(true);
+    app.startMission(1, 'normal');
+    app.onScreen('battle');
+    await frames(300);
+    expect(renders).toBe(all);
+    // Back to the map: the music goes; the briefing renders it again.
+    app.onScreen('campaign');
+    expect(audio.battleMusicStats().bytes).toBe(0);
+    expect(await app.loadMission(1)).toBe(true);
+    await flush();
+    expect(renders).toBe(all * 2);
+  });
+
+  it('carries on silently without an OfflineAudioContext', async () => {
     const bare = createAudio();
+    expect(await bare.loadBattleMusic('arras')).toBe(false);
+    expect(bare.battleMusicStats().state).toBe('unavailable');
     bare.prepareBattleMusic('arras');
     expect(bare.battleMusicStats().state).toBe('unavailable');
     bare.setBattleLayer('combat');

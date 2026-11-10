@@ -15,10 +15,26 @@
  */
 import { FACTIONS } from '../../data/factions';
 import { FIGURE, FIGURE_CRATE, FIGURE_KIND_LIST, FIGURE_LOADOUT, WEAPON_GEOM, type FigureKind, type HandItem, type WeaponModel } from '../../data/figure';
-import type { FactionId } from '../../data/schema';
+import type { FactionId, HelmetShape } from '../../data/schema';
 import type { SpriteSpec } from '../types';
+import { FIGURE_CLOTHING, FIGURE_GEAR_NATION, FIGURE_HEADGEAR, type FigureClothing, type FigureHeadgear } from '../../data/looksGear';
+import { eraWeaponSpecs } from './eraWeapons';
 import { gearFigureSprites } from './gear';
 import { TAU } from './math';
+import {
+  CLOTHING_PARTS,
+  type ClothingPart,
+  clothingCovers,
+  clothingKey,
+  clothingSpecs,
+  coatRollSpec,
+  headgearKey,
+  headgearRimKey,
+  headgearSpec,
+  sovietPackSpec,
+  sovietPouchesSpec,
+  sovietWeaponSpecs,
+} from './soviet';
 
 type Ctx = CanvasRenderingContext2D;
 type Paint = (ctx: Ctx) => void;
@@ -65,7 +81,7 @@ export function mix(a: string, b: string, t: number): string {
 // ---------------------------------------------------------------------------
 // Path helpers
 // ---------------------------------------------------------------------------
-function poly(ctx: Ctx, pts: readonly number[]): void {
+export function poly(ctx: Ctx, pts: readonly number[]): void {
   ctx.moveTo(pts[0], pts[1]);
   for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
   ctx.closePath();
@@ -111,7 +127,7 @@ export function line(ctx: Ctx, color: string, width: number, pts: readonly numbe
   ctx.stroke();
 }
 
-function dot(ctx: Ctx, color: string, x: number, y: number, r: number): void {
+export function dot(ctx: Ctx, color: string, x: number, y: number, r: number): void {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, TAU);
   ctx.fillStyle = color;
@@ -119,7 +135,7 @@ function dot(ctx: Ctx, color: string, x: number, y: number, r: number): void {
 }
 
 /** Tapered capsule along +x from 0 to L (union of two circles and the band between them). */
-function capsule(ctx: Ctx, L: number, r0: number, r1: number): void {
+export function capsule(ctx: Ctx, L: number, r0: number, r1: number): void {
   ctx.moveTo(0, -r0);
   ctx.lineTo(L, -r1);
   ctx.lineTo(L, r1);
@@ -288,19 +304,48 @@ export function stahlhelmPath(ctx: Ctx): void {
   ctx.closePath();
 }
 
-export function helmetSpec(key: string, kind: 'brodie' | 'stahlhelm', tint: string, dark: string, rim: boolean): SpriteSpec {
+/**
+ * The Soviet SSh-40: a tall, almost hemispherical dome with a short brim flared out evenly all round, lower at the
+ * back than over the brow; no stepped skirt like the Stahlhelm's.
+ */
+export function ssh40Path(ctx: Ctx): void {
+  ctx.moveTo(7.3, -2.1);
+  ctx.quadraticCurveTo(7.2, -2.8, 6.4, -3.0);
+  ctx.bezierCurveTo(6.4, -10.8, -6.9, -10.9, -6.8, -2.3);
+  ctx.quadraticCurveTo(-7.0, -0.4, -8.0, 0.7);
+  ctx.quadraticCurveTo(-7.9, 1.4, -6.8, 1.1);
+  ctx.quadraticCurveTo(-0.4, -1.1, 6.4, -1.5);
+  ctx.quadraticCurveTo(7.4, -1.5, 7.3, -2.1);
+  ctx.closePath();
+}
+
+/** The outline of a helmet shape (head space, for a head of radius 5.4). */
+export function helmetShapePath(ctx: Ctx, shape: HelmetShape): void {
+  if (shape === 'brodie') brodiePath(ctx);
+  else if (shape === 'stahlhelm') stahlhelmPath(ctx);
+  else ssh40Path(ctx);
+}
+
+/** Bounds of each helmet shape in head space (for a head of radius 5.4): x0, x1, y0, y1. */
+export const HELMET_BOX: Record<HelmetShape, readonly [number, number, number, number]> = {
+  brodie: [-10.4, 10.4, -9.2, 0.3],
+  stahlhelm: [-9.2, 7.8, -10.4, 3.2],
+  ssh40: [-8.6, 7.8, -10.4, 1.8],
+};
+
+export function helmetSpec(key: string, kind: HelmetShape, tint: string, dark: string, rim: boolean): SpriteSpec {
   // Paths are drawn for a head of radius 5.4 and scaled to the real head.
   const k = FIGURE.headRadius / 5.4;
-  const x0 = (kind === 'brodie' ? -10.4 : -9.2) * k;
-  const x1 = (kind === 'brodie' ? 10.4 : 7.8) * k;
-  const y0 = (kind === 'brodie' ? -9.2 : -10.4) * k;
-  const y1 = (kind === 'brodie' ? 0.3 : 3.2) * k;
+  const box = HELMET_BOX[kind];
+  const x0 = box[0] * k;
+  const x1 = box[1] * k;
+  const y0 = box[2] * k;
+  const y1 = box[3] * k;
   const g = rim ? RIM : 0;
   return makeSpec(key, x0 - g, y0 - g, x1 + g, y1 + g, (ctx) => {
     ctx.scale(k, k);
     ctx.beginPath();
-    if (kind === 'brodie') brodiePath(ctx);
-    else stahlhelmPath(ctx);
+    helmetShapePath(ctx, kind);
     if (rim) {
       ctx.lineWidth = (RIM * 2) / k;
       ctx.lineJoin = 'round';
@@ -320,6 +365,18 @@ export function helmetSpec(key: string, kind: 'brodie' | 'stahlhelm', tint: stri
       fillPath(ctx, light, () => ctx.ellipse(-1.2, -7.2, 3.6, 1.0, -0.1, 0, TAU));
       fillPath(ctx, dark, () => ctx.rect(-10, -3.0, 20, 1.2));
       line(ctx, mix(dark, '#000000', 0.25), 0.5, [-5.8, -3.9, 5.8, -3.9]);
+    } else if (kind === 'ssh40') {
+      // A highlight on the dome, the line where the brim flares out, its shadowed underside and a liner rivet.
+      fillPath(ctx, light, () => ctx.ellipse(-0.8, -7.8, 3.6, 1.2, -0.1, 0, TAU));
+      line(ctx, dark, 0.6, [6.3, -3.0, 1.0, -2.9, -3.8, -2.4, -6.6, -1.6]);
+      fillPath(ctx, dark, () => {
+        ctx.moveTo(-6.8, -1.4);
+        ctx.quadraticCurveTo(-7.2, 0.2, -8.0, 0.8);
+        ctx.lineTo(-6.6, 1.2);
+        ctx.quadraticCurveTo(-6.0, 0.2, -5.6, -1.2);
+        ctx.closePath();
+      });
+      dot(ctx, dark, -1.2, -6.2, 0.5);
     } else {
       fillPath(ctx, light, () => ctx.ellipse(-0.8, -7.9, 3.2, 1.1, -0.15, 0, TAU));
       // The step where the skirt flares out, and the vent lug.
@@ -335,8 +392,7 @@ export function helmetSpec(key: string, kind: 'brodie' | 'stahlhelm', tint: stri
     }
     ctx.restore();
     ctx.beginPath();
-    if (kind === 'brodie') brodiePath(ctx);
-    else stahlhelmPath(ctx);
+    helmetShapePath(ctx, kind);
     ctx.lineWidth = 0.35;
     ctx.strokeStyle = mix(dark, '#000000', 0.4);
     ctx.stroke();
@@ -559,7 +615,7 @@ function paintMortarPlate(ctx: Ctx): void {
   solid(ctx, STEEL, () => rrect(ctx, -1.6, -2.0, 3.2, 1.4, 0.5));
 }
 
-function paintBipod(ctx: Ctx, L: number): void {
+export function paintBipod(ctx: Ctx, L: number): void {
   line(ctx, STEEL_L, 0.5, [0, 0, L - 0.3, -0.9]);
   line(ctx, STEEL, 0.65, [0, 0, L, 0.4]);
   dot(ctx, STEEL, L, 0.4, 0.6);
@@ -721,12 +777,29 @@ export const RIM_KEYS = {
   head: 'fig/rim/head',
   brodie: 'fig/rim/helmetBrodie',
   stahlhelm: 'fig/rim/helmetStahlhelm',
+  ssh40: 'fig/rim/helmetSsh40',
 } as const;
+
+/** A cap worn in place of the helmet (setFigureHeadgear): its sprite and its rim. */
+export interface HeadgearKeys {
+  readonly helmet: string;
+  readonly rim: string;
+}
+
+/** Winter clothing worn over the body (setFigureClothing): the sprite drawn in place of each body part, null where the
+ * body shows. */
+export type ClothingKeys = Readonly<Record<ClothingPart, string | null>>;
 
 /** Keys of everything that depends on the faction. */
 export interface FactionFigureKeys {
   helmet: string;
   helmetRim: string;
+  /** The rolled greatcoat over the shoulder, worn in the bandolier slot by FIGURE_GEAR_NATION.coatRoll kinds; null = none. */
+  coatRoll: string | null;
+  /** Headgear the nation can wear instead of its helmet (FIGURE_HEADGEAR). */
+  headgear: Partial<Record<FigureHeadgear, HeadgearKeys>>;
+  /** Clothing the nation can wear over its body (FIGURE_CLOTHING). */
+  clothing: Partial<Record<FigureClothing, ClothingKeys>>;
   pack: string;
   pouches: string;
   satchel: string;
@@ -753,9 +826,20 @@ function buildKeys(f: FactionId): FactionFigureKeys {
     bipod[k] = WEAPON_GEOM[m].bipodLen > 0 ? `fig/weapon/${m}Bipod` : null;
     plate[k] = WEAPON_GEOM[m].baseplate ? `fig/weapon/${m}Plate` : null;
   }
+  const headgear: Partial<Record<FigureHeadgear, HeadgearKeys>> = {};
+  for (const id of FIGURE_HEADGEAR[f]) headgear[id] = { helmet: headgearKey(id), rim: headgearRimKey(id) };
+  const clothing: Partial<Record<FigureClothing, ClothingKeys>> = {};
+  for (const id of FIGURE_CLOTHING[f]) {
+    const keys = {} as Record<ClothingPart, string | null>;
+    for (const part of CLOTHING_PARTS) keys[part] = clothingCovers(id, part) ? clothingKey(id, part) : null;
+    clothing[id] = keys;
+  }
   return {
     helmet: `fig/${f}/helmet`,
-    helmetRim: FACTIONS[f].look.helmet === 'brodie' ? RIM_KEYS.brodie : RIM_KEYS.stahlhelm,
+    helmetRim: RIM_KEYS[FACTIONS[f].look.helmet],
+    coatRoll: FIGURE_GEAR_NATION[f].coatRoll.length > 0 ? `fig/${f}/coatRoll` : null,
+    headgear,
+    clothing,
     pack: `fig/${f}/pack`,
     pouches: `fig/${f}/pouches`,
     satchel: `fig/${f}/satchel`,
@@ -767,8 +851,9 @@ function buildKeys(f: FactionId): FactionFigureKeys {
       none: null,
       mills: 'fig/item/mills',
       stick: 'fig/item/stick',
+      f1: 'fig/item/f1',
       shell: 'fig/item/shell',
-      rocket: L.weapon.at === 'piat' ? 'fig/item/piatBomb' : 'fig/item/rocket',
+      rocket: L.weapon.at === 'piat' ? 'fig/item/piatBomb' : L.weapon.at === 'ptrd' ? 'fig/item/ptrdRound' : 'fig/item/rocket',
     },
   };
 }
@@ -781,6 +866,7 @@ export function flamePackKey(f: FactionId): string {
 export const FACTION_FIGURE_KEYS: Record<FactionId, FactionFigureKeys> = {
   british: buildKeys('british'),
   german: buildKeys('german'),
+  soviet: buildKeys('soviet'),
 };
 
 function weaponSpecs(): SpriteSpec[] {
@@ -813,6 +899,7 @@ function weaponSpecs(): SpriteSpec[] {
   out.push(makeSpec('fig/item/shell', -6.6, -1.8, 4.2, 1.8, paintShell));
   out.push(makeSpec('fig/item/piatBomb', -5.8, -2.2, 6.8, 2.2, paintPiatBomb));
   out.push(makeSpec('fig/item/rocket', -6.2, -1.6, 7.2, 1.6, paintRocket));
+  out.push(...sovietWeaponSpecs(), ...eraWeaponSpecs());
   return out;
 }
 
@@ -845,20 +932,40 @@ function bodySpecs(): SpriteSpec[] {
     headSpec(R.head, C.rim, RIM),
     helmetSpec(R.brodie, 'brodie', C.rim, C.rim, true),
     helmetSpec(R.stahlhelm, 'stahlhelm', C.rim, C.rim, true),
+    helmetSpec(R.ssh40, 'ssh40', C.rim, C.rim, true),
   ];
+}
+
+/** The belt kit a nation's figures wear (the Red Army's own, or the shared pouches); gear builds on it. */
+export function nationPouchesSpec(f: FactionId, key: string): SpriteSpec {
+  const look = FACTIONS[f].look;
+  return FIGURE_GEAR_NATION[f].kit === 'soviet' ? sovietPouchesSpec(key, look.tint, look.tintDark) : pouchesSpec(key, look.tint, look.tintDark);
 }
 
 function factionSpecs(f: FactionId): SpriteSpec[] {
   const look = FACTIONS[f].look;
   const k = FACTION_FIGURE_KEYS[f];
-  return [
-    helmetSpec(k.helmet, look.helmet, look.tint, look.tintDark, false),
-    packSpec(k.pack, look.tint, look.tintDark),
+  const soviet = FIGURE_GEAR_NATION[f].kit === 'soviet';
+  const helmet = helmetSpec(k.helmet, look.helmet, look.tint, look.tintDark, false);
+  const out = [
+    helmet,
+    soviet ? sovietPackSpec(k.pack, look.tint, look.tintDark) : packSpec(k.pack, look.tint, look.tintDark),
     flamePackSpec(flamePackKey(f), look.tint, look.tintDark),
-    pouchesSpec(k.pouches, look.tint, look.tintDark),
+    nationPouchesSpec(f, k.pouches),
     satchelSpec(k.satchel, look.tint),
     crateSpec(k.crate, look.tint, look.tintDark),
   ];
+  if (k.coatRoll) out.push(coatRollSpec(k.coatRoll));
+  for (const id of FIGURE_HEADGEAR[f]) out.push(headgearSpec(headgearKey(id), id, look.tint, look.tintDark, false, helmet));
+  return out;
+}
+
+/** One rim sprite per headgear any nation wears (rims are shape only, so nations share them). */
+function headgearRimSpecs(): SpriteSpec[] {
+  const ids = new Set<FigureHeadgear>();
+  for (const f of Object.keys(FACTIONS) as FactionId[]) for (const id of FIGURE_HEADGEAR[f]) ids.add(id);
+  const blank = helmetSpec('', 'ssh40', C.rim, C.rim, true);
+  return [...ids].map((id) => headgearSpec(headgearRimKey(id), id, C.rim, C.rim, true, blank));
 }
 
 let cache: SpriteSpec[] | null = null;
@@ -866,7 +973,10 @@ let cacheMap: Map<string, SpriteSpec> | null = null;
 
 /** The figure sprites without upgrade gear (body, rims, helmets, kit, weapons, items) for every faction. */
 export function baseFigureSprites(): SpriteSpec[] {
-  const out = [...bodySpecs(), ...weaponSpecs()];
+  const out = [...bodySpecs(), ...headgearRimSpecs(), ...weaponSpecs()];
+  const clothes = new Set<FigureClothing>();
+  for (const f of Object.keys(FACTIONS) as FactionId[]) for (const id of FIGURE_CLOTHING[f]) clothes.add(id);
+  out.push(...clothingSpecs([...clothes]));
   for (const f of Object.keys(FACTIONS) as FactionId[]) out.push(...factionSpecs(f));
   return out;
 }

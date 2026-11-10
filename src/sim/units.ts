@@ -2,9 +2,11 @@
  * The unit pool: spawning, death, the hold-formation grid and entering the HQ.
  */
 import { CONFIG, SPECIALS } from '../data/config';
+import { resolveEra, unitVehicleLook, type VehicleKind } from '../data/eras';
 import type { Side } from '../data/schema';
+import { vehicleGun } from '../data/tankGuns';
 import { WEAPONS } from '../data/weapons';
-import { DAMAGE_TYPES, KIND_BOSS, KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
+import { CLASS_TRENCH, DAMAGE_TYPES, KIND_BOSS, KIND_COUNT, KIND_DEFS, KIND_LIST, KIND_SAPPER, weaponIndex } from './tables';
 import { releaseSlot } from './trenches';
 import { TARGET_NONE, type Behaviour, type MountState, type SimEvent, type SimEventType, type UnitState } from './types';
 import type { World } from './world';
@@ -41,6 +43,8 @@ export function createMount(): MountState {
     trigger: true,
     spread: 0,
     accuracy: 1,
+    rangeMul: 1,
+    vehicleMul: 1,
   };
 }
 
@@ -61,6 +65,8 @@ export function resetMount(m: MountState, weaponId: string | null, x: number): v
   m.sinceShot = LONG_AGO;
   m.windup = 0;
   m.trigger = true;
+  m.rangeMul = 1;
+  m.vehicleMul = 1;
 }
 
 /** A blank pool slot. */
@@ -86,6 +92,8 @@ export function createUnit(index: number): UnitState {
     inside: false,
     carrying: 0,
     trenchId: -1,
+    floor: 0,
+    coverClass: CLASS_TRENCH,
     controlled: false,
     aimX: 0,
     weaponCharge: 1,
@@ -96,20 +104,24 @@ export function createUnit(index: number): UnitState {
     goalX: 0,
     moveSpeed: 0,
     task: TASK_TO_DUMP,
+    site: -1,
     taskTime: 0,
     cell: -1,
     cellSpan: 0,
     slotDepth: 0,
     jitter: 0,
+    leash: 0,
     postX: 0,
     postTrench: -1,
     trench: -1,
     slot: -1,
     setup: 0,
     hitTime: -LONG_AGO,
+    knock: 0,
     healIndex: -1,
     healId: -1,
     veteran: false,
+    look: '',
     accuracy: 1,
     carrier: -1,
     carrierId: -1,
@@ -117,6 +129,9 @@ export function createUnit(index: number): UnitState {
     flushedUntil: -LONG_AGO,
     aaCooldown: 0,
     invincible: false,
+    skis: false,
+    rally: -1,
+    ferry: -1,
   };
 }
 
@@ -209,7 +224,9 @@ export function spawnUnit(
   u.kind = KIND_LIST[kindIndex];
   u.kindIndex = kindIndex;
   u.side = side;
-  u.faction = sideState.faction;
+  // A kind the side fields as another nation (SideStart.rosterNation; FOUNDATIONS.md 5.1): names and looks only.
+  const roster = w.mission.start[side].rosterNation;
+  u.faction = (roster && roster[u.kind]) ?? sideState.faction;
   u.def = def;
   u.behaviour = behaviour;
   u.x = px;
@@ -223,6 +240,8 @@ export function spawnUnit(
   u.inside = inside;
   u.carrying = 0;
   u.trenchId = -1;
+  u.floor = 0;
+  u.coverClass = CLASS_TRENCH;
   u.controlled = false;
   u.aimX = px;
   u.weaponCharge = 1;
@@ -232,20 +251,24 @@ export function spawnUnit(
   u.goalX = px;
   u.moveSpeed = 0;
   u.task = TASK_TO_DUMP;
+  u.site = -1;
   u.taskTime = 0;
   const serial = ++w.spawnCount[side];
   u.jitter = (serial * JITTER_STEP) % 1;
   u.mount.spread = u.jitter;
   u.mount2.spread = u.jitter;
   u.postX = px;
+  u.leash = CONFIG.guardLeash;
   u.postTrench = -1;
   u.trench = -1;
   u.slot = -1;
   u.setup = 0;
   u.hitTime = -LONG_AGO;
+  u.knock = 0;
   u.healIndex = -1;
   u.healId = -1;
   u.veteran = false;
+  u.look = '';
   u.accuracy = 1;
   u.mount.accuracy = 1;
   u.mount2.accuracy = 1;
@@ -255,11 +278,15 @@ export function spawnUnit(
   u.flushedUntil = -LONG_AGO;
   u.aaCooldown = 0;
   u.invincible = false;
+  u.skis = false;
+  u.rally = -1;
+  u.ferry = -1;
   u.cell = -1;
   u.cellSpan = 0;
   u.slotDepth = def.formationDepth;
   u.row = serial % CONFIG.rows;
   if (behaviour === 'army' && kindIndex !== KIND_SAPPER) allocCell(w, u);
+  if (def.class === 'vehicle') armVehicle(w, u);
 
   sideState.alive[u.kind]++;
   if (!trained) sideState.pop += def.pop;
@@ -278,6 +305,26 @@ export function spawnUnit(
   return u;
 }
 
+/**
+ * Give a vehicle the main gun of the look it is drawn with (its force's look, else its era's for its nation; TANK_GUNS
+ * in src/data/tankGuns.ts): the cannon scale by calibre. Call again whenever u.look or u.faction changes. Only the
+ * weapon changes; the mount's aim, accuracy and spread stay as they are.
+ */
+export function armVehicle(w: World, u: UnitState): void {
+  if (u.def.class !== 'vehicle' || u.def.weapon === null) return;
+  const m = w.mission;
+  const era = resolveEra(u.faction, m.dateIso ?? null, m.climate ?? 'temperate');
+  const gun = vehicleGun(u.kind, unitVehicleLook(era, u.kind as VehicleKind, u.look));
+  const mount = u.mount;
+  if (gun === null || (mount.weapon !== null && mount.weapon.id === gun)) return;
+  const index = weaponIndex(gun);
+  if (index < 0) return;
+  mount.weapon = WEAPONS[gun];
+  mount.weaponIndex = index;
+  mount.aim = mount.weapon.aimTime;
+  mount.cooldown = 0;
+}
+
 /** Remove a unit from play. `dtype` indexes DAMAGE_TYPES; `killerSide` is -1 if nobody gets the credit. */
 export function killUnit(w: World, u: UnitState, dtype: number, dir: number, killerSide: number): void {
   const s = w.state;
@@ -288,8 +335,15 @@ export function killUnit(w: World, u: UnitState, dtype: number, dir: number, kil
   side.alive[u.kind]--;
   if (u.veteran) w.escorts[u.side * KIND_COUNT + u.kindIndex]--;
   side.stats.lost++;
-  if (killerSide >= 0) s.sides[killerSide].stats.kills++;
-  if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
+  side.stats.lostByKind[u.kind]++;
+  if (killerSide >= 0) {
+    const killer = s.sides[killerSide].stats;
+    killer.kills++;
+    killer.killsByKind[u.kind]++;
+  }
+  // Men waiting for (or on) a ferry are off the field but not in the HQ.
+  if (u.inside && u.carrier < 0 && u.ferry < 0 && side.hq) side.hq.garrison--;
+  u.ferry = -1;
   if (u.passengers > 0) dropPassengers(w, u, false);
   freeCell(w, u);
   releaseSlot(w, u);
@@ -329,7 +383,8 @@ export function removeUnit(w: World, u: UnitState): void {
   side.pop -= u.def.pop;
   side.alive[u.kind]--;
   if (u.veteran) w.escorts[u.side * KIND_COUNT + u.kindIndex]--;
-  if (u.inside && u.carrier < 0 && side.hq) side.hq.garrison--;
+  if (u.inside && u.carrier < 0 && u.ferry < 0 && side.hq) side.hq.garrison--;
+  u.ferry = -1;
   if (u.passengers > 0) dropPassengers(w, u, false);
   freeCell(w, u);
   releaseSlot(w, u);

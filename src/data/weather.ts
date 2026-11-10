@@ -1,8 +1,34 @@
 /**
- * Weather numbers. Weather is visual only: it never touches the simulation or
- * its RNG. The logic that reads this file is in src/fx (weather.ts, rain.ts,
- * lightning.ts).
+ * Weather numbers. Two kinds of weather:
+ * - the random rain and its thunder (WEATHER) are visual only: they never touch the simulation or its RNG. The logic
+ *   that reads them is in src/fx (weather.ts, rain.ts, lightning.ts);
+ * - scripted weather and time of day (WEATHER_SIM, FOUNDATIONS.md 4.7) are sim state set by the mission
+ *   (MissionDef.weather, timeOfDay and the weather, time and flare events, src/sim/sky.ts); the view draws them with
+ *   WEATHER_LOOKS (src/render/weather/sky.ts).
  */
+import type { FactionId, SupportKind, TimeOfDay, WeatherKind } from './schema';
+
+export const WEATHER_KINDS: readonly WeatherKind[] = ['clear', 'overcast', 'rain', 'snow', 'blizzard', 'fog', 'dust', 'smoke'];
+
+/** The sim's rules for scripted weather and time of day (src/sim/sky.ts). */
+export const WEATHER_SIM = {
+  /**
+   * Visibility by weather: the share of a weapon's range at which direct-fire and hitscan weapons may pick a target
+   * (lobbed weapons are not limited). Both sides alike. With the time of day the lower of the two applies.
+   */
+  visibility: { clear: 1, overcast: 1, rain: 1, snow: 1, blizzard: 0.7, fog: 0.6, dust: 0.8, smoke: 0.85 } as Record<WeatherKind, number>,
+  /** Visibility by time of day (night: MissionDef.nightVisibility overrides it). */
+  time: { dawn: 1, day: 1, overcast: 1, dusk: 1, night: 0.65 } as Record<TimeOfDay, number>,
+  /** A flare: visibility 1 over `width` wu centred on it, for `seconds`. */
+  flare: { seconds: 20, width: 1500 },
+  /** Call-ins flown by aircraft: none in these weathers, and none at night (but for nightAir). */
+  air: ['airStrike', 'bomber', 'fighter', 'recon'] as readonly SupportKind[],
+  groundedBy: ['fog', 'blizzard'] as readonly WeatherKind[],
+  /** Aircraft that fly at night, by nation (the Soviet recon plane is the Po-2, the night bomber). */
+  nightAir: { soviet: ['recon'] } as Partial<Record<FactionId, readonly SupportKind[]>>,
+  /** The blizzard: men on foot (not sappers on the supply road, nor vehicles) move at x0.9; accuracyFar x0.85. */
+  blizzard: { infantrySpeed: 0.9, accuracyFar: 0.85 },
+};
 
 /** The three numbers that drive the weather controller. */
 export interface WeatherConfig {
@@ -175,4 +201,127 @@ export const WEATHER: WeatherConfig & { rain: RainLook; lightning: LightningLook
       lean: 0.22,
     },
   },
+};
+
+/**
+ * A drifting particle field of the scripted weather (src/fx/sky.ts): screen-space sprites in a band of the view that
+ * fall, blow or drift and wrap around. Sizes and the band are view wu; speeds wu/s.
+ */
+export interface DriftFieldLook {
+  sprite: 'flake' | 'dust' | 'smoke' | 'fog';
+  /** Particles across one nominal screen width. */
+  perScreen: number;
+  /** The band (view y) they live in; falling ones re-enter at the top. */
+  y0: number;
+  y1: number;
+  /** Speed ranges, wu/s (vy > 0 falls). */
+  vx: readonly [number, number];
+  vy: readonly [number, number];
+  /** Sideways sway: amplitude (wu) and frequency (Hz). */
+  wobble: number;
+  wobbleHz: number;
+  /** Drawn size (wu) and opacity ranges. */
+  size: readonly [number, number];
+  alpha: readonly [number, number];
+  /** Colour multiplied over the sprite. */
+  tint: string;
+  /** How far the field slides with the camera pan (0 = fixed to the screen). */
+  parallax: number;
+}
+
+/** How one kind of scripted weather looks (src/render/weather/sky.ts). Alphas are at full strength. */
+export interface WeatherLook {
+  /** A flat veil over the sky and the backdrop strips (behind the ground and the units). */
+  skyTint: string;
+  skyAlpha: number;
+  /** A lighter veil over the whole scene, units included. */
+  sceneTint: string;
+  sceneAlpha: number;
+  fields: readonly DriftFieldLook[];
+  /** Scripted rain turns on the rain streaks of src/fx/rain.ts. */
+  rain?: boolean;
+}
+
+const FLAKES = (perScreen: number, vx: readonly [number, number], vy: readonly [number, number], size: readonly [number, number], alpha: readonly [number, number], parallax: number, wobble: number): DriftFieldLook => ({
+  sprite: 'flake',
+  perScreen,
+  y0: -20,
+  y1: 560,
+  vx,
+  vy,
+  wobble,
+  wobbleHz: 0.35,
+  size,
+  alpha,
+  tint: '#f4f7fa',
+  parallax,
+});
+
+export const WEATHER_LOOKS: Record<WeatherKind, WeatherLook> = {
+  clear: { skyTint: '#ffffff', skyAlpha: 0, sceneTint: '#ffffff', sceneAlpha: 0, fields: [] },
+  overcast: { skyTint: '#9ba1a7', skyAlpha: 0.42, sceneTint: '#8c9298', sceneAlpha: 0.06, fields: [] },
+  rain: { skyTint: '#5d6670', skyAlpha: 0.2, sceneTint: '#6c737b', sceneAlpha: 0.04, fields: [], rain: true },
+  snow: {
+    skyTint: '#c7ced6',
+    skyAlpha: 0.4,
+    sceneTint: '#dfe5ea',
+    sceneAlpha: 0.06,
+    fields: [FLAKES(110, [-14, 6], [26, 46], [4, 6.5], [0.45, 0.7], 0.15, 9), FLAKES(55, [-20, 10], [55, 85], [7.5, 11], [0.65, 0.95], 0.4, 14)],
+  },
+  blizzard: {
+    skyTint: '#d4dade',
+    skyAlpha: 0.66,
+    sceneTint: '#e3e8ec',
+    sceneAlpha: 0.26,
+    fields: [FLAKES(260, [-320, -200], [80, 140], [3.5, 6], [0.5, 0.8], 0.2, 5), FLAKES(140, [-460, -300], [120, 200], [7, 10], [0.7, 0.95], 0.5, 8)],
+  },
+  fog: {
+    skyTint: '#c9ced1',
+    skyAlpha: 0.72,
+    sceneTint: '#cbd0d3',
+    sceneAlpha: 0.3,
+    fields: [
+      { sprite: 'fog', perScreen: 9, y0: 300, y1: 470, vx: [6, 16], vy: [0, 0], wobble: 4, wobbleHz: 0.05, size: [320, 520], alpha: [0.22, 0.38], tint: '#dde1e3', parallax: 0.6 },
+    ],
+  },
+  dust: {
+    skyTint: '#c3a87d',
+    skyAlpha: 0.42,
+    sceneTint: '#b99f73',
+    sceneAlpha: 0.16,
+    fields: [
+      { sprite: 'dust', perScreen: 7, y0: 330, y1: 460, vx: [20, 45], vy: [0, 0], wobble: 6, wobbleHz: 0.08, size: [220, 380], alpha: [0.16, 0.28], tint: '#cdb58c', parallax: 0.7 },
+      { sprite: 'flake', perScreen: 60, y0: 300, y1: 520, vx: [30, 70], vy: [-4, 6], wobble: 10, wobbleHz: 0.25, size: [2.5, 4], alpha: [0.25, 0.45], tint: '#d8c49d', parallax: 0.5 },
+    ],
+  },
+  smoke: {
+    skyTint: '#7f766b',
+    skyAlpha: 0.44,
+    sceneTint: '#6e665d',
+    sceneAlpha: 0.12,
+    fields: [
+      { sprite: 'smoke', perScreen: 6, y0: 120, y1: 300, vx: [8, 20], vy: [-3, 0], wobble: 6, wobbleHz: 0.04, size: [260, 460], alpha: [0.18, 0.32], tint: '#6f675f', parallax: 0.25 },
+      { sprite: 'flake', perScreen: 30, y0: 80, y1: 520, vx: [6, 20], vy: [8, 18], wobble: 12, wobbleHz: 0.3, size: [2.2, 3.8], alpha: [0.3, 0.5], tint: '#3f3a36', parallax: 0.4 },
+    ],
+  },
+};
+
+/** How a flare looks: a bright star drifting down under its parachute, and the pool of light it throws. */
+export const FLARE_LOOK = {
+  /** View y it bursts at and the y it has sunk to when it burns out. */
+  burstY: 70,
+  endY: 230,
+  /** Sideways drift over its life (wu). */
+  drift: 60,
+  /** The star (wu) and its halo; the light pool on the ground is `pool` wu wide. */
+  star: 9,
+  halo: 120,
+  pool: 1500,
+  /** Pool opacity in daylight and at full night (the night tint's level picks between them). */
+  poolDay: 0.04,
+  poolNight: 0.3,
+  /** Seconds to flare up and to die away. */
+  rise: 0.6,
+  fade: 2.5,
+  colors: { white: '#fff3d6', green: '#8dff9a' } as Record<'white' | 'green', string>,
 };

@@ -41,7 +41,12 @@ canvas.width = Math.round(W * dpr);
 canvas.height = Math.round(H * dpr);
 ctx.scale(dpr, dpr);
 
-const FACTION_IDS: readonly FactionId[] = ['british', 'german'];
+/** The two nations shown: ?nations=soviet,german (default British and German). */
+const FACTION_IDS: readonly FactionId[] = ((): FactionId[] => {
+  const all: readonly FactionId[] = ['british', 'german', 'soviet'];
+  const asked = (params.get('nations') ?? '').split(',').filter((n): n is FactionId => (all as readonly string[]).includes(n));
+  return asked.length === 2 ? asked : ['british', 'german'];
+})();
 const LEVELS: readonly [LookStage, LookStage][] = [
   [0, 0],
   [1, 1],

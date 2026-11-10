@@ -5,12 +5,14 @@
  * below and reports what the player did through AppApi. The app glue builds
  * these models from the simulation and the save data.
  */
-import type { Difficulty, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
+import type { CampaignMapDef } from '../data/campaignMap';
+import type { BuildableId, CampaignId, Difficulty, FactionId, FactionLook, MissionIntel, Order, SupportKind, TheatreId, UnitKind } from '../data/schema';
 import type { TipTarget } from '../data/tutorial';
 
 export type { TipTarget };
 
-export type ScreenId = 'title' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
+/** 'campaigns' is the campaign select screen; 'campaign' the chosen campaign's map. */
+export type ScreenId = 'title' | 'campaigns' | 'campaign' | 'briefing' | 'quartermaster' | 'armoury' | 'battle' | 'result' | 'settings';
 
 export interface TrainButtonState {
   kind: UnitKind;
@@ -38,6 +40,10 @@ export interface SupportButtonState {
   /** 0..1, 1 = ready. */
   charge: number;
   secondsLeft: number;
+  /** Aircraft that cannot fly now (scripted weather or night, FOUNDATIONS.md 4.7): why, or null. Not ready while set. */
+  grounded: 'fog' | 'blizzard' | 'night' | null;
+  /** Charges left (the Shop's and those lent; each use spends one), or -1 when not limited. Not ready at 0. */
+  charges: number;
 }
 
 export interface ControlState {
@@ -78,6 +84,17 @@ export interface MinimapState {
   unitCount: number;
   /** Faction colours for side 0 and side 1. */
   colors: [string, string];
+  /**
+   * The ground's sectors (MissionDef.sectors, FOUNDATIONS.md 4.1): wu ranges and their shading, set when the battle
+   * begins; absent or empty = one plain ground colour.
+   */
+  sectorFrom?: Float32Array;
+  sectorTo?: Float32Array;
+  sectorColor?: string[];
+  /** Capture points (FOUNDATIONS.md 4.5): x and owner (-1 nobody) of the first pointCount entries. */
+  pointX?: Float32Array;
+  pointOwner?: Int8Array;
+  pointCount?: number;
 }
 
 /** A guided tutorial tip: a bubble that points at one control, which pulses while the tip is up. */
@@ -118,6 +135,49 @@ export interface HudState {
   minimap: MinimapState;
   /** The "Show FPS" readout, or null when the setting is off. */
   fps: FpsState | null;
+  /** The prep phase of a defensive mission while it runs, or null. */
+  prep: PrepHudState | null;
+  /**
+   * The mission director's line under the objective plate (FOUNDATIONS.md 3.4): the phase and its first unfinished
+   * objective with progress ("Phase 2/3 · Hold the crossroads · Tanks destroyed 7 / 12"); null for a one-phase mission.
+   */
+  phaseLine?: string | null;
+  /** The side objectives begun so far, for the pause screen (not the battle HUD: phone space). */
+  sideObjectives?: { text: string; status: 'open' | 'done' | 'failed' }[];
+  /**
+   * The training bar's "Deploy at" button (FOUNDATIONS.md 4.5): where trained units walk out, or null when the mission
+   * offers no spawn point to the player. The object is reused; `label` (the whole sentence, for screen readers) and
+   * `place` (the point's name, or HQ, on the button) change when the choice or its place does; `front`: the front-most
+   * point held, chosen anew as the front moves.
+   */
+  deploy?: { label: string; place: string; front: boolean; closed: boolean } | null;
+  /**
+   * The training bar's "Clear" chip (FOUNDATIONS.md 4.6 and 4.8): the enemy minefield the player can see, or enemy tank
+   * trap or road block, nearest the middle of the view, at x; busy while sappers already work on it. Null when there is
+   * none in view or no sapper to send. The object is reused.
+   */
+  clear?: { label: string; x: number; busy: boolean } | null;
+}
+
+/** One build the prep phase offers. */
+export interface BuildButtonState {
+  id: BuildableId;
+  name: string;
+  cost: number;
+  seconds: number;
+  canAfford: boolean;
+}
+
+/** The prep phase panel. The object is reused. */
+export interface PrepHudState {
+  secondsLeft: number;
+  builds: BuildButtonState[];
+  /** The build being placed (its ghost on the battlefield), or null. */
+  placing: BuildableId | null;
+  /** True when the ghost stands where it can be built. */
+  placeOk: boolean;
+  /** Build sites placed and not yet finished. */
+  sites: number;
 }
 
 /** The frame-rate readout's numbers (src/app/fpsMeter.ts). The object is reused; `seq` changes whenever the numbers do. */
@@ -150,17 +210,33 @@ export type HudAction =
   | { type: 'ability' }
   | { type: 'release' }
   /** Jump the camera so that this fraction (0..1) of the map is centred. */
-  | { type: 'minimap'; frac: number };
+  | { type: 'minimap'; frac: number }
+  /** Prep phase: pick a build (its ghost appears), place it where the ghost stands, or stop placing. */
+  | { type: 'build'; kind: BuildableId }
+  | { type: 'confirmBuild' }
+  | { type: 'cancelPlacing' }
+  /** Prep phase: take back the build placed last (its money comes back). */
+  | { type: 'undoBuild' }
+  /** Prep phase: start the attack now. */
+  | { type: 'ready' }
+  /** The "Deploy at" chip: on to the next choice (the front, the HQ, each spawn point). */
+  | { type: 'deploy' }
+  /** The "Clear" chip: a sapper goes to clear the minefield or obstacle it names. */
+  | { type: 'clear' };
 
 export interface MissionCard {
   id: number;
   title: string;
   location: string;
   date: string;
+  /** 'YYYY-MM-DD', when the mission has a date: the campaign map shows the front line of that day. */
+  dateIso?: string;
   theatre: TheatreId;
   mapPos: { lon: number; lat: number };
   briefing: string[];
   objective: string;
+  /** The briefing's intelligence: the enemy's forces and ours, a few short lines each. */
+  intel?: MissionIntel;
   unlocked: boolean;
   cleared: Record<Difficulty, boolean>;
   newUnit: { kind: UnitKind; name: string; blurb: string } | null;
@@ -171,12 +247,19 @@ export interface MissionCard {
   replayPercent?: Record<Difficulty, number>;
   /** Types lent for this mission only because the player has not bought them. */
   loans?: { kind: UnitKind; name: string; count: number }[];
+  /**
+   * The briefing's loadout: every call-in with charges held (`owned`) or lent for this mission (`loan`), and whether it
+   * is brought (lent ones always are).
+   */
+  callIns?: { kind: SupportKind; name: string; owned: number; loan: number; chosen: boolean }[];
 }
 
-/** One unit type or plane call-in in the Armoury. */
+/** One entry in the Shop: a call-in charge for sale, an extra, or a unit type (shown, never sold). */
 export interface ArmouryItemView {
   id: string;
-  type: 'unit' | 'support';
+  type: 'unit' | 'support' | 'extra';
+  /** Charges held (call-ins only). */
+  count?: number;
   /** For drawing its icon: a UnitKind when type is 'unit', a SupportKind when 'support'. */
   kind: UnitKind | SupportKind;
   /** Per-nation names, e.g. "Bren Gunner / MG34 Gunner". */
@@ -210,11 +293,19 @@ export interface MedalResultView {
   casualties: ScorePartView;
   /** Survival missions only: HQ health 0..1 against the target. */
   hq: ScorePartView | null;
+  /** A defended building's health 0..1 (fixed scoring with a structure weight), when the mission counts one. */
+  structure?: ScorePartView | null;
+  /** What side objectives and the kill bonus added to the 0..1 score (before it is capped at 1), when any did. */
+  bonus?: number;
   /** Medals before the difficulty and replay factors. */
   base: number;
   difficultyMul: number;
-  /** 100, 50, 25, ... */
+  /** 100, 50, then 25. */
   replayPercent: number;
+  /** The one-time campaign bonus this win paid on top of `medals`, when it did. */
+  campaignBonus?: number;
+  /** Upgrade points this win paid, when it did. */
+  points?: number;
 }
 
 export interface UpgradeView {
@@ -271,7 +362,37 @@ export interface PanelDropsState {
   version: number;
 }
 
+/** One campaign on the campaign select screen. */
+export interface CampaignCardView {
+  id: CampaignId;
+  title: string;
+  /** Its dates, e.g. 'June 1941 to February 1943'. */
+  subtitle: string;
+  /** The one-line pitch. */
+  pitch: string;
+  nation: FactionId;
+  /** The nation's name, e.g. 'Red Army' (the flag's label for a screen reader). */
+  nationName: string;
+  flag: FactionLook['flag'];
+  /** Missions cleared (on any difficulty), of `total`. */
+  cleared: number;
+  total: number;
+  /** The next mission to play (the first open one not cleared), or null when all are cleared. */
+  next: { id: number; number: number; title: string } | null;
+  locked: boolean;
+  /** Why a locked campaign is locked, e.g. 'Opens after mission 1010'. */
+  lockNote?: string;
+  /** The campaign on the map now (chosen last, or that of the mission last played). */
+  current: boolean;
+}
+
 export interface CampaignView {
+  /** The campaign on the map, its name and its situation map (absent: the British map, as before campaigns). */
+  campaignId?: CampaignId;
+  campaignTitle?: string;
+  map?: CampaignMapDef;
+  /** Every campaign offered, for the select screen, in its order. */
+  campaigns?: CampaignCardView[];
   missions: MissionCard[];
   /** The mission last started (0 or absent when none): the map opens on it when it is unlocked. */
   lastMission?: number;
@@ -281,10 +402,24 @@ export interface CampaignView {
   upgrades: UpgradeView[];
   settings: SettingsView;
   difficulties: { id: Difficulty; name: string }[];
-  /** Medals to spend (the Quartermaster's pointsAvailable is the same number). */
+  /** Medals to spend (the Shop). pointsAvailable is the upgrade points (the Quartermaster). */
   medals?: number;
-  /** The Armoury, in its order: core roles, new units, plane call-ins. */
+  /** Most call-ins of the player's own brought to one mission (lent ones come on top). */
+  loadoutSlots?: number;
+  /** The Shop, in its order: call-in charges, extras, core roles, new units. */
   armoury?: ArmouryItemView[];
+  /** Basic Training, the standalone tutorial on the title screen. */
+  training?: TrainingView;
+}
+
+/** Basic Training as the title screen shows it. */
+export interface TrainingView {
+  /** Finished at least once (its reward has been paid). */
+  done: boolean;
+  /** Offer it on the title screen: not finished and not turned down. */
+  offer: boolean;
+  /** Medals the first finish pays. */
+  reward: number;
 }
 
 export interface ResultView {
@@ -304,15 +439,33 @@ export interface ResultView {
   nextMissionId: number | null;
   /** The score breakdown of a campaign win; absent for a defeat or a battle outside the campaign. */
   medals?: MedalResultView | null;
+  /** A Basic Training battle (not a campaign mission); `pointsAwarded` is its one-time reward. */
+  training?: boolean;
+  /** The mission's side objectives and whether each was earned (absent when it has none). */
+  sideObjectives?: { text: string; done: boolean; bonus: number }[];
 }
 
 /** Implemented by src/app, called by the UI. */
 export interface AppApi {
   campaign(): CampaignView;
+  /** Put a campaign on the map (the campaign select screen; optional so older stand-ins of the app still fit). */
+  selectCampaign?(id: CampaignId): void;
   startMission(id: number, difficulty: Difficulty): void;
+  /**
+   * Make a mission's battle music before its battle (Basic Training's too, by its id): the start buttons wait on it,
+   * showing `onProgress` (0..1). True when the battle may start (also when the music failed or took too long: the
+   * battle then has none), false when the load was let go of first. Optional so older stand-ins of the app still fit.
+   */
+  loadMission?(id: number, onProgress?: (fraction: number) => void): Promise<boolean>;
   buyUpgrade(id: string): void;
-  /** Buy a unit type or plane call-in in the Armoury (optional so older stand-ins of the app still fit). */
+  /** Buy one call-in charge in the Shop (optional so older stand-ins of the app still fit). */
   buyArmoury?(id: string): void;
+  /** Put a call-in in or out of the loadout the player brings to missions (the briefing). */
+  toggleCallIn?(kind: SupportKind): void;
+  /** Start Basic Training, the standalone tutorial (optional so older stand-ins of the app still fit). */
+  startTraining?(): void;
+  /** The player turned down the Basic Training offer on the title screen. */
+  skipTraining?(): void;
   refundUpgrade(id: string): void;
   refundAll(): void;
   setSetting<K extends keyof SettingsView>(key: K, value: SettingsView[K]): void;

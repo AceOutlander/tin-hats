@@ -7,6 +7,8 @@ function copyStats(stats: SideStats): SideStats {
     trained: stats.trained,
     lost: stats.lost,
     kills: stats.kills,
+    killsByKind: { ...stats.killsByKind },
+    lostByKind: { ...stats.lostByKind },
     suppliesGathered: stats.suppliesGathered,
     suppliesSpent: stats.suppliesSpent,
     damageDealt: stats.damageDealt,

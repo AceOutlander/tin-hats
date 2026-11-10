@@ -19,19 +19,22 @@ import {
 } from '../art/structures';
 import { bigLoadSpec, cartSpecs, dumpStyleKey, dumpStyleSpecs, truckSpecs } from '../art/props/supplyLooks';
 import { hqGunKey, hqGunSpecs } from '../art/structures/hqGun';
+import { missionHqKey, missionHqSpecs } from '../art/structures/hqBuildings';
 import { hqStyleKey, hqStyleSpecs } from '../art/structures/hqStyles';
 import type { SpriteSpec } from '../art/types';
 import { FLAG_LAYOUT, PILLBOX_LAYOUT, TRENCH_LAYOUT, WIRE_LAYOUT, type DamageState } from '../data/artLayout';
 import { FACTIONS } from '../data/factions';
 import { FX_SPRITES } from '../data/fx';
 import { HQ_GUN_LAYOUT } from '../data/looksGun';
-import { HQ_STYLE_LAYOUT } from '../data/looksHq';
+import { MISSION_HQ_LAYOUT, MISSION_HQ_STYLES, type MissionHqStyle } from '../data/looksBuilding';
+import { HQ_STYLE_LAYOUT, type HqStyleLayout } from '../data/looksHq';
 import { RENDER } from '../data/render';
 import type { DamageType, FactionId, Side } from '../data/schema';
 import type { HqGunStyle, HqStyle, SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { lookStyle } from '../meta/looks';
-import type { BattleState } from '../sim';
+import { PREP } from '../data/prep';
+import type { BattleState, PillboxState, TrenchState, WireState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
@@ -40,6 +43,34 @@ import { WireWreck, pieceLag } from './wireRules';
 type Img = Phaser.GameObjects.Image;
 
 const S = RENDER.structure;
+
+/** An HQ's building: a Quartermaster style, or a mission's own HQ building (SideStart.hqLook). */
+type AnyHqStyle = HqStyle | MissionHqStyle;
+
+function isMissionHq(style: string): style is MissionHqStyle {
+  return (MISSION_HQ_STYLES as readonly string[]).includes(style);
+}
+
+function hqLayoutOf(style: AnyHqStyle): HqStyleLayout {
+  return isMissionHq(style) ? MISSION_HQ_LAYOUT[style] : HQ_STYLE_LAYOUT[style];
+}
+
+function hqKeyOf(style: AnyHqStyle, faction: FactionId, state: DamageState): string {
+  return isMissionHq(style) ? missionHqKey(style, faction, state) : hqStyleKey(style, faction, state);
+}
+
+/** The building a side's HQ is drawn as: the mission's look (HqState.look) or the side's upgrade look. */
+function hqStyleFor(state: BattleState, side: number, looks: readonly SideLooks[]): AnyHqStyle {
+  const look = state.sides[side].hq?.look ?? '';
+  if (look !== '' && (isMissionHq(look) || look in HQ_STYLE_LAYOUT)) return look as AnyHqStyle;
+  return lookStyle(looks[side], 'hq');
+}
+
+/** True if trench record i is a sandbag wall built in a prep phase (src/render/obstacles.ts draws it). */
+function sandbagWall(state: BattleState, i: number): boolean {
+  for (const sb of state.sandbags) if (sb.building < 0 && sb.trench === i) return true;
+  return false;
+}
 
 function dirOf(side: number): number {
   return side === 0 ? 1 : -1;
@@ -130,17 +161,17 @@ class HqView {
   dir = 1;
   faction: FactionId = 'british';
   /** Building and gun-position styles, from the side's upgrade looks. */
-  style: HqStyle;
+  style: AnyHqStyle;
   gunStyle: HqGunStyle;
   state: DamageState | '' = '';
   /** Show the ruin although the HQ still has health (the battle ended another way). */
   forcedRuin = false;
 
-  constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId, style: HqStyle, gunStyle: HqGunStyle) {
+  constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId, style: AnyHqStyle, gunStyle: HqGunStyle) {
     this.faction = faction;
     this.style = style;
     this.gunStyle = gunStyle;
-    this.img = addImage(scene, layers.byName.structures, reg.get(hqStyleKey(style, faction, 'intact')).frame);
+    this.img = addImage(scene, layers.byName.structures, reg.get(hqKeyOf(style, faction, 'intact')).frame);
     this.gun = addImage(scene, layers.byName.structures, reg.get(hqGunKey(gunStyle, faction, 'intact')).frame);
     this.flag = new FlagView(scene, layers.byName.structures, reg, FLAG_KEYS[FACTIONS[faction].look.flag]);
     this.flash = addImage(scene, layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
@@ -150,7 +181,7 @@ class HqView {
 
   /** World x of the gun position's base. */
   gunX(): number {
-    return this.artX + this.dir * HQ_STYLE_LAYOUT[this.style].gunNest.x;
+    return this.artX + this.dir * hqLayoutOf(this.style).gunNest.x;
   }
 
   destroy(): void {
@@ -195,6 +226,8 @@ export class StructureViews {
   private readonly pieces = createWirePieces();
   private time = 0;
   private flashInv = 1;
+  /** The earth the battle's trench sprites were baked in (build), for trenches dug later (sync). */
+  private palette: TrenchPalette = null as unknown as TrenchPalette;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -222,7 +255,8 @@ export class StructureViews {
       if (!l) continue;
       const f = state.sides[side].faction;
       if (state.sides[side].hq) {
-        addAll(hqStyleSpecs(lookStyle(l, 'hq'), f));
+        const style = hqStyleFor(state, side, looks);
+        addAll(isMissionHq(style) ? missionHqSpecs(style, f) : hqStyleSpecs(style, f));
         addAll(hqGunSpecs(lookStyle(l, 'hqGun'), f));
       }
       if (state.dumps[side]) addAll(dumpStyleSpecs(lookStyle(l, 'dump'), f));
@@ -234,10 +268,22 @@ export class StructureViews {
     }
     const seen = new Set<number>();
     for (const t of state.trenches) {
+      // A building's slots are a trench record too; buildings.ts draws those.
+      if (t.building >= 0) continue;
       const w = Math.round(t.width);
       if (seen.has(w)) continue;
       seen.add(w);
       out.push(trenchSpec('back', w, palette), trenchSpec('front', w, palette));
+    }
+    // Trenches and foxholes the prep phase may dig later.
+    if (state.prep) {
+      for (const id of state.prep.buildables) {
+        const b = PREP.buildables[id];
+        const w = Math.round(b.width);
+        if (b.makes !== 'trench' || seen.has(w)) continue;
+        seen.add(w);
+        out.push(trenchSpec('back', w, palette), trenchSpec('front', w, palette));
+      }
     }
     return out;
   }
@@ -267,35 +313,14 @@ export class StructureViews {
   /** Create the views for a battle's structures (`palette`: the one battleSpecs built its trenches in). */
   build(state: BattleState, palette: TrenchPalette, looks: readonly SideLooks[]): void {
     this.clear();
+    this.palette = palette;
     const reg = this.reg;
     const gy = VIEW.groundY;
     // Trench back walls first (DEPTH.trenchBack), then fronts (DEPTH.trenchFront).
-    for (const t of state.trenches) {
-      const backKey = trenchKey('back', t.width, palette);
-      const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(backKey).frame);
-      setKey(back, reg, backKey, 1);
-      back.x = t.x;
-      back.y = gy;
-      this.trenchBack.push(back);
-      const frontKey = trenchKey('front', t.width, palette);
-      const front = addImage(this.scene, this.layers.byName.trenchFront, reg.get(frontKey).frame);
-      setKey(front, reg, frontKey, 1);
-      front.x = t.x;
-      front.y = gy;
-      this.trenchFront.push(front);
-      const stake = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
-      stake.setTint(TRENCH_LAYOUT.stakeColor);
-      stake.visible = false;
-      this.trenchStake.push(stake);
-      const pennant = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
-      pennant.visible = false;
-      this.trenchPennant.push(pennant);
-      this.trenchOwner.push(-2);
-      this.trenchFade.push(1);
-    }
+    for (let i = 0; i < state.trenches.length; i++) this.addTrench(state.trenches[i], sandbagWall(state, i));
     for (let side = 0; side < 2; side++) {
       const d = state.dumps[side];
-      // A side that can never have sappers (mission 9 lives on airdrops) has no use for a dump.
+      // A side that can never have sappers (a mission that lives on airdrops, as the old Arnhem did) has no use for a dump.
       if (!d || state.sides[side].available.sapper !== true) continue;
       const dumpKey = dumpStyleKey(lookStyle(looks[side], 'dump'), state.sides[side].faction);
       const img = addImage(this.scene, this.layers.byName.structures, reg.get(dumpKey).frame);
@@ -304,22 +329,83 @@ export class StructureViews {
       img.y = gy;
       this.dumps.push(img);
     }
-    for (const p of state.pillboxes) {
-      const img = addImage(this.scene, this.layers.byName.fortification, reg.get(pillboxKey('intact')).frame);
-      setKey(img, reg, pillboxKey('intact'), dirOf(p.side));
-      img.x = p.x;
-      img.y = gy;
-      this.pillboxes.push(img);
-      const fl = addImage(this.scene, this.layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
-      fl.setBlendMode(Phaser.BlendModes.ADD);
-      fl.visible = false;
-      this.pillboxFlash.push(fl);
-      this.pillboxFlashTime.push(0);
-      this.pillboxState.push('');
-    }
+    for (const p of state.pillboxes) this.addPillbox(p);
     // Wire: one or a few end-on pieces per belt, centred in its width (the far half behind every unit row, the near
     // half over them), with the debris each piece leaves on the ground once the belt is destroyed.
-    const wy = gy + WIRE_LAYOUT.dy;
+    for (const w of state.wires) this.addWire(w);
+    this.buildHqs(state, looks);
+  }
+
+  /**
+   * Views for structures built during the battle (the prep phase appends trenches, pillboxes and wire belts to the
+   * state's lists): anything past the lists' views gets one. Cheap when nothing changed.
+   */
+  sync(state: BattleState): void {
+    for (let i = this.trenchBack.length; i < state.trenches.length; i++) this.addTrench(state.trenches[i], sandbagWall(state, i));
+    for (let i = this.pillboxes.length; i < state.pillboxes.length; i++) this.addPillbox(state.pillboxes[i]);
+    for (let i = this.wireIds.length; i < state.wires.length; i++) this.addWire(state.wires[i]);
+  }
+
+  private addTrench(t: TrenchState, wall: boolean): void {
+    const reg = this.reg;
+    const gy = VIEW.groundY;
+    if (t.building >= 0 || wall) {
+      // A building's slot record, or a sandbag wall's: hidden stand-ins keep the views in step with state.trenches
+      // (buildings.ts and obstacles.ts draw them).
+      const stub = (layer: Phaser.GameObjects.Layer): Img => {
+        const img = addImage(this.scene, layer, reg.get(RENDER_KEYS.whiteTL).frame);
+        img.visible = false;
+        return img;
+      };
+      this.trenchBack.push(stub(this.layers.byName.trenchBack));
+      this.trenchFront.push(stub(this.layers.byName.trenchFront));
+      this.trenchStake.push(stub(this.layers.byName.trenchFront));
+      this.trenchPennant.push(stub(this.layers.byName.trenchFront));
+      this.trenchOwner.push(-2);
+      this.trenchFade.push(1);
+      return;
+    }
+    const backKey = trenchKey('back', t.width, this.palette);
+    const back = addImage(this.scene, this.layers.byName.trenchBack, reg.get(backKey).frame);
+    setKey(back, reg, backKey, 1);
+    back.x = t.x;
+    back.y = gy;
+    this.trenchBack.push(back);
+    const frontKey = trenchKey('front', t.width, this.palette);
+    const front = addImage(this.scene, this.layers.byName.trenchFront, reg.get(frontKey).frame);
+    setKey(front, reg, frontKey, 1);
+    front.x = t.x;
+    front.y = gy;
+    this.trenchFront.push(front);
+    const stake = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
+    stake.setTint(TRENCH_LAYOUT.stakeColor);
+    stake.visible = false;
+    this.trenchStake.push(stake);
+    const pennant = addImage(this.scene, this.layers.byName.trenchFront, reg.get(RENDER_KEYS.whiteTL).frame);
+    pennant.visible = false;
+    this.trenchPennant.push(pennant);
+    this.trenchOwner.push(-2);
+    this.trenchFade.push(1);
+  }
+
+  private addPillbox(p: PillboxState): void {
+    const reg = this.reg;
+    const img = addImage(this.scene, this.layers.byName.fortification, reg.get(pillboxKey('intact')).frame);
+    setKey(img, reg, pillboxKey('intact'), dirOf(p.side));
+    img.x = p.x;
+    img.y = VIEW.groundY;
+    this.pillboxes.push(img);
+    const fl = addImage(this.scene, this.layers.glow, reg.get(FX_SPRITES.muzzle[1]).frame);
+    fl.setBlendMode(Phaser.BlendModes.ADD);
+    fl.visible = false;
+    this.pillboxFlash.push(fl);
+    this.pillboxFlashTime.push(0);
+    this.pillboxState.push('');
+  }
+
+  private addWire(w: WireState): void {
+    const reg = this.reg;
+    const wy = VIEW.groundY + WIRE_LAYOUT.dy;
     const piece = (key: string, layer: Phaser.GameObjects.Layer, x: number, sx: number): Img => {
       const fr = reg.get(key);
       const img = addImage(this.scene, layer, fr.frame);
@@ -328,7 +414,7 @@ export class StructureViews {
       img.setScale(sx / fr.scale, 1 / fr.scale);
       return img;
     };
-    for (const w of state.wires) {
+    {
       const back: Img[] = [];
       const front: Img[] = [];
       const crushed: Img[] = [];
@@ -353,15 +439,20 @@ export class StructureViews {
       this.wireOffsets.push(Array.from(p.x.subarray(0, p.count)));
       this.wireWrecks.push(new WireWreck());
     }
+  }
+
+  private buildHqs(state: BattleState, looks: readonly SideLooks[]): void {
+    const reg = this.reg;
+    const gy = VIEW.groundY;
     for (let side = 0; side < 2; side++) {
       const s = state.sides[side];
       if (!s.hq) continue;
-      const hv = new HqView(this.scene, this.layers, reg, s.faction, lookStyle(looks[side], 'hq'), lookStyle(looks[side], 'hqGun'));
+      const hv = new HqView(this.scene, this.layers, reg, s.faction, hqStyleFor(state, side, looks), lookStyle(looks[side], 'hqGun'));
       hv.dir = dirOf(side);
-      hv.artX = s.hq.doorX - hv.dir * HQ_STYLE_LAYOUT[hv.style].doorX;
+      hv.artX = s.hq.doorX - hv.dir * hqLayoutOf(hv.style).doorX;
       hv.img.x = hv.artX;
       hv.img.y = gy;
-      setKey(hv.img, reg, hqStyleKey(hv.style, hv.faction, 'intact'), hv.dir);
+      setKey(hv.img, reg, hqKeyOf(hv.style, hv.faction, 'intact'), hv.dir);
       hv.gun.x = hv.gunX();
       hv.gun.y = gy;
       setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, 'intact'), hv.dir);
@@ -407,7 +498,7 @@ export class StructureViews {
   hqFire(side: number, index: number, out: GunPoint): boolean {
     const hv = this.hqs[side];
     if (!hv) return false;
-    const pts = HQ_STYLE_LAYOUT[hv.style].fires;
+    const pts = hqLayoutOf(hv.style).fires;
     if (index < 0 || index >= pts.length) return false;
     out.x = hv.artX + hv.dir * pts[index].x;
     out.y = VIEW.groundY + pts[index].y;
@@ -418,7 +509,7 @@ export class StructureViews {
   /** Width (wu) of an HQ's building, for effects spread along it; 0 if that side has no HQ view. */
   hqBodyW(side: number): number {
     const hv = this.hqs[side];
-    return hv ? HQ_STYLE_LAYOUT[hv.style].bodyW : 0;
+    return hv ? hqLayoutOf(hv.style).bodyW : 0;
   }
 
   /** Show the ruin of an HQ that still has health (the battle ended another way). */
@@ -444,6 +535,7 @@ export class StructureViews {
     const trenches = state.trenches;
     for (let i = 0; i < trenches.length && i < this.trenchBack.length; i++) {
       const t = trenches[i];
+      if (t.building >= 0) continue;
       if (t.owner !== this.trenchOwner[i]) {
         this.trenchOwner[i] = t.owner;
         this.trenchFade[i] = this.trenchFade.length > 0 && this.time > 0 ? 0 : 1;
@@ -490,11 +582,11 @@ export class StructureViews {
       const st: DamageState = !hq.alive || hv.forcedRuin ? 'ruin' : frac > S.hqDamaged ? 'intact' : 'damaged';
       if (st !== hv.state) {
         hv.state = st;
-        setKey(hv.img, reg, hqStyleKey(hv.style, hv.faction, st), hv.dir);
+        setKey(hv.img, reg, hqKeyOf(hv.style, hv.faction, st), hv.dir);
         setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, st === 'ruin' ? 'ruin' : 'intact'), hv.dir);
         hv.flag.setVisible(st !== 'ruin');
       }
-      const L = HQ_STYLE_LAYOUT[hv.style];
+      const L = hqLayoutOf(hv.style);
       if (st !== 'ruin') hv.flag.update(hv.artX + hv.dir * L.flagTop.x, VIEW.groundY + L.flagTop.y, hv.dir, this.time + side * S.flagPhase);
       hv.flashTime -= dt;
       const on = hv.flashTime > 0 && hq.alive;

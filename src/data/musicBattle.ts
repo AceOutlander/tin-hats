@@ -15,9 +15,12 @@ import type { PhoneSpeaker } from './music';
 export type MusicLayer = 'build' | 'combat' | 'tense' | 'prep';
 export const MUSIC_LAYERS: readonly MusicLayer[] = ['build', 'combat', 'tense', 'prep'];
 
-/** The battle instruments. pad and horn are the menu theme's own builders; the rest are battle-only. */
-export type BattleInstrument = 'strings' | 'brass' | 'horn' | 'pad' | 'timpani' | 'snare' | 'hand' | 'bell' | 'anvil';
-export const BATTLE_INSTRUMENTS: readonly BattleInstrument[] = ['strings', 'brass', 'horn', 'pad', 'timpani', 'snare', 'hand', 'bell', 'anvil'];
+/**
+ * The battle instruments. pad and horn are the menu theme's own builders; the rest are battle-only. choir (a vowel
+ * pad) and wind (a howling noise bed) were added for the cold Soviet tracks; the British tracks do not use them.
+ */
+export type BattleInstrument = 'strings' | 'brass' | 'horn' | 'pad' | 'timpani' | 'snare' | 'hand' | 'bell' | 'anvil' | 'choir' | 'wind';
+export const BATTLE_INSTRUMENTS: readonly BattleInstrument[] = ['strings', 'brass', 'horn', 'pad', 'timpani', 'snare', 'hand', 'bell', 'anvil', 'choir', 'wind'];
 
 /**
  * How a note is played. Snare: hit, ghost, flam, rim, roll (a roll lasts the note's length). Timpani: hit, roll.
@@ -182,6 +185,47 @@ export interface AnvilSettings {
   level: number;
 }
 
+/**
+ * A wordless choir: detuned sawtooths with a slow vibrato through formant band-passes (the vowel), a slow swell in
+ * and a long release. Held notes only.
+ */
+export interface BattleChoirSettings {
+  voices: number;
+  detuneCents: number;
+  /** The vowel: [centre Hz, level, Q] for each formant band (the first may be a wide low band for body). */
+  formants: readonly (readonly [number, number, number])[];
+  attack: number;
+  release: number;
+  /** Share of the level at the start and end of a note; it swells to full in its middle. */
+  rest: number;
+  vibratoRate: number;
+  vibratoCents: number;
+  /** Breath noise through the same formants, as a share of the level. */
+  breath: number;
+  level: number;
+  range: readonly [number, number];
+}
+
+/**
+ * Wind: looping noise through a resonant band-pass centred on the note, the band wandering up and down and the level
+ * gusting, a new target every few seconds. A noise bed under the music; held notes only.
+ */
+export interface WindSettings {
+  color: 'white' | 'pink';
+  /** Resonance of the band (higher whistles). */
+  q: number;
+  /** The band wanders this many cents either side of the note... */
+  driftCents: number;
+  /** ...reaching a new target about every `gust` seconds (0.6 to 1.4 times it)... */
+  gust: number;
+  /** ...while the level dips by up to this share. */
+  gustDepth: number;
+  attack: number;
+  release: number;
+  level: number;
+  range: readonly [number, number];
+}
+
 export interface BattleInstruments {
   strings: StringSettings;
   brass: BrassSettings;
@@ -192,7 +236,15 @@ export interface BattleInstruments {
   hand: HandSettings;
   bell: BellSettings;
   anvil: AnvilSettings;
+  choir: BattleChoirSettings;
+  wind: WindSettings;
 }
+
+/**
+ * Per-instrument dry and reverb levels, the reverb return, a last low-pass over everything (Hz), and optionally a
+ * high-pass on the reverb return (Hz) that thins the room's low end (the cold Soviet tracks: a bright tail, no boom).
+ */
+export type BattleMix = Record<BattleInstrument, MixSend> & { reverb: number; lowpass: number; reverbHighpass?: number };
 
 export interface BattleTrackDef {
   title: string;
@@ -209,8 +261,7 @@ export interface BattleTrackDef {
   humanize: { time: number; velocity: number };
   seed: number;
   instruments: BattleInstruments;
-  /** Per-instrument dry and reverb levels, the reverb return, a last low-pass over everything (Hz). */
-  mix: Record<BattleInstrument, MixSend> & { reverb: number; lowpass: number };
+  mix: BattleMix;
   reverb: ReverbSettings;
   sections: readonly BattleSection[];
   stings: { victory: BattleSting; defeat: BattleSting };
@@ -260,10 +311,25 @@ export const MUSIC_BATTLE = {
     fallbackRate: 22050,
     /** Seconds rendered past each section for its tails (they ring over the start of whatever comes next). */
     tail: 2,
-    /** Milliseconds after the battle loads before the first piece is rendered (the first frames stay smooth)... */
-    startDelayMs: 900,
-    /** ...and between pieces, so the page keeps drawing while the music is made. */
+    /**
+     * The track starts rendering when the briefing opens, the opening calm (build) layer first; Begin waits only for
+     * that piece, and the rest carries on during the battle (owner, 2026-11-09, DECISIONS 406). Milliseconds between
+     * pieces before the battle, so the page and its loading progress keep drawing meanwhile.
+     */
     gapMs: 24,
+    /**
+     * In the battle: one piece at a time (one lane), each started in an idle moment (requestIdleCallback, waiting at
+     * most idleTimeoutMs) at least battleGapMs after the last, so the frames never wait on the music.
+     */
+    battleGapMs: 250,
+    idleTimeoutMs: 1000,
+    /**
+     * Pieces rendered at once, each in its own OfflineAudioContext (the browser gives each its own render thread),
+     * after the first, which renders alone and settles the sample rate.
+     */
+    lanes: 3,
+    /** A calm layer still unfinished after this many milliseconds is given up on: the battle starts without music. */
+    loadTimeoutMs: 60_000,
     /**
      * A piece's notes are added to its graph this many seconds of music at a time, each chunk while the render is
      * suspended `chunkLead` seconds before it (ahead of humanised and grace-note starts), so a busy section is never

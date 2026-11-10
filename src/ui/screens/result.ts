@@ -2,6 +2,7 @@
 import type { MedalResultView } from '../contracts';
 import { add, button, el, formatCount, formatTime, stencil } from '../shell/dom';
 import { glyph, helmetIcon } from '../shell/icons';
+import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import type { ScreenFactory } from '../shell/types';
 
 /** "1:30 / 2:00" style figures of one score line, and the marks it earned. */
@@ -18,6 +19,15 @@ export function breakdown(m: MedalResultView): HTMLElement {
   if (m.time) box.append(scoreRow('Time', formatTime(m.time.value), formatTime(m.time.target), m.time.score));
   box.append(scoreRow('Casualties', formatCount(m.casualties.value), formatCount(m.casualties.target), m.casualties.score));
   if (m.hq) box.append(scoreRow('HQ health', `${Math.round(m.hq.value * 100)}%`, `${Math.round(m.hq.target * 100)}%`, m.hq.score));
+  if (m.structure) {
+    const s = m.structure;
+    box.append(scoreRow('Building held', `${Math.round(s.value * 100)}%`, `${Math.round(s.target * 100)}%`, s.score));
+  }
+  if (m.bonus !== undefined && m.bonus > 0) {
+    const row = el('div', 'th-score-row');
+    add(row, el('dt', undefined, 'Bonus'), el('dd', 'th-type', 'Side objectives and kills'), el('dd', 'th-type th-score-mark', `+${Math.round(m.bonus * 100)}%`));
+    box.append(row);
+  }
   const factors = el('div', 'th-score-row th-score-total');
   add(
     factors,
@@ -26,6 +36,30 @@ export function breakdown(m: MedalResultView): HTMLElement {
     el('dd', 'th-type th-score-mark', String(m.medals)),
   );
   box.append(factors);
+  if (m.campaignBonus !== undefined && m.campaignBonus > 0) {
+    const row = el('div', 'th-score-row');
+    row.dataset.testid = 'result-campaign-bonus';
+    add(row, el('dt', undefined, 'Campaign'), el('dd', 'th-type', 'Every mission cleared'), el('dd', 'th-type th-score-mark', `+${m.campaignBonus}`));
+    box.append(row);
+  }
+  if (m.points !== undefined && m.points > 0) {
+    const row = el('div', 'th-score-row');
+    row.dataset.testid = 'result-upgrade-points';
+    add(row, el('dt', undefined, 'Upgrades'), el('dd', 'th-type', 'Quartermaster points'), el('dd', 'th-type th-score-mark', `+${m.points}`));
+    box.append(row);
+  }
+  return box;
+}
+
+/** The mission's side objectives (FOUNDATIONS.md 3.4): each one's line, its bonus, and whether it was earned. */
+export function sideObjectiveList(list: { text: string; done: boolean; bonus: number }[]): HTMLElement {
+  const box = el('dl', 'th-score th-side-objectives');
+  box.dataset.testid = 'side-objectives';
+  for (const so of list) {
+    const row = el('div', so.done ? 'th-score-row is-done' : 'th-score-row is-missed');
+    add(row, el('dt', undefined, so.text), el('dd', 'th-type', so.done ? 'Done' : 'Missed'), el('dd', 'th-type th-score-mark', `+${Math.round(so.bonus * 100)}%`));
+    box.append(row);
+  }
   return box;
 }
 
@@ -47,7 +81,10 @@ export const resultScreen: ScreenFactory = (ctx) => {
   add(banner, helmet, stamp);
 
   const difficultyName = result ? (ctx.view().difficulties.find((d) => d.id === result.difficulty)?.name ?? result.difficulty) : '';
-  const title = el('p', 'th-result-title', result ? `Mission ${result.missionId} · ${result.title} · ${difficultyName}` : '');
+  // Basic Training is no numbered mission and is always played on one difficulty.
+  const training = result?.training === true;
+  const heading = result ? (training ? result.title : `Mission ${result.missionId} · ${result.title} · ${difficultyName}`) : '';
+  const title = el('p', 'th-result-title', heading);
   const reason = el('p', 'th-type th-result-reason', result ? result.reason : 'No report received.');
   reason.dataset.testid = 'result-reason';
   add(main, banner, title, reason);
@@ -63,6 +100,7 @@ export const resultScreen: ScreenFactory = (ctx) => {
     main.append(award);
   }
   if (result && result.won && result.medals) main.append(breakdown(result.medals));
+  if (result && result.sideObjectives && result.sideObjectives.length > 0) main.append(sideObjectiveList(result.sideObjectives));
 
   const stats = el('dl', 'th-stats');
   const rows: [string, string][] = result
@@ -71,7 +109,7 @@ export const resultScreen: ScreenFactory = (ctx) => {
         ['Trained', formatCount(result.unitsTrained)],
         ['Lost', formatCount(result.unitsLost)],
         ['Kills', formatCount(result.enemiesKilled)],
-        ['Supplies', formatCount(result.suppliesGathered)],
+        ['Money', formatCount(result.suppliesGathered)],
       ]
     : [];
   for (const [label, value] of rows) {
@@ -89,19 +127,35 @@ export const resultScreen: ScreenFactory = (ctx) => {
       ctx.go('campaign');
     },
   });
+  // The same mission again keeps its rendered music, so this is normally at once (missionLoad shows any wait).
+  let starter: MissionStarter | null = null;
   const retry = button({
     testid: 'result-retry',
     label: won ? 'Replay' : 'Retry',
     onTap: () => {
       if (!result) return;
-      ctx.app.uiSound('confirm');
-      ctx.app.startMission(result.missionId, result.difficulty);
+      const { missionId, difficulty } = result;
+      if (starter?.start(missionId, () => ctx.app.startMission(missionId, difficulty))) ctx.app.uiSound('confirm');
     },
   });
+  starter = missionStarter(ctx.app, retry);
   retry.disabled = !result;
   add(actions, map, retry);
   const nextId = result && won ? result.nextMissionId : null;
-  if (nextId !== null) {
+  if (training && won) {
+    // Passed Basic Training: straight on to the Shop, where the reward buys the first call-in charges.
+    const armoury = button({
+      testid: 'result-armoury',
+      label: 'Shop',
+      className: 'th-btn-primary',
+      onTap: () => {
+        ctx.app.uiSound('click');
+        ctx.go('armoury');
+      },
+    });
+    armoury.dataset.primary = '';
+    actions.append(armoury);
+  } else if (nextId !== null) {
     const next = button({
       testid: 'result-next',
       label: 'Next mission',
@@ -130,6 +184,9 @@ export const resultScreen: ScreenFactory = (ctx) => {
     el: root,
     back() {
       ctx.go('campaign');
+    },
+    destroy() {
+      starter?.cancel();
     },
   };
 };

@@ -130,6 +130,25 @@ describe('the battle-music intensity rules', () => {
     }
   });
 
+  it('rises back to the layer it has just left only after the full hold of the calmer one', () => {
+    const m = new MusicIntensity();
+    const f = new Field();
+    play(m, f, 12);
+    f.hq.hp -= 50;
+    play(m, f, R.tense.damageSeconds + R.hold.tense + R.confirm.build + 2);
+    expect(m.layer).toBe('build');
+    const calmed = m.changes[m.changes.length - 1];
+    expect(calmed.from).toBe('tense');
+    // At once an enemy walks up to the HQ: tense again, but not after the short escalation hold.
+    f.add(1, 1, R.tense.enterDistance - 10, R.tense.enterDistance - 10);
+    play(m, f, R.escalateHold + R.confirm.tense + 1);
+    if (f.time - calmed.time < R.hold.build) expect(m.layer).toBe('build');
+    play(m, f, R.hold.build + 2);
+    expect(m.layer).toBe('tense');
+    const back = m.changes[m.changes.length - 1];
+    expect(back.time - calmed.time).toBeGreaterThanOrEqual(R.hold.build - 1e-9);
+  });
+
   it('turns tense when the HQ is hit or an enemy comes near it, and above combat', () => {
     // Damage to the HQ.
     const m = new MusicIntensity();

@@ -151,10 +151,10 @@ describe('armour', () => {
     }
   });
 
-  it('mortars and grenades threaten tanks: mortar crews and assault troops cost them at least a quarter of their value', () => {
-    for (const k of ['mortar', 'assault'] as const) {
-      expect(openLeft('tank', k), `tank value left against ${k}`).toBeLessThanOrEqual(0.75);
-    }
+  // Grenades: a massed charge across the open into loaded tank guns is cut down since the tank cannon change (DECISIONS
+  // 424); assault troops that close while a tank reloads wreck it, tested in tank-cannon.test.ts.
+  it('mortars threaten tanks: mortar crews cost them at least a quarter of their value', () => {
+    expect(openLeft('tank', 'mortar'), 'tank value left against mortar').toBeLessThanOrEqual(0.75);
   });
 
   it('mortars outrange a tank line that only holds', () => {

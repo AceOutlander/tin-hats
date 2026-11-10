@@ -183,6 +183,9 @@ purchases, upgrades and passives and drops (or archives in a `legacy` block) the
 tests and browser specs that loop over the old missions move to the new campaigns. This replaces the earlier plan to keep
 the old British campaign until D-Day replaces it.
 
+Status: done on `stalingrad-core` (DECISIONS 342 to 347, docs/campaigns/STALINGRAD_BUILD.md). The hunteracedev.com card
+text waits for the push to live.
+
 ## Separate tutorial: "Basic Training" (owner, 2026-11-08; ships with Stalingrad)
 
 "## Separate tutorial ("Basic Training")

@@ -24,14 +24,17 @@ type Ctx = CanvasRenderingContext2D;
 const SCENE_W = 1000;
 const ROW_H = 132;
 const STYLES: readonly HqGunStyle[] = ['gunner', 'emplacement', 'tripod', 'nest'];
-const COLUMNS: readonly { faction: FactionId; state: HqGunState }[] = [
-  { faction: 'british', state: 'intact' },
-  { faction: 'british', state: 'ruin' },
-  { faction: 'german', state: 'intact' },
-  { faction: 'german', state: 'ruin' },
-];
-
 const params = new URLSearchParams(location.search);
+/** ?nations=soviet,german picks the two nations shown (default British and German). */
+const NATIONS: readonly FactionId[] = ((): FactionId[] => {
+  const all: readonly FactionId[] = ['british', 'german', 'soviet'];
+  const asked = (params.get('nations') ?? '').split(',').filter((n): n is FactionId => (all as readonly string[]).includes(n));
+  return asked.length === 2 ? asked : ['british', 'german'];
+})();
+const COLUMNS: readonly { faction: FactionId; state: HqGunState }[] = NATIONS.flatMap((faction) => [
+  { faction, state: 'intact' as const },
+  { faction, state: 'ruin' as const },
+]);
 const num = (name: string, fallback: number): number => {
   const raw = params.get(name);
   const v = raw === null ? NaN : Number(raw);
@@ -160,7 +163,7 @@ function render(): void {
 }
 
 function boot(): void {
-  for (const style of STYLES) for (const faction of ['british', 'german'] as const) hqGunSpecs(style, faction).forEach(rasterise);
+  for (const style of STYLES) for (const faction of NATIONS) hqGunSpecs(style, faction).forEach(rasterise);
   render();
   window.addEventListener('resize', render);
   window.__ready = true;

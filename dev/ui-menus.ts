@@ -35,6 +35,7 @@ interface MockMission {
 const UNIT_NAMES: Record<UnitKind, string> = {
   sapper: 'Sapper',
   rifle: 'Rifleman',
+  conscript: 'Conscript Squad',
   lmg: 'Bren Gunner',
   assault: 'Assault Trooper',
   mortar: 'Mortar Team',
@@ -53,6 +54,7 @@ const UNIT_NAMES: Record<UnitKind, string> = {
 const UNIT_BLURBS: Record<UnitKind, string> = {
   sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
   rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
+  conscript: 'A whole squad of poorly trained riflemen per order: cheap and many.',
   lmg: 'Long bursts that shred infantry in the open. Slow on the move.',
   assault: 'Fast, short-ranged, and carries grenades. Clears trenches and hurts pillboxes.',
   mortar: 'Lobs explosive shells over the line. Cracks trenches and pillboxes; helpless up close.',
@@ -75,6 +77,7 @@ const SUPPORT_NAMES: Record<SupportKind, string> = {
   bomber: 'Bomber',
   fighter: 'Fighter',
   recon: 'Recon Plane',
+  katyusha: 'Rocket Salvo',
 };
 
 const SUPPORT_BLURBS: Record<SupportKind, string> = {
@@ -84,6 +87,7 @@ const SUPPORT_BLURBS: Record<SupportKind, string> = {
   bomber: 'A bomber carpets a wide stretch of the front with bombs.',
   fighter: 'A fighter strafes the spot you mark.',
   recon: 'A recon plane shows enemy health in a wide area for a while.',
+  katyusha: 'A rocket battery fires a huge, inaccurate salvo over a wide area. Slow to reload.',
 };
 
 const MISSIONS: MockMission[] = [

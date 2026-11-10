@@ -10,6 +10,7 @@
  * hits at irregular times. It quotes no existing melody, call, hymn or score.
  */
 import { CAMPAIGN_MAP } from './musicMap';
+import { STALINGRAD_MAP } from './musicMapSoviet';
 
 export type MusicInstrument = 'pad' | 'horn' | 'piano' | 'drum' | 'strings' | 'choir';
 
@@ -438,12 +439,16 @@ export const REQUIEM: TrackDef = {
   ],
 };
 
-/** The looping tracks: the menu theme and the campaign map (battle tracks are layered: src/data/musicTracks). */
-export type MusicTrackName = 'menu' | 'map';
+/**
+ * The looping tracks: the menu theme and the campaign maps, "map" for the British campaign and "stalingradMap" for
+ * the Soviet one (battle tracks are layered: src/data/musicTracks).
+ */
+export type MusicTrackName = 'menu' | 'map' | 'stalingradMap';
 
 export const MUSIC_TRACKS: Record<MusicTrackName, TrackDef> = {
   menu: REQUIEM,
   map: CAMPAIGN_MAP,
+  stalingradMap: STALINGRAD_MAP,
 };
 
 /**

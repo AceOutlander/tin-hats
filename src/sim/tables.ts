@@ -27,12 +27,14 @@ export const KIND_SAPPER = KIND_INDEX.sapper;
 export const KIND_DEFS: readonly UnitDef[] = KIND_LIST.map((kind) => UNITS[kind]);
 
 /** Target classes as indices (damage matrix columns) and as bits (weapon target masks). */
-export const CLASS_LIST: readonly TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortification', 'vehicle', 'hq'];
+export const CLASS_LIST: readonly TargetClass[] = ['infantryOpen', 'infantryTrench', 'fortification', 'vehicle', 'hq', 'infantryBuilding', 'rubbleCover'];
 export const CLASS_OPEN = 0;
 export const CLASS_TRENCH = 1;
 export const CLASS_FORT = 2;
 export const CLASS_VEHICLE = 3;
 export const CLASS_HQ = 4;
+export const CLASS_BUILDING = 5;
+export const CLASS_RUBBLE = 6;
 
 export const DAMAGE_TYPES: readonly DamageType[] = ['bullet', 'explosive', 'antiTank'];
 
@@ -51,10 +53,13 @@ export function damageFactor(typeIndex: number, classIndex: number): number {
   return DAMAGE_TABLE[typeIndex * CLASS_LIST.length + classIndex];
 }
 
-/** Damage-matrix column of a unit right now: vehicle, infantry in a trench, or infantry in the open. */
+/**
+ * Damage-matrix column of a unit right now: vehicle, infantry in cover (a trench, a building's windows, rubble or a
+ * cover prop: the column enterSlot gave it), or infantry in the open.
+ */
 export function unitClass(u: UnitState): number {
   if (u.def.class === 'vehicle') return CLASS_VEHICLE;
-  return u.trenchId >= 0 ? CLASS_TRENCH : CLASS_OPEN;
+  return u.trenchId >= 0 ? u.coverClass : CLASS_OPEN;
 }
 
 export const WEAPON_LIST: readonly WeaponDef[] = Object.keys(WEAPONS).map((id) => WEAPONS[id]);
@@ -142,6 +147,21 @@ export const KIND_ANTI_AIR: Uint8Array = Uint8Array.from(KIND_DEFS, (d) => (d.an
 /** Per kind: radius of its damage aura (commander), 0 for none, and the multiplier it gives. */
 export const KIND_AURA_RADIUS: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.radius : 0));
 export const KIND_AURA_MUL: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.damageMul : 1));
+/** Per kind: men sent out per training order (UnitDef.squad, 1 for most kinds). */
+export const KIND_SQUAD: Int32Array = Int32Array.from(KIND_DEFS, (d) => d.squad ?? 1);
+
+/** Supplies one training order of this kind costs: the per-man cost times the squad. */
+export function orderCost(kind: UnitKind): number {
+  const k = KIND_INDEX[kind];
+  return KIND_DEFS[k].cost * KIND_SQUAD[k];
+}
+
+/** Population one training order of this kind takes: the per-man population times the squad. */
+export function orderPop(kind: UnitKind): number {
+  const k = KIND_INDEX[kind];
+  return KIND_DEFS[k].pop * KIND_SQUAD[k];
+}
+
 /** Per kind: 1 if its arrival on the field is announced like a boss (bossArrived). */
 export const KIND_BOSS: Uint8Array = Uint8Array.from(KIND_LIST, (kind) => (BOSS_KINDS.includes(kind) ? 1 : 0));
 /** Per kind: 1 if it may ride in an APC (trench infantry: not sappers, medics, crews that cannot use a trench). */

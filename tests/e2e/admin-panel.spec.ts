@@ -94,9 +94,15 @@ test.describe('admin panel', () => {
     await expect(page.getByTestId('admin-panel')).toHaveCount(0);
     await expect(page.getByTestId('admin-bar')).toBeVisible();
 
-    // A tap on open ground places it there.
+    // A tap on open ground places it there. The first mission opens on its prep phase, whose panel (the build buttons)
+    // sits mid-screen: the tap goes to the first point down the middle that is the battlefield itself, not a control.
     const before = (await units(page)).filter((u) => u.kind === 'heavyTank').length;
-    await page.touchscreen.tap(430, 215);
+    const ground = await page.evaluate(() => {
+      for (let y = 200; y <= 320; y += 10) if (document.elementFromPoint(430, y) instanceof HTMLCanvasElement) return { x: 430, y };
+      return null;
+    });
+    expect(ground, 'open battlefield under the admin bar').not.toBeNull();
+    await page.touchscreen.tap((ground as { x: number; y: number }).x, (ground as { x: number; y: number }).y);
     await expect.poll(async () => (await units(page)).filter((u) => u.kind === 'heavyTank' && u.side === 1).length).toBe(before + 1);
     expect((await state(page)).units[1].heavyTank).toBe(1);
     await page.waitForTimeout(600);

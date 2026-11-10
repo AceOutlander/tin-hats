@@ -208,7 +208,7 @@ export class Ambient {
       if (!v || !v.shown || v.unitId !== u.id) continue;
       if (u.kind === 'tank' || u.kind === 'heavyTank') {
         tanks++;
-        const look = u.kind === 'heavyTank' ? FACTIONS[u.faction].look.heavyTank : FACTIONS[u.faction].look.tank;
+        const look = 'look' in v ? v.look : u.kind === 'heavyTank' ? FACTIONS[u.faction].look.heavyTank : FACTIONS[u.faction].look.tank;
         const L = TANK_LAYOUT[look];
         const speed = Math.abs(u.velX);
         if (speed >= T.minSpeed && u.action === 'move') {

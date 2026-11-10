@@ -3,7 +3,7 @@ import { App } from '../../src/app/app';
 import { installPageGuards } from '../../src/app/page';
 import { playClockTick, playEventSound, playWaveWarning, type SfxAudio } from '../../src/app/sfx';
 import { BattleSession } from '../../src/app/session';
-import { M01 } from '../../src/data/missions/m01';
+import { FIELD } from './fixtures';
 import type { MissionDef } from '../../src/data/schema';
 import { EVENT_SOUND, ONE_SHOT_NAMES, SFX } from '../../src/data/sounds';
 import { createMemoryStorage } from '../../src/meta';
@@ -159,7 +159,7 @@ describe('the clock tick', () => {
 
 /** Mission 1 turned into a survival mission with a clock of the given length and a scripted enemy wave. */
 function timed(seconds: number, wave = true): MissionDef {
-  const m: MissionDef = structuredClone(M01);
+  const m: MissionDef = structuredClone(FIELD);
   m.events = wave ? [{ type: 'wave', when: { at: 2 }, side: 1, forces: [{ kind: 'rifle', count: 1 }] }] : [];
   m.timer = { seconds, onExpire: 'win', label: 'Relief' };
   m.mode = 'survival';
@@ -195,7 +195,7 @@ describe('sound in the battle session', () => {
     for (let i = 0; i < 30 * 4; i++) session.step();
     expect(audio.played.filter((n) => n === 'waveHorn').length).toBe(1);
     // A scripted wave that nobody is told about is silent (assault mission, no text).
-    const quiet: MissionDef = structuredClone(M01);
+    const quiet: MissionDef = structuredClone(FIELD);
     quiet.events = [{ type: 'wave', when: { at: 1 }, side: 1, forces: [{ kind: 'rifle', count: 1 }] }];
     const other = sessionFor(quiet);
     for (let i = 0; i < 30 * 3; i++) other.session.step();
@@ -234,7 +234,7 @@ describe('the audio follows the page and the pause', () => {
 
   it('pauses a battle when the page is hidden and keeps it, and its sound, paused on return', () => {
     const { app, audio, hide, show } = rig();
-    app.startMission(1, 'normal');
+    app.startMission(1001, 'normal');
     expect(app.loop.paused).toBe(false);
     hide();
     expect(app.loop.paused).toBe(true);
@@ -248,7 +248,7 @@ describe('the audio follows the page and the pause', () => {
 
   it('suspends the audio on pause and resumes it on resume', () => {
     const { app, audio } = rig();
-    app.startMission(1, 'normal');
+    app.startMission(1001, 'normal');
     app.dispatch({ type: 'pause' });
     expect(audio.suspended).toBe(true);
     app.dispatch({ type: 'resume' });
@@ -257,7 +257,7 @@ describe('the audio follows the page and the pause', () => {
 
   it('pauses the battle but not the menus’ sound when only focus is lost, and hides on pagehide', () => {
     const { app, audio, win } = rig();
-    app.startMission(1, 'normal');
+    app.startMission(1001, 'normal');
     win.dispatchEvent(new Event('blur'));
     expect(app.loop.paused).toBe(true);
     app.dispatch({ type: 'resume' });
@@ -270,7 +270,7 @@ describe('the audio follows the page and the pause', () => {
     const audio = createFakeAudio();
     const app = new App({ view: createFakeView(), audio, storage, random: () => 0.25 });
     app.attachUi(createFakeUi());
-    app.startMission(1, 'normal');
+    app.startMission(1001, 'normal');
     app.dispatch({ type: 'toggleMute' });
     expect(audio.muted).toBe(true);
     // Muting from the pause menu works the same.

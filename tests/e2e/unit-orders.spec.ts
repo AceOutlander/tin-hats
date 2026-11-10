@@ -5,7 +5,7 @@
  */
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
-import { SHOT_DIR, buttonRects, expect, grantPopulation, grantSupplies, open, openCallIns, setTimeScale, startSandbox, state, tap, test, units } from './helpers';
+import { BATTLE_LOAD_MS, SHOT_DIR, buttonRects, expect, grantPopulation, grantSupplies, open, openCallIns, setTimeScale, startSandbox, state, tap, test, units } from './helpers';
 
 const SIZES = [
   { w: 568, h: 320 },
@@ -79,7 +79,7 @@ async function checkLayout(page: Page, size: { w: number; h: number }, pickerOpe
 test('Bren gunners hold on their own orders while the riflemen advance, then follow the army again', async ({ page, problems }) => {
   await open(page);
   expect(await startSandbox(page, 11)).toBe(true);
-  await expect.poll(async () => (await state(page)).screen, { timeout: 20_000 }).toBe('battle');
+  await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
   await expect(page.getByTestId('order-scope')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('order-follow')).toBeHidden();
   await grantSupplies(page, 5000);

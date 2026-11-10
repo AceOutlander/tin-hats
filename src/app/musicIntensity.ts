@@ -7,12 +7,12 @@
  *   below `combat.exit` (hysteresis).
  * - tense: the player's HQ took damage in the last `damageSeconds`, or an enemy is within `enterDistance` of it (and
  *   it stays tense until they are beyond `exitDistance`), or a survival or deadline clock has under `timerSeconds` left.
- * - prep: the prep phase of a defensive mission (setPrep; nothing calls it yet).
+ * - prep: the prep phase of a defensive mission (the app calls setPrep every frame).
  * - build: otherwise.
  *
  * Tense outranks combat, combat outranks prep. A new layer must be wanted for `confirm[layer]` seconds; a layer once
- * reached is kept for at least `hold[layer]` seconds before it calms down, and `escalateHold` before it rises, so the
- * music never flips back and forth every few seconds.
+ * reached is kept for at least `hold[layer]` seconds before it calms down, and `escalateHold` before it rises, except back
+ * to the layer it has just left, which also waits the full hold, so the music never flips back and forth every few seconds.
  */
 import { MUSIC_BATTLE, type IntensityRules, type MusicLayer } from '../data/musicBattle';
 import type { BattleState } from '../sim';
@@ -47,6 +47,8 @@ export class MusicIntensity {
   /** The latest layer changes, oldest first (allocated only when the layer changes). */
   readonly changes: LayerChange[] = [];
   private changedAt = 0;
+  /** The layer before the current one (a rise back to it waits the full hold, like a calm-down). */
+  private previous: MusicLayer | null = null;
   private pending: MusicLayer | null = null;
   private pendingSince = 0;
   private combatOn = false;
@@ -72,6 +74,7 @@ export class MusicIntensity {
     if (layer !== null) {
       this.layer = layer;
       this.pending = null;
+      this.previous = null;
     }
     this.nextCheck = 0;
   }
@@ -94,11 +97,13 @@ export class MusicIntensity {
       this.pending = wish;
       this.pendingSince = t;
     }
-    // Rising to a more urgent layer only waits a short hold; calming down waits the layer's full hold.
-    const hold = RANK[wish] > RANK[this.layer] ? this.rules.escalateHold : this.rules.hold[this.layer];
+    // Rising to a more urgent layer only waits a short hold; calming down, or going back to the layer just left, waits
+    // the layer's full hold.
+    const hold = RANK[wish] > RANK[this.layer] && wish !== this.previous ? this.rules.escalateHold : this.rules.hold[this.layer];
     if (t - this.changedAt >= hold && t - this.pendingSince >= this.rules.confirm[wish]) {
       this.changes.push({ time: t, from: this.layer, to: wish, fighting: [this.fighting[0], this.fighting[1]], hit: this.hit, near: this.nearOn, clock: this.clock });
       if (this.changes.length > CHANGES_KEPT) this.changes.shift();
+      this.previous = this.layer;
       this.layer = wish;
       this.changedAt = t;
       this.pending = null;

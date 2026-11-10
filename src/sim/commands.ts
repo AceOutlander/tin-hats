@@ -4,15 +4,24 @@
  */
 import { CONFIG } from '../data/config';
 import type { Order, SupportKind, UnitKind } from '../data/schema';
-import { SUPPORTS, SUPPORT_COST } from '../data/supports';
+import { SUPPORTS, UNLIMITED_SUPPORT_COST } from '../data/supports';
 import { UNITS } from '../data/units';
 import { releaseControl, setControlInput, takeControl } from './control';
 import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
-import { KIND_COUNT, KIND_INDEX, KIND_LIST } from './tables';
+import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
+import { applyBuild, applyCancelBuild, applyReady } from './prep';
+import { applyClear } from './clear';
+import { resolveDeploy } from './points';
+import { DEPLOY_AUTO, DEPLOY_HQ } from './types';
 import {
+  CMD_BUILD,
+  CMD_CANCEL_BUILD,
+  CMD_CLEAR,
+  CMD_READY,
   CMD_CONTROL,
   CMD_CONTROL_INPUT,
+  CMD_DEPLOY,
   CMD_FOLLOW,
   CMD_FOLLOW_ALL,
   CMD_KIND_ORDER,
@@ -34,18 +43,20 @@ export function canTrain(w: World, si: number, kind: UnitKind): boolean {
   const def = UNITS[kind];
   // One commander per side: none while one is alive or queued.
   if (def.uniquePerSide === true && side.alive[kind] + side.queue[kind] > 0) return false;
-  const room = side.pop + side.reservePop + def.pop <= side.popCap;
-  return side.queue[kind] < CONFIG.maxQueue && side.supplies >= def.cost && room;
+  // A squad kind (conscripts) pays for and needs room for the whole squad.
+  const room = side.pop + side.reservePop + orderPop(kind) <= side.popCap;
+  return side.queue[kind] < CONFIG.maxQueue && side.supplies >= orderCost(kind) && room;
 }
 
 function applyTrain(w: World, si: number, kind: UnitKind): void {
   if (!canTrain(w, si, kind)) return;
   const side = w.state.sides[si];
   const def = UNITS[kind];
+  const cost = orderCost(kind);
   // Cost and population are paid now, so the cap can never be exceeded later.
-  side.supplies -= def.cost;
-  side.stats.suppliesSpent += def.cost;
-  side.pop += def.pop;
+  side.supplies -= cost;
+  side.stats.suppliesSpent += cost;
+  side.pop += orderPop(kind);
   if (side.queue[kind] === 0) {
     w.trainLeft[si * KIND_COUNT + KIND_INDEX[kind]] = def.trainTime;
     side.progress[kind] = 0;
@@ -102,13 +113,31 @@ function applyFollowAll(w: World, si: number): void {
 function applySupport(w: World, si: number, kind: SupportKind, x: number): void {
   if (!(kind in SUPPORTS) || !Number.isFinite(x)) return;
   if (!canCallSupport(w, si, kind)) return;
-  const cost = SUPPORT_COST[kind];
-  if (cost > 0) {
-    const side = w.state.sides[si];
-    side.supplies -= cost;
-    side.stats.suppliesSpent += cost;
+  // A call spends one charge and no money (owner, 2026-11-09); a side without charges (the AI) pays its own rule's
+  // price (UNLIMITED_SUPPORT_COST). A scripted raid, the director's, spends neither.
+  const side = w.state.sides[si];
+  if (side.supportCharges[kind] > 0) side.supportCharges[kind] -= 1;
+  else {
+    const cost = UNLIMITED_SUPPORT_COST[kind];
+    if (cost > 0) {
+      side.supplies -= cost;
+      side.stats.suppliesSpent += cost;
+    }
   }
   callSupport(w, si, kind, x);
+}
+
+/**
+ * The "Deploy at" choice (FOUNDATIONS.md 4.5): DEPLOY_AUTO, DEPLOY_HQ or a capture point's index. A point that is not
+ * a spawn point is refused; one that is not available now is kept, and used whenever it is (auto meanwhile).
+ */
+function applyDeploy(w: World, si: number, at: number): void {
+  const side = w.state.sides[si];
+  const points = w.state.points;
+  if (at === DEPLOY_AUTO || at === DEPLOY_HQ) side.deploy = at;
+  else if (at >= 0 && at < points.length && points[at].spawn && (points[at].spawnFor < 0 || points[at].spawnFor === si)) side.deploy = at;
+  else return;
+  side.deployPoint = resolveDeploy(w, si);
 }
 
 /** Apply everything queued since the last tick, in the order it was issued. */
@@ -139,8 +168,23 @@ export function applyCommands(w: World): void {
         if (c.unit < 0) releaseControl(w, c.side);
         else takeControl(w, c.side, c.unit);
         break;
+      case CMD_BUILD:
+        applyBuild(w, c.side, c.build, c.x);
+        break;
+      case CMD_CANCEL_BUILD:
+        applyCancelBuild(w, c.side, c.unit);
+        break;
+      case CMD_READY:
+        applyReady(w, c.side);
+        break;
       case CMD_CONTROL_INPUT:
         setControlInput(w, c.side, c.moveX, c.fire, c.ability);
+        break;
+      case CMD_DEPLOY:
+        applyDeploy(w, c.side, c.unit);
+        break;
+      case CMD_CLEAR:
+        applyClear(w, c.side, c.x);
         break;
       default:
         break;

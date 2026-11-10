@@ -3,14 +3,14 @@
  *
  *   x.cmd npx tsx tools/qa.ts [--w=844] [--h=390] [--dsf=1] [--sdsf=2] [--out=.tools/shots/qa] [--only=a,b] [--frames=10] [--step=50]
  *
- * Plays mission 1 through the ?debug=1 hooks under a Playwright fake clock, so
+ * Plays the first campaign mission (Stalingrad 1001) through the ?debug=1 hooks under a Playwright fake clock, so
  * film-strip frames are exactly --step ms of game time apart, and writes:
  *   <w>-<scene>.png         full-screen scenes (battle start, sappers, HQ door, firefight, fall back, ...)
  *   <w>-strip-<name>.png    film strips: consecutive cropped frames around one unit, enlarged
  * Scenes are shot at --dsf; strips come from a second context at --sdsf so the limbs are sharp.
- * --only picks parts: main (the mission 1 walkthrough), strips, defeat, rain, hud, sandbox (the Phase 2 proving
+ * --only picks parts: main (the first mission walkthrough), strips, defeat, rain, hud, sandbox (the Phase 2 proving
  * ground, `<w>-sb-*.png`; add sbstrips for its film strips, --seed=11 picks the battle), missions (every campaign
- * mission played by the test bot, `<w>-mNN-*.png`; --missions=1,5 and --mseed=7 narrow it), campaign (map,
+ * mission played by the test bot, `<w>-mNN-*.png`; --missions=1001,1005 and --mseed=7 narrow it), campaign (map,
  * Quartermaster, briefing and result screens on a prepared save), and page (dev/render-preview.html on the
  * Vite dev server, no build needed: see pageRun for its flags).
  */
@@ -111,7 +111,7 @@ async function shot(page: Page, name: string): Promise<void> {
 }
 
 async function begin(page: Page, seed: number): Promise<void> {
-  await th<boolean>(page, `startMission(1, 'normal', ${seed})`);
+  await th<boolean>(page, `startMission(${MISSIONS[0].id}, 'normal', ${seed})`);
   await waitFor(page, 'battle', async () => (await st(page)).screen === 'battle');
   await page.getByTestId('order-advance').waitFor({ timeout: 20_000 });
 }
@@ -254,7 +254,7 @@ async function openGame(browser: Browser, port: number, dsf: number): Promise<{ 
 }
 
 function hqDoor(side: 0 | 1, f: FieldInfo): number {
-  return side === 0 ? f.playerHqX + CONFIG.hqDoorOffset : f.enemyHqX - CONFIG.hqDoorOffset;
+  return side === 0 ? f.playerHqX + CONFIG.hqDoorOffset : (f.enemyHqX ?? f.playerHqX) - CONFIG.hqDoorOffset;
 }
 
 async function mainRun(browser: Browser, port: number): Promise<void> {
@@ -335,7 +335,7 @@ async function mainRun(browser: Browser, port: number): Promise<void> {
   }
   await speed(page, 1);
   const f4 = await fieldOf(page);
-  if (f4) await lookAt(page, f4.enemyHqX - 280);
+  if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 280);
   await page.waitForTimeout(700);
   await shot(page, 'hq-attack');
   await speed(page, 4);
@@ -348,7 +348,7 @@ async function mainRun(browser: Browser, port: number): Promise<void> {
     await page.waitForTimeout(150);
   }
   await speed(page, 1);
-  if (f4) await lookAt(page, f4.enemyHqX - 250);
+  if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 250);
   await page.waitForTimeout(700);
   await shot(page, 'hq-burning');
 
@@ -367,7 +367,7 @@ async function mainRun(browser: Browser, port: number): Promise<void> {
     await page.waitForTimeout(50);
     await strip(browser, page, 'cheer', winner, { wWu: 110, n: 8, cols: 8, step: 100, follow: true });
   }
-  if (f4) await lookAt(page, f4.enemyHqX - 250);
+  if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 250);
   await page.waitForTimeout(600);
   await shot(page, 'victory-field');
   await page.getByTestId('result-reason').waitFor({ timeout: 30_000 }).catch(() => undefined);
@@ -617,10 +617,10 @@ async function hudRun(browser: Browser, port: number): Promise<void> {
 // --- Phase 3: every mission, and the campaign screens ----------------------------------------
 
 /**
- * Missions to capture (--missions=1,5,10; default all ten), the base battle seed (--mseed; mission N uses
+ * Missions to capture (--missions=1001,1005,1010; default all ten), the base battle seed (--mseed; mission N uses
  * mseed + N) and the missions shot in rain (--rainy=8; the others are forced clear so each theatre shows).
  */
-const MISSION_IDS = (flags.get('missions') ?? '1,2,3,4,5,6,7,8,9,10').split(',').map(Number);
+const MISSION_IDS = (flags.get('missions') ?? MISSIONS.map((m) => m.id).join(',')).split(',').map(Number);
 const MISSION_SEED = Number(flags.get('mseed') ?? 7);
 const RAINY = new Set((flags.get('rainy') ?? '8').split(',').map(Number));
 /** Seed for a deadline mission (--lateseed): one where the bot is still fighting as night falls. */
@@ -727,9 +727,9 @@ async function campaignRun(browser: Browser, port: number): Promise<void> {
   const ids = UPGRADES.map((u) => u.id);
   const save = {
     version: META.saveVersion,
-    cleared: { 1: ['normal'], 2: ['normal'], 3: ['hard'], 4: ['normal'] },
+    cleared: { 1001: ['normal'], 1002: ['normal'], 1003: ['hard'], 1004: ['normal'] },
     upgrades: { [ids[0]]: 2, [ids[2]]: 1, [ids[5]]: 2, [ids[6]]: 3 },
-    lastMission: 4,
+    lastMission: 1004,
     settings: { muted: true, difficulty: 'normal', hints: true },
   };
   curDsf = DSF;
@@ -752,7 +752,7 @@ async function campaignRun(browser: Browser, port: number): Promise<void> {
   await tapId(page, 'back');
   await screenIs('campaign');
   await page.waitForTimeout(600);
-  await tapId(page, 'mission-pin-5');
+  await tapId(page, 'mission-pin-1005');
   await page.waitForTimeout(400);
   await tapId(page, 'mission-start');
   await screenIs('briefing');
