@@ -50,6 +50,12 @@ export interface DebugState {
   /** 0 or 1, or -1 while running and for a draw. */
   winner: number;
   endReason: EndReason;
+  /** The mission director's own words for how it ended (a lose condition, a scripted end), or null. */
+  endText: string | null;
+  /** The clock's label as the director runs it (or the mission's), for the result text; null without a clock. */
+  timerLabel: string | null;
+  /** The countdown on the objective plate (the phase's clock, the mission's, or a hold-out objective), or null. */
+  clock: { label: string; secondsLeft: number } | null;
   /** Player supplies, rounded down. */
   supplies: number;
   pop: number;
@@ -94,7 +100,8 @@ export interface DebugState {
 /** Where the two armies are, for tests and screenshots that wait for a moment on the battlefield. */
 export interface FieldInfo {
   playerHqX: number;
-  enemyHqX: number;
+  /** Null in a survival mission (the enemy has no HQ). */
+  enemyHqX: number | null;
   /** World x of the player's / the enemy's foremost fighting unit (sappers and garrisoned units excluded), or null. */
   playerFrontX: number | null;
   enemyFrontX: number | null;
@@ -218,6 +225,11 @@ export interface DebugApi {
   grantSupplies(n: number): void;
   /** Raise the player's population cap by n, never above CONFIG.popCap (100 everywhere, even in test battles). */
   grantPopulation(n: number): void;
+  /**
+   * Offer the player a call-in the mission holds back for a later phase (what the director's `support` event does), so
+   * a test need not play to that phase. Only a call-in on the mission's own list for the player.
+   */
+  offerSupport(kind: SupportKind): boolean;
   forceWeather(w: WeatherMode): void;
   forceThunder(): void;
   weatherStats(): WeatherStats;
@@ -456,8 +468,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       const s = session.battle.state;
       const mine = s.sides[0].hq;
       const theirs = s.sides[1].hq;
-      if (!mine || !theirs) return null;
-      const dir = theirs.x >= mine.x ? 1 : -1;
+      if (!mine) return null;
+      // A survival mission has no enemy HQ: the player's side faces +x, as everywhere.
+      const dir = theirs === null || theirs.x >= mine.x ? 1 : -1;
       let playerFront: number | null = null;
       let enemyFront: number | null = null;
       let carrying = 0;
@@ -474,7 +487,7 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
       }
       return {
         playerHqX: mine.x,
-        enemyHqX: theirs.x,
+        enemyHqX: theirs ? theirs.x : null,
         playerFrontX: playerFront,
         enemyFrontX: enemyFront,
         gap: playerFront !== null && enemyFront !== null ? Math.abs(enemyFront - playerFront) : null,
@@ -535,6 +548,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
           over: false,
           winner: -1,
           endReason: 'none',
+          endText: null,
+          timerLabel: null,
+          clock: null,
           supplies: 0,
           pop: 0,
           popCap: 0,
@@ -582,6 +598,9 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         over: s.over,
         winner: s.winner,
         endReason: s.endReason,
+        endText: s.director.endText,
+        timerLabel: s.director.timer?.label ?? session.mission.timer?.label ?? null,
+        clock: session.hud.state.timer ? { label: session.hud.state.timer.label, secondsLeft: session.hud.state.timer.secondsLeft } : null,
         supplies: Math.floor(me.supplies),
         pop: me.pop,
         popCap: me.popCap,
@@ -627,6 +646,13 @@ export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: Ga
         const side = session.battle.state.sides[0];
         side.popCap = Math.min(CONFIG.popCap, side.popCap + n);
       }
+    },
+
+    offerSupport(kind) {
+      const session = app.session;
+      if (!session || !session.mission.supports[0].includes(kind)) return false;
+      session.battle.state.sides[0].supportAvailable[kind] = true;
+      return true;
     },
 
     forceWeather(w) {

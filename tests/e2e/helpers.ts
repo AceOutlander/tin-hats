@@ -101,8 +101,9 @@ export const memorySave = (page: Page) => page.evaluate(() => ((window as unknow
 
 /** The result text the app shows for how a battle ended. */
 export function reasonText(end: DebugState): string {
-  const label = MISSIONS.find((m) => m.id === end.missionId)?.timer?.label ?? null;
-  return describeEnd(end.endReason, end.winner === 0, label);
+  // The director's clock label and its own end text (a lose condition such as a breakthrough), as the result screen uses.
+  const label = end.timerLabel ?? MISSIONS.find((m) => m.id === end.missionId)?.timer?.label ?? null;
+  return describeEnd(end.endReason, end.winner === 0, label, end.endText);
 }
 
 /** The screen that is on show (a screen that is leaving stays in the page for its fade, marked `inert`). */

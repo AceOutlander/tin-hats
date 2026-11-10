@@ -137,9 +137,10 @@ for (const m of MISSIONS) {
     expect(start.missionId).toBe(m.id);
     expect(start.difficulty).toBe('normal');
     const obj = page.locator('.th-obj');
-    if (m.timer) {
+    // The plate counts down whichever clock runs (the mission's, or its first phase's on the director); else the objective.
+    if (start.clock) {
       await expect(obj).toHaveClass(/has-timer/);
-      await expect(page.locator('.th-obj-text')).toHaveText(m.timer.label);
+      await expect(page.locator('.th-obj-text')).toHaveText(start.clock.label);
       await expect(page.locator('.th-obj-time')).toHaveText(/^\d+:\d\d$/);
       await expect(obj).not.toHaveClass(/is-urgent/);
     } else {
@@ -153,7 +154,11 @@ for (const m of MISSIONS) {
     }
     if (!m.units[0].includes('sapper')) await expect(page.getByTestId('train-sapper')).toHaveCount(0);
     if (!m.units[0].includes('tank')) await expect(page.getByTestId('train-tank')).toHaveCount(0);
-    for (const kind of m.supports[0]) await expect(page.getByTestId(`support-${kind}`), `support button for ${kind}`).toHaveCount(1);
+    // A button for each call-in the battle offers the player now: on the mission's list, brought from the briefing's
+    // loadout or lent (a call-in with no charge stays home), and not held back for a later phase (`supportsOff`).
+    for (const kind of m.supports[0]) {
+      await expect(page.getByTestId(`support-${kind}`), `support button for ${kind}`).toHaveCount(start.supports[kind].available ? 1 : 0);
+    }
     expect(start.darkness, 'the sky starts in its own light').toBeLessThan(0.01);
 
     // --- Train a unit and give every order, with real taps ----------------------------------------------------------
@@ -187,6 +192,10 @@ for (const m of MISSIONS) {
     // --- Call in the support the mission introduces ------------------------------------------------------------------
     if (m.newSupport) {
       const support = m.newSupport;
+      // Every new call-in of the campaign is held back for a later phase; offer it as the director does then.
+      if (!(await state(page)).supports[support].available) {
+        expect(await page.evaluate((k) => ((window as unknown as Hooked).__TH as DebugApi).offerSupport(k), support)).toBe(true);
+      }
       await setTimeScale(page, 8);
       await expect.poll(async () => (await state(page)).supports[support].cooldown, { timeout: 60_000 }).toBeLessThanOrEqual(0);
       await setTimeScale(page, 1);

@@ -1267,6 +1267,8 @@ class HudView implements Hud {
     this.clearTipTarget();
     this.tipSeq = -1;
     this.tipBox.className = 'th-tip';
+    // A finished tip leaves nothing behind: the hidden bubble must not keep its words (screen readers, page text).
+    this.tipText.textContent = '';
   }
 
   private clearTipTarget(): void {

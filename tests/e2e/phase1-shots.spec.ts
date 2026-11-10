@@ -122,30 +122,33 @@ test.describe('phase 1 screenshots', () => {
     await page.waitForTimeout(300);
     await p1(page, 'fall-back');
 
-    // Advance again with reinforcements until the enemy HQ takes damage.
-    await tap(page, 'order-advance');
-    await setTimeScale(page, 8);
-    const hqHit = (hp: number | undefined, max: number | undefined): boolean => hp !== undefined && max !== undefined && hp < max * 0.8;
-    for (let i = 0; i < 600; i++) {
-      await reinforce(page, 2);
-      const s = await state(page);
-      if (s.over || hqHit(s.hq[1]?.hp, s.hq[1]?.max)) break;
-      await page.waitForTimeout(150);
+    // Advance again with reinforcements until the enemy HQ takes damage (a survival mission like Brest has none: the
+    // army holds on to the end instead).
+    if ((await state(page)).hq[1] !== null) {
+      await tap(page, 'order-advance');
+      await setTimeScale(page, 8);
+      const hqHit = (hp: number | undefined, max: number | undefined): boolean => hp !== undefined && max !== undefined && hp < max * 0.8;
+      for (let i = 0; i < 600; i++) {
+        await reinforce(page, 2);
+        const s = await state(page);
+        if (s.over || hqHit(s.hq[1]?.hp, s.hq[1]?.max)) break;
+        await page.waitForTimeout(150);
+      }
+      await setTimeScale(page, 1);
+      const f4 = await field(page);
+      if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 260);
+      // Catch a moment when a shot has just landed on the HQ: freeze the loop there (effects stop mid-life) and take the picture.
+      let lastHp = (await state(page)).hq[1]?.hp ?? 0;
+      for (let i = 0; i < 400; i++) {
+        await page.waitForTimeout(40);
+        const hp = (await state(page)).hq[1]?.hp ?? 0;
+        if (hp < lastHp) break;
+        lastHp = hp;
+      }
+      await setTimeScale(page, 0);
+      await p1(page, 'hq-attack');
+      await setTimeScale(page, 1);
     }
-    await setTimeScale(page, 1);
-    const f4 = await field(page);
-    if (f4) await lookAt(page, f4.enemyHqX - 260);
-    // Catch a moment when a shot has just landed on the HQ: freeze the loop there (effects stop mid-life) and take the picture.
-    let lastHp = (await state(page)).hq[1]?.hp ?? 0;
-    for (let i = 0; i < 400; i++) {
-      await page.waitForTimeout(40);
-      const hp = (await state(page)).hq[1]?.hp ?? 0;
-      if (hp < lastHp) break;
-      lastHp = hp;
-    }
-    await setTimeScale(page, 0);
-    await p1(page, 'hq-attack');
-    await setTimeScale(page, 1);
 
     // Victory.
     const end = await playToEnd(page, true);

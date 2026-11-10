@@ -59,7 +59,8 @@ describe('debug hooks', () => {
     expect(f).not.toBeNull();
     if (!f) return;
     // Mission 1 puts the player's HQ on the left and the enemy's on the right.
-    expect(f.playerHqX).toBeLessThan(f.enemyHqX);
+    expect(f.enemyHqX).not.toBeNull();
+    expect(f.playerHqX).toBeLessThan(f.enemyHqX ?? -Infinity);
     // The quick mission starts the player's riflemen near the enemy HQ; sappers never count as the front.
     expect(f.playerFrontX).not.toBeNull();
     expect(f.playerFrontX ?? 0).toBeGreaterThan(f.playerHqX);

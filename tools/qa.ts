@@ -254,7 +254,7 @@ async function openGame(browser: Browser, port: number, dsf: number): Promise<{ 
 }
 
 function hqDoor(side: 0 | 1, f: FieldInfo): number {
-  return side === 0 ? f.playerHqX + CONFIG.hqDoorOffset : f.enemyHqX - CONFIG.hqDoorOffset;
+  return side === 0 ? f.playerHqX + CONFIG.hqDoorOffset : (f.enemyHqX ?? f.playerHqX) - CONFIG.hqDoorOffset;
 }
 
 async function mainRun(browser: Browser, port: number): Promise<void> {
@@ -335,7 +335,7 @@ async function mainRun(browser: Browser, port: number): Promise<void> {
   }
   await speed(page, 1);
   const f4 = await fieldOf(page);
-  if (f4) await lookAt(page, f4.enemyHqX - 280);
+  if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 280);
   await page.waitForTimeout(700);
   await shot(page, 'hq-attack');
   await speed(page, 4);
@@ -348,7 +348,7 @@ async function mainRun(browser: Browser, port: number): Promise<void> {
     await page.waitForTimeout(150);
   }
   await speed(page, 1);
-  if (f4) await lookAt(page, f4.enemyHqX - 250);
+  if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 250);
   await page.waitForTimeout(700);
   await shot(page, 'hq-burning');
 
@@ -367,7 +367,7 @@ async function mainRun(browser: Browser, port: number): Promise<void> {
     await page.waitForTimeout(50);
     await strip(browser, page, 'cheer', winner, { wWu: 110, n: 8, cols: 8, step: 100, follow: true });
   }
-  if (f4) await lookAt(page, f4.enemyHqX - 250);
+  if (f4 && f4.enemyHqX !== null) await lookAt(page, f4.enemyHqX - 250);
   await page.waitForTimeout(600);
   await shot(page, 'victory-field');
   await page.getByTestId('result-reason').waitFor({ timeout: 30_000 }).catch(() => undefined);

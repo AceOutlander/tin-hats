@@ -12,7 +12,8 @@ import { missionEra } from '../../src/data/eras';
 import { getMission } from '../../src/data/missions';
 import type { MissionDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
-import { expect, grantSupplies, open, playThroughMenus, savedGame, setTimeScale, shot, state, tap, tapIn, test, unlockAll } from './helpers';
+import type { DebugApi } from '../../src/app/debug';
+import { expect, grantSupplies, open, playThroughMenus, savedGame, setTimeScale, shot, state, tap, tapIn, test, unlockAll, type Hooked } from './helpers';
 
 const TIPS_KEY = TUTORIAL.storageKey;
 const KLIN = getMission(1004) as MissionDef;
@@ -56,6 +57,19 @@ async function waitForBattleTime(page: Page, seconds: number): Promise<void> {
   await expect.poll(async () => (await state(page)).time, { timeout: 60_000 }).toBeGreaterThanOrEqual(seconds);
 }
 
+/**
+ * Klin holds its Il-2s back until the weather clears (phase 3, `supportsOff`), and a tip never points at a button that
+ * is not on screen: past the pause after the last tip nothing is up and nothing pulses. Then the Il-2 is offered, as
+ * the director's `support` event does in phase 3, so the test need not play to it.
+ */
+async function expectCallInTipWaitsForItsButton(page: Page): Promise<void> {
+  const ended = (await state(page)).time;
+  await waitForBattleTime(page, ended + TUTORIAL.gapSeconds + 2);
+  await expect(bubble(page)).toBeHidden();
+  await expect(page.locator('.th-glow')).toHaveCount(0);
+  expect(await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).offerSupport('airStrike'))).toBe(true);
+}
+
 /** From the title, through the map (every mission opened by the debug hook) and the briefing, into Klin. */
 async function playKlin(page: Page): Promise<void> {
   await unlockAll(page);
@@ -97,7 +111,8 @@ test.describe('campaign tips, Klin (1004)', () => {
       })
       .toBeGreaterThan(before.units[0].medic + before.queue.medic);
 
-    // Then the new call-in, after a short pause.
+    // Then the new call-in, after a short pause, once the mission offers it.
+    await expectCallInTipWaitsForItsButton(page);
     await expect(bubble(page)).toBeVisible({ timeout: 30_000 });
     await expect(bubble(page)).toContainText(missionEra(KLIN, KLIN.start[0].faction).supportNames.airStrike);
     await shot(page, 'tutorial-2-new-support');
@@ -127,7 +142,9 @@ test.describe('campaign tips, Klin (1004)', () => {
     await expect(bubble(page)).toBeHidden();
     await expect(page.locator('.th-glow')).toHaveCount(0);
     await expect.poll(() => seenTips(page)).toContain('new-unit-medic');
-    // The next tip comes after a short pause, and it is a different one: the call-in's, its button pulsing.
+    // The next tip comes after a short pause (once its call-in is offered), and it is a different one: the call-in's,
+    // its button pulsing.
+    await expectCallInTipWaitsForItsButton(page);
     await expect(bubble(page)).toBeVisible({ timeout: 20_000 });
     await expect(bubble(page)).not.toContainText(MEDIC);
     await expect(page.locator('.th-glow')).toHaveCount(1);

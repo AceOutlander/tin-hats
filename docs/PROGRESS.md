@@ -44,7 +44,11 @@ If you lose track, read this file and carry on from "In progress" and "Next". Th
 
 - **New units on screen and medals (queue jobs 7 and 10, DECISIONS 254, 255, 257; not pushed)**: medals and the Armoury (save version 6; sells the APC, flamethrower, commander, AA crew and the bomber, fighter and recon call-ins; riflemen and sappers free; loans; replay decay; victory breakdown), and the new units in the sim (hit-facing armour, commander aura and speech, flamethrower flush and fuel tank, APC carry, planes and AA, the King Tiger squad, the Panzer III). On screen: the flamethrower's wand, fuel tanks and fire jet, the commander's revolver, pointing arm and speech bubbles, the Universal Carrier and SdKfz 251 with their squad aboard and the hop out, the Panzer III and the camouflaged King Tiger with its turret number and barrel band, plane passes with bombs, strafing, flak, AA tracers and crashes, recon revealing enemy health, the King Tiger's HUD warning banner and horn, plane call-in glyphs in the HUD and Armoury, a two-column call-in rail. Screenshots: `docs/screenshots/release-units-*.png`, `release-medals-*.png`.
 
-## Latest state (2026-11-09 evening run; read this first)
+## Stalingrad final state (2026-11-09, read this first)
+
+Branch `stalingrad` (worktree C:\dev\tin-hats-stalingrad), NOT live, waits for the owner's "push to live" (then update the Tin Hats card text on hunteracedev.com). All ten missions tuned, Basic Training finished, economy with charges and the Shop, Poland 2,999 medals. Checks: typecheck, lint, build pass; unit 1,831/1,831; balance 207/207; browser suite 98/135 before the spec fixes of DECISIONS 440-441, NOT re-run after them. Next: re-run the browser suite; fix the battle memory (Phaser addCanvas keeps CPU copies, DECISIONS 441) and the Brest briefing fit; retake the 1004 and 1007 screenshots. Owner summary: docs/MORNING_REPORT.md.
+
+## Earlier state (2026-11-09 evening run)
 
 v0.12.0 on main: units unlocked by missions again (DECISIONS 280). Medals buy upgrades (re-priced 10/20/30 a level)
 and the plane call-ins; save version 8 refunds medals spent on units and keeps them unlocked; NEW cards and "New:"

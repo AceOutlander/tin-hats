@@ -6,7 +6,11 @@
  * Pictures: docs/screenshots/e2e-prep-*.png.
  */
 import type { DebugApi } from '../../src/app/debug';
+import { getMission } from '../../src/data/missions';
 import { expect, lookAt, open, setTimeScale, shot, state, tap, tapWorld, test, waitForState, type Hooked } from './helpers';
+
+/** Brest's own clock (15 minutes since its tuning, DECISIONS 428), which waits for the prep phase. */
+const CLOCK = getMission(1001)?.timer?.seconds ?? 0;
 
 test.describe('prep phase', () => {
   test('place a foxhole by touch, see it built, then Ready', async ({ page }) => {
@@ -21,7 +25,8 @@ test.describe('prep phase', () => {
     expect(start.prep?.active).toBe(true);
     const trenches = start.prep?.trenches ?? 0;
     // The mission clock waits for the prep phase.
-    expect(start.timer).toBe(720);
+    expect(CLOCK).toBeGreaterThan(0);
+    expect(start.timer).toBe(CLOCK);
     await page.waitForTimeout(500);
     await shot(page, 'prep-panel');
 
@@ -49,6 +54,6 @@ test.describe('prep phase', () => {
       await expect.poll(async () => (await state(page)).prep?.active).toBe(false);
     }
     await expect(panel).toBeHidden();
-    await expect.poll(async () => (await state(page)).timer ?? 720, { timeout: 20_000 }).toBeLessThan(720);
+    await expect.poll(async () => (await state(page)).timer ?? CLOCK, { timeout: 20_000 }).toBeLessThan(CLOCK);
   });
 });

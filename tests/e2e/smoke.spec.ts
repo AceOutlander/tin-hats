@@ -32,7 +32,6 @@ import {
   weatherStats,
   type Hooked,
 } from './helpers';
-import { APP } from '../../src/data/app';
 
 test.describe('debug hooks', () => {
   test('are absent without ?debug=1', async ({ page, problems }) => {
@@ -56,13 +55,16 @@ test.describe('debug hooks', () => {
         'blood',
         'buttonRects',
         'camera',
+        'campaigns',
         'field',
         'firstUnitScreenPos',
         'forceThunder',
         'forceWeather',
         'getTimeScale',
         'grantPopulation',
+        'giveCharges',
         'giveMedals',
+        'givePoints',
         'grantSupplies',
         'hpPips',
         'lookAt',
@@ -70,12 +72,15 @@ test.describe('debug hooks', () => {
         'menuStorm',
         'missions',
         'music',
+        'offerSupport',
         'perf',
+        'points',
         'projectiles',
         'ready',
         'result',
         'revealEnemyHp',
         'save',
+        'selectCampaign',
         'setTimeScale',
         'setUpgrades',
         'startMission',
@@ -83,6 +88,7 @@ test.describe('debug hooks', () => {
         'startStalingrad',
         'startTraining',
         'takeMedals',
+        'takePoints',
         'state',
         'tutorial',
         'unitScreenPos',
@@ -133,6 +139,10 @@ test.describe('wiring in the built game', () => {
     await open(page);
     await startMission(page, MISSIONS[0].id, 11);
     await expect.poll(async () => (await state(page)).screen).toBe('battle');
+    // No Stalingrad mission has rain of its own (their weather is set per mission): the hook brings it, and its thunder
+    // checks then roll with battle time.
+    await page.evaluate(() => ((window as unknown as Hooked).__TH as DebugApi).forceWeather('rain'));
+    await expect.poll(async () => (await weatherStats(page)).raining).toBe(true);
     const first = await weatherStats(page);
     await setTimeScale(page, 10);
     await expect.poll(async () => (await weatherStats(page)).checksMade, { timeout: 30_000 }).toBeGreaterThan(first.checksMade + 3);
@@ -291,10 +301,11 @@ test.describe('first battle', () => {
     const cam1 = await camera(page);
     expect(cam1.centerX, 'a finger dragging left moves the view right').toBeGreaterThan(cam0.centerX + 60);
     expect(cam1.length).toBeGreaterThan(cam1.viewWidthWu);
-    await page.mouse.move(380, 190);
+    // Lower than the finger's drag: Brest opens on its prep phase, whose panel sits mid-screen from x 330 to 510.
+    await page.mouse.move(380, 250);
     await page.mouse.down();
-    await page.mouse.move(520, 190, { steps: 6 });
-    await page.mouse.move(640, 190, { steps: 6 });
+    await page.mouse.move(520, 250, { steps: 6 });
+    await page.mouse.move(640, 250, { steps: 6 });
     await page.mouse.up();
     await page.waitForTimeout(700);
     expect((await camera(page)).centerX, 'a mouse dragging right moves the view left').toBeLessThan(cam1.centerX - 40);
@@ -399,7 +410,8 @@ test.describe('whole battles at high speed', () => {
     expect(end.winner, 'a player who keeps buying riflemen and advances wins mission 1').toBe(0);
 
     await expect(page.getByTestId('result-reason')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('result-reason')).toHaveText(APP.reasons.hqDestroyed.win);
+    // Brest is a survival mission: the win is holding out to the end (the result screen words it as the app does).
+    await expect(page.getByTestId('result-reason')).toHaveText(reasonText(end));
     await expect(page.getByTestId('result-points')).toBeVisible();
     await shot(page, 'result-win');
 
@@ -448,10 +460,10 @@ test.describe('whole battles at high speed', () => {
         await expect.poll(async () => (await state(page)).order, { timeout: 10_000 }).toBe(order);
       }
 
-      // Pan the camera with a finger.
+      // Pan the camera with a finger, on open ground under the prep panel of a defensive mission (mid-screen, up to x 640).
       await page.waitForTimeout(400);
       const cam0 = await camera(page);
-      await touchDrag(page, { x: 640, y: 190 }, { x: 380, y: 190 });
+      await touchDrag(page, { x: 700, y: 250 }, { x: 440, y: 250 });
       await page.waitForTimeout(600);
       expect((await camera(page)).centerX, 'the camera pans').toBeGreaterThan(cam0.centerX + 60);
 
@@ -475,7 +487,9 @@ test.describe('whole battles at high speed', () => {
       const end = await playToEnd(page, false);
       if (mission.mode === 'assault') {
         expect(end.winner, 'a passive player loses an assault mission').toBe(1);
-        expect(end.hq[0]?.hp ?? 0).toBeLessThanOrEqual(0);
+        // Lost with the HQ, or to the mission's clock (1010 the Ring's deadline comes first, DECISIONS 437).
+        if (end.endReason === 'hqDestroyed') expect(end.hq[0]?.hp ?? 0).toBeLessThanOrEqual(0);
+        else expect(['timerExpired', 'objectiveFailed']).toContain(end.endReason);
       }
       await expect(page.getByTestId('result-reason')).toBeVisible({ timeout: 30_000 });
       await expect(page.getByTestId('result-reason')).toHaveText(reasonText(end));

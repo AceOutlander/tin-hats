@@ -2,6 +2,8 @@
 
 What each part of the campaign has today, and what waits for which foundation feature (FOUNDATIONS.md).
 
+**Final state (2026-11-09):** every part below is built; the ten missions are tuned (DECISIONS 428-437), Basic Training finished (438), Poland 2,999 medals (439), the campaign tips fixed (440) and the browser specs brought up to the campaign (441). Open: the browser suite re-run, the per-battle texture memory, the Brest briefing fit. Report: docs/MORNING_REPORT.md.
+
 ## The mission director (FOUNDATIONS.md 3.1 to 3.4)
 
 **In** (`src/sim/director.ts`, types in `src/data/schema.ts`; DECISIONS 348 to 359; tests

@@ -2335,7 +2335,9 @@ svg.th-group-icon {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  min-height: 30px;
+  /* A full touch target, like every other control (the chips were 30 px tall). */
+  min-width: 48px;
+  min-height: 48px;
   padding: 0 6px;
   border: 1px solid var(--th-paper-dim);
   border-radius: 4px;

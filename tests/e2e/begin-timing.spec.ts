@@ -1,4 +1,4 @@
-﻿/**
+/**
  * How long Begin takes to reach the battle (owner, 2026-11-09: "Start the battle within about 2 seconds"). The built
  * game, real taps from the campaign map through the briefing: Begin tapped as soon as the briefing shows (the worst
  * case: the music had no head start), and Begin tapped after a few seconds on the briefing. The battle music's calm
@@ -41,8 +41,8 @@ test.describe('Begin starts the battle quickly', () => {
       // The battle runs and the rest of the music arrives during it.
       await expect.poll(async () => (await state(page)).time, { timeout: 30_000 }).toBeGreaterThan(1);
       await expect.poll(async () => (await battleMusic(page)).player?.started ?? false, { timeout: 30_000 }).toBe(true);
-      await expect.poll(async () => { const b = await battleMusic(page); return b.piecesReady === b.piecesTotal; }, { timeout: 180_000, intervals: [1000] }).toBe(true);
-      expect((await battleMusic(page)).state).toBe('ready');
+      // Every piece in, and the track ready (it says so after the idle wait that follows the last piece).
+      await expect.poll(async () => { const b = await battleMusic(page); return b.piecesReady === b.piecesTotal && b.state === 'ready'; }, { timeout: 180_000, intervals: [1000] }).toBe(true);
     }
     const later = await beginToBattle(page, 1003, 3000);
     rows.push(`1003 Begin after 3 s on the briefing: ${later} ms to the battle`);

@@ -100,13 +100,14 @@ export const STALINGRAD_MAP: TrackDef = {
   reverb: { seconds: 5.5, preDelay: 0.04, brightHz: 4200, darkHz: 900, seed: 1943 },
   sections: [
     {
-      // Frost on the map glass: the motif alone on the high piano over open fifths.
+      // Frost on the map glass: the motif alone on the high piano over open fifths. It comes in half a beat late, so the
+      // loop's seam is not a piano strike (the seam's level stayed within 0.1 dB, was 3.2 dB).
       name: 'Frost on the map glass',
       bars: 8,
       padLevel: 0.8,
       chords: chords([Am5, Am5, F, F, Dm, Dm, Esus, Em]),
       horn: [],
-      piano: mel([...motif(SOVIET_MOTIF, { tonic: 81, at: 0, vel: 0.4, first: 1 }), ...motif(SOVIET_ANSWER, { tonic: 81, at: 12, vel: 0.34, first: 1 }), ...motif(SOVIET_MOTIF, { tonic: 81, at: 16, take: 4, vel: 0.34, first: 1 })]),
+      piano: mel([...motif(SOVIET_MOTIF, { tonic: 81, at: 0.5, vel: 0.4, first: 1 }), ...motif(SOVIET_ANSWER, { tonic: 81, at: 12, vel: 0.34, first: 1 }), ...motif(SOVIET_MOTIF, { tonic: 81, at: 16, take: 4, vel: 0.34, first: 1 })]),
       drums: [
         { at: 9.5, vel: 0.42, pitch: 1 },
         { at: 26.75, vel: 0.58, pitch: 0.94 },
