@@ -4,12 +4,13 @@
  * tick hooks only read four booleans.
  */
 import { CONFIG } from '../data/config';
-import type { Side } from '../data/schema';
+import type { FactionId, ForceLookId, Side } from '../data/schema';
 import { endBattle, fireEvent, jumpToPhase } from './mission';
+import { adminPrep } from './prep';
 import { changeTime, changeWeather } from './sky';
 import { DAMAGE_TYPES, KIND_COUNT, KIND_DEFS, KIND_INDEX, KIND_LIST, KIND_SAPPER } from './tables';
 import type { AdminAction, AiReport, Behaviour, UnitState } from './types';
-import { killUnit, makeVeteran, removeUnit, spawnUnit } from './units';
+import { armVehicle, killUnit, makeVeteran, removeUnit, spawnUnit } from './units';
 import type { World } from './world';
 
 const BULLET = DAMAGE_TYPES.indexOf('bullet');
@@ -41,7 +42,7 @@ function forTargets(w: World, side: Side | -1, unit: number | undefined, fn: (u:
   return n;
 }
 
-function spawn(w: World, side: Side, kindIndex: number, x: number, count: number, veteran: boolean): number {
+function spawn(w: World, side: Side, kindIndex: number, x: number, count: number, veteran: boolean, look?: ForceLookId, nation?: FactionId): number {
   const dir = side === 0 ? 1 : -1;
   const behaviour = behaviourOf(w, side);
   let n = 0;
@@ -49,6 +50,10 @@ function spawn(w: World, side: Side, kindIndex: number, x: number, count: number
     const u = spawnUnit(w, side, kindIndex, x - j * dir * CONFIG.spacing, kindIndex === KIND_SAPPER ? 'army' : behaviour, false, false);
     if (!u) break;
     if (veteran) makeVeteran(w, u);
+    // Names and looks only, as a mission's force with a look or a nation (spawnForce): a vehicle takes its look's gun.
+    if (nation !== undefined) u.faction = nation;
+    if (look !== undefined) u.look = look;
+    if (nation !== undefined || look !== undefined) armVehicle(w, u);
     n++;
   }
   return n;
@@ -77,7 +82,7 @@ export function applyAdmin(w: World, action: AdminAction): number {
       const k = KIND_INDEX[action.kind];
       if (k === undefined || !Number.isFinite(action.x)) return 0;
       const count = Math.max(0, Math.floor(action.count));
-      return spawn(w, action.side, k, action.x, count, action.veteran === true);
+      return spawn(w, action.side, k, action.x, count, action.veteran === true, action.look, action.nation);
     }
     case 'kill':
       return forTargets(w, action.side, action.unit, (u) => killUnit(w, u, BULLET, -u.facing, -1));
@@ -132,6 +137,11 @@ export function applyAdmin(w: World, action: AdminAction): number {
     case 'instantTrain':
       s.sides[action.side].cheats.instantTrain = action.on;
       return 1;
+    case 'instantBuild':
+      s.sides[action.side].cheats.instantBuild = action.on;
+      return 1;
+    case 'prep':
+      return adminPrep(w, action.op) ? 1 : 0;
     case 'fillArmy': {
       const k = KIND_INDEX[action.kind];
       if (k === undefined) return 0;

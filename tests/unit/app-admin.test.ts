@@ -342,4 +342,114 @@ describe('the admin controller', () => {
     expect(frame.boxCount).toBeGreaterThan(0);
     expect(admin.readout()).toMatch(/AI \(ai\)/);
   });
+
+  it('lists the Stalingrad missions as the players number them, with their phases', () => {
+    const { admin } = makeAdmin();
+    const missions = admin.info().missions;
+    expect(missions.map((m) => `${m.number} ${m.title}`).slice(0, 1)).toEqual(['1 Brest Fortress']);
+    expect(missions).toHaveLength(MISSIONS.length);
+    expect(missions.map((m) => m.number)).toEqual(MISSIONS.map((_, i) => i + 1));
+    expect(missions[missions.length - 1]).toMatchObject({ number: 10, id: 1010, campaign: 'Stalingrad' });
+    expect(missions[0].phases.map((p) => p.id)).toEqual((MISSIONS[0].phases ?? []).map((p) => p.id));
+  });
+
+  it('jumps to a locked Stalingrad mission and straight to a later phase, without unlocking or recording anything', () => {
+    const { app, admin, storage } = makeAdmin();
+    const target = MISSIONS.find((m) => m.id !== MISSIONS[0].id && (m.phases?.length ?? 0) >= 3);
+    if (!target?.phases) throw new Error('no mission of three phases');
+    const phase = target.phases[2];
+    const before = structuredClone(app.save);
+    admin.run({ type: 'jump', missionId: target.id, difficulty: 'insane', phase: phase.id });
+    expect(app.session?.mission.id).toBe(target.id);
+    expect(app.session?.difficulty).toBe('insane');
+    expect(app.session?.battle.state.director.phase).toBe(2);
+    expect(admin.info().battle?.phases?.find((p) => p.current)?.id).toBe(phase.id);
+    // The battle runs on from there.
+    for (let i = 0; i < 30; i++) app.session?.step();
+    expect(app.session?.battle.state.director.phase).toBeGreaterThanOrEqual(2);
+    // A real win on a mission the player has not reached is not saved.
+    const s = app.session?.battle.state;
+    if (s) {
+      app.session?.admin({ type: 'kill', side: 1 });
+      const hq = s.sides[1].hq;
+      if (hq) {
+        hq.hp = 0;
+        hq.alive = false;
+      }
+    }
+    for (let i = 0; i < 5 && !app.session?.battle.state.over; i++) app.session?.step();
+    expect(app.save.cleared).toEqual(before.cleared);
+    expect(app.save.medals).toBe(before.medals);
+    expectValid(app.save);
+    expect(loadSave(storage, RULES).status).toBe('ok');
+    // A jump to the first phase (no phase given) starts at the top; an unknown phase is ignored.
+    admin.run({ type: 'jump', missionId: target.id, difficulty: 'normal' });
+    expect(app.session?.battle.state.director.phase).toBe(0);
+    admin.run({ type: 'jump', missionId: target.id, difficulty: 'normal', phase: 'noSuchPhase' });
+    expect(app.session?.battle.state.director.phase).toBe(0);
+  });
+
+  it('gives and takes medals, upgrade points and call-in charges of each type, and the save stays valid', () => {
+    const { app, admin, storage } = makeAdmin();
+    const start = { ...app.save.charges };
+    admin.run({ type: 'medals', amount: 100 });
+    admin.run({ type: 'medals', amount: -10 });
+    expect(app.save.medals).toBe(90);
+    admin.run({ type: 'medals', amount: -1000 });
+    expect(app.save.medals).toBe(0);
+    admin.run({ type: 'points', amount: 50 });
+    admin.run({ type: 'points', amount: -5 });
+    expect(app.save.points).toBe(45);
+    expect(admin.info().points).toBe(45);
+    admin.run({ type: 'points', amount: -500 });
+    expect(app.save.points).toBe(0);
+    admin.run({ type: 'charges', amount: 10, kind: 'bomber' });
+    expect(app.save.charges.bomber).toBe(10);
+    expect(app.save.charges.smoke).toBe(start.smoke);
+    admin.run({ type: 'charges', amount: -1, kind: 'bomber' });
+    expect(admin.info().charges.find((c) => c.kind === 'bomber')?.count).toBe(9);
+    admin.run({ type: 'charges', amount: -99, kind: 'smoke' });
+    expect(app.save.charges.smoke).toBeUndefined();
+    admin.run({ type: 'charges', amount: 1 });
+    for (const c of admin.info().charges) expect(c.count).toBeGreaterThanOrEqual(1);
+    admin.run({ type: 'charges', amount: 5, kind: 'noSuchCallIn' as never });
+    expectValid(app.save);
+    expect(loadSave(storage, RULES)).toEqual({ data: app.save, status: 'ok' });
+    expect(app.save.version).toBe(11);
+  });
+
+  it('skips and restarts the prep phase and builds instantly in a Stalingrad mission', () => {
+    const { app, admin } = makeAdmin();
+    const withPrep = MISSIONS.find((m) => m.prep ?? m.phases?.[0]?.prep);
+    if (!withPrep) throw new Error('no mission with a prep phase');
+    admin.run({ type: 'jump', missionId: withPrep.id, difficulty: 'normal' });
+    expect(admin.info().battle?.prep?.active).toBe(true);
+    for (let i = 0; i < 90; i++) app.session?.step();
+    const left = admin.info().battle?.prep?.secondsLeft ?? 0;
+    admin.run({ type: 'prep', op: 'restart' });
+    expect(admin.info().battle?.prep?.secondsLeft).toBeGreaterThan(left);
+    admin.run({ type: 'instantBuild', on: true });
+    expect(admin.info().battle?.instantBuild).toBe(true);
+    admin.run({ type: 'prep', op: 'skip' });
+    expect(admin.info().battle?.prep?.active).toBe(false);
+  });
+
+  it('spawns an era variant through the controller only on a kind it is made for', () => {
+    const { app, admin } = makeAdmin();
+    app.beginMission(MISSIONS[MISSIONS.length - 1].id, 'normal', 5, true);
+    const tanks = () => living(app, 1).filter((u) => u.kind === 'tank' && u.look === 'panzer3l');
+    expect(admin.spawnAt({ what: 'tank', side: 'enemy', count: 10, look: 'panzer3l' }, 3000)).toBe(10);
+    expect(tanks()).toHaveLength(10);
+    expect(tanks().every((u) => u.faction === 'german')).toBe(true);
+    // A look not made for the kind is dropped; the unit comes in its era's look.
+    admin.spawnAt({ what: 'sapper', side: 'mine', count: 1, look: 'panzer3l' }, 1200);
+    expect(living(app, 0).some((u) => u.kind === 'sapper' && u.look === 'panzer3l')).toBe(false);
+    expect(admin.spawnAt({ what: 'rifle', side: 'enemy', count: 50, nation: 'soviet' }, 3000)).toBeGreaterThan(0);
+  });
+
+  it('reports the renderer figures for the debug tab', () => {
+    const { admin } = makeAdmin();
+    const r = admin.info().render;
+    expect(r).toMatchObject({ quality: expect.any(Number), dpr: expect.any(Number) });
+  });
 });

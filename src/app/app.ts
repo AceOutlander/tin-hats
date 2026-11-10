@@ -670,6 +670,15 @@ export class App implements AppApi {
     this.unlockAll();
   }
 
+  /**
+   * The admin panel's jump: start any mission of any campaign on offer, opened or not. Like the unlock, it marks the
+   * session as the admin's, so a win on a mission the real progress has not reached is not recorded.
+   */
+  adminJump(id: number, difficulty: Difficulty): boolean {
+    this.adminUnlocked = true;
+    return this.beginMission(id, difficulty, this.newSeed(), true);
+  }
+
   /** True while every mission is open (the admin panel or the debug hook unlocked them). */
   get missionsUnlocked(): boolean {
     return this.unlockedAll;
@@ -720,9 +729,9 @@ export class App implements AppApi {
     if (toggleLoadout(this.save, kind)) this.persist();
   }
 
-  /** Admin and debug: give charges of every call-in the Shop sells (negative takes them). */
-  giveCharges(n: number): void {
-    for (const c of MEDALS.charges) addCharges(this.save, c.kind, n);
+  /** Admin and debug: give charges of every call-in the Shop sells, or of one (negative takes them). */
+  giveCharges(n: number, kind?: SupportKind): void {
+    for (const c of MEDALS.charges) if (kind === undefined || c.kind === kind) addCharges(this.save, c.kind, n);
     this.persist();
     this.ui?.refresh();
   }

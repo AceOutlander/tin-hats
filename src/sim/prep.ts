@@ -185,6 +185,31 @@ export function applyReady(w: World, si: number): void {
   endPrep(w);
 }
 
+/**
+ * The admin panel (AdminAction 'prep'): 'skip' ends a running prep phase now; 'restart' gives a running one its full
+ * countdown again (the mission clock still waits at the same point), or starts the last prep phase afresh after it
+ * ended (as a later phase's prep does). Returns false when there is no prep phase to act on.
+ */
+export function adminPrep(w: World, op: 'skip' | 'restart'): boolean {
+  const s = w.state;
+  const p = s.prep;
+  if (op === 'skip') {
+    if (p === null || !p.active) return false;
+    endPrep(w);
+    return true;
+  }
+  const def = w.prepDef;
+  if (def === null) return false;
+  if (p !== null && p.active) {
+    const seconds = def.seconds ?? PREP.defaultSeconds;
+    p.total = s.time - p.startedAt + seconds;
+    p.secondsLeft = seconds;
+    return true;
+  }
+  startPhasePrep(w, def);
+  return true;
+}
+
 function endPrep(w: World): void {
   const s = w.state;
   const p = s.prep;
@@ -251,10 +276,14 @@ export function updateBuilds(w: World): void {
   const def = PREP.buildables;
   for (let i = sites.length - 1; i >= 0; i--) {
     const site = sites[i];
-    if (site.worker < 0) continue;
-    const u = units[site.worker];
-    if (Math.abs(u.x - site.x) > PREP.workReach) continue;
-    site.progress = Math.min(1, site.progress + w.dt / def[site.kind].seconds);
+    // The admin panel's instant building: done now, worked on or not.
+    if (s.sides[site.side].cheats.instantBuild) site.progress = 1;
+    else {
+      if (site.worker < 0) continue;
+      const u = units[site.worker];
+      if (Math.abs(u.x - site.x) > PREP.workReach) continue;
+      site.progress = Math.min(1, site.progress + w.dt / def[site.kind].seconds);
+    }
     if (site.progress < 1) continue;
     finish(w, site);
     freeWorker(w, site);

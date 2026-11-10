@@ -6,7 +6,7 @@
  * need to be (the panel only changes the player's own game). The panel's tabs are data: a later job adds an entry to
  * a tab here (and a control for its id in src/ui/admin/panel.ts); an entry with `pending` shows greyed out with that note.
  */
-import type { UnitKind } from './schema';
+import type { FactionId, ForceLookId, SupportKind, UnitKind } from './schema';
 
 /** A spawnable group: one kind, or a squad of several (the King Tiger with its veteran escort). */
 export interface AdminSquadDef {
@@ -32,6 +32,15 @@ export interface AdminTabDef {
   entries: readonly AdminEntryDef[];
 }
 
+/** An era variant the spawn tab offers (ForceDef.look): drawn, named and armed as that look, for the kinds listed. */
+export interface AdminLookDef {
+  look: ForceLookId;
+  label: string;
+  /** The nation it belongs to: the spawned units are that nation's (names, looks, a vehicle's gun). */
+  nation: FactionId;
+  kinds: readonly UnitKind[];
+}
+
 export interface AdminTunables {
   /** SHA-256 (hex) of salt + the passcode, the code trimmed and in lower case (phone keyboards capitalise). */
   passcode: { salt: string; sha256: string };
@@ -50,11 +59,20 @@ export interface AdminTunables {
   fillKind: UnitKind;
   /** Speed buttons (0 = frozen: nothing moves, the panel still works). */
   timeScales: readonly number[];
+  /** Medals the panel gives at a tap (negative = takes, never below zero). */
   medalGrants: readonly number[];
-  /** Upgrade points the panel gives at a tap. */
+  /** Upgrade points the panel gives at a tap (negative = takes). */
   pointGrants: readonly number[];
   /** Charges of every call-in the panel gives at a tap. */
   chargeGrants: readonly number[];
+  /** Charges of one call-in the panel gives at a tap (negative = takes). */
+  chargeSteps: readonly number[];
+  /** The call-ins' names on the charge rows. */
+  chargeNames: Record<SupportKind, string>;
+  /** Spawn as another nation than the side's own (null = the side's own). */
+  spawnNations: readonly { nation: FactionId | null; label: string }[];
+  /** Era variants to spawn (the side's own era look when none is picked). */
+  spawnLooks: readonly AdminLookDef[];
   supplyGrants: readonly number[];
   /** What "infinite" supplies are held at. */
   infiniteSupplies: number;
@@ -79,11 +97,11 @@ export const ADMIN: AdminTunables = {
       id: 'campaign',
       label: 'Campaign',
       entries: [
-        { id: 'unlockMissions', label: 'Missions' },
-        { id: 'unlockCampaigns', label: 'Campaigns and nations', pending: 'Arrives with the campaigns job' },
-        { id: 'jump', label: 'Jump to mission' },
-        { id: 'phase', label: 'Mission phase', pending: 'Arrives with the mission phases job' },
-        { id: 'medals', label: 'Medals, upgrade points, call-in charges' },
+        { id: 'unlockMissions', label: 'Unlock all' },
+        { id: 'jump', label: 'Jump to a mission and phase' },
+        { id: 'medals', label: 'Medals' },
+        { id: 'points', label: 'Upgrade points' },
+        { id: 'charges', label: 'Call-in charges' },
         { id: 'upgrades', label: 'Quartermaster levels' },
         { id: 'save', label: 'Save' },
       ],
@@ -93,10 +111,10 @@ export const ADMIN: AdminTunables = {
       label: 'Battle',
       entries: [
         { id: 'supplies', label: 'Money' },
-        { id: 'instantTrain', label: 'Training' },
-        { id: 'instantBuild', label: 'Instant building', pending: 'Arrives with the prep phase (job 6)' },
-        { id: 'prep', label: 'Prep phase', pending: 'Arrives with the prep phase (job 6)' },
+        { id: 'instantTrain', label: 'Training and building' },
+        { id: 'prep', label: 'Prep phase' },
         { id: 'end', label: 'End the battle' },
+        { id: 'phases', label: 'Mission phases' },
         { id: 'events', label: 'Scripted events' },
         { id: 'difficulty', label: 'Difficulty (restarts)' },
         { id: 'weather', label: 'Weather' },
@@ -128,6 +146,7 @@ export const ADMIN: AdminTunables = {
         { id: 'readout', label: 'Unit counts and AI plan' },
         { id: 'overlays', label: 'On the battlefield' },
         { id: 'revealHp', label: 'Enemy health' },
+        { id: 'renderer', label: 'Renderer' },
       ],
     },
   ],
@@ -145,9 +164,33 @@ export const ADMIN: AdminTunables = {
   ],
   fillKind: 'rifle',
   timeScales: [0, 0.25, 0.5, 1, 2, 4, 8],
-  medalGrants: [10, 100, 1000],
-  pointGrants: [5, 50],
+  medalGrants: [-100, -10, 10, 100, 1000],
+  pointGrants: [-5, 5, 50],
   chargeGrants: [1, 10],
+  chargeSteps: [-1, 1, 10],
+  chargeNames: { smoke: 'Smoke', artillery: 'Artillery', recon: 'Recon plane', fighter: 'Fighter', airStrike: 'Air strike', katyusha: 'Katyusha', bomber: 'Bomber' },
+  spawnNations: [
+    { nation: null, label: 'Own' },
+    { nation: 'soviet', label: 'Soviet' },
+    { nation: 'german', label: 'German' },
+  ],
+  spawnLooks: [
+    { look: 't26', label: 'T-26', nation: 'soviet', kinds: ['lightTank', 'tank'] },
+    { look: 'bt7', label: 'BT-7', nation: 'soviet', kinds: ['lightTank', 'tank'] },
+    { look: 't60', label: 'T-60', nation: 'soviet', kinds: ['lightTank', 'tank'] },
+    { look: 't34', label: 'T-34', nation: 'soviet', kinds: ['tank', 'lightTank'] },
+    { look: 'kv1', label: 'KV-1', nation: 'soviet', kinds: ['tank', 'heavyTank'] },
+    { look: 'kv2', label: 'KV-2', nation: 'soviet', kinds: ['tank', 'heavyTank'] },
+    { look: 'panzer3', label: 'Panzer III E', nation: 'german', kinds: ['lightTank', 'tank'] },
+    { look: 'panzer3h', label: 'Panzer III H', nation: 'german', kinds: ['lightTank', 'tank'] },
+    { look: 'panzer3l', label: 'Panzer III L', nation: 'german', kinds: ['tank', 'lightTank'] },
+    { look: 'panzer4', label: 'Panzer IV', nation: 'german', kinds: ['tank'] },
+    { look: 'panzer4g', label: 'Panzer IV G', nation: 'german', kinds: ['tank'] },
+    { look: 'stug3b', label: 'StuG III B', nation: 'german', kinds: ['tank'] },
+    { look: 'stug3f', label: 'StuG III F', nation: 'german', kinds: ['tank'] },
+    { look: 'skiTroops', label: 'Ski troops', nation: 'soviet', kinds: ['rifle', 'assault'] },
+    { look: 'romanian', label: 'Romanian', nation: 'german', kinds: ['rifle', 'lmg', 'assault', 'mortar', 'at', 'sniper', 'medic'] },
+  ],
   supplyGrants: [500, 5000],
   infiniteSupplies: 99999,
   timesOfDay: [
