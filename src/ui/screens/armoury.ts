@@ -87,7 +87,8 @@ export const armouryScreen: ScreenFactory = (ctx) => {
       aria = `Buy one ${item.name} charge for ${item.price} medals (${item.count ?? 0} held)`;
     } else if (item.type === 'extra') {
       // A price in data only: the unlock itself is never in this repo.
-      label = item.lockedNote ?? 'Locked';
+      // "Coming later" ran 16 px out of the 56 px button (DECISIONS 456): the button says "Soon", the full note is read out.
+      label = item.lockedNote === undefined ? 'Locked' : 'Soon';
       add(price, glyph('medal', 'th-icon th-icon-small'), String(item.price));
       aria = `${item.name}: ${item.price} medals, ${(item.lockedNote ?? 'locked').toLowerCase()}`;
     } else if (item.free) {

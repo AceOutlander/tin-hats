@@ -2,6 +2,14 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Branch sweep (2026-11-09, not merged, not live)
+
+The Stalingrad bug sweep and the Soviet anti-tank units by era (DECISIONS 455 to 458): the AT Rifle Team (PTRD, tracer
+and crack, two men) and the 1941 Tank Hunters (thrown bundles and bottles, button "AT Bundle"); Soviet briefing
+paperwork, nation helmets, labels that fit (Shop, map footer, call-in buttons, phase line, campaign cards), call-in chip
+names, the low sandbag course on the ground; new checks (nation-words, grounded, screen-labels, sim weapons in the era
+test) and `tools/sweep/` for the screenshots (docs/screenshots/sweep-*). For the main session to release.
+
 ## Branch campaign-select (2026-11-09, not merged, not live)
 
 Ready for the main session to release: Play opens a campaign select (Stalingrad, plus D-Day, Road to Berlin and North Africa as greyed "Coming soon" cards), mission numbers 1 to 10 instead of internal ids on every player screen, map names kept clear of markers and edges at phone sizes, Soviet upgrade names and texts in the Stalingrad Quartermaster (per-nation text in src/data/upgradeText.ts), the falling incoming-shell whistle varied per shell, and a pole for every flag (mission HQ roof poles). DECISIONS 442 to 447. Specs moved to the new flow (Play, then the Stalingrad card: helpers toMap / mapToTitle).

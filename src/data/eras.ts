@@ -157,7 +157,7 @@ export const NATION_ERAS: Record<FactionId, readonly NationEraDef[]> = {
       from: '1941-06',
       to: '1941-10',
       names: { at: 'Tank Hunters' },
-      buttonNames: { at: 'AT Grenades' },
+      buttonNames: { at: 'AT Bundle' },
       blurbs: { at: 'Grenade bundles and petrol bottles, thrown from close up: the tank burns where they land. They must let it come near. Poor against infantry.' },
       look: { weapon: { at: 'mosin' }, rocketItem: { at: 'molotov' } },
       arms: { at: 'atGrenades' },

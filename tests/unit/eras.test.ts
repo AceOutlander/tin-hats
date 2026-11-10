@@ -374,7 +374,7 @@ describe('anti-tank units by era (owner, 2026-11-09; DECISIONS 455)', () => {
       expect(fires, `${m.id}`).not.toBe('rocket');
       expect(WEAPONS[fires ?? ''].projectileLook, `${m.id}`).not.toBe('rocket');
       if ((m.dateIso ?? '') < '1941-11') {
-        expect([e.names.at, e.buttonNames.at, fires], `${m.id}`).toEqual(['Tank Hunters', 'AT Grenades', 'atGrenades']);
+        expect([e.names.at, e.buttonNames.at, fires], `${m.id}`).toEqual(['Tank Hunters', 'AT Bundle', 'atGrenades']);
       } else {
         expect([e.names.at, e.buttonNames.at, fires], `${m.id}`).toEqual(['AT Rifle Team', 'AT Rifle', 'atRifle']);
       }

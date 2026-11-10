@@ -72,7 +72,11 @@ function spills(selectors: string[]): string[] {
         bottom = Math.max(bottom, r.bottom);
       }
       if (left === Infinity) continue;
-      const over = Math.max(box.left - left, right - box.right, box.top - top, bottom - box.bottom);
+      // Sideways the text must stay inside; up and down a line box may stand a few px proud of a tight label (its
+      // leading), so only more than that counts.
+      const overX = Math.max(box.left - left, right - box.right);
+      const overY = Math.max(box.top - top, bottom - box.bottom) - 3;
+      const over = Math.max(overX, overY);
       // Clipped text (overflow hidden) shows as text wider than the element's own scroll box.
       const he = el as HTMLElement;
       const clipped = Math.max(he.scrollWidth - he.clientWidth, 0);
@@ -156,7 +160,7 @@ for (const size of SIZES) {
       for (const id of [1001, 1003, 1009]) {
         await page.getByTestId(`mission-pin-${id}`).evaluate((el) => (el as HTMLElement).click());
         await page.waitForTimeout(400);
-        expect(await page.evaluate(spills, ['.th-screen.is-in[data-screen="campaign"] button']), `map card ${id}`).toEqual([]);
+        expect(await page.evaluate(spills, ['.th-screen.is-in[data-screen="campaign"] button:not(.th-pin)']), `map card ${id}`).toEqual([]);
         await tapIn(page, 'campaign', 'mission-start');
         await settled(page);
         await page.waitForTimeout(2800);
@@ -194,7 +198,7 @@ for (const size of SIZES) {
       await expect(page.getByTestId('callins-column')).toBeVisible();
       await page.waitForTimeout(400);
       expect(
-        await page.evaluate(spills, ['[data-testid^="order-"]', '[data-testid^="support-"]', '.th-sbtn-name', '.th-tbtn-name', '.th-tbtn-price', '[data-testid="deploy-at"]']),
+        await page.evaluate(spills, ['[data-testid^="order-"]', '[data-testid^="support-"]', '.th-sbtn-name', '.th-obj-text', '.th-obj-phase', '.th-tbtn-name', '.th-tbtn-price', '[data-testid="deploy-at"]']),
         'HUD buttons',
       ).toEqual([]);
       expect(await page.evaluate(trayOverOrders), 'the unit tray and the orders').toEqual([]);

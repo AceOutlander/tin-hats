@@ -1187,6 +1187,18 @@
   opacity: 1;
 }
 
+/* Narrow phones (667 px wide): "Quartermaster" ran out of its button; tighter type keeps the whole word. */
+@media (max-width: 720px) {
+  .th-side-foot .th-side-qm {
+    padding: 0 2px;
+    letter-spacing: 0;
+  }
+
+  .th-side-foot .th-side-qm .th-btn-label {
+    font-size: 9px;
+  }
+}
+
 /* -------------------------------------------------------------- briefing */
 
 .th-briefing {
