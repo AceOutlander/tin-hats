@@ -20,6 +20,13 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.15.1',
+    items: [
+      'Every flag now flies from a proper flagpole, fixed to the roof, the ground or the sandbags.',
+      'A quick double tap on Play no longer skips past the campaign select.',
+    ],
+  },
+  {
     version: '0.15.0',
     items: [
       'Behind-the-scenes testing tools for the developer. Nothing changes in how the game plays.',
