@@ -315,6 +315,8 @@ export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
       await grantSupplies(page, 800);
       for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
       await tapIfThere(page, 'train-lmg');
+      // Armour on the field: a keen player answers it with anti-tank men (Brest's assault guns; DECISIONS 459).
+      if (s.units[1].tank + s.units[1].heavyTank + s.units[1].lightTank > 0) await tapIfThere(page, 'train-at');
       const survival = s.hq[1] === null;
       if (survival && s.order !== 'hold') await tapIfThere(page, 'order-hold');
       if (!survival && s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');

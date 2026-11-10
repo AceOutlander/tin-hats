@@ -524,6 +524,8 @@ class HudView implements Hud {
   private abilityReady = false;
 
   private readonly pausedFlag: FlagCell;
+  /** The pause overlay: while it is up, everything else in the HUD is inert (covered, so not touchable). */
+  private pauseOverlay: HTMLElement | null = null;
   private paused = false;
 
   // "Show FPS" readout.
@@ -776,6 +778,7 @@ class HudView implements Hud {
 
     // ----- Pause overlay -----
     const overlay = el('div', 'th-pause', root);
+    this.pauseOverlay = overlay;
     const panel = el('div', 'th-pause-panel', overlay);
     el('div', 'th-pause-title', panel, 'Paused');
     this.pauseObjectives = el('div', 'th-pause-objectives', panel);
@@ -951,6 +954,9 @@ class HudView implements Hud {
     if (s.paused !== this.paused) {
       this.paused = s.paused;
       this.pausedFlag.set(s.paused);
+      // The overlay covers the battle's controls: make them inert too, so nothing under it takes a tap or the focus.
+      const ov = this.pauseOverlay;
+      if (ov && ov.parentElement) for (const c of ov.parentElement.children) if (c !== ov) (c as HTMLElement).inert = s.paused;
       if (s.paused) {
         this.releaseInputs();
         this.showPauseObjectives(s.sideObjectives ?? []);
