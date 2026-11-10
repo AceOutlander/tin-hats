@@ -20,6 +20,12 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.15.0',
+    items: [
+      'Behind-the-scenes testing tools for the developer. Nothing changes in how the game plays.',
+    ],
+  },
+  {
     version: '0.14.0',
     items: [
       'Pressing Play now opens a campaign select: Stalingrad, with D-Day, Road to Berlin and North Africa coming soon.',

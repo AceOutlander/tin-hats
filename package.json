@@ -1,7 +1,7 @@
 {
   "name": "tin-hats",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.15.0",
   "type": "module",
   "description": "Tin Hats - a 2D side-view WW2 real-time strategy game for mobile browsers",
   "scripts": {
