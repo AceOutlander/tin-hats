@@ -2,14 +2,26 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
-## Branch brest-at (2026-11-09, not merged, not live)
+## LIVE NOW: Beta v0.16.0 (2026-11-10, read this first)
+
+Released today, each deployed and checked on hunteracedev.com at 844x390 (console clean):
+- v0.13.0: the Stalingrad campaign (site card updated).
+- v0.14.0: campaign select after Play (Stalingrad + D-Day, Road to Berlin, North Africa "Coming soon"), mission numbers 1-10 instead of ids, map labels clear, Soviet upgrade texts per nation, the falling-shell whistle.
+- v0.15.0: the admin panel finished for Stalingrad (jump to any mission and phase, medals/points/charges, prep, era spawns, renderer readout; DECISIONS 448-453).
+- v0.15.1: flagpoles on every flag, double-tap guard on Play.
+- v0.16.0: the bug sweep (DECISIONS 455-459), Soviet AT Rifle Team (PTRD) and the 1941 Tank Hunters ("AT Bundle") who stalk vehicles (DECISIONS 460), German AT rifles until Nov 1943.
+Nothing running; spare worktrees tin-hats-rel and tin-hats-admin2 removed.
+Known and open: the battle-music memory test (about 25 MB over, Phaser canvas textures); the full browser suite has not been run end to end since the sweep; Dubno Hard/Insane a little below the rocket era (75% / 0%); the AT Rifle Team still uses the launcher pose (art job); the Soviet Shop still sells the British "Universal Carrier" (owner to decide); the screenshot sweep can be re-run with tools/sweep.
+Next (docs/QUEUE.md): the difficulty overhaul (Normal, Specialized, Elite), then passives; the trench and fortification art pass is queued for later with the owner's before shot (docs/art-before/).
+
+## Branch brest-at (2026-11-09, merged, live in v0.16.0)
 
 Brest fix after the sweep (DECISIONS 460): the 1941 Tank Hunters stalk an enemy vehicle that stops out of their 130 wu
 reach (within 340 wu: they leave cover and crawl up to throw), and a vehicle's guns cannot pick out a man stalking it.
 The campaign spec's keen player lost Brest because the StuGs shelled the Kholm Gate from 160 wu while the Hunters sat
 in it. For the main session to release together with the sweep.
 
-## Branch sweep (2026-11-09, not merged, not live)
+## Branch sweep (2026-11-09, merged, live in v0.16.0)
 
 The Stalingrad bug sweep and the Soviet anti-tank units by era (DECISIONS 455 to 458): the AT Rifle Team (PTRD, tracer
 and crack, two men) and the 1941 Tank Hunters (thrown bundles and bottles, button "AT Bundle"); Soviet briefing
@@ -17,7 +29,7 @@ paperwork, nation helmets, labels that fit (Shop, map footer, call-in buttons, p
 names, the low sandbag course on the ground; new checks (nation-words, grounded, screen-labels, sim weapons in the era
 test) and `tools/sweep/` for the screenshots (docs/screenshots/sweep-*). For the main session to release.
 
-## Branch campaign-select (2026-11-09, not merged, not live)
+## Branch campaign-select (2026-11-09, merged, live in v0.14.0 and v0.15.1)
 
 Ready for the main session to release: Play opens a campaign select (Stalingrad, plus D-Day, Road to Berlin and North Africa as greyed "Coming soon" cards), mission numbers 1 to 10 instead of internal ids on every player screen, map names kept clear of markers and edges at phone sizes, Soviet upgrade names and texts in the Stalingrad Quartermaster (per-nation text in src/data/upgradeText.ts), the falling incoming-shell whistle varied per shell, and a pole for every flag (mission HQ roof poles). DECISIONS 442 to 447. Specs moved to the new flow (Play, then the Stalingrad card: helpers toMap / mapToTitle).
 
