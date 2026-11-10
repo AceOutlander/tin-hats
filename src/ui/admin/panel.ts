@@ -174,7 +174,7 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
                 jumpDifficulty = d;
                 render();
               },
-              { pressed: d === jumpDifficulty },
+              { pressed: d === jumpDifficulty, testid: `admin-jump-diff-${d}` },
             ),
           ),
           btn('Go', () => run({ type: 'jump', missionId: jumpMission, difficulty: jumpDifficulty, ...(jumpPhase ? { phase: jumpPhase } : {}) }), { testid: 'admin-jump-go' }),
