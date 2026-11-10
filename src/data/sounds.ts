@@ -137,6 +137,12 @@ export interface SoundDef {
   reach: number;
   /** Buffers rendered with different random draws; one is picked per play. */
   variants: number;
+  /**
+   * Up to this many seconds of the start are skipped, a random amount per play (render side): the sound is heard
+   * shorter but still ends when it would have. The incoming whistle uses it so each shell's whistle has its own length
+   * and still cuts into that shell's blast at impact (with pitchJitter 0, which would stretch it past the hit).
+   */
+  startSkip?: number;
   /** Part of the gunfire bed: routed through the bus that blasts duck. Small arms and their impacts. */
   bed?: boolean;
   /**
@@ -473,18 +479,21 @@ export const SOUNDS = {
   ),
 
   /**
-   * A shell from guns off the map, falling (owner, 2026-11-09): a whistle that swells and rises in pitch for the whole
-   * fall and stops as it lands. Its length is the shell's fall (OFF_MAP in src/data/supports.ts, 1.6 s). Played for the
-   * enemy's shells as loud as for the player's: it is the warning to take cover.
+   * A shell from guns off the map, falling: the classic falling-shell whistle (owner, 2026-11-09, reversing the rising
+   * whistle he first asked for). It starts high and quiet and drops in pitch while it swells as the shell comes down,
+   * and cuts straight into the blast at impact. Its length is the shell's fall (OFF_MAP in src/data/supports.ts, 1.6 s).
+   * No two shells of a barrage sound alike: four renders with their own pitch, and each play skips a random part of the
+   * quiet start (startSkip) so it is shorter, yet still ends at that shell's impact; no playback-rate jitter, which would
+   * stretch it past the hit. Played for the enemy's shells as loud as for the player's: it is the warning to take cover.
    */
   incomingWhistle: sound(
     [
-      tone('sine', 640, 0.55, 1.42, 0.15, 0.03, { freqEnd: 1550, decayShape: 'lin', vibrato: { rate: 9, depth: 9 } }),
-      tone('triangle', 1290, 0.12, 1.42, 0.15, 0.03, { freqEnd: 3120, decayShape: 'lin' }),
-      noise('white', 0.22, 1.42, 0.15, 0.03, { decayShape: 'lin', filter: bp(1100, 4, 2700) }),
+      tone('sine', 1650, 0.55, 1.47, 0.12, 0.01, { freqEnd: 560, decayShape: 'lin', vibrato: { rate: 9, depth: 9 }, jitter: { freq: 0.07 } }),
+      tone('triangle', 3300, 0.12, 1.47, 0.12, 0.01, { freqEnd: 1120, decayShape: 'lin', jitter: { freq: 0.07 } }),
+      noise('white', 0.22, 1.47, 0.12, 0.01, { decayShape: 'lin', filter: bp(2700, 4, 1100) }),
     ],
     0.32,
-    { minInterval: 0.15, maxVoices: 4, pitchJitter: 0.02, reach: 3 },
+    { minInterval: 0.15, maxVoices: 4, pitchJitter: 0, reach: 3, variants: 4, startSkip: 0.45 },
   ),
 
   /** A Katyusha or Nebelwerfer rocket coming in from off the map: a rising, warbling shriek over its 1.3 s fall. */
@@ -1074,6 +1083,14 @@ export const SFX = {
 } as const;
 
 /** Seconds from the start of a sound to the end of its last layer, allowing for the latest random start. */
+/**
+ * How much of the start of a play is skipped (seconds of the buffer) for a random draw `r` in 0..1: def.startSkip
+ * scaled by `r`, never more than half the sound. The play starts that much later, so it still ends on time.
+ */
+export function startSkipOf(def: SoundDef, duration: number, r: number): number {
+  return def.startSkip ? Math.min(duration * 0.5, r * def.startSkip) : 0;
+}
+
 export function soundDuration(def: SoundDef): number {
   let end = 0;
   for (const layer of def.layers) {
