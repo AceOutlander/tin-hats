@@ -20,6 +20,18 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.13.0',
+    items: [
+      'New campaign: Stalingrad. Ten long Red Army missions, from Brest Fortress in 1941 to Operation Ring in 1943.',
+      'Missions have phases, objectives, capture points, ruined buildings, weather, night, rivers, bridges and minefields.',
+      'Defensive missions start with a prep phase to build wire, foxholes, trenches and pillboxes.',
+      'Call-ins are now charges bought with medals in the Shop. Pick your loadout before each mission.',
+      'Upgrades use their own upgrade points, earned by winning missions. Your levels and medals were kept.',
+      'Artillery fires from off the map: shells whistle in and land one by one. Tank guns hit much harder but reload slowly.',
+      'New Basic Training, a music track for every mission, Begin starts in under 2 seconds, and unit labels always fit.',
+    ],
+  },
+  {
     version: '0.12.0',
     items: [
       'Units are unlocked by playing the missions again, not bought. Once unlocked, a unit can be used in every mission.',
