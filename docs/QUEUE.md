@@ -480,7 +480,7 @@ Added (owner, 2026-11-09; later, not now), verbatim: "fortifications look like s
 - Sandbag positions are currently a tall, perfectly square block of bags with a dark rectangle behind them. Make them low, chest-high, irregular piles: a rounded, slightly uneven top line, bags of varied size and angle, sloping sides, and no dark box behind. They should sit naturally on the ground line, with soldiers visible from the chest up firing over the top.
 - Apply the same idea to trenches, pillboxes and everything built in the prep phase: no hard rectangles. Use natural, slightly irregular shapes, mounded earth, and parapets that blend into the ground.
 - Include this screenshot's problem as a before example when you do the pass."
-Note: the owner's screenshot did not come through with the message. When the pass starts, take "before" shots of a sandbag position, a trench, a pillbox and the prep-phase builds in the live build (Beta v0.13.x) at 844x390, and ask the owner for the original screenshot if it is still wanted.
+Before example (the owner's screenshot, Beta v0.13.0): docs/art-before/sandbags-square-block.png. A tall square wall of identical bags with a dark box behind it, taller than the soldiers, who are hidden behind it and stand beside it, with a flag floating to its left. Show it next to the after shot. When the pass starts, also take before shots of a trench, a pillbox and the prep-phase builds at 844x390.
 
 ## Rename the resource to Money
 
