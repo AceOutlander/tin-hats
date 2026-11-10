@@ -476,6 +476,12 @@ Each mission gets a short briefing and a campaign map location. Check the histor
 - The flag floats off to the left on its own.
 - It still needs the skipped extras: climbing in and out, tanks bumping over, and big positions split into several pits."
 
+Added (owner, 2026-11-09; later, not now), verbatim: "fortifications look like squares and boxes.
+- Sandbag positions are currently a tall, perfectly square block of bags with a dark rectangle behind them. Make them low, chest-high, irregular piles: a rounded, slightly uneven top line, bags of varied size and angle, sloping sides, and no dark box behind. They should sit naturally on the ground line, with soldiers visible from the chest up firing over the top.
+- Apply the same idea to trenches, pillboxes and everything built in the prep phase: no hard rectangles. Use natural, slightly irregular shapes, mounded earth, and parapets that blend into the ground.
+- Include this screenshot's problem as a before example when you do the pass."
+Note: the owner's screenshot did not come through with the message. When the pass starts, take "before" shots of a sandbag position, a trench, a pillbox and the prep-phase builds in the live build (Beta v0.13.x) at 844x390, and ask the owner for the original screenshot if it is still wanted.
+
 ## Rename the resource to Money
 
 "Rename the resource to Money: sappers still carry boxes, but every supply label, icon and text becomes money."
