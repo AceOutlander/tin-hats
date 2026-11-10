@@ -2,6 +2,12 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## LIVE: Beta v0.13.0, the Stalingrad campaign (2026-11-09)
+
+The owner said to push Stalingrad live. Branch stalingrad (final check commit 11e41f9) merged into main (60a376a), version bumped (4b63039), deployed and checked on hunteracedev.com: the service worker is active, mission 1006 starts at 844x390, the console is clean. The site card now describes the Stalingrad campaign (hunteracedev 103c55d).
+Checks before the push: `npm run check` passed (typecheck, lint, build, 1831/1831 unit tests); test:balance 207/207 (before the last fixes). The full browser suite ran once before the final fixes (98 of 135 passed); 35 of the failures were fixed but not re-run, and 2 known failures remain (battle memory about 25 MB over budget from Phaser canvas textures; Brest's briefing no longer fits 844x390 without scrolling). See docs/MORNING_REPORT.md.
+Next: the Armoury and Shop inside the campaign (QUEUE.md), then the difficulty overhaul, then passives. Re-run the browser suite as part of the next job.
+
 ## Done
 - Phase 0: project-local toolchain (Node 24, git, Chromium for Playwright in `.tools`), Vite + TypeScript + Phaser 4.2.1 scaffold, ESLint, Vitest and Playwright configs, shared contracts (`src/data/schema.ts`, `src/data/view.ts`, `src/data/factions.ts`, `src/ui/contracts.ts`, `src/art/types.ts`), docs (`PLAN.md`, `DESIGN.md`, `AGENT_GUIDE.md`, `DECISIONS.md`).
 - Phase 1 foundations (merged earlier, per-track notes in `docs/progress/`):

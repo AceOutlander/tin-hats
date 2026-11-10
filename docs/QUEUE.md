@@ -5,6 +5,13 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
+## NEXT after Stalingrad went live (v0.13.0): Armoury and Shop inside the campaign (owner, 2026-11-09)
+
+Owner, verbatim: "Change: the Armoury (and the Shop) opens from inside a campaign, after I select it, not from a general menu.
+- It shows the selected campaign's nation: its unit names, uniforms, vehicles, upgrade visuals and call-ins. The Stalingrad campaign shows Soviet units, for example.
+- Unlocks, upgrade points, upgrades and medals stay shared across campaigns, as decided before. The Armoury just shows them as that nation's versions."
+Then: "since there's only stalingrad, actually do this after stalingrad is live." Order: this first, then the difficulty overhaul (job 9), then passives.
+
 ## Current order (owner, 2026-11-08, latest; overrides the build order below where they differ)
 
 "1. Finish the lag fixes and the playtest fixes, and push them live.
