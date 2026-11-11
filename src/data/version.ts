@@ -20,6 +20,13 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.0',
+    items: [
+      'The game now updates itself: when a new version is out it shows "Updating…" and loads it, never during a battle.',
+      'The German flag is now the Iron Cross. German vehicles keep their straight-armed cross markings.',
+    ],
+  },
+  {
     version: '0.16.0',
     items: [
       'The Soviet anti-tank unit is now the AT Rifle Team: two men with the long PTRD rifle, no rockets.',
