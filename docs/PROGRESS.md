@@ -2,7 +2,18 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
-## LIVE NOW: Beta v0.16.0 (2026-11-10, read this first)
+## LIVE NOW: Beta v0.17.0 (2026-11-11, read this first)
+
+v0.17.0 (deployed and checked on hunteracedev.com at 844x390, console clean): the game updates itself (DECISIONS 461:
+asks for a new version at launch and when the tab comes back, "Updating…" note, reload; never on the briefing, battle or
+result screens) and the German flag is the Iron Cross (DECISIONS 462; vehicles keep the Balkenkreuz).
+
+IN PROGRESS: the British D-Day campaign (owner, 2026-11-11; spec verbatim in docs/QUEUE.md "NOW ... 3."). Branch `dday`
+in the worktree C:dev	in-hats-dday, one job at a time, NOT live until the owner says "push to live". Budget: the rest
+of the week's usage, keeping about 10% of the weekly limit in reserve (stop at about 90%; the week resets Sunday
+2026-11-15). Its own progress notes are in docs/campaigns/DDAY_BUILD.md on that branch.
+
+## Earlier: Beta v0.16.0 (2026-11-10)
 
 Released today, each deployed and checked on hunteracedev.com at 844x390 (console clean):
 - v0.13.0: the Stalingrad campaign (site card updated).
