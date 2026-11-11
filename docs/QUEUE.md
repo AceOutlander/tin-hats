@@ -694,6 +694,30 @@ not installed on this PC yet (a JDK is: Eclipse Adoptium 25 is on PATH); install
 job. The upload signing key must be created and kept outside every repo, and its backup is the owner's responsibility
 (add it to the owner's checklist).
 
+### Added to the Google Play publishing job (owner, 2026-11-11): medal packs
+
+Owner, verbatim: "Add to the Google Play publishing job in docs/QUEUE.md (at the end, app only, never in the free website version):
+
+## Medal packs for real money (Google Play Billing, consumable purchases)
+- Prices in CAD, with Google Play converting for other countries. Bigger packs give bonus medals:
+  - $0.99: 150 medals
+  - $2.99: 500 medals
+  - $4.99: 900 medals
+  - $9.99: 2,000 medals
+  - $19.99: 4,500 medals
+  Keep all packs and prices in data, so I can change them easily.
+- Buying Poland directly ($5.99) must always stay a better deal than buying its 1,500 medals with packs.
+- Medals still can't buy permanent power: upgrades use their own points, and medals only buy call-in charges and extras.
+- Paid medals must never be lost: add a cloud save tied to the player's Google account (Google Play Games saved games), so medals, purchases and progress survive reinstalling or switching phones. Verify every purchase properly before granting medals.
+- Show the packs in the Shop with clear prices and no pressure tactics: no fake timers or "only 2 left".
+- The admin panel can simulate purchases in a test mode, never granting real ones."
+
+Notes for the implementer:
+- OPEN QUESTION for the owner: this says Poland costs 1,500 medals, but the price in the game is 2,999 (owner, 2026-11-09, DECISIONS 439, `MEDALS.polandPrice`). Asked on 2026-11-11; until answered, 2,999 stands. The "better deal" rule holds at either price: the cheapest packs for 2,999 medals cost $15.97 (2,000 + 900 + 150) and for 1,500 medals $8.97 (3 x 500), both well above $5.99. Add a data test that fails if a change to the packs or to Poland's medal price ever makes packs the cheaper way.
+- Medals per dollar rise with pack size (about 152, 167, 180, 200, 225), so "bigger packs give bonus medals" holds; test that too.
+- As with every paid item: no payment code and no pack data in the public repo or the website build; it lives in the private repo and the Android build only. Purchases are verified with Google Play (server-side or Play Integrity plus purchase tokens, acknowledged and consumed only after the medals are granted and saved to the cloud save); a purchase interrupted mid-way must be completed or refunded at next launch, never lost.
+- Add the cloud save (Play Games saved games) and its conflict rule (never lose paid medals or purchases: take the higher of each purchased total, merge progress) to the data safety answers and the privacy policy page.
+
 ## Paid add-on: Poland 1939 campaign (very last; after the French and German campaigns)
 
 Price update (owner, 2026-11-08, later): **$5.99** (was $4.99); still unlockable with 2,999 medals instead.
