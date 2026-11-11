@@ -41,7 +41,7 @@ export function planeShadowKey(kind: PlaneKind): string {
 
 function paintBomber(ctx: Ctx, f: FactionId): void {
   const S = skin(f);
-  const german = FACTIONS[f].look.flag === 'balkenkreuz';
+  const german = FACTIONS[f].look.flag === 'ironCross';
   // Tailplane behind.
   rimmed(ctx, (c) => ellipse(c, -118, -6, 20, 3), C.ink, RIM, 0, 1);
   const body = (c: Ctx): void => {
@@ -116,7 +116,7 @@ function paintBomber(ctx: Ctx, f: FactionId): void {
 
 function paintFighter(ctx: Ctx, f: FactionId): void {
   const S = skin(f);
-  const german = FACTIONS[f].look.flag === 'balkenkreuz';
+  const german = FACTIONS[f].look.flag === 'ironCross';
   rimmed(ctx, (c) => ellipse(c, -70, -5, 13, 2.4), C.ink, RIM, 0, 1);
   const body = (c: Ctx): void => {
     c.beginPath();

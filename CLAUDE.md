@@ -66,5 +66,7 @@ Keep it that way (the asset base stays relative, `./`).
   `docs/PROGRESS.md` current and commit after every task.
 - Never weaken or skip a test to get a green run, and never report something as working unless it was run and seen to pass.
 - All tunable numbers live in `src/data`. `src/sim`, `src/data` and `src/meta` stay headless (no Phaser, no DOM).
-- No external art or audio. No Nazi party symbols anywhere; the German flag is the plain Balkenkreuz.
+- No external art or audio. No Nazi party symbols anywhere; the German flag is the Iron Cross (a black cross
+  with flared arms and a white edge, centred; owner, 2026-11-11, every campaign), and German vehicles and aircraft carry the
+  plain straight-armed Balkenkreuz.
 - Nothing personal goes into the repo: no local paths, no personal email addresses, no binaries beyond the app icons.

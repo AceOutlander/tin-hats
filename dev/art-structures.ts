@@ -441,7 +441,7 @@ function hqScene(ctx: Ctx, t: number): void {
     const gy = y0 + 250;
     stage(ctx, y0, y0 + STAGE_H, gy);
     const L = HQ_LAYOUT[faction];
-    const flag = faction === 'british' ? FLAG_KEYS.unionJack : FLAG_KEYS.balkenkreuz;
+    const flag = faction === 'british' ? FLAG_KEYS.unionJack : FLAG_KEYS.ironCross;
     DAMAGE_STATES.forEach((state: DamageState, col) => {
       const cx = 215 + col * 385;
       put(ctx, hqKey(faction, state), cx, gy);
@@ -755,7 +755,7 @@ function sovietScene(ctx: Ctx): void {
 function flagsScene(ctx: Ctx, t: number): void {
   stage(ctx, 0, 340, 300);
   const k = 3;
-  const keys = [FLAG_KEYS.unionJack, FLAG_KEYS.balkenkreuz, FLAG_KEYS.sovietRed];
+  const keys = [FLAG_KEYS.unionJack, FLAG_KEYS.ironCross, FLAG_KEYS.sovietRed];
   keys.forEach((key, i) => {
     const x = 20 + i * 190;
     const r = sprite(key);

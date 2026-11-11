@@ -2,23 +2,27 @@
  * Flags: flat SpriteSpecs plus the pure wave function the renderer uses to
  * draw a flag as FLAG_LAYOUT.strips vertical strips.
  *
- * The German flag is a plain Balkenkreuz (straight-armed black cross with a
- * white outline) on field grey. The Soviet flag is the red flag with the gold
+ * The German flag is the Iron Cross (a black cross with flared arms and a
+ * white edge) centred on field grey (owner, 2026-11-11, for every campaign);
+ * vehicles and aircraft keep the straight-armed Balkenkreuz. The Soviet flag is the red flag with the gold
  * hammer and sickle and the gold-edged star in the canton. No other symbol is
  * drawn anywhere.
  */
 import { ART_COLORS as C, FLAG_LAYOUT } from '../../data/artLayout';
 import type { FactionLook } from '../../data/schema';
-import { type Ctx, balkenkreuz, makeSpec, poly, redStar } from '../props/kit';
+import { type Ctx, ironCross, makeSpec, poly, redStar } from '../props/kit';
 import type { SpriteSpec } from '../types';
 
 export type FlagId = FactionLook['flag'];
 
 export const FLAG_KEYS: Record<FlagId, string> = {
   unionJack: 'st/flag/unionJack',
-  balkenkreuz: 'st/flag/balkenkreuz',
+  ironCross: 'st/flag/ironCross',
   sovietRed: 'st/flag/sovietRed',
 };
+
+/** The Iron Cross's size on the German flag, as a share of the flag's height. */
+export const IRON_CROSS_FLAG_SHARE = 0.7;
 
 const FLAG_BOX = { w: FLAG_LAYOUT.w, h: FLAG_LAYOUT.h, ox: 0, oy: 0 };
 
@@ -84,12 +88,12 @@ function paintUnionJack(ctx: Ctx): void {
   ctx.restore();
 }
 
-function paintBalkenkreuzFlag(ctx: Ctx): void {
+function paintIronCrossFlag(ctx: Ctx): void {
   const w = FLAG_LAYOUT.w;
   const h = FLAG_LAYOUT.h;
   ctx.fillStyle = C.flagFieldGrey;
   ctx.fillRect(0, 0, w, h);
-  balkenkreuz(ctx, w / 2, h / 2, h * 0.6);
+  ironCross(ctx, w / 2, h / 2, h * IRON_CROSS_FLAG_SHARE);
 }
 
 /**
@@ -132,7 +136,7 @@ function paintSovietRed(ctx: Ctx): void {
 export function flagSpecs(): SpriteSpec[] {
   return [
     makeSpec(FLAG_KEYS.unionJack, FLAG_BOX, paintUnionJack),
-    makeSpec(FLAG_KEYS.balkenkreuz, FLAG_BOX, paintBalkenkreuzFlag),
+    makeSpec(FLAG_KEYS.ironCross, FLAG_BOX, paintIronCrossFlag),
     makeSpec(FLAG_KEYS.sovietRed, FLAG_BOX, paintSovietRed),
   ];
 }

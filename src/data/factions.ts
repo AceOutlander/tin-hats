@@ -123,7 +123,7 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
       helmet: 'stahlhelm',
       tint: '#5d6964',
       tintDark: '#3d4643',
-      flag: 'balkenkreuz',
+      flag: 'ironCross',
       tank: 'panzer4',
       heavyTank: 'kingTiger',
     },

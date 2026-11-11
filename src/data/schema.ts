@@ -248,7 +248,7 @@ export interface FactionLook {
   tint: string;
   tintDark: string;
   /** sovietRed = the red flag with the gold hammer and sickle and the gold-edged star (NATIONS.md section 1). */
-  flag: 'unionJack' | 'balkenkreuz' | 'sovietRed';
+  flag: 'unionJack' | 'ironCross' | 'sovietRed';
   tank: 'churchill' | 'panzer4' | 't34';
   heavyTank: 'churchill' | 'kingTiger' | 'kv1';
 }

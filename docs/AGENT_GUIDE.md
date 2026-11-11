@@ -63,7 +63,7 @@ Do not edit files outside the paths you were given, except to add a line to the 
 - Hot paths (sim tick, per-frame render and HUD update) must not allocate: pool and reuse objects, no closures or array literals in inner loops.
 - Phaser is version 4.2.1. Do not assume Phaser 3 APIs: check `node_modules/phaser/types/phaser.d.ts` and the source in `node_modules/phaser/src` before using anything.
 - No external art or audio files. Draw with Canvas 2D in code, synthesise sound with WebAudio.
-- Content must be original. No swastikas, SS runes or other Nazi party symbols in art, text or UI; the German flag is the plain Balkenkreuz (straight-armed black cross, white outline).
+- Content must be original. No swastikas, SS runes or other Nazi party symbols in art, text or UI; the German flag is the Iron Cross (a black cross with flared arms widening toward the ends and a white edge, centred on the flag; `ironCross` in src/art/props/kit.ts; owner, 2026-11-11, for every campaign, current and future), and German vehicles and aircraft carry the plain Balkenkreuz (straight-armed black cross, white outline).
 - Tests: never weaken, skip or delete a test to get a green run. Fix the code, or fix a test that is genuinely wrong and say so. Never report something as working unless you ran it and saw it pass.
 
 ## Art rule: lines across the battlefield are drawn end-on

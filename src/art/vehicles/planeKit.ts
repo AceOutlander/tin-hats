@@ -38,7 +38,8 @@ function roundel(ctx: Ctx, x: number, y: number, r: number): void {
 
 export function marking(ctx: Ctx, f: FactionId, x: number, y: number, r: number): void {
   const flag = FACTIONS[f].look.flag;
-  if (flag === 'balkenkreuz') balkenkreuz(ctx, x, y, r * 1.7);
+  // German aircraft carry the straight-armed Balkenkreuz (the flag is the Iron Cross).
+  if (flag === 'ironCross') balkenkreuz(ctx, x, y, r * 1.7);
   else if (flag === 'sovietRed') redStar(ctx, x, y, r * 1.1);
   else roundel(ctx, x, y, r);
 }

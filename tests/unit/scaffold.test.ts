@@ -18,7 +18,7 @@ describe('shared data', () => {
   it('gives the two factions different looks', () => {
     expect(FACTIONS.british.look.helmet).not.toBe(FACTIONS.german.look.helmet);
     expect(FACTIONS.british.look.flag).toBe('unionJack');
-    expect(FACTIONS.german.look.flag).toBe('balkenkreuz');
+    expect(FACTIONS.german.look.flag).toBe('ironCross');
   });
 
   it('has one row offset and scale per depth row, drawn back to front', () => {

@@ -428,6 +428,62 @@ export function balkenkreuz(ctx: Ctx, x: number, y: number, size: number): void 
   ctx.fillRect(x - bar / 2, y - arm, bar, size);
 }
 
+/** The Iron Cross's proportions, as shares of its size: each arm's half-width at the centre, at its end, and the white edge. */
+export const IRON_CROSS = { waist: 0.09, end: 0.26, edge: 0.07, flare: 0.5 } as const;
+
+/**
+ * The outline of an Iron Cross (cross pattée) of the given size centred on (0, 0): four arms that are narrow at the
+ * centre and widen toward their ends. Each entry is a corner; `curve` is the control point of the concave side that
+ * leads to it (the sides between an arm's end and the centre are curved, the ends are straight).
+ */
+export function ironCrossOutline(size: number): { x: number; y: number; curve: { x: number; y: number } | null }[] {
+  const a = size / 2;
+  const n = size * IRON_CROSS.waist;
+  const e = size * IRON_CROSS.end;
+  const k = a * IRON_CROSS.flare;
+  // One arm (pointing up), then turned a quarter three times.
+  const arm = [
+    { x: -e, y: -a, curve: { x: -n, y: -k } },
+    { x: e, y: -a, curve: null },
+    { x: n, y: -n, curve: { x: n, y: -k } },
+  ];
+  const out: { x: number; y: number; curve: { x: number; y: number } | null }[] = [];
+  for (let q = 0; q < 4; q++) {
+    for (const p of arm) {
+      let { x, y } = p;
+      let c = p.curve ? { ...p.curve } : null;
+      for (let i = 0; i < q; i++) {
+        [x, y] = [-y, x];
+        if (c) c = { x: -c.y, y: c.x };
+      }
+      out.push({ x: x + 0, y: y + 0, curve: c ? { x: c.x + 0, y: c.y + 0 } : null });
+    }
+  }
+  return out;
+}
+
+/**
+ * An Iron Cross centred on (x, y): a black cross with flared arms and a white edge. The German flag (owner,
+ * 2026-11-11); vehicles and aircraft keep the straight-armed Balkenkreuz.
+ */
+export function ironCross(ctx: Ctx, x: number, y: number, size: number): void {
+  const pts = ironCrossOutline(size);
+  const last = pts[pts.length - 1];
+  ctx.beginPath();
+  ctx.moveTo(x + last.x, y + last.y);
+  for (const p of pts) {
+    if (p.curve) ctx.quadraticCurveTo(x + p.curve.x, y + p.curve.y, x + p.x, y + p.y);
+    else ctx.lineTo(x + p.x, y + p.y);
+  }
+  ctx.closePath();
+  ctx.lineJoin = 'miter';
+  ctx.lineWidth = size * IRON_CROSS.edge * 2;
+  ctx.strokeStyle = C.flagWhite;
+  ctx.stroke();
+  ctx.fillStyle = C.flagBlack;
+  ctx.fill();
+}
+
 /** The path of a five-pointed star of outer radius r centred on (x, y), one point straight up. */
 export function starPath(ctx: Ctx, x: number, y: number, r: number): void {
   const inner = r * 0.4;

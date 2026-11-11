@@ -233,7 +233,7 @@ describe('structure, vehicle and prop sprite specs', () => {
     expectBox(TRENCH_KEYS.backCapL, { w: TRENCH_LAYOUT.capW, h: TRENCH_LAYOUT.backH, ox: 0, oy: TRENCH_LAYOUT.backOy });
     expectBox(TRENCH_KEYS.frontCapR, { w: TRENCH_LAYOUT.capW, h: TRENCH_LAYOUT.frontH, ox: 0, oy: TRENCH_LAYOUT.frontOy });
     expectBox(FLAG_KEYS.unionJack, { w: FLAG_LAYOUT.w, h: FLAG_LAYOUT.h, ox: 0, oy: 0 });
-    expectBox(FLAG_KEYS.balkenkreuz, { w: FLAG_LAYOUT.w, h: FLAG_LAYOUT.h, ox: 0, oy: 0 });
+    expectBox(FLAG_KEYS.ironCross, { w: FLAG_LAYOUT.w, h: FLAG_LAYOUT.h, ox: 0, oy: 0 });
   });
 
   it('draw something, keep save and restore balanced, leave no state behind, and draw the same way twice', () => {
