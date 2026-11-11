@@ -5,6 +5,54 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
+## NOW (owner, 2026-11-11), in this order
+
+### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
+Owner, verbatim: "Players can get stuck on an old cached version of the game. When a new version is live, the game should notice on launch, show a short "Updating..." note, and load the new version automatically, without anyone needing to close tabs or clear anything. Push this with the next update."
+
+### 2. German flag: the Iron Cross
+Owner, verbatim: "Change the German flag everywhere (HQs, buildings, capture points, campaign maps, campaign select): use the Iron Cross, a black cross with flared arms widening toward the ends and a white edge, centred on the flag. No swastika or any other Nazi symbol anywhere, as always. German vehicles can keep the straight-armed Balkenkreuz markings, which is historically accurate for vehicles. Apply this to every campaign, current and future."
+
+### 3. The British D-Day campaign (own branch; NOT live until the owner says "push to live")
+Owner, verbatim: "New goal: use the rest of this week's usage to build the British D-Day campaign, and make it great. Keep about 10% of the weekly limit in reserve for urgent fixes. Work one job at a time, on its own branch, and don't push it live until I've checked it and said "push to live".
+
+## The campaign (10 missions, June to August 1944; check the history before writing anything)
+1. Pegasus Bridge, night of 5–6 June: a glider assault to seize the bridges, then hold them until relieved. Uses the prep phase.
+2. Merville Battery: paratroopers knock out the coastal guns before the landings.
+3. Gold Beach: land under fire and break through the beach defences.
+4. Sword Beach: push inland from the beach.
+5. The Hillman strongpoint: a heavily fortified bunker complex.
+6. Villers-Bocage, 13 June: a fight against Tiger tanks in a Norman town.
+7. Operation Epsom and Hill 112, late June.
+8. Operation Charnwood: the assault on Caen, July.
+9. Operation Goodwood: a huge armoured attack, July. King Tigers can appear from here.
+10. Closing the Falaise Pocket, August: the final push.
+
+## Requirements
+- Each mission runs 15–30 minutes, with phases, side objectives, capture points, scripted events, weather and time of day, as built for Stalingrad. Missions where you hold out get the prep phase.
+- British units and uniforms for 1944, matching the reference images I sent before: dish helmets with netting, battledress, webbing, Bren, Sten, PIAT, Churchill, Cromwell and Sherman Firefly where accurate, airborne troops in their own kit for Pegasus Bridge and Merville.
+- Era-correct Germans: Panzer IV, StuG, Tigers, Panthers, King Tigers only from Goodwood on, bunkers and beach obstacles. Late-war German uniforms. No SS or Nazi symbols.
+- Unlocks per mission, with "New unit" briefing cards only for what that mission unlocks. Briefings with intel.
+- A campaign map of Normandy, with mission numbers 1–10, never internal IDs.
+- Music for every mission. Reuse the old Sword Beach and Hill 112 tracks where they fit, and write new ones for the rest.
+- The D-Day card on the campaign select becomes playable; the others stay "Coming soon".
+- Tune each mission with the bots on Normal only. The difficulty overhaul comes later.
+
+## Check your own work before telling me it's done
+Look at screenshots of every mission, the map, the Armoury, the Shop and every briefing, and fix anything matching the bugs I found in Stalingrad:
+- the wrong nation's words or pictures (like Soviet or old British leftovers)
+- floating flags without poles
+- internal IDs shown to players
+- out-of-era weapons or vehicles
+- cut-off labels
+- boxy, square-looking fortifications
+- obstacles drawn flat along the ground instead of end-on
+- anything covering the battlefield
+Run the full checks, including the browser tests on a phone-sized screen.
+
+When it's done, write a short report: what's built, a screenshot of each mission, known issues, and which 3 missions I should play first."
+(The headings above are the owner's own, inside the quote.)
+
 ## DONE on branch `sweep`, commit 5c4f0ed (DECISIONS 455): Soviet anti-tank units by era (owner, 2026-11-09)
 
 Owner, verbatim: "Bug: the Soviet "Tank Hunters" fire rockets, which is wrong. The Soviets had no shoulder-fired rocket launchers in this period, and the button label "Hunters" doesn't tell players what the unit is.

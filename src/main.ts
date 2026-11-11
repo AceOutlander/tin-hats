@@ -10,7 +10,7 @@ import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
 import { browserStorage, createFlagPainter, createIconPainter, createUpgradePainter, installPageGuards, showUnreleased } from './app/page';
 import { withStorageFallback } from './meta';
-import { registerServiceWorker } from './pwa';
+import { registerServiceWorker, reportScreen } from './pwa';
 import { createBattleView } from './render';
 import { createUi } from './ui';
 import { installAdminUi } from './ui/admin';
@@ -44,6 +44,8 @@ async function boot(): Promise<void> {
     createHud,
     onScreen: (screen) => {
       app.onScreen(screen);
+      // A new version of the game waits for the battle screens to be left (src/pwa).
+      reportScreen(screen);
       admin.screenChanged();
     },
     onPortrait: (portrait) => {

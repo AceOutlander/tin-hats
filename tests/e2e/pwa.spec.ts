@@ -1,7 +1,8 @@
 /**
  * PWA checks on the production build: the manifest and its icons, the service worker (installs, takes control,
  * precaches the whole build), offline play (a reload with the network cut still boots to the title screen and a mission
- * runs), and the update flow (a new version waits while a battle runs and takes over at the next launch).
+ * runs), and the update flow (a new version waits while a battle runs and takes over at the next launch; an open tab
+ * moves to every new version by itself behind a short "Updating…" note, as soon as the battle screens are left).
  * Needs `npm run build` first, like the other browser specs.
  */
 import { copyFileSync, createReadStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -10,7 +11,8 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { arrived, expect, open, setTimeScale, startMission, state, test, waitForState } from './helpers';
+import { UPDATE_NOTE_TEXT } from '../../src/pwa';
+import { arrived, expect, open, setTimeScale, startMission, state, tap, test, waitForState } from './helpers';
 
 /** The build under test (a copy of it is served in the update test). TH_DIST lets a run use a build made elsewhere. */
 const DIST = resolve(process.env.TH_DIST ?? 'dist');
@@ -149,7 +151,7 @@ test.describe('PWA', () => {
     const text = await res.text();
     const calls = [...text.matchAll(/skipWaiting\(\)/g)];
     expect(calls.length).toBeGreaterThan(0);
-    // Every call sits inside the SKIP_WAITING message handler, which only the page's launch code sends.
+    // Every call sits inside the SKIP_WAITING message handler, which the page sends only outside the battle screens.
     for (const m of calls) {
       const before = text.slice(Math.max(0, (m.index ?? 0) - 90), m.index ?? 0);
       expect(before).toContain('SKIP_WAITING');
@@ -215,7 +217,123 @@ async function workerTag(page: Page): Promise<string> {
       }),
   );
 }
+/** Wait until the page runs under the worker tagged `tag` (the page may be reloading meanwhile). */
+async function waitForTag(page: Page, tag: string, timeoutMs: number): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let seen = await workerTag(page).catch(() => 'reloading');
+  while (seen !== tag && Date.now() < deadline) {
+    await page.waitForTimeout(300);
+    seen = await workerTag(page).catch(() => 'reloading');
+  }
+  return seen;
+}
+
+async function gameReady(page: Page): Promise<void> {
+  await page.waitForFunction(() => (window as unknown as { __TH?: { ready?: boolean } }).__TH?.ready === true, null, { timeout: 60_000 });
+}
+
+/** When this tab last reloaded onto a new version (the page stores it just before that reload), or null. */
+async function updateMark(page: Page): Promise<string | null> {
+  return page.evaluate(() => window.sessionStorage.getItem('tinhats.swReloadedAt'));
+}
+
+/**
+ * Wait until the page has reloaded onto the worker tagged `tag` and the game is up again: the stored reload time moves
+ * on from `before` (set right before the reload), then the new page is ready under the new worker with no note left.
+ */
+async function updatedTo(page: Page, tag: string, before: string | null): Promise<void> {
+  const deadline = Date.now() + 60_000;
+  let mark = before;
+  while (mark === before && Date.now() < deadline) {
+    await page.waitForTimeout(200);
+    mark = await updateMark(page).catch(() => before);
+  }
+  expect(mark, `the page reloaded onto ${tag}`).not.toBe(before);
+  await page.waitForLoadState('load');
+  await gameReady(page);
+  expect(await waitForTag(page, tag, 30_000)).toBe(tag);
+  await expect(page.getByTestId('update-note')).toHaveCount(0);
+}
+
+/** What the game does at every launch and when its tab comes back into view: ask the server for a new version. */
+async function askForUpdate(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.update();
+  });
+}
+
 test.describe('PWA update', () => {
+  test('an open tab moves to every new version by itself behind the Updating note, and a battle is never interrupted', async ({ browser }) => {
+    test.setTimeout(300_000);
+    const dir = mkdtempSync(join(tmpdir(), 'tinhats-pwa-'));
+    const { server, origin } = await serve(dir);
+    const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+    try {
+      copyTree(DIST, dir);
+      tagWorker(dir, 'v1');
+      const page = await context.newPage();
+      const failures: string[] = [];
+      page.on('pageerror', (e) => failures.push(e.message));
+      await page.goto(`${origin}/?debug=1`);
+      await gameReady(page);
+      await controlled(page);
+      expect(await workerTag(page)).toBe('v1');
+      // A first install is not an update: no note, no reload.
+      await expect(page.getByTestId('update-note')).toHaveCount(0);
+
+      // --- A new version is live; the player opens the game again in the same tab (a plain reload) ----------------
+      // The launch itself notices it, shows the note and loads it: no second visit, no closed tab.
+      tagWorker(dir, 'v2');
+      await page.reload();
+      const note = page.getByTestId('update-note');
+      await expect(note).toBeVisible({ timeout: 30_000 });
+      await expect(note).toHaveText(UPDATE_NOTE_TEXT);
+      await updatedTo(page, 'v2', null);
+      await expect(arrived(page, 'title')).toBeVisible();
+      // It settles: the page does not reload again.
+      await page.evaluate(() => Reflect.set(window, '__settled', true));
+      await page.waitForTimeout(3000);
+      expect(await page.evaluate(() => Reflect.get(window, '__settled'))).toBe(true);
+
+      // --- A second new version, same tab, no reload by the player (the old rule took one update per tab) ---------
+      const afterV2 = await updateMark(page);
+      tagWorker(dir, 'v3');
+      await askForUpdate(page);
+      await expect(page.getByTestId('update-note')).toBeVisible({ timeout: 60_000 });
+      await updatedTo(page, 'v3', afterV2);
+
+      // --- A third arrives during a battle: it waits, the battle goes on -----------------------------------------
+      expect(await startMission(page, 1002)).toBe(true);
+      await page.evaluate(() => Reflect.set(window, '__stillHere', true));
+      const before = await state(page);
+      tagWorker(dir, 'v4');
+      await askForUpdate(page);
+      await page.waitForFunction(async () => (await navigator.serviceWorker.ready).waiting !== null, null, { timeout: 30_000 });
+      // Well past the pause between two update reloads, so only the battle holds it back.
+      await page.waitForTimeout(24_000);
+      const during = await state(page);
+      expect(during.inBattle).toBe(true);
+      expect(during.tick).toBeGreaterThan(before.tick);
+      expect(await page.evaluate(() => Reflect.get(window, '__stillHere'))).toBe(true);
+      expect(await workerTag(page)).toBe('v3');
+      await expect(page.getByTestId('update-note')).toHaveCount(0);
+
+      // The player quits the battle: the waiting version takes over by itself.
+      const afterV3 = await updateMark(page);
+      await tap(page, 'pause');
+      await tap(page, 'quit');
+      await expect(page.getByTestId('update-note')).toBeVisible({ timeout: 30_000 });
+      await updatedTo(page, 'v4', afterV3);
+      await expect(arrived(page, 'title')).toBeVisible();
+      expect(failures).toEqual([]);
+    } finally {
+      await context.close();
+      await new Promise<void>((done) => server.close(() => done()));
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('a new version waits while a battle runs and takes over at the next launch', async ({ browser }) => {
     const dir = mkdtempSync(join(tmpdir(), 'tinhats-pwa-'));
     const { server, origin } = await serve(dir);

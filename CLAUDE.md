@@ -52,8 +52,9 @@ so, and follow every step:
    finishes green.
 6. **Confirm it is really live:** load https://hunteracedev.com/tin-hats/ and check that the page references the same
    script file as the local build (the hashed `assets/index-*.js` name in `dist/index.html`), then open it in a browser
-   and start a mission. Pages can take a minute to refresh its cache. Players who already have the game get the new
-   version the next time they open it (the service worker never swaps versions mid-battle).
+   and start a mission. Pages can take a minute to refresh its cache. Players who already have the game are moved
+   onto the new version by the game itself: it asks for one at every launch and whenever its tab comes back into view,
+   shows "Updating…" and reloads (src/pwa; never during a briefing, a battle or its result).
 
 The game's service worker, cache and saves are confined to `/tin-hats/`: the worker's scope is `/tin-hats/`, its caches
 are named after that scope, and every storage key starts with `tinhats.`, so nothing can touch Bulwark or the home page.
