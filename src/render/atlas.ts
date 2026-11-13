@@ -162,23 +162,6 @@ export interface AtlasSlicing {
 /** A page's padding and its hand-over to the GPU count as this many sprites each in the progress of addAtlasSliced. */
 const PAGE_STEP_WEIGHT = 40;
 
-/** A turn for the browser (input, painting, timers) before the next piece of work: resolves in a new task. */
-export function nextTask(): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof MessageChannel === 'undefined') {
-      setTimeout(resolve, 0);
-      return;
-    }
-    // A message is not clamped to 4 ms as nested timers are, nor held back to once a second in a background tab.
-    const ch = new MessageChannel();
-    ch.port1.onmessage = (): void => {
-      ch.port1.close();
-      resolve();
-    };
-    ch.port2.postMessage(0);
-  });
-}
-
 /** Every sprite frame the renderer can draw, by spec key. */
 export class SpriteRegistry {
   private readonly frames = new Map<string, SpriteFrame>();

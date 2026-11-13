@@ -20,6 +20,10 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.2',
+    items: ['Loading is smoother still on a first visit: the game is fetched sooner and starts in smaller steps.'],
+  },
+  {
     version: '0.17.1',
     items: [
       'Fixed: the game could freeze on the Loading screen and the browser said "Page Unresponsive". It now starts quickly.',

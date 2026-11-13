@@ -8,7 +8,8 @@ import type Phaser from 'phaser';
 import type { SpriteSpec } from '../../src/art/types';
 import { STARTUP_MARKS, STARTUP_PROGRESS, barPercent, bootBar, viewProgress } from '../../src/app/startup';
 import { RENDER } from '../../src/data/render';
-import { SpriteRegistry, extrudePage, nextTask, packSprites, type PackedCell } from '../../src/render/atlas';
+import { SpriteRegistry, extrudePage, packSprites, type PackedCell } from '../../src/render/atlas';
+import { nextTask } from '../../src/render/task';
 
 // --- a small software canvas: pixels as numbers, and a count of what was drawn from where --------------------------
 
@@ -272,10 +273,10 @@ describe('the loading bar', () => {
     expect(viewProgress(-3)).toBe(STARTUP_PROGRESS.game);
     expect(viewProgress(7)).toBeCloseTo(STARTUP_PROGRESS.view, 9);
     expect(viewProgress(Number.NaN)).toBe(STARTUP_PROGRESS.game);
-    const steps = [STARTUP_PROGRESS.script, STARTUP_PROGRESS.engine, STARTUP_PROGRESS.game, STARTUP_PROGRESS.view, STARTUP_PROGRESS.app, STARTUP_PROGRESS.ui];
+    const steps = [STARTUP_PROGRESS.script, STARTUP_PROGRESS.engine, STARTUP_PROGRESS.game, STARTUP_PROGRESS.view, STARTUP_PROGRESS.app, STARTUP_PROGRESS.ui, STARTUP_PROGRESS.scene];
     expect(steps).toEqual([...steps].sort((a, b) => a - b));
     expect(STARTUP_PROGRESS.script).toBeGreaterThan(0);
-    expect(STARTUP_PROGRESS.ui).toBeLessThan(1);
+    expect(STARTUP_PROGRESS.scene).toBeLessThan(1);
     expect(STARTUP_MARKS[0]).toBe('th:script');
     expect(STARTUP_MARKS[STARTUP_MARKS.length - 1]).toBe('th:title');
   });

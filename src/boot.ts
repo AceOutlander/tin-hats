@@ -74,6 +74,12 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   markStartup('th:ui');
   progress(STARTUP_PROGRESS.ui);
   await nextTask();
+  // The title's storm scene, in a piece of its own ahead of the title screen: its backdrop is drawn and handed to the
+  // GPU here, so showing the title is only the screen itself. The storm asks for the same scene again when it starts.
+  if (app.storm.enabled) view.setMenuScene(true);
+  markStartup('th:scene');
+  progress(STARTUP_PROGRESS.scene);
+  await nextTask();
 
   ui.show('title');
   markStartup('th:title');

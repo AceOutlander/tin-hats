@@ -86,6 +86,10 @@ async function start(context: BrowserContext): Promise<Start> {
   // The title is really there: the loading screen is gone and the title screen's own parts are in the page.
   expect(await page.evaluate(() => document.getElementById('boot') === null)).toBe(true);
   await expect(page.getByTestId('title-helmet')).toBeVisible();
+  // The page asks for the two big scripts as soon as it is read (vite.config.ts, preloadBigScripts), so the loader can
+  // start them one after the other without fetching them one after the other.
+  const preloads = await page.evaluate(() => Array.from(document.querySelectorAll('link[rel="modulepreload"]'), (l) => l.getAttribute('href') ?? ''));
+  for (const name of ['phaser', 'boot']) expect(preloads.some((h) => new RegExp(`assets/${name}-[^/]+\\.js$`).test(h)), `a modulepreload link for ${name} (${preloads.join(', ')})`).toBe(true);
   await page.waitForTimeout(SETTLE_MS);
   const got = await page.evaluate((names) => {
     const w = window as unknown as Watched;

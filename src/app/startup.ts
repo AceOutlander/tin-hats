@@ -19,11 +19,13 @@ export const STARTUP_PROGRESS = {
   /** The app is built on the stored save. */
   app: 0.9,
   /** The UI is built. */
-  ui: 0.97,
+  ui: 0.95,
+  /** The title's storm scene is made (its backdrop drawn and handed to the GPU). */
+  scene: 0.99,
 } as const;
 
 /** The marks of the boot sequence, in order (performance.mark names; the startup test reads them). */
-export const STARTUP_MARKS = ['th:script', 'th:engine', 'th:game', 'th:view', 'th:app', 'th:ui', 'th:title'] as const;
+export const STARTUP_MARKS = ['th:script', 'th:engine', 'th:game', 'th:view', 'th:app', 'th:ui', 'th:scene', 'th:title'] as const;
 export type StartupMark = (typeof STARTUP_MARKS)[number];
 
 /** Where the bar stands while the view is being built: `fraction` is the view's own progress, 0 to 1. */

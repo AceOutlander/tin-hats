@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { defineConfig } from 'vite';
+import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /** A colour of the game theme (`--th-<name>` in src/ui/theme.css): the manifest and the page meta use the same ones. */
@@ -22,6 +22,33 @@ function buildId(): string {
   } catch {
     return 'dev';
   }
+}
+
+/** The two big scripts the page's loader (src/main.ts) starts one after the other: the engine and the game. */
+const BIG_SCRIPTS = ['phaser', 'boot'];
+
+/**
+ * Put a modulepreload link for each big script in the built index.html, so the browser fetches (and compiles) both
+ * from the moment it reads the page, while the loader still starts them in turn. Without the links the game's script
+ * would only be asked for once the engine had started.
+ */
+function preloadBigScripts(): Plugin {
+  return {
+    name: 'tin-hats-preload-big-scripts',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx): HtmlTagDescriptor[] {
+        const tags: HtmlTagDescriptor[] = [];
+        for (const name of BIG_SCRIPTS) {
+          const chunk = Object.values(ctx.bundle ?? {}).find((c) => c.type === 'chunk' && c.name === name);
+          if (!chunk) throw new Error(`the build has no "${name}" script to preload`);
+          tags.push({ tag: 'link', attrs: { rel: 'modulepreload', crossorigin: true, href: `./${chunk.fileName}` }, injectTo: 'head' });
+        }
+        return tags;
+      },
+    },
+  };
 }
 
 // base './' keeps every asset URL relative so the build can be dropped into a
@@ -48,6 +75,7 @@ export default defineConfig({
   server: { host: true },
   preview: { host: true },
   plugins: [
+    preloadBigScripts(),
     VitePWA({
       // The page registers the worker itself (src/pwa), so nothing is injected and no update prompt appears mid-battle.
       injectRegister: false,
