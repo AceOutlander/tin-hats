@@ -11,6 +11,17 @@ export const RENDER = {
   /** Texture pixels per wu of a battle's building and cover-prop pieces (big and plain, so below VIEW.textureScale). */
   buildingTextureScale: 1.5,
 
+  /**
+   * Startup (BattleViewImpl.build): the boot atlas and the views are made in small pieces so the browser is never held
+   * for long (the owner's "Page Unresponsive" freeze, 2026-11-12).
+   */
+  startup: {
+    /** A slice of sprite drawing ends once it has run this long (ms); the browser then gets a turn. */
+    sliceMs: 12,
+    /** The atlas's share of the view's startup work, for the loading bar (the rest is making the views). */
+    atlasShare: 0.85,
+  },
+
   /** Camera. */
   camera: {
     /** Seconds for a non-immediate setCenter() to cover most of the distance (exponential glide). */

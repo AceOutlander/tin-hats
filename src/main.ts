@@ -1,72 +1,27 @@
 /**
- * Bootstrap: the battle view in #game, the DOM UI in #ui, the audio engine,
- * the app controller that joins them, then the title screen.
+ * The page's entry: a small loader. It starts the loading bar, then brings in the two big scripts one after the
+ * other, the engine (Phaser) and the game (src/boot.ts), so each starts in a piece of work of its own instead of both
+ * in one long one, and then boots the game. Both are fetched at once; only their starting is in turn.
  */
 import './ui/theme.css';
-import { createAudio } from './audio';
-import { AdminController } from './app/admin';
-import { App } from './app/app';
-import { debugEnabled, installDebug } from './app/debug';
-import { MENU_MUSIC } from './app/menuStorm';
-import { browserStorage, createFlagPainter, createIconPainter, createUpgradePainter, installPageGuards, showUnreleased } from './app/page';
-import { withStorageFallback } from './meta';
-import { registerServiceWorker, reportScreen } from './pwa';
-import { createBattleView } from './render';
-import { createUi } from './ui';
-import { installAdminUi } from './ui/admin';
+import { STARTUP_PROGRESS, bootBar, markStartup } from './app/startup';
+import { registerServiceWorker } from './pwa';
 
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+async function load(): Promise<void> {
+  const progress = bootBar();
+  markStartup('th:script');
+  progress(STARTUP_PROGRESS.script);
+  const engine = import('phaser');
+  // The game's script is fetched now too; it starts after the engine it is built on.
+  const game = import('./boot');
+  await engine;
+  markStartup('th:engine');
+  progress(STARTUP_PROGRESS.engine);
+  const { boot } = await game;
+  await boot(progress);
 }
 
-async function boot(): Promise<void> {
-  const gameEl = document.getElementById('game');
-  const uiEl = document.getElementById('ui');
-  if (!gameEl || !uiEl) throw new Error('Tin Hats: the page has no #game or #ui element');
-
-  const audio = createAudio();
-  // The HUD is loaded here, before the UI exists, so it is never missing at the first frame of a battle.
-  const [view, { createHud }] = await Promise.all([createBattleView(gameEl), import('./ui/hud')]);
-  // Whatever is stored in this browser (an old save, damaged data, settings from a newer version), the game starts:
-  // loading falls back to defaults by itself, and if building the app on the stored data still throws, it is built
-  // again on an empty store.
-  const app = withStorageFallback(
-    browserStorage(),
-    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV) }),
-    (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
-  );
-  // The hidden admin panel: nothing of it shows until the secret entry and the code (src/ui/admin).
-  const admin = new AdminController({ app, view, ui: () => app.currentUi });
-  const ui = createUi(uiEl, app, {
-    paintUnitIcon: createIconPainter(app),
-    paintUpgradePreview: createUpgradePainter(app),
-    paintFlag: createFlagPainter(),
-    createHud,
-    onScreen: (screen) => {
-      app.onScreen(screen);
-      // A new version of the game waits for the battle screens to be left (src/pwa).
-      reportScreen(screen);
-      admin.screenChanged();
-    },
-    onPortrait: (portrait) => {
-      if (portrait) app.autoPause();
-    },
-  });
-  app.attachUi(ui);
-  installAdminUi(uiEl, admin);
-  installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin) : null;
-
-  ui.show('title');
-  document.getElementById('boot')?.remove();
-  await nextFrame();
-  await nextFrame();
-  // The menu theme is rendered once in the background (OfflineAudioContext needs no gesture), after the first picture.
-  audio.prepareMusic(MENU_MUSIC);
-  if (debug) debug.ready = true;
-}
-
-boot().catch((err: unknown) => {
+load().catch((err: unknown) => {
   console.error(err);
   const notice = document.getElementById('boot');
   if (notice) notice.textContent = 'Tin Hats could not start. Reload the page to try again.';

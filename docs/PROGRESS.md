@@ -2,16 +2,25 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
-## LIVE NOW: Beta v0.17.0 (2026-11-11, read this first)
+## LIVE NOW: Beta v0.17.1 (2026-11-12, read this first)
 
-v0.17.0 (deployed and checked on hunteracedev.com at 844x390, console clean): the game updates itself (DECISIONS 461:
-asks for a new version at launch and when the tab comes back, "Updating…" note, reload; never on the briefing, battle or
-result screens) and the German flag is the Iron Cross (DECISIONS 462; vehicles keep the Balkenkreuz).
+v0.17.1, an urgent fix (owner, 2026-11-12: the live game froze on LOADING and Chrome showed "Page Unresponsive").
+Cause: building the sprite atlas at startup drew the atlas page onto itself four times for every sprite, and the
+browser copies the whole page at each such call; 54 s of one unbroken piece of work at phone speed (CPU x4). Fixed
+(DECISIONS 516): two copies per page instead; startup is done in small pieces with the browser given a turn between
+them (`src/main.ts` loads the engine, then `src/boot.ts`; `BattleViewImpl.build`; `SpriteRegistry.addAtlasSliced`);
+the loading screen has a real progress bar. At CPU x4 the title is up in about 2.0 s and the longest single piece of
+work is about 330 ms. New guard: `tests/perf/startup.perf.spec.ts` (run before every push, CLAUDE.md step 1).
+
+v0.17.0 (2026-11-11): the game updates itself (DECISIONS 461: asks for a new version at launch and when the tab comes
+back, "Updating…" note, reload; never on the briefing, battle or result screens) and the German flag is the Iron Cross
+(DECISIONS 462; vehicles keep the Balkenkreuz).
 
 IN PROGRESS: the British D-Day campaign (owner, 2026-11-11; spec verbatim in docs/QUEUE.md "NOW ... 3."). Branch `dday`
-in the worktree C:dev	in-hats-dday, one job at a time, NOT live until the owner says "push to live". Budget: the rest
-of the week's usage, keeping about 10% of the weekly limit in reserve (stop at about 90%; the week resets Sunday
-2026-11-15). Its own progress notes are in docs/campaigns/DDAY_BUILD.md on that branch.
+in its own worktree, one job at a time, NOT live until the owner says "push to live". Its own progress notes are in
+docs/campaigns/DDAY_BUILD.md on that branch, and its decisions are numbered 463 to 515 there (so this branch's next
+decision after 462 is 516). Budget: the owner raised the cap to about 95% of the weekly limit on 2026-11-12 (the week
+resets Sunday 2026-11-15).
 
 ## Earlier: Beta v0.16.0 (2026-11-10)
 

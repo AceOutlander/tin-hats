@@ -20,6 +20,13 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.1',
+    items: [
+      'Fixed: the game could freeze on the Loading screen and the browser said "Page Unresponsive". It now starts quickly.',
+      'The loading screen shows a progress bar.',
+    ],
+  },
+  {
     version: '0.17.0',
     items: [
       'The game now updates itself: when a new version is out it shows "Updating…" and loads it, never during a battle.',

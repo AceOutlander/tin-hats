@@ -39,7 +39,11 @@ so, and follow every step:
    words. `tests/unit/version.test.ts` fails if the two do not match. Docs-only pushes keep the version. When you tell
    the owner something is live, always say the version number (for example "live as Beta v0.10.0").
 1. **Check.** `.\x.cmd npm run check` (type-check, lint, build, unit tests) must pass. For anything that touches the menus,
-   audio or saving, also run the related browser specs (`.\x.cmd npx playwright test tests/e2e/<spec>`).
+   audio or saving, also run the related browser specs (`.\x.cmd npx playwright test tests/e2e/<spec>`). Before every
+   push that changes code, run the startup budget too (about a minute, on the build `check` just made):
+   `.\x.cmd npx playwright test -c playwright.perf.config.ts startup`. It fails if the game holds the browser for more
+   than half a second at a time while it loads, or takes more than a few seconds to reach the title, on a phone-speed
+   CPU (the live game once froze on LOADING: DECISIONS 516).
 2. **Preview locally at the real address.** The site repo sits next to this one (`..\hunteracedev`). Start its preview
    server in the background, which serves this folder's `dist` at `/tin-hats/` exactly as the live site will:
    `.\x.cmd node ..\hunteracedev\tools\preview.mjs`, then open http://localhost:8080/tin-hats/ in a phone-sized

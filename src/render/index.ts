@@ -8,4 +8,4 @@ export { createBattleView, BattleViewImpl, type RenderInternals } from './view';
 export type { AttachOptions, AudioSink, BattleCamera, BattleView, RenderStats, TargetingKind, WeatherMode, WeatherStats } from './contracts';
 export { EFFECT_HANDLERS, EffectContext, type EffectHandler } from './effects';
 export { createLayers, type LayerName, type Layers } from './layers';
-export { SpriteRegistry, packSprites, type SpriteFrame } from './atlas';
+export { SpriteRegistry, extrudePage, nextTask, packSprites, type AtlasSlicing, type PackedCell, type SpriteFrame } from './atlas';

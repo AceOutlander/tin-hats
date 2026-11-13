@@ -23,14 +23,17 @@ export interface SpriteFrame {
   h: number;
 }
 
-interface Cell {
-  spec: SpriteSpec;
-  page: number;
-  /** Frame rectangle in page pixels (padding excluded). */
+/** A frame's rectangle on its page, in page pixels (padding excluded). */
+export interface PackedCell {
   x: number;
   y: number;
   pw: number;
   ph: number;
+}
+
+interface Cell extends PackedCell {
+  spec: SpriteSpec;
+  page: number;
 }
 
 interface PackedPage {
@@ -79,38 +82,101 @@ export function packSprites(specs: readonly SpriteSpec[], scale: number, pad: nu
   return pages;
 }
 
-/** Copy a frame's outermost pixels outward into its padding. */
-function extrude(ctx: CanvasRenderingContext2D, c: Cell, pad: number): void {
-  if (pad <= 0) return;
-  const cv = ctx.canvas;
-  const { x, y, pw, ph } = c;
-  ctx.drawImage(cv, x, y, 1, ph, x - pad, y, pad, ph);
-  ctx.drawImage(cv, x + pw - 1, y, 1, ph, x + pw, y, pad, ph);
-  ctx.drawImage(cv, x - pad, y, pw + pad * 2, 1, x - pad, y - pad, pw + pad * 2, pad);
-  ctx.drawImage(cv, x - pad, y + ph - 1, pw + pad * 2, 1, x - pad, y + ph, pw + pad * 2, pad);
+/** A copy of a canvas as it is now (CPU-backed, like the page). */
+function snapshot(src: HTMLCanvasElement): HTMLCanvasElement {
+  const copy = document.createElement('canvas');
+  copy.width = src.width;
+  copy.height = src.height;
+  const ctx = copy.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('no 2D context for an atlas page copy');
+  ctx.drawImage(src, 0, 0);
+  return copy;
 }
 
-function rasterisePage(page: PackedPage, scale: number, pad: number): HTMLCanvasElement {
+/**
+ * Copy every frame's outermost pixels outward into its padding: the side columns first, then the top and bottom rows
+ * (which take the side padding with them, so the corners are filled too).
+ *
+ * The pixels are read from a copy of the page, never from the page itself. A canvas drawn onto itself is copied whole
+ * by the browser at every call, and with four calls for each of a few thousand frames on a page of several megapixels
+ * that held the browser for many seconds at startup (the "Page Unresponsive" freeze of November 2026). Two copies of
+ * the page are made instead, one for each pass.
+ */
+export function extrudePage(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, cells: readonly PackedCell[], pad: number): void {
+  if (pad <= 0 || cells.length === 0) return;
+  ctx.imageSmoothingEnabled = false;
+  const drawn = snapshot(canvas);
+  for (const { x, y, pw, ph } of cells) {
+    ctx.drawImage(drawn, x, y, 1, ph, x - pad, y, pad, ph);
+    ctx.drawImage(drawn, x + pw - 1, y, 1, ph, x + pw, y, pad, ph);
+  }
+  const sided = snapshot(canvas);
+  for (const { x, y, pw, ph } of cells) {
+    ctx.drawImage(sided, x - pad, y, pw + pad * 2, 1, x - pad, y - pad, pw + pad * 2, pad);
+    ctx.drawImage(sided, x - pad, y + ph - 1, pw + pad * 2, 1, x - pad, y + ph, pw + pad * 2, pad);
+  }
+  // Let go of the copies' memory at once (a page is tens of megabytes).
+  drawn.width = drawn.height = 0;
+  sided.width = sided.height = 0;
+  ctx.imageSmoothingEnabled = true;
+}
+
+function pageCanvas(page: PackedPage): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement('canvas');
   canvas.width = page.w;
   canvas.height = page.h;
   // CPU-backed: drawn once, uploaded once (see src/art/backdrops/raster.ts).
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('no 2D context for an atlas page');
-  for (const c of page.cells) {
-    ctx.save();
-    ctx.translate(c.x, c.y);
-    ctx.beginPath();
-    ctx.rect(0, 0, c.pw, c.ph);
-    ctx.clip();
-    ctx.scale(scale, scale);
-    c.spec.draw(ctx);
-    ctx.restore();
-  }
-  ctx.imageSmoothingEnabled = false;
-  for (const c of page.cells) extrude(ctx, c, pad);
-  ctx.imageSmoothingEnabled = true;
+  return { canvas, ctx };
+}
+
+function drawCell(ctx: CanvasRenderingContext2D, c: Cell, scale: number): void {
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.beginPath();
+  ctx.rect(0, 0, c.pw, c.ph);
+  ctx.clip();
+  ctx.scale(scale, scale);
+  c.spec.draw(ctx);
+  ctx.restore();
+}
+
+function rasterisePage(page: PackedPage, scale: number, pad: number): HTMLCanvasElement {
+  const { canvas, ctx } = pageCanvas(page);
+  for (const c of page.cells) drawCell(ctx, c, scale);
+  extrudePage(canvas, ctx, page.cells, pad);
   return canvas;
+}
+
+/** How addAtlasSliced shares the page's time (the game's startup must never hold the browser for long). */
+export interface AtlasSlicing {
+  /** A slice of drawing ends once it has run this long (ms); the browser then gets a turn. */
+  sliceMs: number;
+  /** Gives the browser a turn: resolves in a later task. */
+  pause: () => Promise<void>;
+  /** Called as the work goes on: steps done so far and in all (a sprite is one step, a page's last two steps count for more). */
+  onProgress?: (done: number, total: number) => void;
+}
+
+/** A page's padding and its hand-over to the GPU count as this many sprites each in the progress of addAtlasSliced. */
+const PAGE_STEP_WEIGHT = 40;
+
+/** A turn for the browser (input, painting, timers) before the next piece of work: resolves in a new task. */
+export function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof MessageChannel === 'undefined') {
+      setTimeout(resolve, 0);
+      return;
+    }
+    // A message is not clamped to 4 ms as nested timers are, nor held back to once a second in a background tab.
+    const ch = new MessageChannel();
+    ch.port1.onmessage = (): void => {
+      ch.port1.close();
+      resolve();
+    };
+    ch.port2.postMessage(0);
+  });
 }
 
 /** Every sprite frame the renderer can draw, by spec key. */
@@ -127,6 +193,50 @@ export class SpriteRegistry {
    * Keys already registered are skipped. Returns the number of pages made.
    */
   addAtlas(group: string, specs: readonly SpriteSpec[], scale: number, maxSize: number): number {
+    const pad = RENDER.atlasPadding;
+    const pages = this.pack(specs, scale, pad, maxSize);
+    for (const page of pages) this.register(group, page, rasterisePage(page, scale, pad), scale);
+    return pages.length;
+  }
+
+  /**
+   * addAtlas in small pieces, for startup: the sprites are drawn a slice at a time and each page's last steps (filling
+   * the padding, handing the page to the GPU) are tasks of their own, so the browser is never held for long and the
+   * loading screen can show how far the work is. The pages and frames are the same as addAtlas makes.
+   */
+  async addAtlasSliced(group: string, specs: readonly SpriteSpec[], scale: number, maxSize: number, slicing: AtlasSlicing): Promise<number> {
+    const pad = RENDER.atlasPadding;
+    const pages = this.pack(specs, scale, pad, maxSize);
+    const total = pages.reduce((n, p) => n + p.cells.length + PAGE_STEP_WEIGHT * 2, 0);
+    let done = 0;
+    const turn = async (): Promise<void> => {
+      slicing.onProgress?.(done, total);
+      await slicing.pause();
+    };
+    for (const page of pages) {
+      const { canvas, ctx } = pageCanvas(page);
+      let sliceStart = performance.now();
+      for (const c of page.cells) {
+        drawCell(ctx, c, scale);
+        done++;
+        if (performance.now() - sliceStart >= slicing.sliceMs) {
+          await turn();
+          sliceStart = performance.now();
+        }
+      }
+      await turn();
+      extrudePage(canvas, ctx, page.cells, pad);
+      done += PAGE_STEP_WEIGHT;
+      await turn();
+      this.register(group, page, canvas, scale);
+      done += PAGE_STEP_WEIGHT;
+      await turn();
+    }
+    return pages.length;
+  }
+
+  /** Pack the specs that are not registered yet (each key once). */
+  private pack(specs: readonly SpriteSpec[], scale: number, pad: number, maxSize: number): PackedPage[] {
     const fresh: SpriteSpec[] = [];
     const seen = new Set<string>();
     for (const s of specs) {
@@ -134,30 +244,26 @@ export class SpriteRegistry {
       seen.add(s.key);
       fresh.push(s);
     }
-    if (fresh.length === 0) return 0;
-    const pad = RENDER.atlasPadding;
-    const pages = packSprites(fresh, scale, pad, maxSize);
+    return fresh.length === 0 ? [] : packSprites(fresh, scale, pad, maxSize);
+  }
+
+  /** Hand a drawn page to Phaser as the group's next texture and register its frames. */
+  private register(group: string, page: PackedPage, canvas: HTMLCanvasElement, scale: number): void {
     const keys = this.pageKeys.get(group) ?? [];
-    let pixels = this.pagePixels.get(group) ?? 0;
-    for (const page of pages) {
-      const texKey = `${group}/${keys.length}`;
-      const canvas = rasterisePage(page, scale, pad);
-      const tex = this.textures.addCanvas(texKey, canvas);
-      if (!tex) throw new Error(`texture key ${texKey} is already in use`);
-      keys.push(texKey);
-      pixels += page.w * page.h;
-      for (const c of page.cells) {
-        const frame = tex.add(c.spec.key, 0, c.x, c.y, c.pw, c.ph);
-        if (!frame) continue;
-        frame.customPivot = true;
-        frame.pivotX = (c.spec.ax * c.spec.w * scale) / c.pw;
-        frame.pivotY = (c.spec.ay * c.spec.h * scale) / c.ph;
-        this.frames.set(c.spec.key, { key: c.spec.key, frame, scale, w: c.spec.w, h: c.spec.h });
-      }
+    const texKey = `${group}/${keys.length}`;
+    const tex = this.textures.addCanvas(texKey, canvas);
+    if (!tex) throw new Error(`texture key ${texKey} is already in use`);
+    keys.push(texKey);
+    for (const c of page.cells) {
+      const frame = tex.add(c.spec.key, 0, c.x, c.y, c.pw, c.ph);
+      if (!frame) continue;
+      frame.customPivot = true;
+      frame.pivotX = (c.spec.ax * c.spec.w * scale) / c.pw;
+      frame.pivotY = (c.spec.ay * c.spec.h * scale) / c.ph;
+      this.frames.set(c.spec.key, { key: c.spec.key, frame, scale, w: c.spec.w, h: c.spec.h });
     }
     this.pageKeys.set(group, keys);
-    this.pagePixels.set(group, pixels);
-    return pages.length;
+    this.pagePixels.set(group, (this.pagePixels.get(group) ?? 0) + page.w * page.h);
   }
 
   /**

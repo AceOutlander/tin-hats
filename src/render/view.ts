@@ -29,7 +29,7 @@ import { VIEW, VIEW_TOP_WU } from '../data/view';
 import type { Battle, BattleState } from '../sim';
 import type { SideLooks } from '../data/upgradeLooks';
 import { sideLooks } from '../meta/looks';
-import { SpriteRegistry, type SpriteFrame } from './atlas';
+import { SpriteRegistry, nextTask, type SpriteFrame } from './atlas';
 import { BackdropView } from './backdrop';
 import { CameraRig } from './camera';
 import { StormGuard, brightestTime, missionTimes, type MenuStormState } from '../fx';
@@ -150,6 +150,9 @@ export class BattleViewImpl implements BattleView {
   private renderScale = 1;
   private resizeObserver: ResizeObserver | null = null;
   private ready: ((v: BattleView) => void) | null;
+  private fail: ((err: unknown) => void) | null;
+  /** True once build() has made the atlas and every view. */
+  private built = false;
   private debugZoom = 1;
   private debugCenterY: number = VIEW.groundY;
 
@@ -166,8 +169,14 @@ export class BattleViewImpl implements BattleView {
   constructor(
     private readonly parent: HTMLElement,
     ready: (v: BattleView) => void,
+    fail: (err: unknown) => void = (err) => {
+      throw err;
+    },
+    /** How far the view's own startup work is, 0 to 1 (the loading screen's bar). */
+    private readonly progress: ((fraction: number) => void) | null = null,
   ) {
     this.ready = ready;
+    this.fail = fail;
     this.quality.force(startQuality(window.location.search, navigator.webdriver === true));
     this.measure();
     this.game = new Phaser.Game({
@@ -225,12 +234,38 @@ export class BattleViewImpl implements BattleView {
     return this.cssH / VIEW.viewHeightWu;
   }
 
+  /** Phaser's scene exists: build everything on it, a piece at a time (see build). */
   onCreate(scene: Phaser.Scene): void {
     this.scene = scene;
+    this.build(scene).catch((err: unknown) => {
+      const fail = this.fail;
+      this.ready = null;
+      this.fail = null;
+      if (fail) fail(err);
+    });
+  }
+
+  /**
+   * Draw the sprite atlas and make the views. This is the heaviest work of the game's startup, so it is done in small
+   * pieces with the browser given a turn between them (RENDER.startup): the page stays responsive and the loading
+   * screen shows how far it is (`progress`, 0 to 1). Phaser's loop runs meanwhile on an empty scene (onUpdate waits
+   * for `built`).
+   */
+  private async build(scene: Phaser.Scene): Promise<void> {
+    const S = RENDER.startup;
+    const progress = this.progress ?? ((): void => {});
     const renderer = this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
     const maxTex = Math.min(RENDER.atlasMaxSize, typeof renderer.getMaxTextureSize === 'function' ? renderer.getMaxTextureSize() : RENDER.atlasMaxSize);
     const reg = new SpriteRegistry(scene.textures);
-    reg.addAtlas(ATLAS_GROUP, [...renderSprites(), ...allFigureSprites(), ...listFxSprites(), ...vehicleSpecs(), ...structureSpecs(), ...propSpecs()], VIEW.textureScale, maxTex);
+    await nextTask();
+    const specs = [...renderSprites(), ...allFigureSprites(), ...listFxSprites(), ...vehicleSpecs(), ...structureSpecs(), ...propSpecs()];
+    await nextTask();
+    await reg.addAtlasSliced(ATLAS_GROUP, specs, VIEW.textureScale, maxTex, {
+      sliceMs: S.sliceMs,
+      pause: nextTask,
+      onProgress: (done, total) => progress(total > 0 ? (S.atlasShare * done) / total : S.atlasShare),
+    });
+    progress(S.atlasShare);
     this.registry = reg;
     const layers = createLayers(scene);
     this.layers = layers;
@@ -245,15 +280,20 @@ export class BattleViewImpl implements BattleView {
       speck.alpha = 0.001;
     }
     this.backdrop = new BackdropView(scene, layers);
+    await nextTask();
     this.units = new UnitViews(scene, layers, reg);
     this.units.blood.setEnabled(this.showBlood);
     this.units.hpReveal = this.hpReveal;
+    await nextTask();
+    progress(S.atlasShare + (1 - S.atlasShare) * 0.4);
     this.structures = new StructureViews(scene, layers, reg);
     this.points = new PointViews(scene, layers, reg);
     this.buildings = new BuildingViews(scene, layers, reg);
     this.obstacles = new ObstacleViews(scene, layers, reg);
     this.buildSites = new BuildSiteViews(scene, layers, reg);
     this.effects = new EffectsSystem(scene, layers, reg, this.units, this.structures);
+    await nextTask();
+    progress(S.atlasShare + (1 - S.atlasShare) * 0.7);
 
     this.nightTint = addImage(scene, layers.byName.nightTint, reg.get(RENDER_KEYS.whiteTL).frame);
     this.nightTint.visible = false;
@@ -265,8 +305,10 @@ export class BattleViewImpl implements BattleView {
     this.weatherView = new WeatherView(scene, layers, reg, this.effects.ctx);
     this.weatherView.reduced = this.reducedFlashing;
     this.skyView = new SkyView(scene, layers, reg, this.effects.ctx, this.backdrop);
+    await nextTask();
     this.menuView = new MenuStormView(scene, layers, reg, this.backdrop);
     if (this.menuWanted && !this.battle) this.menuView.show(true);
+    await nextTask();
 
     this.input = new PanInput(
       this.game.canvas,
@@ -286,12 +328,17 @@ export class BattleViewImpl implements BattleView {
     this.applySize();
     this.game.events.on(Phaser.Core.Events.PRE_RENDER, this.onPreDraw);
     this.game.events.on(Phaser.Core.Events.POST_RENDER, this.onPostDraw);
+    this.built = true;
+    progress(1);
     const ready = this.ready;
     this.ready = null;
+    this.fail = null;
     if (ready) ready(this);
   }
 
   onUpdate(deltaMs: number): void {
+    // Still being built (build): nothing to step or draw yet.
+    if (!this.built) return;
     this.realDt = Math.min(0.25, Math.max(0, deltaMs / 1000));
     const probe = this.perf;
     const t0 = performance.now();
@@ -889,12 +936,20 @@ function perfHook(view: BattleViewImpl): PerfHook {
   };
 }
 
-/** Boot Phaser inside `parent` (which should fill the screen) and resolve once the atlases are built. */
-export function createBattleView(parent: HTMLElement): Promise<BattleView> {
-  return new Promise((resolve) => {
-    new BattleViewImpl(parent, (view) => {
-      if (new URLSearchParams(window.location.search).get('debug') === '1') Reflect.set(window, '__THPERF', perfHook(view as BattleViewImpl));
-      resolve(view);
-    });
+/**
+ * Boot Phaser inside `parent` (which should fill the screen) and resolve once the atlases are built. The work is done
+ * in small pieces (BattleViewImpl.build); `onProgress` hears how far it is, 0 to 1. Rejects if it cannot be built.
+ */
+export function createBattleView(parent: HTMLElement, onProgress?: (fraction: number) => void): Promise<BattleView> {
+  return new Promise((resolve, reject) => {
+    new BattleViewImpl(
+      parent,
+      (view) => {
+        if (new URLSearchParams(window.location.search).get('debug') === '1') Reflect.set(window, '__THPERF', perfHook(view as BattleViewImpl));
+        resolve(view);
+      },
+      reject,
+      onProgress ?? null,
+    );
   });
 }

@@ -38,6 +38,7 @@ alternative and note it under Known issues in `docs/PROGRESS.md`.
 | Browser smoke tests (needs a build) | `x.cmd npm run test:e2e` |
 | Sim time budget (heavy 100-a-side headless battle; part of test:unit) | `x.cmd npx vitest run tests/unit/sim-budget.test.ts` |
 | Frame-time budget (needs a build; proving ground at CPU x4, a few minutes) | `x.cmd npm run test:perf` |
+| Startup budget alone (needs a build; CPU x4, about a minute; before every push to live) | `x.cmd npx playwright test -c playwright.perf.config.ts startup` |
 | Screenshot a dev page or the game | `x.cmd npx tsx tools/shot.ts <urlPath> <out.png> [flags]` (see the header of `tools/shot.ts`) |
 
 The two budget tests guard against lag coming back. `tests/unit/sim-budget.test.ts` replays one deterministic battle
@@ -46,6 +47,13 @@ five times and judges the fastest time of each tick, so a loaded machine does no
 fails on too many frames over 33 ms of work, a work p95 over budget, or too much main-thread CPU time per frame; it keeps
 the best of two windows. Run it after changes to rendering, effects, the HUD or the sim, and only when no other heavy
 job is running on the machine. `tools/perf.ts` gives the detailed breakdown when it fails.
+
+`tests/perf/startup.perf.spec.ts` (part of `test:perf`) guards the game's start: the plain page on a CPU throttled 4x,
+a first visit and a returning player with a save and the service worker, best of three runs each. It fails on any
+single piece of work over 500 ms, on a title that takes over 4 s, or on a loading bar that does not move. Startup work
+is done in small pieces with `nextTask()` between them (`src/main.ts`, `src/boot.ts`, `BattleViewImpl.build`,
+`SpriteRegistry.addAtlasSliced`); anything heavy added to startup must be sliced the same way or moved behind the title.
+Never draw a canvas onto itself in a loop: the browser copies the whole canvas at every call (DECISIONS 516).
 
 Never run anything that waits for input or never exits: no watch mode, no foreground dev server. `tools/shot.ts` and
 Playwright start and stop their own servers. If you must start a server yourself, start it in the background on your own

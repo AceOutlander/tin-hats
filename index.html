@@ -35,12 +35,36 @@
         letter-spacing: 0.3em;
         text-transform: uppercase;
       }
+      #boot-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      #boot-bar {
+        width: min(220px, 60vw);
+        height: 6px;
+        border: 1px solid #6f6a52;
+        background: #1d1f16;
+      }
+      #boot-fill {
+        width: 0;
+        height: 100%;
+        background: #c9bd9b;
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
     <div id="ui"></div>
-    <div id="boot" role="status">Loading</div>
+    <div id="boot" role="status">
+      <div id="boot-box">
+        <div id="boot-label">Loading</div>
+        <div id="boot-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="boot-fill"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
