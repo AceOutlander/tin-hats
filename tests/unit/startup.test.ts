@@ -104,14 +104,27 @@ function spec(key: string, w: number, h: number, base: number): SpriteSpec {
 }
 
 /** The part of Phaser's texture manager the registry uses. */
-function fakeTextures(): { textures: Phaser.Textures.TextureManager; pages: { key: string; canvas: FakeCanvas; frames: Map<string, number[]> }[] } {
-  const pages: { key: string; canvas: FakeCanvas; frames: Map<string, number[]> }[] = [];
+interface FakePage {
+  key: string;
+  canvas: FakeCanvas;
+  frames: Map<string, number[]>;
+  /** The copies of the page's pixels the texture still holds. */
+  copies: () => unknown[];
+}
+
+function fakeTextures(): { textures: Phaser.Textures.TextureManager; pages: FakePage[] } {
+  const pages: FakePage[] = [];
   const textures = {
     addCanvas(key: string, canvas: FakeCanvas) {
       const frames = new Map<string, number[]>();
-      pages.push({ key, canvas, frames });
+      pages.push({ key, canvas, frames, copies: () => [tex.imageData, tex.data, tex.pixels, tex.buffer] });
       const tex = {
         key,
+        // What Phaser's CanvasTexture keeps beside the canvas: a copy of every pixel.
+        imageData: { data: new Uint8ClampedArray(4) } as { data: Uint8ClampedArray } | null,
+        data: new Uint8ClampedArray(4) as Uint8ClampedArray | null,
+        pixels: new Uint32Array(1) as Uint32Array | null,
+        buffer: new ArrayBuffer(4) as ArrayBuffer | null,
         add(name: string, _i: number, x: number, y: number, w: number, h: number) {
           frames.set(name, [x, y, w, h]);
           return { texture: tex, customPivot: false, pivotX: 0, pivotY: 0, cutX: x, cutY: y, cutWidth: w, cutHeight: h };
@@ -217,6 +230,17 @@ describe('the atlas built in pieces', () => {
       expect(Array.from(p.canvas.pixels)).toEqual(Array.from(q?.canvas.pixels ?? []));
     }
     for (const s of SPECS) expect(reg.has(s.key)).toBe(true);
+  });
+
+  it('keeps no copy of a page beside its canvas, built in one go or in pieces (Phaser reads every pixel back)', async () => {
+    const whole = fakeTextures();
+    new SpriteRegistry(whole.textures).addAtlas('g', SPECS, 1, 64);
+    const sliced = fakeTextures();
+    await new SpriteRegistry(sliced.textures).addAtlasSliced('g', SPECS, 1, 64, { sliceMs: 0, pause: () => Promise.resolve() });
+    for (const pages of [whole.pages, sliced.pages]) {
+      expect(pages.length).toBeGreaterThan(0);
+      for (const p of pages) expect(p.copies()).toEqual([null, null, null, null]);
+    }
   });
 
   it('gives the browser a turn between slices and reports progress that only grows, to the end', async () => {

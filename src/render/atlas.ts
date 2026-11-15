@@ -12,6 +12,24 @@ import type Phaser from 'phaser';
 import type { SpriteSpec } from '../art/types';
 import { RENDER } from '../data/render';
 
+/**
+ * Hand a canvas to Phaser as a texture, without the copy of its pixels Phaser keeps beside it. A CanvasTexture reads the
+ * whole canvas back (getImageData) for per-pixel access the game never uses and holds it for as long as the texture
+ * lives: four bytes a pixel of JavaScript memory on top of the canvas and the GPU texture, 67 MB for one full atlas page
+ * (DECISIONS 542). Returns null when the key is taken, as addCanvas does.
+ */
+export function addCanvasTexture(textures: Phaser.Textures.TextureManager, key: string, canvas: HTMLCanvasElement): Phaser.Textures.CanvasTexture | null {
+  const tex = textures.addCanvas(key, canvas);
+  if (tex) {
+    const copy = tex as unknown as { imageData: ImageData | null; data: Uint8ClampedArray | null; pixels: Uint32Array | null; buffer: ArrayBuffer | null };
+    copy.imageData = null;
+    copy.data = null;
+    copy.pixels = null;
+    copy.buffer = null;
+  }
+  return tex;
+}
+
 /** One rasterised sprite, ready for Image.setFrame(). */
 export interface SpriteFrame {
   key: string;
@@ -234,7 +252,7 @@ export class SpriteRegistry {
   private register(group: string, page: PackedPage, canvas: HTMLCanvasElement, scale: number): void {
     const keys = this.pageKeys.get(group) ?? [];
     const texKey = `${group}/${keys.length}`;
-    const tex = this.textures.addCanvas(texKey, canvas);
+    const tex = addCanvasTexture(this.textures, texKey, canvas);
     if (!tex) throw new Error(`texture key ${texKey} is already in use`);
     keys.push(texKey);
     for (const c of page.cells) {

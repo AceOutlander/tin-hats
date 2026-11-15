@@ -27,6 +27,7 @@ import type { TheatreId, TimeOfDay } from '../data/schema';
 import { type GroundStyle, type TheatreVariant } from '../data/theatres';
 import { variantDef } from '../art/backdrops/scene';
 import { secondWeight } from '../fx';
+import { addCanvasTexture } from './atlas';
 import type { LayerName, Layers } from './layers';
 
 /** Alpha above which a texture pixel counts as solid when a layer's skyline is measured. */
@@ -133,7 +134,7 @@ export class BackdropView {
       const texKey = `bgtex/${def.slot}`;
       const canvas = rasteriseBackdropLayer(def);
       if (def.slot === 'ground') groundCanvas = canvas;
-      const tex = this.scene.textures.addCanvas(texKey, canvas);
+      const tex = addCanvasTexture(this.scene.textures, texKey, canvas);
       if (!tex) throw new Error(`backdrop texture ${texKey} already exists`);
       this.views.push({ def, texKey, images: [], tint: 0xffffff, hidden: false, skyline: null, alpha: 1 });
     }
@@ -158,7 +159,7 @@ export class BackdropView {
 
   /** Rasterise one extra layer, starting unseen (alpha 0). */
   private addExtra(def: BackdropLayer, texKey: string, time: TimeOfDay | null): void {
-    if (!this.scene.textures.addCanvas(texKey, rasteriseBackdropLayer(def))) throw new Error(`backdrop texture ${texKey} already exists`);
+    if (!addCanvasTexture(this.scene.textures, texKey, rasteriseBackdropLayer(def))) throw new Error(`backdrop texture ${texKey} already exists`);
     this.pixels += backdropRasterArea([def]);
     this.extras.push({ def, texKey, images: [], tint: 0xffffff, hidden: false, skyline: null, alpha: 0, time });
   }
@@ -216,7 +217,7 @@ export class BackdropView {
       const def = getGroundLayer(theatre, time, seed, b.style, EXTRA_GROUND_TILE, variant);
       const canvas = rasteriseBackdropLayer(def);
       const texKey = `bgtex/ground/${b.style}`;
-      if (!this.scene.textures.addCanvas(texKey, canvas)) throw new Error(`backdrop texture ${texKey} already exists`);
+      if (!addCanvasTexture(this.scene.textures, texKey, canvas)) throw new Error(`backdrop texture ${texKey} already exists`);
       this.groundKeys.push(texKey);
       this.pixels += backdropRasterArea([def]);
       tiles.set(b.style, { def: { ...def, key: texKey }, canvas });
@@ -236,7 +237,7 @@ export class BackdropView {
       const edge = bands[i].from;
       const canvas = blendCanvas(left, right, edge - GROUND_BLEND / 2, GROUND_BLEND, groundDef);
       const texKey = `bgtex/ground/blend${i}`;
-      if (!this.scene.textures.addCanvas(texKey, canvas)) throw new Error(`backdrop texture ${texKey} already exists`);
+      if (!addCanvasTexture(this.scene.textures, texKey, canvas)) throw new Error(`backdrop texture ${texKey} already exists`);
       this.groundKeys.push(texKey);
       const img = this.groundImage(layer, texKey, groundDef);
       img.x = edge - GROUND_BLEND / 2;
