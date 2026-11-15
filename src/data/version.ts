@@ -20,6 +20,14 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.3',
+    items: [
+      'Fixed: in hold-out missions the enemy waves could stop arriving if your men camped on the far edge of the map.',
+      'AT Rifle Teams now fire lying down behind the long rifle, and Tank Hunters have their own picture.',
+      'Battles use less memory.',
+    ],
+  },
+  {
     version: '0.17.2',
     items: ['Loading is smoother still on a first visit: the game is fetched sooner and starts in smaller steps.'],
   },
