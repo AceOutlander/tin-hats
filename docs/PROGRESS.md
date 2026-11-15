@@ -15,9 +15,25 @@ v0.17.2 the same day: the two big scripts are fetched from the first moment (mod
 in turn, and the title's storm scene is a step of its own, after the live v0.17.1 showed pieces of 483 and 467 ms on a
 first visit over the real network.
 
-KNOWN FAILURE, not from this fix (it fails the same way on the v0.17.0 code): `tests/e2e/smoke.spec.ts` "mission 1 is
-won through the menus and the progress survives a reload" and "mission 1001 (brest): a keen player ..." (the browser's
-scripted keen player loses Brest on Normal). The other 36 smoke tests pass. To be looked at as a job of its own.
+ON MAIN, NOT LIVE (launch polish for Google Play, 2026-11-15; commits after v0.17.2, not pushed, version not bumped:
+the main session releases). DECISIONS 540 to 544.
+- The two failing smoke specs (540). One was a stale check (medals against upgrade points). The other was the script
+  sending Brest's garrison forward, which uncovered a real fault: an army standing on the far map edge of a survival
+  mission cut off every later wave (a win with 10 kills and an empty field). The other side now keeps
+  `CONFIG.entryKeepOut` (400 wu) from the map edge of a side with no HQ. Changes play only for a player who leaves his
+  walls in missions 1, 7 and 8: he now meets the waves in the open (and loses Brest); balance suites unchanged, 207/207.
+- The AT Rifle Team lies behind the PTRD on its bipod, the number two beside it (541).
+- About 38 MB less memory in a battle: Phaser's copy of every atlas page and backdrop layer is let go (542); the
+  battle-music memory spec passes, unchanged.
+- Four stale browser specs brought up to the game (543); unit portraits follow the mission's era, so the Tank Hunters
+  show a rifle and a bottle (544).
+- The whole browser suite, 146 tests, run end to end twice: 137 passed right after 540 (9 failed; with the two smoke
+  specs 540 fixed that is 11 failing on the v0.17.2 code), 145 on the final code. Perf suite 3/3; startup at CPU x4: title in about 1.8 s, longest piece
+  about 265 ms.
+- STILL FAILING SOMETIMES (545): smoke "mission 1010 (ring): a keen player ...": an abandoned battle in the Ring's third
+  phase never ends (the Germans hold their nests, only phase 1 has a deadline), so the spec's fast-forward times out
+  when its riflemen get that far. Passed in the first full run, failed in the second. Not fixed: it needs a mission
+  design decision.
 
 v0.17.0 (2026-11-11): the game updates itself (DECISIONS 461: asks for a new version at launch and when the tab comes
 back, "Updating…" note, reload; never on the briefing, battle or result screens) and the German flag is the Iron Cross
@@ -38,7 +54,7 @@ Released today, each deployed and checked on hunteracedev.com at 844x390 (consol
 - v0.15.1: flagpoles on every flag, double-tap guard on Play.
 - v0.16.0: the bug sweep (DECISIONS 455-459), Soviet AT Rifle Team (PTRD) and the 1941 Tank Hunters ("AT Bundle") who stalk vehicles (DECISIONS 460), German AT rifles until Nov 1943.
 Nothing running; spare worktrees tin-hats-rel and tin-hats-admin2 removed.
-Known and open: the battle-music memory test (about 25 MB over, Phaser canvas textures); the full browser suite has not been run end to end since the sweep; Dubno Hard/Insane a little below the rocket era (75% / 0%); the AT Rifle Team still uses the launcher pose (art job); the Soviet Shop still sells the British "Universal Carrier" (owner to decide); the screenshot sweep can be re-run with tools/sweep.
+Known and open (the battle-music memory test, the full browser suite and the AT Rifle Team's pose were done on 2026-11-15, see above): Dubno Hard/Insane a little below the rocket era (75% / 0%); the Soviet Shop still sells the British "Universal Carrier" (owner to decide); the screenshot sweep can be re-run with tools/sweep.
 Next (docs/QUEUE.md): the difficulty overhaul (Normal, Specialized, Elite), then passives; the trench and fortification art pass is queued for later with the owner's before shot (docs/art-before/).
 
 ## Branch brest-at (2026-11-09, merged, live in v0.16.0)
