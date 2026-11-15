@@ -11,6 +11,8 @@ import { MENU_MUSIC } from './app/menuStorm';
 import { browserStorage, createFlagPainter, createIconPainter, createUpgradePainter, installPageGuards, showUnreleased } from './app/page';
 import { STARTUP_PROGRESS, markStartup, viewProgress } from './app/startup';
 import { withStorageFallback } from './meta';
+import { platform } from './platform';
+import { installShell } from './platform/shell';
 import { reportScreen } from './pwa';
 import { createBattleView, nextTask } from './render';
 import { createUi } from './ui';
@@ -52,6 +54,8 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   await nextTask();
   // The hidden admin panel: nothing of it shows until the secret entry and the code (src/ui/admin).
   const admin = new AdminController({ app, view, ui: () => app.currentUi });
+  // An installed app's lifecycle and back action; on the website there is none and this does nothing (src/platform).
+  const shell = installShell(platform, app, document);
   const ui = createUi(uiEl, app, {
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
@@ -62,6 +66,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
       // A new version of the game waits for the battle screens to be left (src/pwa).
       reportScreen(screen);
       admin.screenChanged();
+      shell.screenChanged(screen);
     },
     onPortrait: (portrait) => {
       if (portrait) app.autoPause();

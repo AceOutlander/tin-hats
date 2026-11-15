@@ -2,6 +2,13 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: platform hooks (2026-11-15, on main after v0.17.3, DECISIONS 546 to 548)
+
+`src/platform`: the one module the game reads the place it runs in from (`docs/PLATFORM.md`). The website's provides
+nothing and nothing changes on the web. An installed app's pause, resume and back action are joined to the game
+(`src/platform/shell.ts`, called in `src/boot.ts`); the other parts (a store section, a reward, cloud saves,
+entitlements, an extra unit) are typed and read by nothing yet. `tests/unit/platform.test.ts` guards it.
+
 ## LIVE NOW: Beta v0.17.2 (2026-11-12, read this first)
 
 v0.17.1, an urgent fix (owner, 2026-11-12: the live game froze on LOADING and Chrome showed "Page Unresponsive").

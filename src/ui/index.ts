@@ -8,6 +8,7 @@
  */
 import { version as packageVersion } from '../../package.json';
 import { RELEASE_STAGE } from '../data/version';
+import { isBackPress } from '../platform/shell';
 import type { AppApi, CampaignView, HudState, PanelDropsState, ScreenId, UiApi } from './contracts';
 import { armouryScreen } from './screens/armoury';
 import { briefingScreen } from './screens/briefing';
@@ -217,7 +218,8 @@ export function createUi(root: HTMLElement, app: AppApi, opts: UiOptions = {}): 
   // --- Global input ------------------------------------------------------
   function onKeyDown(ev: KeyboardEvent): void {
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    keyboardMode = true;
+    // An installed app's back action arrives as the back key, but it is not a keyboard: focus stays as it was.
+    if (!isBackPress(ev)) keyboardMode = true;
     if (rotate.isPortrait()) return;
     if (ev.key === 'Escape') {
       if (confirmLayer.isOpen()) {
