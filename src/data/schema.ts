@@ -439,6 +439,8 @@ export interface GameConfig {
   engageSpread: number;
   /** Units keep at least this far from both map edges. */
   mapMargin: number;
+  /** The other side keeps this far from the map edge of a side with no HQ, where its waves come on. */
+  entryKeepOut: number;
   /** Speed multiplier while running to the HQ under Fall Back. */
   fallBackSpeedMul: number;
   /** A standing unit sets off again only when its goal is further than this (no shuffling behind a creeping line). */

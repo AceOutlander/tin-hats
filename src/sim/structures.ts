@@ -185,8 +185,13 @@ export function computeFronts(w: World): void {
   w.front[1] = f1;
   w.armedFront[0] = a0 === -Infinity ? line0 : a0;
   w.armedFront[1] = a1 === Infinity ? line1 : a1;
-  w.limit[0] = f1 - CONFIG.contactGap;
-  w.limit[1] = f0 + CONFIG.contactGap;
+  let limit0 = f1 - CONFIG.contactGap;
+  let limit1 = f0 + CONFIG.contactGap;
+  // A side with no HQ comes on over its map edge: nobody camps on that edge and cuts its waves off (CONFIG.entryKeepOut).
+  if (hq1 === null && limit0 > s.length - CONFIG.entryKeepOut) limit0 = s.length - CONFIG.entryKeepOut;
+  if (hq0 === null && limit1 < CONFIG.entryKeepOut) limit1 = CONFIG.entryKeepOut;
+  w.limit[0] = limit0;
+  w.limit[1] = limit1;
   countClusters(w);
 }
 

@@ -7,6 +7,7 @@
  * (see the `problems` fixture in helpers.ts).
  * Screenshots of the key moments go to docs/screenshots/e2e-*.png.
  */
+import { MEDALS } from '../../src/data/medals';
 import { MISSIONS } from '../../src/data/missions';
 import type { DebugApi } from '../../src/app/debug';
 import { audioStats, BATTLE_LOAD_MS, camera, expect, fastForward, firstUnit, grantSupplies, type Hooked, open, playThroughMenus, playToEnd, reasonText, savedGame, setTimeScale, shot, startMission, state, tap, test, toMap, touchDrag, weatherStats } from './helpers';
@@ -411,7 +412,9 @@ test.describe('whole battles at high speed', () => {
     await page.waitForFunction(() => (window as unknown as Hooked).__TH?.ready === true, null, { timeout: 60_000 });
     expect((await savedGame(page))?.cleared[String(MISSIONS[0].id)]).toEqual(['normal']);
     await toMap(page);
-    await expect(page.getByTestId('points-available')).toHaveText(String(award));
+    // Two purses since the medal economy: the medals go to the Shop, the first Normal win's upgrade points to the Quartermaster.
+    await expect(page.getByTestId('medals-available')).toHaveText(String(award));
+    await expect(page.getByTestId('points-available')).toHaveText(String(MEDALS.points.byDifficulty.normal));
     if (MISSIONS.length > 1) {
       await page.getByTestId(`mission-pin-${MISSIONS[1].id}`).tap();
       await expect(page.getByTestId('mission-start')).toBeEnabled();

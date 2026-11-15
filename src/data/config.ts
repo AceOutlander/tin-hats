@@ -32,6 +32,12 @@ export const CONFIG: GameConfig = {
   formationRowOrder: [1, 2, 0, 3],
   engageSpread: 100,
   mapMargin: 20,
+  /**
+   * A side with no HQ comes onto the field over its map edge (the attackers of a survival mission). The other side's men
+   * never go nearer that edge than this (wu): an army sent forward stops here, so the waves always have ground to
+   * arrive on and are out of rifle and gun range as they do (the longest direct-fire weapon reaches 380; DECISIONS 540).
+   */
+  entryKeepOut: 400,
   fallBackSpeedMul: 1.25,
   moveDeadband: 14,
   /** A Tank Hunter stalking a vehicle (WeaponDef.stalkRange) crawls at this fraction of his pace. */

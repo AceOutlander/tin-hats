@@ -333,7 +333,7 @@ export async function playToEnd(page: Page, win: boolean): Promise<DebugState> {
 
 /**
  * Fast-forward a battle to its end. For `keenMs` of real time a keen player keeps buying riflemen with granted
- * supplies and sends the army forward; after that nobody touches anything and the clock runs at its top speed, so every
+ * supplies and sends the army forward (in a survival mission he holds the line instead); after that nobody touches anything and the clock runs at its top speed, so every
  * battle ends within `totalMs` (an idle army loses sooner or later). Returns the final state.
  */
 export async function fastForward(page: Page, keenMs: number, totalMs: number): Promise<DebugState> {
@@ -345,7 +345,12 @@ export async function fastForward(page: Page, keenMs: number, totalMs: number): 
     if (Date.now() - started < keenMs) {
       await grantSupplies(page, 800);
       for (let i = 0; i < 3; i++) await tapIfThere(page, 'train-rifle');
-      if (s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
+      // A survival mission (no enemy HQ, like Brest: "Hold the citadel") has nothing to advance on: he holds, as the
+      // keen player of playToEnd does. Sent forward, the garrison left its walls for the German entry ground and the
+      // result hung on the browser's timing (DECISIONS 540).
+      const survival = s.hq[1] === null;
+      if (survival && s.order !== 'hold') await tapIfThere(page, 'order-hold');
+      if (!survival && s.units[0].rifle >= 14 && s.order !== 'advance') await tapIfThere(page, 'order-advance');
     } else if (!fast) {
       fast = true;
       await setTimeScale(page, APP.maxTimeScale);
