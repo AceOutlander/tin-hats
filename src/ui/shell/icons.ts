@@ -155,7 +155,8 @@ export function supportIcon(kind: SupportKind, className = 'th-support-icon'): S
   return svg('0 0 48 48', className, SUPPORT_ICONS[kind]);
 }
 
-export type PaintUnitIcon = (canvas: HTMLCanvasElement, kind: UnitKind, side: Side) => void;
+/** `missionId`: the mission whose era arms the unit (a briefing's NEW cards); in a battle the app uses the battle's own. */
+export type PaintUnitIcon = (canvas: HTMLCanvasElement, kind: UnitKind, side: Side, missionId?: number) => void;
 
 /**
  * Paints how an upgrade looks in battle at `level` (1 to its maximum) into a canvas whose pixel size is already set;
@@ -167,11 +168,11 @@ export type PaintUpgradePreview = (canvas: HTMLCanvasElement, upgradeId: string,
  * A unit portrait for cards and group headings: the art track's painter when
  * the app supplied one, otherwise a plain tin hat so the layout still holds.
  */
-export function unitIcon(kind: UnitKind, cssSize: number, paint: PaintUnitIcon | undefined): HTMLElement | SVGSVGElement {
+export function unitIcon(kind: UnitKind, cssSize: number, paint: PaintUnitIcon | undefined, missionId?: number): HTMLElement | SVGSVGElement {
   if (paint) {
     const canvas = iconCanvas(cssSize);
     try {
-      paint(canvas, kind, 0);
+      paint(canvas, kind, 0, missionId);
       return canvas;
     } catch (err) {
       console.warn('Tin Hats UI: paintUnitIcon failed', err);

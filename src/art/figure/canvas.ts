@@ -2,11 +2,12 @@
  * Canvas 2D reference renderer: draws the same parts with the same layout the
  * Phaser renderer uses (for the dev page, HUD icons and portraits).
  */
-import { FIGURE, type FigureKind } from '../../data/figure';
+import { FIGURE, type FigureKind, type WeaponModel } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
 import type { GearLevels } from '../../data/upgradeLooks';
 import { updateFigure } from './animate';
-import { setFigureGear } from './gear';
+import { MOLOTOV_KEY } from './eraWeapons';
+import { setFigureGear, setFigureRocketItem, setFigureWeapon } from './gear';
 import { createFigureLayout, layoutFigure, type FigurePart } from './layout';
 import { figureSpriteMap } from './parts';
 import { createFigureAnim, createFigureInput, isFigureKind, type FigureAnim } from './pose';
@@ -88,23 +89,42 @@ const ICON_POSE: Record<FigureKind, { action: UnitAction; carrying: boolean; tim
 
 const BOUNDS = new Float64Array(4);
 
+/** What a mission's era puts in the unit's hands in place of its nation's own (src/data/eras.ts): the weapon, a thrown bottle. */
+export interface IconArms {
+  weapon?: WeaponModel;
+  rocketItem?: 'molotov';
+}
+
+/** A thrower's portrait (the Tank Hunters): on his feet, then this far into the throw, the bottle still in his hand. */
+const ICON_THROW = { settle: 1.0, into: 0.2 };
+
 /**
  * Paint a portrait of one unit kind into a canvas of any size (uses the
- * canvas's pixel size), wearing the gear of the given upgrade levels (default none). Returns false for kinds that are
- * not stick figures.
+ * canvas's pixel size), wearing the gear of the given upgrade levels (default none) and carrying its era's arms
+ * (default the nation's own). Returns false for kinds that are not stick figures.
  */
-export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear?: GearLevels): boolean {
+export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear?: GearLevels, arms?: IconArms): boolean {
   const ctx = canvas.getContext('2d');
   if (!ctx || !isFigureKind(kind)) return false;
   const pose = ICON_POSE[kind];
   const anim = createFigureAnim(kind, faction, 3);
   anim.altAim = false;
   if (gear) setFigureGear(anim, gear);
+  if (arms?.weapon) setFigureWeapon(anim, arms.weapon);
+  if (arms?.rocketItem) setFigureRocketItem(anim, MOLOTOV_KEY);
   const input = createFigureInput(kind);
-  input.action = pose.action;
-  input.carrying = pose.carrying;
-  const steps = Math.round(pose.time * 60);
-  for (let i = 0; i < steps; i++) updateFigure(anim, input, 1 / 60);
+  if (arms?.rocketItem) {
+    // A thrower is shown throwing, not aiming a weapon he does not carry.
+    input.action = 'idle';
+    for (let i = 0; i < Math.round(ICON_THROW.settle * 60); i++) updateFigure(anim, input, 1 / 60);
+    input.action = 'throw';
+    for (let i = 0; i < Math.round(ICON_THROW.into * 60); i++) updateFigure(anim, input, 1 / 60);
+  } else {
+    input.action = pose.action;
+    input.carrying = pose.carrying;
+    const steps = Math.round(pose.time * 60);
+    for (let i = 0; i < steps; i++) updateFigure(anim, input, 1 / 60);
+  }
   const parts = createFigureLayout();
   layoutFigure(anim, parts);
   figureBounds(parts, BOUNDS);

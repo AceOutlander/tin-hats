@@ -136,10 +136,10 @@ export const briefingScreen: ScreenFactory = (ctx) => {
   const news = el('div', 'th-new-list th-scroll');
   news.dataset.scroll = '';
   if (mission && mission.newUnit) {
-    news.append(newCard('Unit', unitIcon(mission.newUnit.kind, 44, ctx.opts.paintUnitIcon), mission.newUnit.name, mission.newUnit.blurb));
+    news.append(newCard('Unit', unitIcon(mission.newUnit.kind, 44, ctx.opts.paintUnitIcon, mission.id), mission.newUnit.name, mission.newUnit.blurb));
   }
   for (const unit of mission?.moreNewUnits ?? []) {
-    news.append(newCard('Unit', unitIcon(unit.kind, 44, ctx.opts.paintUnitIcon), unit.name, unit.blurb));
+    news.append(newCard('Unit', unitIcon(unit.kind, 44, ctx.opts.paintUnitIcon, mission?.id), unit.name, unit.blurb));
   }
   if (mission && mission.newSupport) {
     news.append(newCard('Support', supportIcon(mission.newSupport.kind), mission.newSupport.name, mission.newSupport.blurb));

@@ -31,15 +31,22 @@ function menuFactions(app: App): readonly [FactionId, FactionId] {
 
 /**
  * The painter the UI calls for unit portraits: side 0 and 1 are mapped to the factions of the battle in progress, and
- * outside a battle (the briefing's NEW cards, the Armoury) to the nation of the campaign on the map.
+ * outside a battle (the briefing's NEW cards, the Armoury) to the nation of the campaign on the map. A briefing passes
+ * its mission's id, so its NEW cards show the unit as that mission arms it.
  */
-export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: UnitKind, side: Side) => void {
-  return (canvas, kind, side) => {
+export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: UnitKind, side: Side, missionId?: number) => void {
+  return (canvas, kind, side, missionId) => {
     const session = app.session;
     const faction = session ? session.battle.state.sides[side].faction : menuFactions(app)[side];
-    // A vehicle's portrait shows the mission's era look (the BT-7 in June 1941; src/data/eras.ts).
-    const look = session && isVehicleKind(kind) ? missionEra(session.mission, faction).vehicle[kind] : undefined;
-    paintUnitPortrait(canvas, kind, faction, undefined, look);
+    // The portrait shows the unit as its mission's era arms it (src/data/eras.ts): the BT-7 in June 1941, the Tank
+    // Hunters with their bottle, not the anti-tank rifle of later years. The mission is the battle's, or the one a
+    // briefing names.
+    const mission = session ? session.mission : missionId !== undefined ? app.missions.find((m) => m.id === missionId) : undefined;
+    const era = mission ? missionEra(mission, faction) : null;
+    const look = era && isVehicleKind(kind) ? era.vehicle[kind] : undefined;
+    const weapon = era?.weapon[kind];
+    const rocketItem = era?.rocketItem[kind];
+    paintUnitPortrait(canvas, kind, faction, undefined, look, weapon || rocketItem ? { ...(weapon ? { weapon } : {}), ...(rocketItem ? { rocketItem } : {}) } : undefined);
   };
 }
 

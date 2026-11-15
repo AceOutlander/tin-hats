@@ -13,7 +13,7 @@ import { FIGURE } from '../data/figure';
 import { GEAR_NONE } from '../data/looksGear';
 import type { FactionId, UnitKind } from '../data/schema';
 import type { GearLevels } from '../data/upgradeLooks';
-import { paintUnitIcon as paintFigureIcon } from './figure';
+import { paintUnitIcon as paintFigureIcon, type IconArms } from './figure';
 import type { SpriteSpec } from './types';
 import { TANK_KEYS, createTankPose, isGearLook, layoutTank, tankGearKeys, tankGearSpecs, tankSpecs, vehicleLookOf, type PartXf } from './vehicles';
 import type { VehicleLook } from '../data/artLayout';
@@ -111,7 +111,7 @@ function paintTank(canvas: HTMLCanvasElement, look: VehicleLook, gear: GearLevel
  * Stick figures come from the figure module, tanks from the vehicle sprites. `gear` draws the unit with its
  * upgrade gear (default none, the normal look). Returns false only if the canvas has no 2D context.
  */
-export function paintUnitPortrait(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear: GearLevels = GEAR_NONE, look?: VehicleLook): boolean {
+export function paintUnitPortrait(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear: GearLevels = GEAR_NONE, look?: VehicleLook, arms?: IconArms): boolean {
   if (kind === 'tank' || kind === 'heavyTank' || kind === 'apc' || kind === 'lightTank') return paintTank(canvas, look ?? vehicleLookOf(kind, faction), gear);
-  return paintFigureIcon(canvas, kind, faction, gear);
+  return paintFigureIcon(canvas, kind, faction, gear, arms);
 }
