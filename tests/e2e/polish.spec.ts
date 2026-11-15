@@ -275,6 +275,10 @@ test.describe('rapid taps', () => {
     await open(page);
     await watchScreens(page);
 
+    // The title takes no touch for a moment after it appears, like every screen (`is-arriving`): the two raw taps
+    // below do not wait for it as a locator's tap does, and since the start in small steps (DECISIONS 516) the debug
+    // hooks are ready before that moment is over.
+    await expect(arrived(page, 'title')).toBeVisible();
     await doubleTap(page, 'play');
     await page.waitForTimeout(500);
     expect(await shown(page)).toEqual(['campaigns']);

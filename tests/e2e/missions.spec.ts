@@ -15,12 +15,35 @@ import type { MissionDef, MissionEventDef } from '../../src/data/schema';
 import { TUTORIAL } from '../../src/data/tutorial';
 import { UNITS } from '../../src/data/units';
 import { arrived, BATTLE_LOAD_MS, camera, expect, fastForward, field, grantSupplies, type Hooked, lastResult, lookAt, open, reasonText, savedGame, setTimeScale, shot, state, tap, tapCallIn, tapIfThere, tapWorld, test, toMap, touchDrag, unlockAll } from './helpers';
-import type { DebugApi } from '../../src/app/debug';
+import type { DebugApi, DebugState } from '../../src/app/debug';
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
 /** The airdrop notice as the HUD words it (APP.notices.airdrop), any amount. */
 const AIRDROP_NOTICE = new RegExp('^' + APP.notices.airdrop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('\\{n\\}', '\\d+') + '$');
+
+/**
+ * How this mission can end, read from its own data: the classic rules (an HQ falls, the mission's clock runs out) and
+ * the mission director's (src/sim/director.ts: a phase's loss condition, a phase clock that loses the battle, the last
+ * phase completed). The spec knew only the classic ones, from before the Stalingrad missions ran on the director.
+ */
+function possibleEnds(m: MissionDef): DebugState['endReason'][] {
+  const ends: DebugState['endReason'][] = ['hqDestroyed'];
+  if (m.timer) ends.push(m.timer.onExpire === 'win' ? 'timerSurvived' : 'timerExpired');
+  const phases = m.phases ?? [];
+  if (phases.some((p) => (p.lose ?? []).length > 0)) ends.push('objectiveFailed');
+  if (phases.some((p) => p.timer?.onExpire === 'lose')) ends.push('timerExpired');
+  for (const p of phases) {
+    if (p.next !== null) continue;
+    if (p.objectives.some((o) => o.type === 'surrender')) ends.push('surrender');
+    else if (p.timer || p.objectives.some((o) => o.type === 'survive')) ends.push('timerSurvived');
+    else ends.push('objectives');
+  }
+  return ends;
+}
+/** The ends that are a win for the player, and those that are a loss (an HQ can fall either way). */
+const WINS: DebugState['endReason'][] = ['timerSurvived', 'objectives', 'surrender'];
+const LOSSES: DebugState['endReason'][] = ['timerExpired', 'objectiveFailed'];
 
 /** Battle seconds of the first firing of an event, or null for one that waits for something to happen. */
 function firstFire(event: MissionEventDef): number | null {
@@ -175,11 +198,26 @@ for (const m of MISSIONS) {
       await setTimeScale(page, 8);
       await expect.poll(async () => (await state(page)).supports[support].cooldown, { timeout: 60_000 }).toBeLessThanOrEqual(0);
       await setTimeScale(page, 1);
-      await tapCallIn(page, support);
-      await expect.poll(async () => (await state(page)).targeting, { timeout: 5000 }).toBe(support);
-      await tapWorld(page, (await camera(page)).centerX);
-      await expect.poll(async () => (await state(page)).tally.supportCalled[support], { timeout: 10_000 }).toBe(1);
-      await expect(page.getByTestId('callins-column'), 'the call folds the call-ins away').toBeHidden();
+      // Aircraft do not fly in fog, a blizzard or the night (FOUNDATIONS.md 4.7): Klin opens at night and Uranus in fog,
+      // and the director offers their aircraft only when the sky has cleared. Offered early by the hook above, the
+      // button says why it is grounded and a tap on it aims nothing.
+      const button = page.getByTestId(`support-${support}`);
+      const grounded = /grounded/.test((await button.getAttribute('aria-label')) ?? '');
+      if (grounded) {
+        await tapCallIn(page, support);
+        await expect(button).toHaveClass(/is-grounded/);
+        await page.waitForTimeout(500);
+        expect((await state(page)).targeting, 'a grounded aircraft is not aimed').toBeNull();
+        expect((await state(page)).tally.supportCalled[support]).toBe(0);
+        await tap(page, 'callins');
+        await expect(page.getByTestId('callins-column')).toBeHidden();
+      } else {
+        await tapCallIn(page, support);
+        await expect.poll(async () => (await state(page)).targeting, { timeout: 5000 }).toBe(support);
+        await tapWorld(page, (await camera(page)).centerX);
+        await expect.poll(async () => (await state(page)).tally.supportCalled[support], { timeout: 10_000 }).toBe(1);
+        await expect(page.getByTestId('callins-column'), 'the call folds the call-ins away').toBeHidden();
+      }
     }
 
     // --- Watch the first minute at a speed the HUD can follow: hints, notices, the dusk ---------------------------------
@@ -270,11 +308,9 @@ for (const m of MISSIONS) {
     await expect(page.getByTestId('result-reason')).toHaveText(reasonText(end));
     expect((await lastResult(page))?.reason).toBe(reasonText(end));
     const won = end.winner === 0;
-    if (m.timer?.onExpire === 'win') expect(['timerSurvived', 'hqDestroyed']).toContain(end.endReason);
-    else if (m.timer) expect(['timerExpired', 'hqDestroyed']).toContain(end.endReason);
-    else expect(end.endReason).toBe('hqDestroyed');
-    if (end.endReason === 'timerSurvived') expect(won).toBe(true);
-    if (end.endReason === 'timerExpired') expect(won).toBe(false);
+    expect(possibleEnds(m), `one of this mission's own ends, not ${end.endReason}`).toContain(end.endReason);
+    if (WINS.includes(end.endReason)) expect(won, `${end.endReason} is a win`).toBe(true);
+    if (LOSSES.includes(end.endReason)) expect(won, `${end.endReason} is a loss`).toBe(false);
 
     const saved = await savedGame(page);
     if (won) {
