@@ -12,6 +12,7 @@ import { browserStorage, createFlagPainter, createIconPainter, createUpgradePain
 import { STARTUP_PROGRESS, markStartup, viewProgress } from './app/startup';
 import { withStorageFallback } from './meta';
 import { platform } from './platform';
+import type { StoreSection } from './platform/types';
 import { installShell } from './platform/shell';
 import { reportScreen } from './pwa';
 import { createBattleView, nextTask } from './render';
@@ -56,7 +57,10 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   const admin = new AdminController({ app, view, ui: () => app.currentUi });
   // An installed app's lifecycle and back action; on the website there is none and this does nothing (src/platform).
   const shell = installShell(platform, app, document);
+  // The Shop's store section is the platform's (the website has none); the debug hooks may stand one in for a test.
+  let standInStore: StoreSection | null | undefined;
   const ui = createUi(uiEl, app, {
+    store: () => (standInStore !== undefined ? standInStore : platform.store),
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
     paintFlag: createFlagPainter(),
@@ -75,7 +79,9 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   app.attachUi(ui);
   installAdminUi(uiEl, admin);
   installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin) : null;
+  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin, (store) => (standInStore = store)) : null;
+  // What the game lends its platform (an installed app's; the website's takes nothing).
+  platform.attach?.({ grantMedals: (medals, grantId) => app.grantMedals(medals, grantId) });
   markStartup('th:ui');
   progress(STARTUP_PROGRESS.ui);
   await nextTask();

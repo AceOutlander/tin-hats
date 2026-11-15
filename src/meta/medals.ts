@@ -6,6 +6,7 @@
  * ones that change a save change it in place.
  */
 import { DIFFICULTY_LIST } from '../data/difficulty';
+import { META } from '../data/meta';
 import { MEDALS, type ChargeDef, type ChargeLoanDef, type LoanDef, type MissionMedalDef } from '../data/medals';
 import type { Difficulty, MissionDef, MissionMode, SupportKind, UnitKind } from '../data/schema';
 import { UNITS } from '../data/units';
@@ -253,6 +254,29 @@ export function addMedals(save: SaveData, n: number): number {
   const delta = Number.isFinite(n) ? Math.trunc(n) : 0;
   save.medals = Math.max(0, Math.min(MEDALS.maxMedals, save.medals + delta));
   return save.medals;
+}
+
+/** What a once-only grant did: given, given before (nothing changed), or not given. */
+export type GrantOutcome = 'granted' | 'already' | 'failed';
+
+/** An id a once-only grant may carry: letters, digits and . : _ - only, META.maxGrantIdLength at most. */
+export function isGrantId(id: unknown): id is string {
+  return typeof id === 'string' && id.length >= 1 && id.length <= META.maxGrantIdLength && /^[A-Za-z0-9.:_-]+$/.test(id);
+}
+
+/**
+ * Give medals once: the grant is named by `grantId`, and one the save already holds changes nothing. Not given when
+ * the id or the amount is unusable, or when the medals would not all fit under MEDALS.maxMedals (a grant is never cut
+ * short). The caller writes the save.
+ */
+export function grantMedalsOnce(save: SaveData, n: number, grantId: string): GrantOutcome {
+  if (!isGrantId(grantId) || !Number.isInteger(n) || n <= 0) return 'failed';
+  const held = save.grants ?? [];
+  if (held.includes(grantId)) return 'already';
+  if (save.medals + n > MEDALS.maxMedals) return 'failed';
+  save.medals += n;
+  save.grants = [...held, grantId].slice(-META.maxGrantIds);
+  return 'granted';
 }
 
 // --- The Shop: call-in charges -------------------------------------------------

@@ -2,6 +2,17 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: the Shop's store section for platforms (2026-11-15, on main after v0.17.4, DECISIONS 552 to 555)
+
+Not pushed, version not bumped. Nothing changes on the website: its platform has no store, so the Shop is as it was.
+- The Shop draws a platform's store section under the call-in charges (`src/ui/screens/storeSection.ts`): every word
+  is the platform's; states busy, done, pending, failed, cancelled and owned (552).
+- A platform gives medals through `GameHost.grantMedals(medals, grantId)`: the medals and the id are one write of the
+  save and an id is taken once (`SaveData.grants`, optional; save version still 11) (553).
+- A platform may put one "Platform test mode" switch in the admin panel's Campaign tab (554).
+- Tests: `tests/unit/meta-grants.test.ts`, `tests/unit/platform.test.ts`, `tests/e2e/shop-store.spec.ts`,
+  `tests/e2e/screen-labels.spec.ts` (the Shop with a stand-in store at the three phone sizes), `docs/PLATFORM.md`.
+
 ## Not yet live: three owner decisions (2026-11-15, on main after the platform hooks, DECISIONS 549 to 551)
 
 Not pushed, version not bumped (the main session releases).

@@ -30,6 +30,7 @@ import {
   clearSave,
   completeTraining,
   defaultSave,
+  grantMedalsOnce,
   isUnlocked,
   loadSave,
   maxLevel,
@@ -44,6 +45,7 @@ import {
   refundUpgrade,
   toggleLoadout,
   writeSave,
+  type GrantOutcome,
   type MedalBreakdown,
   type SaveData,
   type StorageLike,
@@ -760,6 +762,24 @@ export class App implements AppApi {
     this.persist();
     this.ui?.refresh();
     return balance;
+  }
+
+  /**
+   * Give medals once, for a platform (GameHost.grantMedals): a grant the save already holds changes nothing, and the
+   * medals count only when the save was written with them (otherwise they are taken back and the grant is not given).
+   */
+  grantMedals(medals: number, grantId: string): GrantOutcome {
+    const before = { medals: this.save.medals, grants: this.save.grants };
+    const outcome = grantMedalsOnce(this.save, medals, grantId);
+    if (outcome !== 'granted') return outcome;
+    if (!writeSave(this.storage, this.save)) {
+      this.save.medals = before.medals;
+      if (before.grants) this.save.grants = before.grants;
+      else delete this.save.grants;
+      return 'failed';
+    }
+    this.ui?.refresh();
+    return 'granted';
   }
 
   /** Change one setting: checked and clamped like a stored one (volumes are whole numbers 0..100), applied at once and saved. */

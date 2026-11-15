@@ -14,6 +14,9 @@ export interface MetaTunables {
    */
   unreadableKey: string;
   unreadableMaxChars: number;
+  /** How many ids of once-only grants a save remembers (the oldest are dropped first), and the longest id it keeps. */
+  maxGrantIds: number;
+  maxGrantIdLength: number;
   /**
    * Upgrade points a save from before medals (version 5 and older) earned for the first clear of a mission. Only the
    * step to version 6 uses it, to work out the points the player had left.
@@ -69,6 +72,8 @@ export const META: MetaTunables = {
   saveVersion: 11,
   unreadableKey: 'tinhats.save.unreadable',
   unreadableMaxChars: 100_000,
+  maxGrantIds: 1000,
+  maxGrantIdLength: 96,
   firstClearPoints: 2,
   legacyPointMedals: 20,
   legacyUpgradeLevelMedals: 20,

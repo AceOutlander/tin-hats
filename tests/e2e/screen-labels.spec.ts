@@ -6,8 +6,12 @@
  * sheet's headings, objective and loadout, the map's mission card and the campaign cards lies wholly inside its box;
  * no two controls of a card overlap; and in the battle the unit tray never runs under the order buttons (mission 1006,
  * the most units). The unit-name labels themselves are tests/e2e/hud-labels.spec.ts.
+ * The Shop's store section (a platform's; the website has none) is checked the same way with a stand-in store
+ * (tests/e2e/fake-store.ts): every word of it inside its box, no button over its card's text, nothing wider than the
+ * list, in every state an offer can show.
  */
 import type { Page } from '@playwright/test';
+import { FAKE_STORE, installFakeStore } from './fake-store';
 import { arrived, BATTLE_LOAD_MS, expect, open, tap, tapIn, test, type Hooked } from './helpers';
 
 const SIZES = [
@@ -185,6 +189,56 @@ for (const size of SIZES) {
       const qm = '.th-screen.is-in[data-screen="quartermaster"]';
       expect(await page.evaluate(spills, [`${qm} .th-up-name`, `${qm} .th-group`, `${qm} button`, `${qm} .th-btn-label`]), 'Quartermaster').toEqual([]);
       expect(await page.evaluate(overlaps, [[`${qm} .th-up-text`, `${qm} .th-up-side`]] as Array<[string, string]>), 'Quartermaster cards').toEqual([]);
+      expect(problems).toEqual([]);
+    });
+
+    test('the Shop with a store section: every offer, its states and the small print fit', async ({ page, problems }) => {
+      await fullSave(page);
+      await open(page);
+      await installFakeStore(page);
+      await tap(page, 'play');
+      await settled(page);
+      await tapIn(page, 'campaigns', 'campaign-stalingrad');
+      await expect(arrived(page, 'campaign')).toBeVisible();
+      await settled(page);
+      await tapIn(page, 'campaign', 'armoury');
+      await settled(page);
+      const shop = '.th-screen.is-in[data-screen="armoury"]';
+      const section = page.getByTestId('store-section');
+      await expect(section.getByTestId('store-buy-five')).toBeVisible();
+      const check = async (when: string): Promise<void> => {
+        const words = ['.th-up-name', '.th-up-desc', 'button', '.th-btn-label', '.th-btn-sub', '.th-group', '.th-store-msg', '.th-store-status', '.th-store-note'];
+        expect(await page.evaluate(spills, words.map((w) => `${shop} ${w}`)), `Shop with a store, ${when}`).toEqual([]);
+        const pairs: Array<[string, string]> = [
+          [`${shop} .th-up-text`, `${shop} .th-up-side`],
+          [`${shop} .th-store-offer`, `${shop} .th-store-offer`],
+          [`${shop} .th-store-offer`, `${shop} .th-store-note`],
+          [`${shop} .th-store-offer`, `${shop} .th-store-msg`],
+        ];
+        expect(await page.evaluate(overlaps, pairs), `Shop cards, ${when}`).toEqual([]);
+        // Nothing of the section is wider than the list it sits in, and the list does not scroll sideways.
+        const width = await page.evaluate(() => {
+          const list = document.querySelector('.th-screen.is-in[data-screen="armoury"] .th-qm-list') as HTMLElement;
+          const box = list.getBoundingClientRect();
+          const wide = [...list.querySelectorAll('.th-store, .th-store *')].filter((n) => {
+            const r = n.getBoundingClientRect();
+            return r.width > 0 && (r.left < box.left - 1 || r.right > box.right + 1);
+          }).length;
+          return { wide, sideways: list.scrollWidth - list.clientWidth };
+        });
+        expect(width, `store section width, ${when}`).toEqual({ wide: 0, sideways: 0 });
+      };
+      await check('idle');
+      // Every state at once: one done, four failed, five owned, three pending.
+      await tapIn(page, 'armoury', 'store-buy-one');
+      await expect(section.getByTestId('store-status-one')).toHaveText(FAKE_STORE.done);
+      await tapIn(page, 'armoury', 'store-buy-four');
+      await expect(section.getByTestId('store-status-four')).toHaveText(FAKE_STORE.failed);
+      await tapIn(page, 'armoury', 'store-buy-five');
+      await expect(section.getByTestId('store-buy-five')).toHaveText('Owned');
+      await tapIn(page, 'armoury', 'store-buy-three');
+      await expect(section.getByTestId('store-status-three')).toHaveText(FAKE_STORE.pending);
+      await check('with every state showing');
       expect(problems).toEqual([]);
     });
 

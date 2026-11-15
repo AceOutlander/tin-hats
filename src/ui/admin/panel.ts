@@ -5,6 +5,7 @@
  */
 import { ADMIN, type AdminEntryDef, type AdminTabId } from '../../data/admin';
 import { DIFFICULTY_LIST } from '../../data/difficulty';
+import { platform } from '../../platform';
 import type { Difficulty, FactionId, ForceLookId, UnitKind } from '../../data/schema';
 import { TIMES_OF_DAY } from '../../data/theatres';
 import { WEATHER_KINDS } from '../../data/weather';
@@ -111,6 +112,25 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
   }
 
   const builders: Record<string, (info: AdminInfo, out: HTMLElement) => void> = {
+    // The platform's own switch, in its own words (src/platform): its services run against stand-ins while it is on.
+    platformTest(_info, out) {
+      const mode = platform.testMode;
+      if (!mode) return;
+      const on = mode.on();
+      out.append(
+        row(
+          btn(
+            mode.label,
+            () => {
+              mode.set(!on);
+              render();
+            },
+            { pressed: on, testid: 'admin-platform-test' },
+          ),
+        ),
+        note(mode.note),
+      );
+    },
     // --- Campaign -------------------------------------------------------------
     unlockMissions(info, out) {
       out.append(
@@ -497,6 +517,11 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
     },
   };
 
+  /** An entry that needs a part of the platform is listed only where the platform has it. */
+  function offered(def: AdminEntryDef): boolean {
+    return def.platform === undefined || platform[def.platform] !== null;
+  }
+
   function entry(def: AdminEntryDef, info: AdminInfo): HTMLElement {
     const section = el('section', 'th-admin-entry');
     section.dataset.entry = def.id;
@@ -523,7 +548,7 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
     );
     const def = ADMIN.tabs.find((t) => t.id === tab) ?? ADMIN.tabs[0];
     if (def.id !== 'campaign') resetArmed = false;
-    body.replaceChildren(...def.entries.map((e) => entry(e, info)));
+    body.replaceChildren(...def.entries.filter(offered).map((e) => entry(e, info)));
     body.scrollTop = top;
     hooks.changed(info);
   }

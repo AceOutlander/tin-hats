@@ -29,13 +29,18 @@ export interface AppShell {
 
 // --- a store section in the Shop ---------------------------------------------------------------------------------------
 
-/** What a completed offer gives the player. */
+/**
+ * How asking for an offer ended. Whatever the offer gives, the platform gives it itself (medals through the game's
+ * own `GameHost`), so the game only shows the state. `message` is plain words for the player, from the platform.
+ */
 export type OfferOutcome =
-  | { readonly kind: 'medals'; readonly medals: number }
-  | { readonly kind: 'entitlement'; readonly id: string }
+  /** It went through and the player has what was offered. */
+  | { readonly kind: 'done'; readonly message: string }
+  /** It is on its way but not settled yet: nothing has been given, and the platform finishes it later by itself. */
+  | { readonly kind: 'pending'; readonly message: string }
   /** The player backed out: nothing changes and nothing is said. */
   | { readonly kind: 'cancelled' }
-  /** It did not go through; `message` is plain words for the player. */
+  /** It did not go through. */
   | { readonly kind: 'failed'; readonly message: string };
 
 /** One thing on offer. Every word shown, the price label included, comes from the platform. */
@@ -46,14 +51,26 @@ export interface StoreOffer {
   readonly priceLabel: string;
   /** True when the player already owns it and it cannot be had twice. */
   readonly owned?: boolean;
+  /** Set while an earlier request for it is still unsettled: shown under the offer, and it cannot be asked for again. */
+  readonly pending?: string;
   buy(): Promise<OfferOutcome>;
+}
+
+/** The offers as they stand now. With a `message` the section shows it above the offers (or alone when there are none). */
+export interface StoreListing {
+  readonly offers: readonly StoreOffer[];
+  readonly message?: string;
 }
 
 /** A section a platform may add to the Shop. */
 export interface StoreSection {
   readonly title: string;
+  /** Short lines shown under the offers, as the platform words them. */
+  readonly notes?: readonly string[];
   /** The offers, as they stand now (it may take a moment the first time). */
-  offers(): Promise<readonly StoreOffer[]>;
+  list(): Promise<StoreListing>;
+  /** The listing changed by itself (something unsettled was settled): the Shop asks for it again. */
+  onChange?(listener: () => void): Unsubscribe;
 }
 
 // --- a reward the player may ask for -----------------------------------------------------------------------------------
@@ -95,6 +112,32 @@ export interface ExtraUnitSlot {
   readonly [key: string]: unknown;
 }
 
+// --- what the game lends a platform ------------------------------------------------------------------------------------------
+
+/** granted: given and saved. already: this grant was given before, nothing changed. failed: not given (it could not be saved). */
+export type GrantResult = 'granted' | 'already' | 'failed';
+
+/** Handed to `Platform.attach` once the game is running. */
+export interface GameHost {
+  /**
+   * Give the player medals, once: `grantId` (letters, digits and . : _ -, 96 at most) names the grant, and a grant
+   * the save already holds changes nothing. The medals and the id are written to the save together, before this
+   * returns.
+   */
+  grantMedals(medals: number, grantId: string): GrantResult;
+}
+
+// --- a test mode ---------------------------------------------------------------------------------------------------------
+
+/** A switch a platform may put in the admin panel: its own services run against stand-ins while it is on. */
+export interface PlatformTestMode {
+  /** What the switch is called, and a line under it, as the platform words them. */
+  readonly label: string;
+  readonly note: string;
+  on(): boolean;
+  set(on: boolean): void;
+}
+
 // --- the whole ---------------------------------------------------------------------------------------------------------------
 
 export interface Platform {
@@ -112,4 +155,8 @@ export interface Platform {
   entitlements(): ReadonlySet<string>;
   /** An extra unit for the roster. */
   readonly extraUnit: ExtraUnitSlot | null;
+  /** A test mode switch for the admin panel. */
+  readonly testMode: PlatformTestMode | null;
+  /** Called once, when the game is running, with what the game lends the platform. */
+  attach?(game: GameHost): void;
 }

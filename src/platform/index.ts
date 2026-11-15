@@ -16,4 +16,5 @@ export const platform: Platform = {
   cloud: null,
   entitlements: () => NOTHING_OWNED,
   extraUnit: null,
+  testMode: null,
 };

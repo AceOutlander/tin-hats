@@ -21,6 +21,7 @@ import type { CampaignId, Difficulty, MissionMode, Order, SupportKind, UnitKind,
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import type { SaveData } from '../meta';
+import type { StoreSection } from '../platform/types';
 import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts';
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
@@ -161,6 +162,10 @@ export interface DebugMission {
 
 export interface DebugApi {
   ready: boolean;
+  /** Stand a store section in for the platform's in the Shop (a test's own; null = none), from the next time it opens. */
+  setStore(store: StoreSection | null): void;
+  /** Give medals once, as a platform does (GameHost.grantMedals). */
+  grantMedals(medals: number, grantId: string): 'granted' | 'already' | 'failed';
   /** The campaign on the map, in order. */
   missions(): DebugMission[];
   /** The campaigns the select screen offers, in its order, and the one on the map. */
@@ -378,9 +383,18 @@ export function debugEnabled(search: string): boolean {
 }
 
 /** Create the hooks and put them on window.__TH. */
-export function installDebug(app: App, view: BattleView, ui: UiHandle, audio: GameAudio, admin: AdminController | null = null): DebugApi {
+export function installDebug(
+  app: App,
+  view: BattleView,
+  ui: UiHandle,
+  audio: GameAudio,
+  admin: AdminController | null = null,
+  setStore: (store: StoreSection | null) => void = () => {},
+): DebugApi {
   const api: DebugApi = {
     ready: false,
+    setStore,
+    grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),
 
     missions() {
       return app.missions.map((m) => ({

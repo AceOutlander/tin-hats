@@ -12,7 +12,7 @@ import type { Difficulty, SupportKind, UnitKind, UpgradeDef, UpgradeLevels } fro
 import { clampVolume } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import { maxLevel } from './campaign';
-import { missionPoints, starterCharges, starterLoadout } from './medals';
+import { isGrantId, missionPoints, starterCharges, starterLoadout } from './medals';
 
 /** The part of Storage the game uses. */
 export interface StorageLike {
@@ -115,6 +115,8 @@ export interface SaveData {
   settings: SaveSettings;
   /** Progress on the removed British placeholder missions (version 10), kept as it was; absent when there was none. */
   legacy?: LegacyRecord;
+  /** Ids of the once-only grants this save has had (grantMedalsOnce), oldest first; absent when there were none. */
+  grants?: string[];
 }
 
 /**
@@ -564,6 +566,11 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
   }
   const legacy = sanitizeLegacy(doc.legacy);
   if (legacy) out.legacy = legacy;
+  if (Array.isArray(doc.grants)) {
+    const grants: string[] = [];
+    for (const id of doc.grants) if (isGrantId(id) && !grants.includes(id)) grants.push(id);
+    if (grants.length > 0) out.grants = grants.slice(-META.maxGrantIds);
+  }
 
   const last = doc.lastMission;
   if (typeof last === 'number' && Number.isInteger(last) && last >= 1 && last <= MAX_MISSION_ID) {

@@ -24,6 +24,8 @@ export interface AdminEntryDef {
   label: string;
   /** Shown greyed out with this note: the system it needs comes with a later job. */
   pending?: string;
+  /** Listed only when the platform the game runs on provides this part (src/platform); the website provides none. */
+  platform?: 'testMode';
 }
 
 export interface AdminTabDef {
@@ -104,6 +106,7 @@ export const ADMIN: AdminTunables = {
         { id: 'charges', label: 'Call-in charges' },
         { id: 'upgrades', label: 'Quartermaster levels' },
         { id: 'save', label: 'Save' },
+        { id: 'platformTest', label: 'Platform test mode', platform: 'testMode' },
       ],
     },
     {
