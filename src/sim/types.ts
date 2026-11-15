@@ -61,6 +61,11 @@ export interface BattleConfig {
    * an empty list = upgrades have no effect.
    */
   upgradeDefs?: readonly UpgradeDef[];
+  /**
+   * Side 0 may train the platform's extra unit (the kind 'extra', src/data/extraUnit.ts) wherever it has an HQ,
+   * whatever the mission lists. Nothing when no extra unit is installed. Side 1 never gets it.
+   */
+  extraUnit?: boolean;
 }
 
 /**
@@ -428,6 +433,10 @@ export interface UnitState {
    * guns do not pick him out (DECISIONS 460).
    */
   stalking: boolean;
+  /** A unit with a charge (UnitDef.charge): true while it is charging (read while it moves; the view shows the charge). */
+  charging: boolean;
+  /** internal: battle time its last charge was announced. */
+  chargedAt: number;
 }
 
 /** Admin panel cheats in force on one side (AdminAction). All off in a normal battle. */
@@ -1098,6 +1107,11 @@ export type SimEventType =
   | 'reconReveal'
   | 'apcUnload'
   | 'ignite'
+  /**
+   * A unit started a charge (UnitDef.charge). side, unit, unitId, kind, x, row; value = a per-side count (non-negative),
+   * so a view can walk through the unit's shouts in turn.
+   */
+  | 'charge'
   | 'buildStarted'
   | 'buildDone'
   | 'prepEnded'

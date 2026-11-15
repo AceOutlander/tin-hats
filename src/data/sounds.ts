@@ -14,6 +14,7 @@
  *
  * Pure data and pure helpers only: no DOM, no WebAudio types, no randomness.
  */
+import { extraUnitData } from './extraUnit';
 import type { Order } from './schema';
 
 export type WaveShape = 'sine' | 'triangle' | 'square' | 'sawtooth';
@@ -1049,6 +1050,13 @@ export const LOOPS = {
 export type OneShotName = keyof typeof SOUNDS;
 export type LoopName = keyof typeof LOOPS;
 export type SoundName = OneShotName | LoopName;
+
+// A platform's extra unit brings its own one-shots (src/data/extraUnit.ts): they are played by name like the game's.
+const EXTRA_SOUNDS = extraUnitData()?.sounds ?? {};
+for (const name of Object.keys(EXTRA_SOUNDS)) {
+  if (name in SOUNDS || name in LOOPS) throw new Error(`Tin Hats: the extra unit's sound "${name}" is already a sound of the game`);
+  (SOUNDS as Record<string, SoundDef>)[name] = EXTRA_SOUNDS[name];
+}
 
 export const ONE_SHOT_NAMES = Object.keys(SOUNDS) as OneShotName[];
 export const LOOP_NAMES = Object.keys(LOOPS) as LoopName[];

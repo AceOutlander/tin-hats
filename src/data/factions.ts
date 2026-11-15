@@ -1,4 +1,11 @@
-import type { FactionDef, FactionId, SupportKind, UnitKind } from './schema';
+import { extraUnitData } from './extraUnit';
+import type { BuiltinUnitKind, FactionDef, FactionId, SupportKind, UnitKind } from './schema';
+
+/** A nation as the game writes it: names and lines for its own unit kinds. */
+type BuiltinFactionDef = Omit<FactionDef, 'unitNames' | 'unitBlurbs'> & {
+  unitNames: Record<BuiltinUnitKind, string>;
+  unitBlurbs: Record<BuiltinUnitKind, string>;
+};
 
 /**
  * Factions are pure data so further nations can be added, or the Germans made
@@ -6,7 +13,7 @@ import type { FactionDef, FactionId, SupportKind, UnitKind } from './schema';
  * units.ts, only names and looks differ, plus each nation's signature kinds
  * (docs/campaigns/NATIONS.md), which only that nation fields.
  */
-export const FACTIONS: Record<FactionId, FactionDef> = {
+const BUILTIN_FACTIONS: Record<FactionId, BuiltinFactionDef> = {
   british: {
     id: 'british',
     name: 'British Army',
@@ -197,6 +204,20 @@ export const FACTIONS: Record<FactionId, FactionDef> = {
     signature: { units: ['conscript'], supports: ['katyusha'] },
   },
 };
+
+/**
+ * Every nation. A platform's extra unit (src/data/extraUnit.ts) is the same unit under every flag: each nation gets its
+ * name and line under `extra`. With none installed the entry is absent, and no list names the kind.
+ */
+export const FACTIONS = BUILTIN_FACTIONS as Record<FactionId, FactionDef>;
+const EXTRA = extraUnitData();
+if (EXTRA) {
+  for (const id of Object.keys(FACTIONS) as FactionId[]) {
+    FACTIONS[id].unitNames.extra = EXTRA.name;
+    if (EXTRA.buttonName !== undefined) FACTIONS[id].buttonNames.extra = EXTRA.buttonName;
+    FACTIONS[id].unitBlurbs.extra = EXTRA.blurb;
+  }
+}
 
 /** Every nation, in FACTIONS order. */
 export const FACTION_IDS: readonly FactionId[] = Object.keys(FACTIONS) as FactionId[];

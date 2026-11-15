@@ -17,7 +17,7 @@
 import type { DamageType, FactionId, UnitKind } from './schema';
 import { VIEW } from './view';
 
-export type FigureKind = Exclude<UnitKind, 'tank' | 'heavyTank' | 'apc' | 'lightTank'>;
+export type FigureKind = Exclude<UnitKind, 'tank' | 'heavyTank' | 'apc' | 'lightTank' | 'extra'>;
 /** The figure kinds that have their own poses; the new kinds borrow one until the units job draws them. */
 type CoreFigureKind = Exclude<FigureKind, 'flame' | 'commander' | 'aa' | 'conscript'>;
 

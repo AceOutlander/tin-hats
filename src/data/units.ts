@@ -1,7 +1,11 @@
-import type { UnitDef, UnitKind } from './schema';
+import { extraUnitData } from './extraUnit';
+import type { BuiltinUnitKind, UnitDef, UnitKind } from './schema';
 
-/** Every unit kind, in the order the training bar shows them. */
-export const UNIT_KINDS: readonly UnitKind[] = [
+/** A platform's extra unit (src/data/extraUnit.ts), or null: then nothing below differs from the game's own tables. */
+const EXTRA = extraUnitData();
+
+/** The game's own unit kinds, in the order the training bar shows them. */
+const BUILTIN_KINDS: readonly BuiltinUnitKind[] = [
   'sapper',
   'rifle',
   'conscript',
@@ -20,11 +24,14 @@ export const UNIT_KINDS: readonly UnitKind[] = [
   'lightTank',
 ];
 
+/** Every unit kind, in the order the training bar shows them: the game's own, then a platform's extra unit if there is one. */
+export const UNIT_KINDS: readonly UnitKind[] = EXTRA ? [...BUILTIN_KINDS, 'extra'] : BUILTIN_KINDS;
+
 /**
  * Unit stats, shared by both factions (the rosters are mirrored).
  * First-pass numbers; the balance phase tunes them.
  */
-export const UNITS: Record<UnitKind, UnitDef> = {
+const BUILTIN_UNITS: Record<BuiltinUnitKind, UnitDef> = {
   sapper: {
     kind: 'sapper',
     class: 'infantry',
@@ -394,6 +401,13 @@ export const UNITS: Record<UnitKind, UnitDef> = {
     squad: 5,
   },
 };
+
+/**
+ * Every unit by kind. `extra` is there only when a platform installed one: the kind is in no list otherwise, so no
+ * code reaches the missing entry.
+ */
+export const UNITS = BUILTIN_UNITS as Record<UnitKind, UnitDef>;
+if (EXTRA) UNITS.extra = EXTRA.unit;
 
 /** Kinds whose arrival is announced like a boss (bossArrived: a banner and a sound). */
 export const BOSS_KINDS: readonly UnitKind[] = ['heavyTank'];

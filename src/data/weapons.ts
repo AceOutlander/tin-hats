@@ -1,3 +1,4 @@
+import { extraUnitData } from './extraUnit';
 import type { TargetClass, WeaponDef } from './schema';
 
 /** Men wherever they are: in the open, in a trench, at a building's windows, in rubble (FOUNDATIONS.md 4.3). */
@@ -939,4 +940,10 @@ export const WEAPONS: Record<string, WeaponDef> = {
 };
 
 /** Weapons whose hits burn men out of trench slots and that do extra damage to pillboxes (SPECIALS). */
+// A platform's extra unit brings its own weapons (src/data/extraUnit.ts).
+for (const weapon of extraUnitData()?.weapons ?? []) {
+  if (weapon.id in WEAPONS) throw new Error(`Tin Hats: the extra unit's weapon "${weapon.id}" is already a weapon of the game`);
+  WEAPONS[weapon.id] = weapon;
+}
+
 export const FLUSH_WEAPONS: readonly string[] = ['flamer'];

@@ -114,7 +114,9 @@ export const WEAPON_MIN_RANK: Int8Array = Int8Array.from(WEAPON_LIST, (weapon) =
 export const WEAPON_SETUP: Float64Array = Float64Array.from(WEAPON_LIST, (weapon) => weapon.setupTime);
 
 /** Per weapon: 1 if it fires a projectile (direct or lob) instead of a hitscan round. */
-export const WEAPON_PROJECTILE: Uint8Array = Uint8Array.from(WEAPON_LIST, (weapon) => (weapon.delivery === 'hitscan' ? 0 : 1));
+export const WEAPON_PROJECTILE: Uint8Array = Uint8Array.from(WEAPON_LIST, (weapon) => (weapon.delivery === 'direct' || weapon.delivery === 'lob' ? 1 : 0));
+/** Per weapon: 1 if it is a blow that needs contact (delivery 'melee'): it lands at once and never misses. */
+export const WEAPON_MELEE: Uint8Array = Uint8Array.from(WEAPON_LIST, (weapon) => (weapon.delivery === 'melee' ? 1 : 0));
 
 /** Per weapon, per kind index: position in the weapon's `prefer` list, or NO_PREFERENCE. */
 export const WEAPON_PREFER: readonly Int8Array[] = WEAPON_LIST.map((weapon) => {
@@ -149,6 +151,13 @@ export const KIND_AURA_RADIUS: Float64Array = Float64Array.from(KIND_DEFS, (d) =
 export const KIND_AURA_MUL: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.aura ? d.aura.damageMul : 1));
 /** Per kind: men sent out per training order (UnitDef.squad, 1 for most kinds). */
 export const KIND_SQUAD: Int32Array = Int32Array.from(KIND_DEFS, (d) => d.squad ?? 1);
+
+/** Per kind: how many a side may train in one battle (UnitDef.perBattle), 0 for no limit. */
+export const KIND_PER_BATTLE: Int32Array = Int32Array.from(KIND_DEFS, (d) => d.perBattle ?? 0);
+/** Per kind: its charge (UnitDef.charge): the distance to the enemy's front it starts at (0 = none), its speed multiplier, seconds between announcements. */
+export const KIND_CHARGE_RANGE: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.charge ? d.charge.range : 0));
+export const KIND_CHARGE_MUL: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.charge ? d.charge.speedMul : 1));
+export const KIND_CHARGE_EVERY: Float64Array = Float64Array.from(KIND_DEFS, (d) => (d.charge ? d.charge.every : 0));
 
 /** Supplies one training order of this kind costs: the per-man cost times the squad. */
 export function orderCost(kind: UnitKind): number {

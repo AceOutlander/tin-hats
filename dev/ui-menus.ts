@@ -13,7 +13,7 @@
  * window.__ui (the UiHandle) and window.__mock (the mock app state).
  */
 import { FACTIONS } from '../src/data/factions';
-import type { Difficulty, Side, SupportKind, UnitKind } from '../src/data/schema';
+import type { BuiltinUnitKind, Difficulty, Side, SupportKind, UnitKind } from '../src/data/schema';
 import type { AppApi, CampaignView, MissionCard, ResultView, ScreenId, SettingsView, UpgradeView } from '../src/ui/contracts';
 import { createUi } from '../src/ui/index';
 
@@ -33,7 +33,7 @@ interface MockMission {
   newSupport: SupportKind | null;
 }
 
-const UNIT_NAMES: Record<UnitKind, string> = {
+const BUILTIN_UNIT_NAMES: Record<BuiltinUnitKind, string> = {
   sapper: 'Sapper',
   rifle: 'Rifleman',
   conscript: 'Conscript Squad',
@@ -52,7 +52,10 @@ const UNIT_NAMES: Record<UnitKind, string> = {
   lightTank: 'Cruiser Tank',
 };
 
-const UNIT_BLURBS: Record<UnitKind, string> = {
+/** `extra` (a platform's extra unit) has no entry: nothing here names that kind. */
+const UNIT_NAMES = BUILTIN_UNIT_NAMES as Record<UnitKind, string>;
+
+const BUILTIN_UNIT_BLURBS: Record<BuiltinUnitKind, string> = {
   sapper: 'Hauls supply crates from the dump to the HQ. Does not fight.',
   rifle: 'Cheap, steady and accurate at medium range. The backbone of the line.',
   conscript: 'A whole squad of poorly trained riflemen per order: cheap and many.',
@@ -70,6 +73,9 @@ const UNIT_BLURBS: Record<UnitKind, string> = {
   aa: 'Shoots down or drives off enemy planes.',
   lightTank: 'A light, fast tank with a small gun.',
 };
+
+/** `extra` (a platform's extra unit) has no entry: nothing here names that kind. */
+const UNIT_BLURBS = BUILTIN_UNIT_BLURBS as Record<UnitKind, string>;
 
 const SUPPORT_NAMES: Record<SupportKind, string> = {
   artillery: 'Artillery Barrage',

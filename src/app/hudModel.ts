@@ -257,7 +257,10 @@ export class HudModel {
       t.ownOrder = me.kindOrders[t.kind];
       // Room kept for scripted reinforcements waiting at the HQ counts as taken (sim canTrain).
       const room = me.pop + me.reservePop + t.pop <= me.popCap;
-      t.affordable = me.supplies >= t.cost && room && queued < CONFIG.maxQueue;
+      // A kind limited per battle (UnitDef.perBattle) that has had its number: its button reads as out of reach.
+      const most = UNITS[t.kind].perBattle ?? 0;
+      const spent = most > 0 && me.alive[t.kind] + queued + me.stats.lostByKind[t.kind] >= most;
+      t.affordable = me.supplies >= t.cost && room && queued < CONFIG.maxQueue && !spent;
     }
 
     const supports = st.supports;

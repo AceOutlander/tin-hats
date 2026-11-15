@@ -4,7 +4,7 @@
  * equipment's service window. The equipment test per look and weapon (FOUNDATIONS 5.2, src/data/equipment.ts) is
  * tests/unit/eras.test.ts; the names and looks by date come from src/data/eras.ts.
  */
-import type { FactionId, MissionDef, Side, SupportKind, UnitKind } from '../../src/data/schema';
+import type { BuiltinUnitKind, FactionId, MissionDef, Side, SupportKind, UnitKind } from '../../src/data/schema';
 
 /** A service window: ISO dates (YYYY-MM-DD), `to` inclusive; null = never fielded by this nation in this campaign. */
 export interface EraWindow {
@@ -16,7 +16,7 @@ export interface EraWindow {
 
 type EraTable<K extends string> = Record<'german' | 'soviet', Record<K, EraWindow | null>>;
 
-export const UNIT_ERA: EraTable<UnitKind> = {
+const BUILTIN_UNIT_ERA: EraTable<BuiltinUnitKind> = {
   german: {
     sapper: { from: '1935-03-16', as: 'Pioniere with satchel charges' },
     rifle: { from: '1935-06-21', as: 'Kar98k' },
@@ -55,6 +55,9 @@ export const UNIT_ERA: EraTable<UnitKind> = {
     conscript: { from: '1941-07-01', as: 'militia (opolchenie) battalions' },
   },
 };
+
+/** `extra` (a platform's extra unit) has no entry: nothing here names that kind. */
+export const UNIT_ERA = BUILTIN_UNIT_ERA as EraTable<UnitKind>;
 
 export const SUPPORT_ERA: EraTable<SupportKind> = {
   german: {

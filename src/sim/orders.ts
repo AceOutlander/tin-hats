@@ -11,12 +11,12 @@ import type { UnitAction } from '../data/schema';
 import { senseMount, updateMount } from './combat';
 import { inPrep } from './prep';
 import { crushWire, inEnemyWire } from './projectiles';
-import { DT, KIND_HAS_ARMOUR, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
+import { DT, KIND_CHARGE_EVERY, KIND_CHARGE_MUL, KIND_CHARGE_RANGE, KIND_HAS_ARMOUR, KIND_SAPPER, WEAPON_LIST, WEAPON_SETUP } from './tables';
 import { senseControlled } from './control';
 import { applyAura } from './specials';
 import { claimSlot, releaseSlot } from './trenches';
 import { TARGET_NONE, TARGET_UNIT, type SideState, type UnitState } from './types';
-import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, enterHq, joinArmy } from './units';
+import { TASK_LOADING, TASK_TO_DUMP, TASK_TO_HQ, emitUnitEvent, enterHq, joinArmy } from './units';
 import { rallyFor } from './points';
 import { clearJob } from './clear';
 import { clampVehicle, inEnemyRoadBlock } from './obstacles';
@@ -124,7 +124,9 @@ function senseAdvance(w: World, u: UnitState, dir: number, hasTarget: boolean, p
     if (!u.engaged) {
       const m = u.mount;
       const d = m.aimX > u.x ? m.aimX - u.x : u.x - m.aimX;
-      let engageAt = weapon.range * u.def.engageFrac - u.jitter * CONFIG.engageSpread;
+      let engageAt = weapon.range * u.def.engageFrac;
+      // A firing line spreads out in depth; a blow that needs contact (delivery 'melee') is struck from its reach.
+      if (weapon.delivery !== 'melee') engageAt -= u.jitter * CONFIG.engageSpread;
       if (engageAt < weapon.minRange) engageAt = weapon.minRange;
       u.engaged = d <= engageAt || (goal - u.x) * dir <= 0;
     }
@@ -412,6 +414,23 @@ function moveSapper(w: World, u: UnitState, dir: number): void {
   }
 }
 
+/**
+ * A charge (UnitDef.charge): a unit advancing with the enemy's front within its charge range moves faster (u.moveSpeed,
+ * set by the caller, is multiplied), and the start of a charge is announced at most once every `every` seconds.
+ */
+function charge(w: World, u: UnitState, side: SideState, dir: number): void {
+  const k = u.kindIndex;
+  const gap = (w.front[1 - u.side] - u.x) * dir;
+  const on = gap <= KIND_CHARGE_RANGE[k] && (u.goalX - u.x) * dir > 0 && (u.behaviour !== 'army' || orderFor(side, u.kind) === 'advance');
+  u.charging = on;
+  if (!on) return;
+  u.moveSpeed *= KIND_CHARGE_MUL[k];
+  const time = w.state.time;
+  if (time - u.chargedAt < KIND_CHARGE_EVERY[k]) return;
+  u.chargedAt = time;
+  emitUnitEvent(w, 'charge', u).value = w.speechCount[u.side]++;
+}
+
 /** Pass 2: movement. */
 export function moveUnits(w: World): void {
   const s = w.state;
@@ -497,6 +516,7 @@ export function moveUnits(w: World): void {
       const gap = u.goalX > u.x ? u.goalX - u.x : u.x - u.goalX;
       if (gap <= (u.mount.weapon?.stalkRange ?? 0)) u.moveSpeed *= CONFIG.stalkCrawlMul;
     }
+    if (KIND_CHARGE_RANGE[u.kindIndex] > 0) charge(w, u, side, dir);
     if (anyWire && u.def.class === 'infantry' && inEnemyWire(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     else if (anyBlock && u.def.class === 'infantry' && inEnemyRoadBlock(w, u)) u.moveSpeed *= CONFIG.wireSlow;
     const arrived = walk(w, u, dir);

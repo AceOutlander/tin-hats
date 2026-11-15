@@ -10,7 +10,7 @@ import { releaseControl, setControlInput, takeControl } from './control';
 import { notePressed } from './director';
 import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
-import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
+import { KIND_COUNT, KIND_INDEX, KIND_LIST, KIND_PER_BATTLE, orderCost, orderPop } from './tables';
 import { applyBuild, applyCancelBuild, applyReady } from './prep';
 import { applyClear } from './clear';
 import { resolveDeploy } from './points';
@@ -44,6 +44,9 @@ export function canTrain(w: World, si: number, kind: UnitKind): boolean {
   const def = UNITS[kind];
   // One commander per side: none while one is alive or queued.
   if (def.uniquePerSide === true && side.alive[kind] + side.queue[kind] > 0) return false;
+  // A kind limited per battle (UnitDef.perBattle): those alive, queued and lost all count.
+  const most = KIND_PER_BATTLE[KIND_INDEX[kind]];
+  if (most > 0 && side.alive[kind] + side.queue[kind] + side.stats.lostByKind[kind] >= most) return false;
   // A squad kind (conscripts) pays for and needs room for the whole squad.
   const room = side.pop + side.reservePop + orderPop(kind) <= side.popCap;
   return side.queue[kind] < CONFIG.maxQueue && side.supplies >= orderCost(kind) && room;

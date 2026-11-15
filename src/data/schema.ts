@@ -24,7 +24,7 @@ export type NationId = FactionId;
  * lightTank = the enemy-only early-war Panzer III Ausf. E,
  * conscript = the Soviet signature infantry (NATIONS.md): cheap, weak riflemen trained as a squad of several per order.
  */
-export type UnitKind =
+export type BuiltinUnitKind =
   | 'sapper'
   | 'rifle'
   | 'lmg'
@@ -41,6 +41,12 @@ export type UnitKind =
   | 'aa'
   | 'lightTank'
   | 'conscript';
+
+/**
+ * Every unit kind: the game's own, and 'extra', the one unit a platform may add (src/data/extraUnit.ts,
+ * docs/PLATFORM.md). 'extra' is in no list and no table unless one was installed before the game's data was read.
+ */
+export type UnitKind = BuiltinUnitKind | 'extra';
 
 export type DamageType = 'bullet' | 'explosive' | 'antiTank';
 
@@ -95,8 +101,12 @@ export type UnitAction =
   | 'deploy'
   | 'inside';
 
-/** How a weapon delivers damage. hitscan = instant tracer; direct = fast flat projectile; lob = arcing indirect shell. */
-export type Delivery = 'hitscan' | 'direct' | 'lob';
+/**
+ * How a weapon delivers damage. hitscan = instant tracer; direct = fast flat projectile; lob = arcing indirect shell;
+ * melee = a blow that needs contact: it lands at once on a target within reach and never misses (no hit roll, no
+ * tracer, no muzzle flash). A melee weapon's range must reach past config.contactGap, the closest two lines come.
+ */
+export type Delivery = 'hitscan' | 'direct' | 'lob' | 'melee';
 
 export interface WeaponDef {
   id: string;
@@ -232,6 +242,16 @@ export interface UnitDef {
    * sends all `squad` men out of the HQ together. cost, pop and hp stay per man. Absent = 1.
    */
   squad?: number;
+  /**
+   * A side may train this many in one battle, counting those alive, queued and lost (uniquePerSide only stops a
+   * second one at the same time). Absent = no limit.
+   */
+  perBattle?: number;
+  /**
+   * A charge: while it advances with the enemy's front within `range` wu it moves at `speedMul` x its speed, and the
+   * start of a charge is announced (the 'charge' event: the view may show a shout) at most once every `every` seconds.
+   */
+  charge?: { range: number; speedMul: number; every: number };
 }
 
 /** Commander speech bubbles (src/data/speech.ts): short text lines per faction and per order. */

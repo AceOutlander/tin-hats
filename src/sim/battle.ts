@@ -114,6 +114,8 @@ class ProgressRecord implements Record<UnitKind, number> {
   commander = 0.5;
   aa = 0.5;
   lightTank = 0.5;
+  /** A platform's extra unit (src/data/extraUnit.ts); never written when none is installed. */
+  extra = 0.5;
 }
 
 class CooldownRecord implements Record<SupportKind, number> {
@@ -175,13 +177,16 @@ function createHq(mission: MissionDef, side: Side, mods: SideMods): HqState {
   };
 }
 
-function createSide(mission: MissionDef, side: Side, commander: CommanderKind, mods: SideMods): SideState {
+function createSide(mission: MissionDef, side: Side, commander: CommanderKind, mods: SideMods, extraUnit: boolean): SideState {
   const start = mission.start[side];
   const available = kindRecord(false);
   if (start.hasHq) {
     for (const kind of mission.units[side]) {
-      if (UNITS[kind].trainable) available[kind] = true;
+      // No mission list hands out an extra unit: only the config of the battle does (below).
+      if (kind !== 'extra' && UNITS[kind].trainable) available[kind] = true;
     }
+    // A platform's extra unit (BattleConfig.extraUnit): for side 0 only, in any mission, when one is installed.
+    if (extraUnit && side === 0 && KIND_LIST.includes('extra') && UNITS.extra.trainable) available.extra = true;
   }
   const supportAvailable = supportRecord(false);
   for (const kind of mission.supports[side]) supportAvailable[kind] = true;
@@ -220,8 +225,8 @@ function createSide(mission: MissionDef, side: Side, commander: CommanderKind, m
 function createState(config: BattleConfig, mods: [SideMods, SideMods]): BattleState {
   const mission = config.mission;
   const sides: [SideState, SideState] = [
-    createSide(mission, 0, config.commanders[0], mods[0]),
-    createSide(mission, 1, config.commanders[1], mods[1]),
+    createSide(mission, 0, config.commanders[0], mods[0], config.extraUnit === true),
+    createSide(mission, 1, config.commanders[1], mods[1], false),
   ];
 
   const units = [];

@@ -2,7 +2,7 @@
  * The unit pool: spawning, death, the hold-formation grid and entering the HQ.
  */
 import { CONFIG, SPECIALS } from '../data/config';
-import { resolveEra, unitVehicleLook, type VehicleKind } from '../data/eras';
+import { isVehicleKind, resolveEra, unitVehicleLook } from '../data/eras';
 import type { Side } from '../data/schema';
 import { vehicleGun } from '../data/tankGuns';
 import { WEAPONS } from '../data/weapons';
@@ -134,6 +134,8 @@ export function createUnit(index: number): UnitState {
     rally: -1,
     ferry: -1,
     stalking: false,
+    charging: false,
+    chargedAt: -LONG_AGO,
   };
 }
 
@@ -252,6 +254,8 @@ export function spawnUnit(
   u.mount.vehicle = def.class === 'vehicle';
   u.mount2.vehicle = def.class === 'vehicle';
   u.stalking = false;
+  u.charging = false;
+  u.chargedAt = -LONG_AGO;
   u.engaged = false;
   u.goalX = px;
   u.moveSpeed = 0;
@@ -320,7 +324,8 @@ export function armUnit(w: World, u: UnitState): void {
   if (u.def.weapon === null) return;
   const m = w.mission;
   const era = resolveEra(u.faction, m.dateIso ?? null, m.climate ?? 'temperate');
-  const gun = u.def.class === 'vehicle' ? vehicleGun(u.kind, unitVehicleLook(era, u.kind as VehicleKind, u.look)) : (era.arms[u.kind] ?? u.def.weapon);
+  // A vehicle-class kind that is not one of the nations' vehicles (a platform's extra unit) carries its own weapon.
+  const gun = u.def.class === 'vehicle' && isVehicleKind(u.kind) ? vehicleGun(u.kind, unitVehicleLook(era, u.kind, u.look)) : (era.arms[u.kind] ?? u.def.weapon);
   const mount = u.mount;
   if (gun === null || (mount.weapon !== null && mount.weapon.id === gun)) return;
   const index = weaponIndex(gun);

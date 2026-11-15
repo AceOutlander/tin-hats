@@ -26,6 +26,7 @@ import {
   WEAPON_DUG_IN,
   WEAPON_FLUSH,
   WEAPON_LIST,
+  WEAPON_MELEE,
   WEAPON_MASK,
   WEAPON_MIN_RANK,
   WEAPON_PREFER,
@@ -422,7 +423,8 @@ function fireShot(
     // The blizzard spoils long shots (s.sky.accuracyFar; 1 in any other weather).
     const far = weapon.accuracyFar * s.sky.accuracyFar;
     const chance = (weapon.accuracyNear + (far - weapon.accuracyNear) * t) * m.accuracy;
-    hit = w.rng.next() < chance;
+    // A blow that needs contact (delivery 'melee') always lands, with no roll.
+    hit = WEAPON_MELEE[wi] === 1 || w.rng.next() < chance;
     if (hit) {
       const flush = WEAPON_FLUSH[wi] === 1;
       let amount = weapon.damage * damageFactor(dtype, cls) * m.damageMul;
