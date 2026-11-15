@@ -25,6 +25,7 @@ import {
   setFigureGear,
   setFigureHeadgear,
   setFigurePointing,
+  setFigureProne,
   setFigurePushing,
   setFigureRocketItem,
   setFigureWeapon,
@@ -52,6 +53,7 @@ import type { SpriteSpec } from '../art/types';
 import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type VehicleLook } from '../data/artLayout';
 import { FX_KEYS } from '../data/fx';
 import { BUILDING_LAYOUT } from '../data/looksBuilding';
+import { FIGURE_AT_RIFLE_MODELS } from '../data/figure';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
@@ -384,7 +386,9 @@ class FigureView extends UnitViewBase {
     m.shown = true;
     const inp = m.input;
     const act = src.action;
-    inp.action = act === 'fire' || act === 'aim' ? 'aim' : act === 'move' || act === 'idle' ? act : 'idle';
+    // Lying beside the rifle he stays down while his gunner sets up and reloads; on his feet he only covers the shots.
+    const down = m.anim.prone && (act === 'reload' || act === 'deploy');
+    inp.action = act === 'fire' || act === 'aim' || down ? 'aim' : act === 'move' || act === 'idle' ? act : 'idle';
     inp.speed = src.speed;
     inp.stepping = src.stepping;
     inp.moved = src.moved;
@@ -1012,6 +1016,8 @@ export class UnitViews {
         setFigureHeadgear(ma, era.headgear[u.kind] ?? null);
         setFigureClothing(ma, era.clothing[u.kind] ?? null);
         setFigureWeapon(ma, era.weapon[mateKind] ?? null);
+        // Beside a rifle fought from its bipod he lies down with his gunner.
+        setFigureProne(ma, FIGURE_AT_RIFLE_MODELS.includes(fv.anim.model));
       }
       const looks = this.looks[u.side];
       if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);

@@ -796,6 +796,46 @@ const CORE_FIGURE_KINDS: Record<CoreFigureKind, FigureKindDef> = {
   },
 };
 
+/** The long anti-tank rifle kicks hard and straight back into the shoulder of a man lying behind it. */
+const AT_RIFLE_RECOIL: RecoilDef = { add: 1, max: 1, decay: 0.16, back: 4.6, climb: 0.08, shoulder: 0.1, hip: 0.5, duck: 0, duckDecay: 0.2 };
+/** Behind the anti-tank rifle on its bipod: the pad in the shoulder, the far hand on the stock's cheek rest. */
+const AT_RIFLE_PRONE = { nearPin: 1, farPin: 1, farPx: -7.2, farPy: -2.4, ox: 12.4, oy: 1.5, bipod: 1 } as const;
+
+/**
+ * The anti-tank rifle team's gunner (the PTRD-41; FIGURE_AT_RIFLE_MODELS): he carries the rifle on his shoulder like
+ * the launchers, but fights lying down behind it, the rifle on its bipod, and works the bolt to reload (no round is fed
+ * from the pack). Everything else is the anti-tank kind's.
+ */
+export const FIGURE_AT_RIFLE: FigureKindDef = {
+  ...CORE_FIGURE_KINDS.at,
+  aim: { stance: PRONE, upper: upper({ ...AT_RIFLE_PRONE, aim: 0.5, head: 0.12 }) },
+  rest: upper({ ...AT_RIFLE_PRONE, aim: 0.2, head: -0.08 }),
+  trench: {
+    stance: stance({ ...TRENCH, spine: 0.6, chest: 0.24 }),
+    upper: upper({ ...AT_RIFLE_PRONE, oy: 0.8, aim: 0.6, head: 0.14 }),
+  },
+  recoil: AT_RIFLE_RECOIL,
+  reload: 'bolt',
+  reloadX: 2.5,
+  reloadY: -1.0,
+  steadiness: 0.5,
+  reloadPace: 1.3,
+};
+/** The weapon models fought from the bipod, lying down (FIGURE_AT_RIFLE). */
+export const FIGURE_AT_RIFLE_MODELS: readonly WeaponModel[] = ['ptrd'];
+
+/**
+ * A rifleman lying beside a crew weapon (the anti-tank rifle team's number two while his gunner is down behind the
+ * rifle; setFigureProne): the rifle kind, but he covers the gunner from the ground.
+ */
+export const FIGURE_PRONE_RIFLE: FigureKindDef = {
+  ...CORE_FIGURE_KINDS.rifle,
+  aim: { stance: PRONE, upper: upper({ ...RIFLE_HOLD, ox: 10.4, oy: -0.9, aim: 0.5, head: 0.12 }) },
+  aimAlt: null,
+  rest: upper({ ...RIFLE_HOLD, ox: 10.4, oy: -0.6, aim: 0.2, head: -0.06 }),
+  staysEmplaced: true,
+};
+
 // The new infantry share the poses of the closest core kind: the flamethrower moves like the assault trooper, the
 // commander like a rifleman (with his pointing arm, FIGURE_POINT), the AA crew like the machine gunner.
 export const FIGURE_KINDS: Record<FigureKind, FigureKindDef> = {
@@ -866,8 +906,11 @@ export const WEAPON_GEOM: Record<WeaponModel, WeaponGeom> = {
   ppsh: geom({ muzzleX: 15.8, muzzleY: -0.8 }),
   /** The 82 mm BM-37: set up like the other mortars (same bipod and baseplate points), with its round baseplate. */
   mortar82: geom({ muzzleX: 22.0, muzzleY: 0, bipodX: 14, bipodY: 0, bipodLen: 15.6, bipodFold: Math.PI - 0.14, baseplate: true, restY: 2.2 }),
-  /** PTRD-41: the two-metre single-shot anti-tank rifle, shouldered like a launcher; bipod folded on the barrel. */
-  ptrd: geom({ muzzleX: 34.0, muzzleY: -2.6, restY: 2.4 }),
+  /**
+   * PTRD-41: the two-metre single-shot anti-tank rifle, carried on the shoulder and fired lying down from its bipod
+   * (FIGURE_AT_RIFLE); the bipod hinges under the barrel ahead of the carrying handle and folds forward along it.
+   */
+  ptrd: geom({ muzzleX: 34.0, muzzleY: -2.6, bipodX: 15.4, bipodY: -2.0, bipodLen: 9.8, bipodFold: 0.07, restY: 2.4 }),
   /** TT-33: the officer's Tokarev, held like the other pistols. */
   tt33: geom({ muzzleX: 7.8, muzzleY: -1.0, restY: 1.0 }),
   /** PPD-40 (1940 to 1942): the PPSh's forerunner, a longer wooden stock to the jacket, the drum under the receiver. */

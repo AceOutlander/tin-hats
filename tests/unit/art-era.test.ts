@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FACTION_FIGURE_KEYS,
+  J_HIP,
   MOLOTOV_KEY,
   createFigureAnim,
   createFigureInput,
@@ -15,6 +16,7 @@ import {
   layoutFigure,
   setFigureClothing,
   setFigureHeadgear,
+  setFigureProne,
   setFigureRocketItem,
   setFigureWeapon,
   updateFigure,
@@ -189,6 +191,29 @@ describe('era figures', () => {
     expect(keys.has('fig/weapon/ptrd')).toBe(false);
     expect(keys.has(MOLOTOV_KEY)).toBe(true);
     expect(keys.has('fig/item/ptrdRound')).toBe(false);
+  });
+
+  it('lays the AT Rifle Team down behind the PTRD on its bipod, the number two beside it; the others keep their stances', () => {
+    expect(map.has('fig/weapon/ptrdBipod')).toBe(true);
+    /** Hip height above the ground (wu) after settling into an action. */
+    function hipHeight(kind: 'at' | 'rifle', faction: 'soviet' | 'german', setup: (a: ReturnType<typeof createFigureAnim>) => void, action: 'aim' | 'idle'): number {
+      const a = createFigureAnim(kind, faction, 5);
+      setup(a);
+      const inp = createFigureInput(kind);
+      inp.action = action;
+      for (let i = 0; i < 90; i++) updateFigure(a, inp, 1 / 30);
+      return -a.joints[J_HIP * 2 + 1];
+    }
+    // The gunner: down on his belly to fire, the bipod's legs drawn; on his feet with the rifle on his shoulder otherwise.
+    expect(hipHeight('at', 'soviet', () => undefined, 'aim')).toBeLessThan(8);
+    expect(hipHeight('at', 'soviet', () => undefined, 'idle')).toBeGreaterThan(22);
+    expect(shown(() => undefined, 'at', 'soviet')).toContain('fig/weapon/ptrdBipod');
+    // The Tank Hunters (a rifle and the bottle) and the launchers still kneel.
+    expect(hipHeight('at', 'soviet', (a) => setFigureWeapon(a, 'mosin'), 'aim')).toBeGreaterThan(12);
+    expect(hipHeight('at', 'german', () => undefined, 'aim')).toBeGreaterThan(12);
+    // His number two: a rifleman who lies down only when told to (setFigureProne).
+    expect(hipHeight('rifle', 'soviet', (a) => setFigureProne(a, true), 'aim')).toBeLessThan(8);
+    expect(hipHeight('rifle', 'soviet', () => undefined, 'aim')).toBeGreaterThan(12);
   });
 
   it('dresses German figures in the winter cover and suit, and the Romanian look; the British ignore both', () => {

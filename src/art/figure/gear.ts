@@ -206,6 +206,11 @@ export function setFigureRocketItem(anim: FigureAnim, key: string | null): void 
   anim.rocketKey = key;
 }
 
+/** Lay a rifleman down beside a crew weapon (the anti-tank rifle team's number two); off = his kind's own stances. */
+export function setFigureProne(anim: FigureAnim, on: boolean): void {
+  anim.prone = on;
+}
+
 /** The key a sapper draws instead of his nation's crate while carrying (null = the nation's crate). */
 export function setFigureCrateKey(anim: FigureAnim, key: string | null): void {
   anim.crateKey = key;

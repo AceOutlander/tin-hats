@@ -312,6 +312,8 @@ export class FigureAnim {
   rocketKey: string | null = null;
   /** Sapper pushing the handcart (setFigurePushing). */
   pushing = false;
+  /** A rifleman lying beside a crew weapon (setFigureProne): he aims and waits from the ground. */
+  prone = false;
   /** Commander: seconds left of pointing forward with his free arm after an order (setFigurePointing). */
   point = 0;
 
@@ -417,6 +419,7 @@ export function resetFigureAnim(a: FigureAnim, kind: UnitKind, faction: FactionI
   a.weaponKeys = null;
   a.rocketKey = null;
   a.pushing = false;
+  a.prone = false;
   a.dead = false;
   a.deathVariant = DEATH_VARIANTS[0];
   a.deathDir = -1;

@@ -20,7 +20,10 @@ import {
   FIGURE,
   FIGURE_CRATE,
   FIGURE_GAIT_CARRY,
+  FIGURE_AT_RIFLE,
+  FIGURE_AT_RIFLE_MODELS,
   FIGURE_KINDS,
+  FIGURE_PRONE_RIFLE,
   FIGURE_LOADOUT,
   FIGURE_STANCES,
   FIGURE_UPPERS,
@@ -244,6 +247,16 @@ function moveFireUpper(K: FigureKindDef, kind: FigureAnim['kind']): UpperDef {
   if (kind === 'lmg') return K.idle.upper;
   if (kind === 'mortar' || kind === 'sapper' || kind === 'medic') return K.move;
   return K.aim.upper;
+}
+
+/**
+ * The poses a figure uses: its kind's, except the anti-tank rifle's gunner, who lies behind his rifle on its bipod
+ * (by the weapon he carries, so the Tank Hunters and the launchers keep the kind's), and a rifleman told to lie down.
+ */
+function kindDef(a: FigureAnim): FigureKindDef {
+  if (a.kind === 'at' && FIGURE_AT_RIFLE_MODELS.includes(a.model)) return FIGURE_AT_RIFLE;
+  if (a.prone && a.kind === 'rifle') return FIGURE_PRONE_RIFLE;
+  return FIGURE_KINDS[a.kind];
 }
 
 /** Choose stance and upper-body targets, overlays and spring time constants for this frame. */
@@ -482,8 +495,10 @@ function reloadOverlay(a: FigureAnim, K: FigureKindDef, t0: number): void {
       const pull = env(t, R.boltGrab, R.boltOpen, R.boltOpen, R.boltClosed);
       tg[C_NPX] = lerp(tg[C_NPX], K.reloadX, toBolt) - R.boltPull * pull;
       tg[C_NPY] = lerp(tg[C_NPY], K.reloadY, toBolt) - 0.7 * pull;
-      tg[C_WANG] -= R.boltDip * toBolt;
-      a.relTY += R.boltDrop * toBolt;
+      // A rifle on its bipod stays on it while the bolt is worked (the anti-tank rifle): only a held one dips.
+      const held = 1 - clamp01(tg[C_BIPOD]);
+      tg[C_WANG] -= R.boltDip * toBolt * held;
+      a.relTY += R.boltDrop * toBolt * held;
       tg[C_HEADX] += R.boltHead * toBolt;
       tau[C_NPX] = tau[C_NPY] = F.spring.hand;
       break;
@@ -982,7 +997,7 @@ export function updateFigure(a: FigureAnim, inp: FigureInput, dtIn: number): voi
     a.kind = inp.kind;
     a.started = false;
   }
-  const K = FIGURE_KINDS[a.kind];
+  const K = kindDef(a);
   a.time += dt;
   if (inp.action !== a.action) {
     a.action = inp.action;

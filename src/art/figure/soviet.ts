@@ -172,7 +172,7 @@ function paintMortar82Plate(ctx: Ctx): void {
 
 /**
  * PTRD-41: the shoulder pad and tubular stock with its wooden cheek rest, the receiver and bolt, a very long barrel
- * with the carrying handle, the folded bipod, and the box muzzle brake. The bore runs at muzzleY above the grip.
+ * with the carrying handle, the bipod's collar, and the box muzzle brake. The bore runs at muzzleY above the grip.
  */
 function paintPtrd(ctx: Ctx): void {
   const g = WEAPON_GEOM.ptrd;
@@ -195,10 +195,8 @@ function paintPtrd(ctx: Ctx): void {
   // Carrying handle over the balance point and the front sight.
   line(ctx, STEEL, 0.55, [10.2, y - 0.6, 10.8, y - 2.4, 13.6, y - 2.4, 14.2, y - 0.6]);
   solid(ctx, STEEL, () => rrect(ctx, 27.4, y - 2.0, 0.8, 1.4, 0.2));
-  // Bipod folded forward along the barrel.
-  line(ctx, STEEL, 0.6, [15.4, y + 0.4, 23.6, y + 0.9]);
-  line(ctx, STEEL_L, 0.45, [15.4, y + 0.6, 23.2, y + 1.3]);
-  dot(ctx, STEEL, 15.4, y + 0.4, 0.8);
+  // The bipod's collar (the legs are their own sprite: folded along the barrel on the march, planted to fire).
+  solid(ctx, STEEL, () => rrect(ctx, 14.6, y - 0.9, 1.6, 1.9, 0.4));
   // Muzzle brake: a box with two side vents.
   solid(ctx, STEEL, () => rrect(ctx, 31.2, y - 1.3, 2.9, 2.6, 0.4));
   fillPath(ctx, BLACK, () => {
@@ -249,6 +247,7 @@ function paintTt33(ctx: Ctx): void {
 export function sovietWeaponSpecs(): SpriteSpec[] {
   const dp = WEAPON_GEOM.dp27.bipodLen;
   const mb = WEAPON_GEOM.mortar82.bipodLen;
+  const pt = WEAPON_GEOM.ptrd.bipodLen;
   return [
     makeSpec('fig/weapon/mosin', -13.0, -3.0, 36.6, 3.6, (c) => paintMosin(c, false)),
     makeSpec('fig/weapon/mosinScoped', -13.0, -4.8, 27.2, 3.6, (c) => paintMosin(c, true)),
@@ -259,6 +258,7 @@ export function sovietWeaponSpecs(): SpriteSpec[] {
     makeSpec('fig/weapon/mortar82Bipod', -2.2, -3.2, mb + 1.4, 3.0, paintMortar82Bipod),
     makeSpec('fig/weapon/mortar82Plate', -8.4, -2.8, 8.4, 2.1, paintMortar82Plate),
     makeSpec('fig/weapon/ptrd', -14.4, -6.6, 34.6, 4.0, paintPtrd),
+    makeSpec('fig/weapon/ptrdBipod', -1.2, -1.6, pt + 1.0, 1.4, (c) => paintBipod(c, pt)),
     makeSpec('fig/weapon/tt33', -2.6, -2.8, 8.6, 4.2, paintTt33),
     makeSpec('fig/item/f1', -2.2, -2.0, 4.0, 1.9, paintF1),
     makeSpec('fig/item/ptrdRound', -4.0, -1.2, 4.2, 1.2, paintPtrdRound),
