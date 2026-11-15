@@ -20,6 +20,14 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.4',
+    items: [
+      'If you stop giving orders for four minutes in a mission with no clock, the Germans now counter-attack until you act.',
+      'The helmet icons in battle now match the army you command.',
+      'The title now reads 1939–45.',
+    ],
+  },
+  {
     version: '0.17.3',
     items: [
       'Fixed: in hold-out missions the enemy waves could stop arriving if your men camped on the far edge of the map.',
