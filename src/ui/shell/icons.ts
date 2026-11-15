@@ -28,38 +28,46 @@ function svg(viewBox: string, className: string, paths: readonly PathSpec[]): SV
 }
 
 /**
- * A helmet seen from the side: the Brodie "tin hat" (the game's emblem, and the British helmet), or a nation's own on
- * that nation's screens: the Soviet SSh-40 (a deep round dome with a short brim all round) or the German Stahlhelm.
+ * A helmet seen from the side. The caller always says whose: the game's emblem on the title (GAME_EMBLEM, the Brodie
+ * "tin hat"), and on a campaign's screens the helmet of its nation (CampaignView.helmet): the British Brodie, the
+ * Soviet SSh-40 (a deep round dome with a short brim all round) or the German Stahlhelm. There is no default, so no
+ * screen can fall back on another nation's (owner, 2026-11-15).
  */
-export function helmetIcon(className = 'th-helmet', shape: HelmetShape = 'brodie'): SVGSVGElement {
-  if (shape === 'ssh40') {
-    return svg('0 0 200 112', className, [
-      { cls: 'th-helmet-strap', d: 'M60 90 Q100 124 140 90' },
-      { cls: 'th-helmet-dome', d: 'M46 84 C44 34 70 8 100 8 C130 8 156 34 154 84 Z' },
-      { cls: 'th-helmet-shade', d: 'M114 10 C142 18 158 44 154 84 L126 84 C132 54 128 28 114 10 Z' },
-      { cls: 'th-helmet-shine', d: 'M62 52 C64 34 78 20 94 15 C82 24 72 38 70 54 Z' },
-      { cls: 'th-helmet-brim', d: 'M36 80 Q100 72 164 80 Q170 88 160 92 Q100 100 40 92 Q30 88 36 80 Z' },
-      { cls: 'th-helmet-rim', d: 'M42 87 Q100 96 158 87' },
-    ]);
-  }
-  if (shape === 'stahlhelm') {
-    return svg('0 0 200 112', className, [
-      { cls: 'th-helmet-strap', d: 'M64 88 Q100 122 136 88' },
-      { cls: 'th-helmet-dome', d: 'M42 74 C40 30 70 8 104 8 C136 8 160 32 158 74 Z' },
-      { cls: 'th-helmet-shade', d: 'M116 10 C144 18 160 42 158 74 L130 74 C134 48 130 26 116 10 Z' },
-      { cls: 'th-helmet-shine', d: 'M58 48 C62 32 76 20 92 15 C80 24 70 36 66 50 Z' },
-      { cls: 'th-helmet-brim', d: 'M30 92 Q34 70 42 70 L158 70 Q170 74 176 94 Q150 86 120 86 L60 86 Q42 86 30 92 Z' },
-    ]);
-  }
-  return svg('0 0 200 112', className, [
+export function helmetIcon(className: string, shape: HelmetShape): SVGSVGElement {
+  const node = svg('0 0 200 112', className, MENU_HELMETS[shape]);
+  node.dataset.helmet = shape;
+  return node;
+}
+
+/** The game's emblem, the "tin hat": the title screen's logo, whatever nation is played. */
+export const GAME_EMBLEM: HelmetShape = 'brodie';
+
+/** One drawing for every helmet shape a nation can wear (FactionLook.helmet); a new shape must be drawn to compile. */
+const MENU_HELMETS: Record<HelmetShape, readonly PathSpec[]> = {
+  brodie: [
     { cls: 'th-helmet-strap', d: 'M52 78 Q100 126 148 78' },
     { cls: 'th-helmet-dome', d: 'M40 66 C40 30 70 10 100 10 C130 10 160 30 160 66 Z' },
     { cls: 'th-helmet-shade', d: 'M112 11 C140 16 160 36 160 66 L128 66 C132 44 126 24 112 11 Z' },
     { cls: 'th-helmet-shine', d: 'M58 44 C62 30 76 20 92 17 C80 24 70 34 66 46 Z' },
     { cls: 'th-helmet-brim', d: 'M3 70 Q100 48 197 70 Q198 77 186 80 Q100 94 14 80 Q2 77 3 70 Z' },
     { cls: 'th-helmet-rim', d: 'M8 75 Q100 92 192 75' },
-  ]);
-}
+  ],
+  ssh40: [
+    { cls: 'th-helmet-strap', d: 'M60 90 Q100 124 140 90' },
+    { cls: 'th-helmet-dome', d: 'M46 84 C44 34 70 8 100 8 C130 8 156 34 154 84 Z' },
+    { cls: 'th-helmet-shade', d: 'M114 10 C142 18 158 44 154 84 L126 84 C132 54 128 28 114 10 Z' },
+    { cls: 'th-helmet-shine', d: 'M62 52 C64 34 78 20 94 15 C82 24 72 38 70 54 Z' },
+    { cls: 'th-helmet-brim', d: 'M36 80 Q100 72 164 80 Q170 88 160 92 Q100 100 40 92 Q30 88 36 80 Z' },
+    { cls: 'th-helmet-rim', d: 'M42 87 Q100 96 158 87' },
+  ],
+  stahlhelm: [
+    { cls: 'th-helmet-strap', d: 'M64 88 Q100 122 136 88' },
+    { cls: 'th-helmet-dome', d: 'M42 74 C40 30 70 8 104 8 C136 8 160 32 158 74 Z' },
+    { cls: 'th-helmet-shade', d: 'M116 10 C144 18 160 42 158 74 L130 74 C134 48 130 26 116 10 Z' },
+    { cls: 'th-helmet-shine', d: 'M58 48 C62 32 76 20 92 15 C80 24 70 36 66 50 Z' },
+    { cls: 'th-helmet-brim', d: 'M30 92 Q34 70 42 70 L158 70 Q170 74 176 94 Q150 86 120 86 L60 86 Q42 86 30 92 Z' },
+  ],
+};
 
 function ringOfTeeth(cx: number, cy: number, rOuter: number, rRoot: number, teeth: number): string {
   let d = '';
@@ -165,10 +173,10 @@ export type PaintUnitIcon = (canvas: HTMLCanvasElement, kind: UnitKind, side: Si
 export type PaintUpgradePreview = (canvas: HTMLCanvasElement, upgradeId: string, level: number) => boolean;
 
 /**
- * A unit portrait for cards and group headings: the art track's painter when
- * the app supplied one, otherwise a plain tin hat so the layout still holds.
+ * A unit portrait for cards and group headings: the art track's painter when the app supplied one, otherwise an empty
+ * box of the same size so the layout still holds (never a helmet: it would be some nation's).
  */
-export function unitIcon(kind: UnitKind, cssSize: number, paint: PaintUnitIcon | undefined, missionId?: number): HTMLElement | SVGSVGElement {
+export function unitIcon(kind: UnitKind, cssSize: number, paint: PaintUnitIcon | undefined, missionId?: number): HTMLElement {
   if (paint) {
     const canvas = iconCanvas(cssSize);
     try {
@@ -178,7 +186,9 @@ export function unitIcon(kind: UnitKind, cssSize: number, paint: PaintUnitIcon |
       console.warn('Tin Hats UI: paintUnitIcon failed', err);
     }
   }
-  const fallback = helmetIcon('th-helmet th-unit-icon');
+  const fallback = document.createElement('span');
+  fallback.className = 'th-unit-icon';
+  fallback.style.display = 'inline-block';
   fallback.style.width = `${cssSize}px`;
   fallback.style.height = `${cssSize}px`;
   return fallback;

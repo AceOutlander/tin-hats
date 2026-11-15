@@ -70,6 +70,8 @@ export class HudModel {
 
   constructor() {
     this.state = {
+      // Until a battle begins (the HUD is not on show); begin() sets the player's nation's.
+      helmet: FACTIONS.british.look.helmet,
       supplies: 0,
       incomePerSec: 0,
       pop: 0,
@@ -160,6 +162,7 @@ export class HudModel {
     // Names by the mission's date (src/data/eras.ts): the PPD Trooper in 1941, the PPSh Trooper in 1942.
     const era = missionEra(battle.config.mission, me.faction);
     this.era = era;
+    st.helmet = FACTIONS[me.faction].look.helmet;
 
     st.train = [];
     if (me.hasHq) {

@@ -26,7 +26,8 @@ import {
   trainButtonName,
   deployPlaceFit,
 } from './format';
-import { ICONS, type IconName } from './icons';
+import type { HelmetShape } from '../../data/schema';
+import { ICONS, kitIcon, type IconName, type KitIconName } from './icons';
 import { PrepPanel } from './prep';
 import { capturePointer, isPrimaryPointer, onPress, onTap } from './input';
 import { MINIMAP_PAD, MinimapView } from './minimap';
@@ -121,6 +122,16 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function icon(name: IconName, parent: HTMLElement, extra = ''): HTMLSpanElement {
   const s = el('span', extra ? `th-ico ${extra}` : 'th-ico', parent);
   s.innerHTML = ICONS[name];
+  return s;
+}
+
+/**
+ * An icon that shows a nation's kit (a helmet): an empty slot, filled by HudView.paintKit with the helmet of the
+ * player's nation in this battle. Nothing is drawn until the HUD knows whose battle it is.
+ */
+function kitSlot(name: KitIconName, parent: HTMLElement, extra = ''): HTMLSpanElement {
+  const s = el('span', extra ? `th-ico ${extra}` : 'th-ico', parent);
+  s.dataset.kit = name;
   return s;
 }
 
@@ -241,7 +252,7 @@ class TrainView {
     icon('money', cost);
     this.cost = new TextCell(el('span', '', cost));
     const pop = el('span', 'th-tbtn-pop', price);
-    icon('helmet', pop);
+    kitSlot('helmet', pop);
     this.pop = new TextCell(el('span', '', pop));
     this.training = new FlagCell(b, 'is-training');
     this.queued = new FlagCell(b, 'is-queued');
@@ -394,6 +405,7 @@ class HudView implements Hud {
   private readonly pop: TextCell;
   private readonly popCap: HTMLElement;
   private lastPopCap = -1;
+  private lastHelmet: HelmetShape | null = null;
   private readonly popFull: FlagCell;
   private readonly ownHq: BarCell;
   private readonly enemyHq: BarCell;
@@ -553,7 +565,7 @@ class HudView implements Hud {
     this.income = el('span', 'th-supplies-inc', supCol);
 
     const pop = el('div', 'th-res th-pop', top);
-    icon('helmet', pop);
+    kitSlot('helmet', pop);
     const popCol = el('div', 'th-res-col', pop);
     const popLine = el('div', 'th-pop-line', popCol);
     this.pop = new TextCell(el('span', 'th-pop-num', popLine, '0'));
@@ -731,7 +743,7 @@ class HudView implements Hud {
     this.scopeButton = scopeButton;
     el('span', 'th-scope-cap', scopeButton, 'Orders for');
     const scopeWin = el('span', 'th-scope-win', scopeButton);
-    icon('army', scopeWin, 'th-scope-all');
+    kitSlot('army', scopeWin, 'th-scope-all');
     this.scopeCanvas = el('canvas', 'th-scope-ico', scopeWin);
     this.scopeName = new TextCell(el('span', 'th-scope-name', scopeButton));
     this.scopeName.set('All');
@@ -761,7 +773,7 @@ class HudView implements Hud {
     el('div', 'th-picker-title', picker, 'Orders for');
     const pickAll = button('th-hbtn th-pick', 'scope-all', 'All units', picker);
     const allWin = el('span', 'th-pick-win', pickAll);
-    icon('army', allWin);
+    kitSlot('army', allWin);
     el('span', 'th-pick-name', pickAll, 'All units');
     onTap(pickAll, () => this.doPick(null));
     this.pickAll = pickAll;
@@ -866,7 +878,10 @@ class HudView implements Hud {
     if (enemyHp !== null) this.enemyHq.set(enemyHp, s.enemyHqMaxHp);
 
     const train = s.train;
-    if (!this.trainMatches(train)) this.rebuildTrain(train);
+    const rebuilt = !this.trainMatches(train);
+    if (rebuilt) this.rebuildTrain(train);
+    // The kit icons wear the player's nation's helmet: on a new nation, and on buttons just made.
+    if (rebuilt || s.helmet !== this.lastHelmet) this.paintKit(s.helmet);
     for (let i = 0; i < train.length; i++) this.trainViews[i].apply(train[i]);
     const deploy = s.deploy ?? null;
     const showDeploy = deploy !== null && train.length > 0;
@@ -1031,6 +1046,18 @@ class HudView implements Hud {
       if (list[i].kind !== this.trainViews[i].kind) return false;
     }
     return true;
+  }
+
+  /** Draw every kit icon (kitSlot) in this helmet. Runs when the nation changes or buttons were rebuilt, not per frame. */
+  private paintKit(shape: HelmetShape): void {
+    this.lastHelmet = shape;
+    const slots = this.root.querySelectorAll<HTMLElement>('[data-kit]');
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      if (slot.dataset.kitShape === shape) continue;
+      slot.dataset.kitShape = shape;
+      slot.innerHTML = kitIcon(slot.dataset.kit as KitIconName, shape);
+    }
   }
 
   private rebuildTrain(list: TrainButtonState[]): void {

@@ -150,6 +150,7 @@ function tipFromQuery(): TipState | null {
 }
 
 const state: HudState = {
+  helmet: FACTIONS.british.look.helmet,
   supplies: flag('rich') ? 2400 : flag('broke') ? 12 : 310,
   incomePerSec: 3.5,
   pop: 0,
@@ -253,6 +254,7 @@ function popInUse(): number {
 }
 
 const emptyCampaign: CampaignView = {
+  helmet: FACTIONS.british.look.helmet,
   missions: [],
   pointsEarned: 0,
   pointsSpent: 0,

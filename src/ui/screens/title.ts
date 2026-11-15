@@ -7,7 +7,7 @@ import { GAME_TAGLINE } from '../../data/campaigns';
 import { BASIC_TRAINING_ID } from '../../data/missions/training';
 import type { PanelDropsState } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
-import { helmetIcon } from '../shell/icons';
+import { GAME_EMBLEM, helmetIcon } from '../shell/icons';
 import { missionStarter, type MissionStarter } from '../shell/missionLoad';
 import type { ScreenFactory } from '../shell/types';
 
@@ -72,7 +72,8 @@ export const titleScreen: ScreenFactory = (ctx) => {
   // Takes taps (they do nothing visible): the hidden admin panel's secret entry counts them (src/ui/admin).
   helmet.dataset.interactive = '';
   helmet.dataset.adminTap = '';
-  helmet.append(helmetIcon());
+  // The game's logo, whatever nation is played: it does not follow the campaign.
+  helmet.append(helmetIcon('th-helmet', GAME_EMBLEM));
   add(
     logo,
     helmet,

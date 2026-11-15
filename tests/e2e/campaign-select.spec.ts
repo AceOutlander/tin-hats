@@ -11,7 +11,7 @@
  * e2e-campaign-stalingrad-briefing.png, e2e-campaign-armoury-soviet.png.
  */
 import type { Page } from '@playwright/test';
-import { arrived, BATTLE_LOAD_MS, expect, mapToTitle, open, playToEnd, shot, state, tap, tapIn, test, toMap, unlockAll } from './helpers';
+import { arrived, BATTLE_LOAD_MS, expect, mapToTitle, open, playToEnd, shot, startMission, startSandbox, state, tap, tapIn, test, toMap, unlockAll } from './helpers';
 
 /** An internal mission id as the player must never see it: 1001 to 1010 (years such as 1941 are fine). */
 const INTERNAL_ID = /\b10(0[1-9]|10)\b/;
@@ -48,6 +48,11 @@ async function mapGeometry(page: Page): Promise<{ labels: (Rect & { t: string })
     }
     return { labels, pins, sheet: { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom } };
   });
+}
+
+/** The helmet shapes the HUD's kit icons are drawn in right now (one entry when they all agree). */
+async function kitShapes(page: Page): Promise<string[]> {
+  return page.locator('#ui [data-kit]').evaluateAll((nodes) => [...new Set(nodes.map((n) => (n.querySelector('svg path') ? (n.getAttribute('data-kit-shape') ?? 'none') : 'empty')))]);
 }
 
 test.describe('the campaign select', () => {
@@ -171,11 +176,34 @@ test.describe('the campaign select', () => {
     // A battle played to its end (a loss, the quickest): the result names "Mission 1".
     await tapIn(page, 'briefing', 'begin');
     await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
+    // The HUD's kit icons (the men in the top bar and on every train button, "all units") wear the Red Army's helmet,
+    // not the British Brodie (owner, 2026-11-15).
+    await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
+    expect(await kitShapes(page)).toEqual(['ssh40']);
+    expect(await page.locator('#ui [data-kit="helmet"] svg path').count()).toBeGreaterThanOrEqual(2);
     await playToEnd(page, false);
     const result = arrived(page, 'result');
     await expect(result).toBeVisible({ timeout: 30_000 });
     await expect(result.locator('.th-result-title')).toContainText('Mission 1 · ');
+    await expect(result.locator('.th-result-helmet svg')).toHaveAttribute('data-helmet', 'ssh40');
     expect(await result.innerText()).not.toMatch(INTERNAL_ID);
+  });
+
+  test('the HUD wears the helmet of whoever is played: the Brodie on the British proving ground, the Soviet one after it', async ({ page }) => {
+    await open(page);
+    expect(await startSandbox(page, 3)).toBe(true);
+    await expect.poll(async () => (await state(page)).screen, { timeout: BATTLE_LOAD_MS }).toBe('battle');
+    await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
+    expect(await kitShapes(page)).toEqual(['brodie']);
+    await page.waitForTimeout(500);
+    await shot(page, 'hud-kit-british');
+    // The same page, a Soviet battle next: every kit icon changes with the nation.
+    expect(await startMission(page, 1002)).toBe(true);
+    await expect.poll(async () => (await state(page)).missionId, { timeout: BATTLE_LOAD_MS }).toBe(1002);
+    await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: 20_000 });
+    await expect.poll(() => kitShapes(page)).toEqual(['ssh40']);
+    await page.waitForTimeout(500);
+    await shot(page, 'hud-kit-soviet');
   });
 
   test('the Shop and the Quartermaster open from the Stalingrad map and speak the Red Army', async ({ page }) => {
@@ -194,8 +222,11 @@ test.describe('the campaign select', () => {
     const qm = arrived(page, 'quartermaster');
     await expect(qm).toContainText('DP Gunner');
     await expect(qm).not.toContainText('Bren');
+    // The HQ group's helmet is the campaign's nation's; the only Brodie in the game's menus is the title's logo.
+    expect(await qm.locator('svg.th-helmet').evaluateAll((nodes) => [...new Set(nodes.map((n) => n.getAttribute('data-helmet')))])).toEqual(['ssh40']);
     await tapIn(page, 'quartermaster', 'back');
     await mapToTitle(page);
+    await expect(arrived(page, 'title').getByTestId('title-helmet').locator('svg')).toHaveAttribute('data-helmet', 'brodie');
     // The title itself has no Shop or Quartermaster: they belong to a campaign.
     await expect(arrived(page, 'title').getByTestId('armoury')).toHaveCount(0);
     await expect(arrived(page, 'title').getByTestId('quartermaster')).toHaveCount(0);

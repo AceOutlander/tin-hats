@@ -3,6 +3,8 @@
  * Original shapes; markup is static and inserted once when the HUD is built.
  */
 
+import type { HelmetShape } from '../../data/schema';
+
 const STROKE = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
 
 function svg(body: string): string {
@@ -49,11 +51,6 @@ export const ICONS = {
     `<path ${STROKE} stroke-width="2" d="M3 6.5h18v12H3z"/>` +
       `<path ${STROKE} stroke-width="1.6" d="M3 10.5h18M9 10.5v8M15 10.5v8"/>`,
   ),
-  /** Brodie helmet, side on: population. */
-  helmet: svg(
-    '<path d="M1.5 15.6c1.7-1 3.6-1.5 5-1.7C6.8 9.600 8.6 6.5 12 6.5s5.2 3.1 5.5 7.4c1.4 0.2 3.3 0.7 5 1.7' +
-      '-1.2 1.7-5.3 2.4-10.5 2.4S2.7 17.3 1.5 15.6z"/>',
-  ),
   soundOn: svg(
     '<path d="M3 9.5h3.5l5-4.5v14l-5-4.5H3z"/>' +
       `<path ${STROKE} stroke-width="2" d="M15 9a4.5 4.5 0 010 6M17.8 6.2a8.5 8.5 0 010 11.6"/>`,
@@ -73,12 +70,7 @@ export const ICONS = {
       '<path fill="rgba(20,21,15,0.55)" d="M7 10.2h10v2.6H7z"/>',
   ),
   advance: svg(`<path ${STROKE} stroke-width="3.4" d="M4 5l7 7-7 7M12.5 5l7 7-7 7"/>`),
-  /** Order scope: three helmets for the whole army, and a company pennant for "follow the army order". */
-  army: svg(
-    '<path d="M7.4 12.4c0-3.400 2-5.800 4.6-5.800s4.6 2.400 4.6 5.800z"/>' +
-      '<path d="M1.4 18.8c0-3.400 2-5.800 4.6-5.800s4.6 2.400 4.6 5.800zM13.4 18.8c0-3.400 2-5.800 4.6-5.800s4.6 2.400 4.6 5.800z"/>' +
-      '<path d="M0.6 18.6h10.8v1.8H0.6zM12.6 18.6h10.8v1.8H12.6zM6.6 12.2h10.8v1.6H6.6z"/>',
-  ),
+  /** Order scope: a company pennant for "follow the army order" (the whole army is KIT_ICONS.army). */
   follow: svg('<path d="M5 2.5h2.2v19H5z"/><path d="M7.2 3.5L20.5 8 7.2 12.5z"/>'),
   /** Supports: shell burst, smoke cloud, aircraft. */
   artillery: svg(
@@ -113,3 +105,40 @@ export const ICONS = {
 } as const;
 
 export type IconName = keyof typeof ICONS;
+
+/**
+ * A helmet seen from the side, facing right, on the 24 x 24 grid: one for every helmet shape a nation can wear
+ * (FactionLook.helmet). The HUD draws the player's own nation's, never a fixed one (owner, 2026-11-15: a British
+ * Brodie stood for the Red Army's men). A new shape must be drawn here before it compiles.
+ */
+const HELMET_PATHS: Record<HelmetShape, string> = {
+  /** The Brodie: a shallow bowl on a wide, flat brim. */
+  brodie:
+    'M1.5 15.6c1.7-1 3.6-1.5 5-1.7C6.8 9.6 8.6 6.5 12 6.5s5.2 3.1 5.5 7.4c1.4 0.2 3.3 0.7 5 1.7' +
+    '-1.2 1.7-5.3 2.4-10.5 2.4S2.7 17.3 1.5 15.6z',
+  /** The SSh-40: a deep round dome that comes down over the ears, with a short brim all round. */
+  ssh40:
+    'M4.3 15.9C4.4 9.6 7.5 5.4 12 5.4s7.600 4.200 7.700 10.500c1.300 0.300 2.100 0.800 2.100 1.500' +
+    'c0 1.200-4.400 2-9.800 2s-9.800-0.800-9.800-2c0-0.700 0.800-1.200 2.100-1.500z',
+  /** The Stahlhelm: the dome, a short peak in front and the skirt flaring down over the ears and neck behind. */
+  stahlhelm:
+    'M2.2 19C2.8 16.800 3.800 15.300 4.900 14.500C5.100 9.300 7.900 5.600 12.300 5.600c4.500 0 7.300 3.600 7.500 8.300' +
+    'l2.700 1.500l-0.500 1.500l-6.800-0.500c-0.900 0-1.400 0.600-1.600 1.500L13.300 19z',
+};
+
+/** The HUD's icons that show a nation's kit: helmet = the population, army = the whole army (three helmets). */
+export type KitIconName = 'helmet' | 'army';
+
+function helmetAt(shape: HelmetShape, x: number, y: number, scale: number): string {
+  return `<path transform="translate(${x} ${y}) scale(${scale})" d="${HELMET_PATHS[shape]}"/>`;
+}
+
+/** The markup of a kit icon in the helmet of the player's nation. */
+export function kitIcon(name: KitIconName, shape: HelmetShape): string {
+  if (name === 'helmet') return svg(`<path d="${HELMET_PATHS[shape]}"/>`);
+  // One in front of two, each half size.
+  return svg(helmetAt(shape, 6, 1.4, 0.5) + helmetAt(shape, 0, 9.6, 0.5) + helmetAt(shape, 12, 9.6, 0.5));
+}
+
+/** Every helmet shape the HUD can draw (tests/unit/nation-icons.test.ts checks each nation's against the others). */
+export const HUD_HELMET_SHAPES = Object.keys(HELMET_PATHS) as HelmetShape[];

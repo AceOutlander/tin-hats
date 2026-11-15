@@ -2,6 +2,25 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: three owner decisions (2026-11-15, on main after the platform hooks, DECISIONS 549 to 551)
+
+Not pushed, version not bumped (the main session releases).
+- **Title years** (549): "The Second World War · 1939–45" (`GAME_TAGLINE`, src/data/campaigns.ts).
+- **The idle rule** (550): the enemy counter-attacks a player who has given no command for four minutes in a phase
+  with no clock, in growing groups, until his HQ falls or he gives a command (`MissionDef.idle`, FOUNDATIONS.md 3.5;
+  missions 1002 to 1006, 1009, 1010). It closes decision 545's flaky smoke test (mission 1010 abandoned in the ruins
+  never ended) and the same hole found in 1004, 1005 and 1009. A player who is playing never meets it; the balance
+  targets did not move. Tests: tests/unit/sim-idle.test.ts, tests/balance/idle.test.ts.
+- **Kit icons per nation** (551): the HUD's MEN icon, the population price on the train buttons and "all units" wear
+  the helmet of the nation being played (Soviet SSh-40 in Stalingrad, Brodie for the British); no menu helmet has a
+  default any more. Test: tests/unit/nation-icons.test.ts.
+- Run on the final code: `npm run check` green (118 unit files, 2,000 tests); balance suite 234 of 234 (207 before,
+  27 new); the smoke spec's two mission 1010 tests five times each, 10 of 10; "a player who does nothing" for all ten
+  missions and 1004's keen player, 11 of 11; campaign select spec 6 of 6; the two label specs 10 of 10; startup budget
+  2 of 2 (title in about 1.9 s at CPU x4, longest piece about 270 ms). The whole browser suite was not re-run.
+- Screenshots (docs/screenshots, git-ignored): title-1939-45, icons-hud-soviet, icons-hud-british,
+  icons-hud-soviet-all-units, icons-quartermaster-soviet, icons-result-soviet.
+
 ## Not yet live: platform hooks (2026-11-15, on main after v0.17.3, DECISIONS 546 to 548)
 
 `src/platform`: the one module the game reads the place it runs in from (`docs/PLATFORM.md`). The website's provides
@@ -37,7 +56,7 @@ the main session releases). DECISIONS 540 to 544.
 - The whole browser suite, 146 tests, run end to end twice: 137 passed right after 540 (9 failed; with the two smoke
   specs 540 fixed that is 11 failing on the v0.17.2 code), 145 on the final code. Perf suite 3/3; startup at CPU x4: title in about 1.8 s, longest piece
   about 265 ms.
-- STILL FAILING SOMETIMES (545): smoke "mission 1010 (ring): a keen player ...": an abandoned battle in the Ring's third
+- FIXED SINCE (DECISIONS 550, the idle rule above). As it stood then: STILL FAILING SOMETIMES (545): smoke "mission 1010 (ring): a keen player ...": an abandoned battle in the Ring's third
   phase never ends (the Germans hold their nests, only phase 1 has a deadline), so the spec's fast-forward times out
   when its riflemen get that far. Passed in the first full run, failed in the second. Not fixed: it needs a mission
   design decision.

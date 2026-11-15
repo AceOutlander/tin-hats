@@ -185,6 +185,7 @@ export function buildCampaignView(
 ): CampaignView {
   const p = progressOf(save, missions, unlockAll, campaigns);
   return {
+    helmet: FACTIONS[nation].look.helmet,
     missions: missions.map((m) => missionCard(save, p, m)),
     lastMission: p.ids.includes(save.lastMission) ? save.lastMission : 0,
     pointsEarned: pointsAvailable(save) + pointsSpent(save, defs),

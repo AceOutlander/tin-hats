@@ -107,6 +107,11 @@ export interface TipState {
 
 /** Polled by the HUD every frame. The same object is reused; the HUD must only touch the DOM when a value changed. */
 export interface HudState {
+  /**
+   * The helmet of the player's nation in this battle (FactionLook.helmet): the HUD's population and "all units" icons
+   * are drawn in it, so no nation's HUD shows another's kit.
+   */
+  helmet: HelmetShape;
   supplies: number;
   incomePerSec: number;
   pop: number;
@@ -401,8 +406,11 @@ export interface CampaignView {
   campaignId?: CampaignId;
   campaignTitle?: string;
   map?: CampaignMapDef;
-  /** The helmet of the campaign's nation (the Quartermaster's HQ group, the result banner); absent = the Brodie. */
-  helmet?: HelmetShape;
+  /**
+   * The helmet of the campaign's nation (FactionLook.helmet): every helmet a campaign's screens draw (the
+   * Quartermaster's HQ group, the result banner) is this one. Required, so none can fall back on another nation's.
+   */
+  helmet: HelmetShape;
   /** Every campaign offered, for the select screen, in its order. */
   campaigns?: CampaignCardView[];
   missions: MissionCard[];

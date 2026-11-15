@@ -12,6 +12,7 @@
  * Sets window.__ready = true once the first screen is up, and exposes
  * window.__ui (the UiHandle) and window.__mock (the mock app state).
  */
+import { FACTIONS } from '../src/data/factions';
 import type { Difficulty, Side, SupportKind, UnitKind } from '../src/data/schema';
 import type { AppApi, CampaignView, MissionCard, ResultView, ScreenId, SettingsView, UpgradeView } from '../src/ui/contracts';
 import { createUi } from '../src/ui/index';
@@ -362,6 +363,7 @@ function campaign(): CampaignView {
     };
   });
   return {
+    helmet: FACTIONS.british.look.helmet,
     missions,
     pointsEarned: earned,
     pointsSpent: spent,
