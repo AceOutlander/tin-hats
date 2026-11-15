@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad mission 9 (1009): Operation Uranus, 19 to 23 November 1942 (docs/campaigns/STALINGRAD.md, mission 9). An
@@ -248,6 +249,8 @@ export const M1009: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // Siren: three free strikes of twelve rounds on the Romanian trenches, then a Katyusha salvo (FOUNDATIONS.md 3.3).
     { id: 'siren', type: 'banner', when: { phase: 'siren' }, text: 'Siren!', sound: 'horn' },

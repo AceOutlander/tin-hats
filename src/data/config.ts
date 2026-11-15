@@ -76,6 +76,9 @@ export const CONFIG: GameConfig = {
 
   // Shared by both sides: two full armies (2 x popCap) plus headroom for scripted waves and survival attackers.
   maxUnits: 216,
+  // The idle rule's counter-attack groups (IdleCounterDef) may come in over the enemy's population cap while this many
+  // places in the unit pool stay free for training and scripted waves.
+  idlePoolReserve: 24,
   maxProjectiles: 128,
   maxSmokes: 8,
   maxEvents: 256,

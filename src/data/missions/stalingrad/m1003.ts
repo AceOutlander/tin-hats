@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad 3: the Volokolamsk Highway, 16 November 1941 (docs/campaigns/STALINGRAD.md, mission 3). The 1075th Rifle
@@ -181,6 +182,8 @@ export const M1003: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // The director's events: the barrage on the halt, the Stuka, the rocket battery, the German posture.
     { id: 'openingBarrage', type: 'barrage', when: { phase: 'morning' }, side: 1, x: 5600, spread: 400, rounds: 6, duration: 15, weapon: 'artilleryShell', warning: 'Artillery on the halt!' },

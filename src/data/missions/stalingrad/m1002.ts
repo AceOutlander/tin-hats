@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad 2: Dubno, 27 June 1941 (docs/campaigns/STALINGRAD.md, mission 2). Popel's group of the 8th Mechanized
@@ -169,6 +170,8 @@ export const M1002: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // Phase 2 begins with the road behind cut (the announcement on taking the crossroads says so).
     { id: 'roadCut', type: 'income', when: { phase: 'crossroads' }, side: 0, mul: 0.4 },

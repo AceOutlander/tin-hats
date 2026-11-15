@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad 5: Crossing the Volga, night of 14 to 15 September 1942 (docs/campaigns/STALINGRAD.md, mission 5). The
@@ -192,6 +193,8 @@ export const M1005: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // The director's events: the Nebelwerfer on the high bank, the Stukas once it is light.
     { id: 'nebelwerfer', type: 'barrage', when: { phase: 'bank', delay: 25 }, side: 1, x: 7000, spread: 300, rounds: 10, duration: 12, weapon: 'nebelwerfer', warning: 'Nebelwerfer!' },

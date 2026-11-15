@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad mission 6 (1006): Mamayev Kurgan, 19 September 1942 (docs/campaigns/STALINGRAD.md, mission 6). The 95th
@@ -200,6 +201,8 @@ export const M1006: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // The director's events: the Stukas, the Nebelwerfer on the slope, the banner when they come back.
     { id: 'stukaFoot', type: 'airRaid', when: { phase: 'foot', delay: 120 }, side: 1, support: 'airStrike', x: 2600 },

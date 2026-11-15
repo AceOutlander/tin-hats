@@ -284,7 +284,8 @@ function decideOrder(w: World, si: number, ai: AiState): void {
   // may steer either commander (posture events): hold = no Advance, counterattack = Advance now.
   const stance = ai.bot ? phaseStance(w) : 'none';
   const survival = stance === 'defend' || (stance === 'none' && w.state.sides[1 - si].hq === null);
-  const posture = w.state.director.posture[si];
+  // A player who has stopped pressing is counter-attacked, whatever the script's posture (the idle rule).
+  const posture = si === 1 && w.state.director.idle ? 'counterattack' : w.state.director.posture[si];
   const mayAttack = !survival && posture !== 'hold' && time >= ai.plan.firstAttackAfter / ai.aggression;
   const foeW = SV.foeW;
   const broken = AI.minAttackStrength * AI.regroupFrac;

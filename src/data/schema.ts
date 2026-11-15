@@ -504,6 +504,8 @@ export interface GameConfig {
 
   /** Pool sizes. Units and projectiles are hard caps; the event, command and damage buffers grow if exceeded. */
   maxUnits: number;
+  /** Places in the unit pool an idle-rule counter-attack group (IdleCounterDef) leaves free when it comes in over the cap. */
+  idlePoolReserve: number;
   maxProjectiles: number;
   maxSmokes: number;
   maxEvents: number;
@@ -1184,6 +1186,31 @@ export interface PhaseDef {
   assume?: PhaseAssume;
 }
 
+/**
+ * What the enemy does to a player who has stopped pressing (the idle rule; owner, 2026-11-15, DECISIONS 550). It is not
+ * a clock: it counts only the time since side 0's last command of any kind (train, order, call-in, build, direct
+ * control) on the mission clock, and it is over the moment the player gives one. It applies in a phase that has no
+ * clock (a clock ends a battle by itself) while an objective is open that time alone will not finish (anything but
+ * holding out: `survive`, or `hold` of a point side 0 owns); the count starts afresh whenever it has not applied.
+ * While it is in force side 1's commander counter-attacks, whatever posture the script gave it, and counter-attack
+ * groups come in for side 1: `waves` in order, one every `every` seconds, the last one again and again, so the
+ * counter-attack grows until it has ended the battle or the player answers it. A group comes in over side 1's
+ * population cap while the unit pool has room to spare (CONFIG.idlePoolReserve); otherwise it waits in the reserve
+ * like any wave, and no new group is sent while one is still waiting.
+ */
+export interface IdleCounterDef {
+  /** Seconds without a command from side 0 before the counter-attack begins. */
+  after: number;
+  /** Seconds between counter-attack groups. */
+  every: number;
+  /** The groups, in order; the last repeats. Forces without a behaviour attack (`assault`). */
+  waves: ForceDef[][];
+  /** The alarm banner when the counter-attack begins. */
+  banner: string;
+  /** The announcement with each later group. */
+  announce: string;
+}
+
 /** One step of an AI build plan: keep `count` of `kind` alive once `after` seconds have passed. */
 export interface BuildStep {
   kind: UnitKind;
@@ -1312,6 +1339,11 @@ export interface MissionDef {
    * phase made from `mode` and `timer` (normalPhases in src/sim/director.ts), which plays exactly as before.
    */
   phases?: PhaseDef[];
+  /**
+   * The enemy's answer to a player who stops giving commands (IdleCounterDef). A mission of phases needs it wherever a
+   * phase has no clock: without it nothing ends a battle its player has walked away from. Absent = no such rule.
+   */
+  idle?: IdleCounterDef;
   events: MissionEventDef[];
   /** Build plan for the AI on side 1. */
   ai: MissionAiPlan;

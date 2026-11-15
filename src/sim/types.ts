@@ -1049,6 +1049,17 @@ export interface DirectorState {
   disguiseUntil: number;
   /** Why the director ended the battle (the closing announcement of a surrender, or the loss), or null. */
   endText: string | null;
+  /**
+   * The idle rule (MissionDef.idle): the mission time side 0 last gave a command or the rule last did not apply; whether
+   * the counter-attack is in force; how many of its groups this spell has sent; the mission time the next is due; and
+   * the population its groups have brought in over side 1's cap in the whole battle (side 1 is never over its cap by
+   * more).
+   */
+  pressedAt: number;
+  idle: boolean;
+  idleWaves: number;
+  idleNext: number;
+  idleOverCap: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad mission 10 (1010): Operation Ring, 10 January to 2 February 1943 (docs/campaigns/STALINGRAD.md, mission
@@ -269,6 +270,8 @@ export const M1010: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // Snow, the blizzard at Gumrak, clearing in the ruins, dusk at the end (FOUNDATIONS.md 4.7).
     // The blizzard comes in over Gumrak once the first Il-2s have had their window, and eases at the city's edge.

@@ -268,6 +268,17 @@ The objective plate shows the phase title and its first unfinished objective wit
 "Hold the summit 2:40"). A phase change shows a banner ("Phase 2: The water tanks") with a short horn cue. Side
 objectives sit on the pause screen and the end screen, not the battle HUD (phone space).
 
+### 3.5 The idle rule (`MissionDef.idle`)
+
+A phase with no clock must still end for a player who has stopped playing. `idle` (an `IdleCounterDef`) is the enemy's
+answer, as mission data: when side 0 has given no command of any kind for `after` seconds, in a phase with no clock and
+with an objective open that time alone will not finish, side 1's commander counter-attacks whatever posture the script
+gave it, and counter-attack groups (`waves`, in order, the last repeating) come in every `every` seconds until the
+battle ends or the player gives a command. It is not a clock or a deadline: one command ends it, and the count starts
+again. A group may take side 1 over its population cap while the unit pool has `CONFIG.idlePoolReserve` places to
+spare. Every mission with a phase that has no clock carries it (the Stalingrad missions share
+`src/data/missions/stalingrad/idle.ts`); `tests/unit/sim-idle.test.ts` and `tests/balance/idle.test.ts` hold it.
+
 ## 4. The battlefield
 
 ### 4.1 Long maps and sectors

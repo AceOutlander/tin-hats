@@ -26,15 +26,15 @@ import type { World } from './world';
  * behind units already waiting) goes into the reserve and walks out of the HQ door later.
  * Returns the number of units spawned now.
  */
-function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean): number {
+function spawnForce(w: World, si: Side, force: ForceDef, atStart: boolean, attack = false, overCap = false): number {
   const s = w.state;
   const side = s.sides[si];
   const dir = si === 0 ? 1 : -1;
   const kindIndex = KIND_INDEX[force.kind];
   const def = KIND_DEFS[kindIndex];
-  const behaviour = force.behaviour ?? (force.leash !== undefined ? 'guard' : side.hq ? 'army' : 'assault');
+  const behaviour = force.behaviour ?? (force.leash !== undefined ? 'guard' : side.hq && !attack ? 'army' : 'assault');
   const count = atStart ? force.count : Math.max(1, Math.round(force.count * w.mods[si].wave));
-  const capped = !atStart && side.hq !== null;
+  const capped = !atStart && side.hq !== null && !overCap;
   const edge = si === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
 
   let baseX = side.hq ? side.hq.doorX : edge;
@@ -197,6 +197,19 @@ export function placeStartingForces(w: World): void {
   }
 }
 
+/**
+ * A wave comes in for `si`: a wave event, or a group of the idle rule's counter-attack, whose forces attack unless
+ * they say otherwise (`attack`) and may come in over the side's population cap (`overCap`).
+ */
+export function spawnWave(w: World, si: Side, forces: readonly ForceDef[], announce: string | null, attack = true, overCap = false): void {
+  let count = 0;
+  for (const force of forces) count += spawnForce(w, si, force, false, attack, overCap);
+  const e = w.events.emit('wave');
+  e.side = si;
+  e.value = count;
+  e.text = announce;
+}
+
 /** Carry out one scripted event now (also used by the admin panel to fire an event by hand). */
 export function fireEvent(w: World, ev: MissionEventDef): void {
   const s = w.state;
@@ -223,15 +236,9 @@ export function fireEvent(w: World, ev: MissionEventDef): void {
       e.x = side.hq ? side.hq.doorX : ev.side === 0 ? CONFIG.mapMargin : s.length - CONFIG.mapMargin;
       break;
     }
-    case 'wave': {
-      let count = 0;
-      for (const force of ev.forces) count += spawnForce(w, ev.side, force, false);
-      const e = w.events.emit('wave');
-      e.side = ev.side;
-      e.value = count;
-      e.text = ev.announce ?? null;
+    case 'wave':
+      spawnWave(w, ev.side, ev.forces, ev.announce ?? null, false);
       break;
-    }
     default:
       // The director's events: banners, barrages, air raids, income, postures, call-ins, disguise, reveal, owners, the end.
       fireDirectorEvent(w, ev);

@@ -224,7 +224,10 @@ export function checkInvariants(b: Battle): void {
     if (side.supplies < -1e-9) throw new Error(`${where}: side ${si} supplies ${side.supplies}`);
     // Neither training nor a scripted wave takes a side with an HQ over its cap (a wave that does not fit
     // waits in the reserve). A side with no HQ has no economy: it is all scripted and has no cap to keep.
-    if (side.hasHq && side.pop > side.popCap) throw new Error(`${where}: side ${si} population ${side.pop} over the cap`);
+    // The one exception is the idle rule's counter-attack (MissionDef.idle, DECISIONS 550): its groups may bring side
+    // 1 in over its cap, by no more than the director has counted (0 in any battle whose player never went idle).
+    const overCap = si === 1 ? s.director.idleOverCap : 0;
+    if (side.hasHq && side.pop > side.popCap + overCap) throw new Error(`${where}: side ${si} population ${side.pop} over the cap`);
     if (side.reservePop < -1e-9 || (!side.hasHq && side.reservePop !== 0)) {
       throw new Error(`${where}: side ${si} reservePop ${side.reservePop}`);
     }

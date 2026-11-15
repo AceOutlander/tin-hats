@@ -29,7 +29,7 @@ import type {
 import { buildingIndex, infantryInside, refTrenchId } from './buildings';
 import { releaseAll } from './control';
 // A cycle by design: mission.ts carries out every event (waves need its spawnForce) and hands the director's types here.
-import { fireEvent } from './mission';
+import { fireEvent, spawnWave } from './mission';
 import { inPrep, missionTime, startPhasePrep } from './prep';
 import { LAUNCH, launch } from './projectiles';
 import { airGrounded, changeTime, changeWeather, fireFlare } from './sky';
@@ -373,6 +373,11 @@ export function createDirector(phaseCount: number, incomeBase: [number, number])
     disguiseFrom: 0,
     disguiseUntil: 0,
     endText: null,
+    pressedAt: 0,
+    idle: false,
+    idleWaves: 0,
+    idleNext: 0,
+    idleOverCap: 0,
   };
 }
 
@@ -618,6 +623,77 @@ export function endBattle(w: World, winner: number, reason: EndReason): void {
   const e = w.events.emit('battleEnded');
   e.side = winner;
   e.value = s.time;
+}
+
+// ---------------------------------------------------------------------------
+// The idle rule (MissionDef.idle)
+// ---------------------------------------------------------------------------
+
+/** Side 0 gave a command (applyCommands): the player is pressing, and a counter-attack on an idle player is over. */
+export function notePressed(s: BattleState): void {
+  const d = s.director;
+  d.pressedAt = missionTime(s);
+  d.idle = false;
+}
+
+/**
+ * True while the current phase waits for the player: an objective is open that time alone will not finish (anything
+ * but `survive`, or `hold` of a point side 0 owns). A phase with no objectives (an old mission) always does.
+ */
+function waitsForPlayer(w: World): boolean {
+  const d = w.state.director;
+  const objectives = w.phases[d.phase].objectives;
+  if (objectives.length === 0) return true;
+  for (let i = 0; i < objectives.length; i++) {
+    if (d.objectives[i].done) continue;
+    const o = objectives[i];
+    if (o.type === 'survive') continue;
+    if (o.type === 'hold' && pointOwner(w.state, o.point) === 0) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The idle rule, each tick outside a prep phase: where no clock runs and the phase waits for the player, a player who
+ * has given no command for `after` seconds is counter-attacked (the commander reads `director.idle`; the groups
+ * come in here) until he gives one. Nothing is spawned, and nothing drawn from the battle's RNG, until then.
+ */
+function updateIdle(w: World, time: number): void {
+  const rule = w.mission.idle;
+  if (rule === undefined) return;
+  const s = w.state;
+  const d = s.director;
+  if (d.timer !== null || s.timer !== null || !waitsForPlayer(w)) {
+    d.pressedAt = time;
+    d.idle = false;
+    return;
+  }
+  if (!d.idle) {
+    if (time - d.pressedAt < rule.after) return;
+    d.idle = true;
+    d.idleWaves = 0;
+    d.idleNext = time;
+    banner(w, rule.banner, BANNER_SOUND.alarm);
+  }
+  if (time < d.idleNext || rule.waves.length === 0) return;
+  const forces = rule.waves[Math.min(d.idleWaves, rule.waves.length - 1)];
+  // The group comes in whole, over side 1's population cap (an enemy whose garrisons fill the cap could otherwise
+  // never attack), while the unit pool keeps CONFIG.idlePoolReserve places free for everything else; with less room it
+  // waits in the reserve like any wave, and no new group is sent while one is still waiting.
+  let size = 0;
+  for (let i = 0; i < forces.length; i++) size += Math.max(1, Math.round(forces[i].count * w.mods[1].wave));
+  let free = CONFIG.maxUnits;
+  for (let i = 0; i < s.unitCount; i++) if (s.units[i].alive) free--;
+  const overCap = free - size >= CONFIG.idlePoolReserve;
+  if (!overCap && s.sides[1].reservePop > 0) return;
+  const later = d.idleWaves > 0;
+  d.idleWaves++;
+  d.idleNext = time + rule.every;
+  const enemy = s.sides[1];
+  const before = Math.max(enemy.pop, enemy.popCap);
+  spawnWave(w, 1, forces, later ? rule.announce : null, true, overCap);
+  if (enemy.pop > before) d.idleOverCap += enemy.pop - before;
 }
 
 // ---------------------------------------------------------------------------
@@ -912,7 +988,7 @@ function fireBarrageRound(w: World, i: number): void {
 
 /**
  * Before the scripted events each tick: barrages in progress drop their rounds, a counter-attack posture past its time
- * goes back to free, an expired disguise ends.
+ * goes back to free, an expired disguise ends, and the idle rule is kept (outside a prep phase).
  */
 export function updateDirector(w: World): void {
   const s = w.state;
@@ -936,6 +1012,7 @@ export function updateDirector(w: World): void {
     }
   }
   if (d.disguiseSide >= 0 && s.time >= d.disguiseUntil) d.disguiseSide = -1;
+  if (!s.over && !inPrep(s)) updateIdle(w, missionTime(s));
 }
 
 /**

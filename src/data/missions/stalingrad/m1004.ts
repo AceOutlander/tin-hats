@@ -1,5 +1,6 @@
 import { STALINGRAD_MUSIC } from '../../musicCampaigns';
 import type { MissionDef } from '../../schema';
+import { STALINGRAD_IDLE } from './idle';
 
 /**
  * Stalingrad 4: the Moscow counter-offensive at Klin, 12 December 1941 (docs/campaigns/STALINGRAD.md, mission 4). The
@@ -201,6 +202,8 @@ export const M1004: MissionDef = {
       next: null,
     },
   ],
+  // A player who stops giving commands where no clock runs is counter-attacked until the battle ends (DECISIONS 550).
+  idle: STALINGRAD_IDLE,
   events: [
     // The director's events: the counter-attack from the forest, the Il-2s, the Germans waiting in Klin, the guns.
     { id: 'forestCounter', type: 'posture', when: { phase: 'forest', delay: 120 }, side: 1, posture: 'counterattack', point: { point: 'P1' }, seconds: 60 },

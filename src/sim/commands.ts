@@ -7,6 +7,7 @@ import type { Order, SupportKind, UnitKind } from '../data/schema';
 import { SUPPORTS, UNLIMITED_SUPPORT_COST } from '../data/supports';
 import { UNITS } from '../data/units';
 import { releaseControl, setControlInput, takeControl } from './control';
+import { notePressed } from './director';
 import { speak } from './specials';
 import { callSupport, canCallSupport } from './supports';
 import { KIND_COUNT, KIND_INDEX, KIND_LIST, orderCost, orderPop } from './tables';
@@ -145,6 +146,8 @@ export function applyCommands(w: World): void {
   const q = w.commands;
   for (let i = 0; i < q.count; i++) {
     const c = q.items[i];
+    // Any command at all from side 0 is the player pressing (the idle rule, MissionDef.idle).
+    if (c.side === 0) notePressed(w.state);
     switch (c.type) {
       case CMD_TRAIN:
         applyTrain(w, c.side, c.kind);
