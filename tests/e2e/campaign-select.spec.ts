@@ -58,6 +58,8 @@ test.describe('the campaign select', () => {
 
       // Basic Training stays on the main menu, not on the campaign select.
       await expect(arrived(page, 'title').getByTestId('basic-training')).toBeVisible();
+      // The line under the name gives the whole war's years (owner, 2026-11-15).
+      await expect(arrived(page, 'title').locator('.th-logo-tag')).toHaveText(/The Second World War · 1939–45/i);
       await tap(page, 'play');
       const select = arrived(page, 'campaigns');
       await expect(select).toBeVisible();

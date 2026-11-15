@@ -67,6 +67,12 @@ export const UPCOMING_CAMPAIGNS: readonly UpcomingCampaign[] = [
   { id: 'africa', nation: 'british', title: 'North Africa', years: '1940–1943', card: 'Tobruk, the long desert road and the line at El Alamein.' },
 ];
 
+/**
+ * The line under the game's name on the title screen. The years are the whole war's (owner, 2026-11-15: "1939–45",
+ * since the game will cover Poland to Berlin), not those of the campaigns built so far.
+ */
+export const GAME_TAGLINE = 'The Second World War · 1939–45';
+
 /** The campaign a mission id belongs to, or null for an id outside every campaign (the proving ground, tests). */
 export function campaignOf(missionId: number): CampaignId | null {
   for (const id of CAMPAIGN_IDS) {

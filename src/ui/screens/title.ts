@@ -3,6 +3,7 @@
  * src/app/menuStorm.ts). A few raindrops run down the front of the plate, drawn on a small canvas over it that never
  * takes a touch; they are faint and small so the lettering and both buttons stay fully readable.
  */
+import { GAME_TAGLINE } from '../../data/campaigns';
 import { BASIC_TRAINING_ID } from '../../data/missions/training';
 import type { PanelDropsState } from '../contracts';
 import { add, button, el, stencil } from '../shell/dom';
@@ -76,7 +77,7 @@ export const titleScreen: ScreenFactory = (ctx) => {
     logo,
     helmet,
     stencil('h1', 'TIN HATS', 'th-logo-text'),
-    el('p', 'th-type th-logo-tag', 'The Second World War · 1940–45'),
+    el('p', 'th-type th-logo-tag', GAME_TAGLINE),
   );
 
   const actions = el('div', 'th-title-actions');

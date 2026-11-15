@@ -5,12 +5,13 @@
  * one campaign since the British placeholders were removed (what is offered, the map on show, its music, the save
  * keeping the progress, and the unit types the British missions unlocked still counting).
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { App, MAP_MUSIC } from '../../src/app/app';
 import { buildCampaignCards, buildUpcomingCards, missionLabel } from '../../src/app/campaignView';
 import { WEST_MAP, CAMPAIGN_MAP_VIEW, frontOn, projection } from '../../src/data/campaignMap';
 import { STALINGRAD_MAP } from '../../src/data/campaignMapStalingrad';
-import { CAMPAIGN_IDS, CAMPAIGNS, UPCOMING_CAMPAIGNS } from '../../src/data/campaigns';
+import { CAMPAIGN_IDS, CAMPAIGNS, GAME_TAGLINE, UPCOMING_CAMPAIGNS } from '../../src/data/campaigns';
 import { MISSIONS } from '../../src/data/missions';
 import { STALINGRAD_MISSIONS } from '../../src/data/missions/stalingrad';
 import { STALINGRAD_MUSIC } from '../../src/data/musicCampaigns';
@@ -213,6 +214,14 @@ describe('the campaign select cards', () => {
     const [s] = buildCampaignCards(save, [{ id: 'stalingrad', missions: STALINGRAD_MISSIONS }], 'stalingrad');
     expect(s).toMatchObject({ cleared: 3, total: 10, years: '1941–1943', comingSoon: false });
     expect(s.next).toEqual({ id: 1004, number: 4, title: STALINGRAD_MISSIONS[3].title });
+  });
+
+  it('the title names the whole war, 1939 to 1945 (owner, 2026-11-15: Poland to Berlin)', () => {
+    expect(GAME_TAGLINE).toBe('The Second World War · 1939–45');
+    // The title screen shows that line and no other years.
+    const title = readFileSync(new URL('../../src/ui/screens/title.ts', import.meta.url), 'utf8');
+    expect(title).toContain("'th-type th-logo-tag', GAME_TAGLINE");
+    expect(title).not.toMatch(/19[34]ds*[–-]s*(19)?45/);
   });
 
   it('show D-Day, Road to Berlin and North Africa as greyed "Coming soon" cards with no missions', () => {
