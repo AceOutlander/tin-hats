@@ -28,6 +28,9 @@ test.describe('debug hooks', () => {
     expect(await page.evaluate(() => Object.keys((window as unknown as Hooked).__TH as object).sort())).toEqual(
       [
         'admin',
+        'extraUnit',
+        'grantMedals',
+        'setStore',
         'audio',
         'autopilot',
         'battleMusic',
