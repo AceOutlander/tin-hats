@@ -7,7 +7,9 @@
  * because a unit's data has to be in place before the game's tables are built (src/data/extraUnit.ts).
  */
 import { hasExtraUnit, installExtraUnit, type ExtraUnitData } from '../data/extraUnit';
-import { platform } from './index';
+// The platform is read as the rest of the game reads it, by its folder ("src/platform"), not as "./index": another
+// build swaps the module behind that one name, and this file must get the same platform as everybody else.
+import { platform } from '../platform';
 import type { ExtraUnitSlot } from './types';
 
 /** What a test page hands over: both halves of a unit. */
