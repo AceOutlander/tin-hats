@@ -64,7 +64,7 @@ describe('the website platform', () => {
     expect(platform.shell).toBeNull();
     expect(platform.store).toBeNull();
     expect(platform.reward).toBeNull();
-    expect(platform.cloud).toBeNull();
+    expect(platform.settings).toBeNull();
     expect(platform.extraUnit).toBeNull();
     expect(platform.testMode).toBeNull();
     expect(platform.attach).toBeUndefined();

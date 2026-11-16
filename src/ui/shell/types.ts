@@ -1,7 +1,7 @@
 /** Types shared by the UI shell and the menu screens. */
 import type { Difficulty, FactionLook } from '../../data/schema';
 import type { AppApi, CampaignView, HudState, PanelDropsState, ResultView, ScreenId } from '../contracts';
-import type { StoreSection } from '../../platform/types';
+import type { SettingsSection, StoreSection } from '../../platform/types';
 import type { PaintUnitIcon, PaintUpgradePreview } from './icons';
 
 /** What the HUD track's createHud returns (src/ui/hud/index.ts). */
@@ -32,6 +32,8 @@ export interface UiOptions {
   createHud?: CreateHud | null;
   /** The platform's store section for the Shop, read each time the Shop opens; absent or null = the Shop has none. */
   store?: () => StoreSection | null;
+  /** The platform's section for Settings, read each time Settings opens; absent or null = Settings has none. */
+  settings?: () => SettingsSection | null;
   /** Called after every screen change, including the first. */
   onScreen?: (screen: ScreenId) => void;
   /** Called when the "rotate your phone" overlay appears (true) or goes away (false). */

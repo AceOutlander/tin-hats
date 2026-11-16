@@ -91,17 +91,31 @@ export interface RewardOffer {
   show(): Promise<{ readonly medals: number } | null>;
 }
 
-// --- saves kept somewhere other than this device -----------------------------------------------------------------------
+// --- a section in Settings ---------------------------------------------------------------------------------------------
 
-export type CloudStatus = 'off' | 'signed-out' | 'ready' | 'syncing' | 'error';
+/** One button of a platform's Settings section. */
+export interface SettingsAction {
+  readonly id: string;
+  /** The words on the button. */
+  readonly label: string;
+  /** True when it cannot be pressed just now. */
+  readonly disabled?: boolean;
+  /** Do it. While it runs every button of the section waits; the section is read again when it is done. */
+  run(): Promise<void>;
+}
 
-/** A place to keep the save besides this device. The data is the save as text; merging is the provider's business. */
-export interface CloudSave {
-  status(): CloudStatus;
-  /** The save kept there, or null when there is none. */
-  load(): Promise<string | null>;
-  /** Keep this save there. Resolves false when it could not be kept (the game carries on with the local one). */
-  save(data: string): Promise<boolean>;
+/** The section as it stands now: plain lines for the player, then its buttons. */
+export interface SettingsPanel {
+  readonly lines: readonly string[];
+  readonly actions: readonly SettingsAction[];
+}
+
+/** A section a platform may add to Settings (where it keeps the save, an account). Every word shown is the platform's. */
+export interface SettingsSection {
+  readonly title: string;
+  panel(): SettingsPanel;
+  /** The panel changed by itself: Settings reads it again. */
+  onChange?(listener: () => void): Unsubscribe;
 }
 
 // --- an extra unit ---------------------------------------------------------------------------------------------------------
@@ -177,7 +191,23 @@ export interface GameHost {
    * returns.
    */
   grantMedals(medals: number, grantId: string): GrantResult;
+  /** The save as it stands now, as text. */
+  saveText(): string;
+  /**
+   * Read a copy of the save from somewhere else (it may come from an older version of the game): brought up to date
+   * and checked exactly as the game checks its own. The clean save as text, or null when this version cannot read it.
+   */
+  readSave(text: string): string | null;
+  /**
+   * Put this save in place of the game's. replaced: checked, written and in use. busy: a battle is on, nothing
+   * changed, ask again later. failed: not a save this version can read, or it could not be written; nothing changed.
+   */
+  replaceSave(text: string): ReplaceResult;
+  /** Called after every change of the save on this device (a write or a reset). */
+  onSaveChanged(listener: () => void): Unsubscribe;
 }
+
+export type ReplaceResult = 'replaced' | 'busy' | 'failed';
 
 // --- a test mode ---------------------------------------------------------------------------------------------------------
 
@@ -201,8 +231,8 @@ export interface Platform {
   readonly store: StoreSection | null;
   /** A reward the player may ask for. */
   readonly reward: RewardOffer | null;
-  /** Saves kept besides this device. */
-  readonly cloud: CloudSave | null;
+  /** A section for Settings. */
+  readonly settings: SettingsSection | null;
   /** What the platform says the player owns, by id. */
   entitlements(): ReadonlySet<string>;
   /** An extra unit for the roster. */

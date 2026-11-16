@@ -41,6 +41,7 @@ import {
   nextMissionId,
   recordClear,
   recordWin,
+  sanitizeSave,
   refundAll,
   refundUpgrade,
   toggleLoadout,
@@ -168,6 +169,7 @@ export class App implements AppApi {
   private readonly view: BattleView;
   private readonly audio: GameAudio;
   private readonly storage: StorageLike | null;
+  private readonly saveListeners = new Set<() => void>();
   private readonly random: () => number;
 
   constructor(deps: AppDeps) {
@@ -789,8 +791,62 @@ export class App implements AppApi {
       else delete this.save.grants;
       return 'failed';
     }
+    this.saveChanged();
     this.ui?.refresh();
     return 'granted';
+  }
+
+  /** The save as text, for a platform (GameHost.saveText). */
+  saveText(): string {
+    return JSON.stringify(this.save);
+  }
+
+  /** A copy of the save from somewhere else, brought up to date and checked by this game's rules (GameHost.readSave). */
+  readSave(text: string): string | null {
+    try {
+      const data = sanitizeSave(JSON.parse(text) as unknown, this.saveRules);
+      return data ? JSON.stringify(data) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Put another save in place of this one, for a platform (GameHost.replaceSave): never during a battle, and only a
+   * save that passes the game's own check and was written. The settings take effect at once and the screens redraw.
+   */
+  takeSave(text: string): 'replaced' | 'busy' | 'failed' {
+    if (this.session) return 'busy';
+    let data: SaveData | null;
+    try {
+      data = sanitizeSave(JSON.parse(text) as unknown, this.saveRules);
+    } catch {
+      return 'failed';
+    }
+    if (!data || !writeSave(this.storage, data)) return 'failed';
+    this.save = data;
+    const campaign = this.campaignFor(this.save.lastMission);
+    if (campaign) this.campaignId = campaign.id;
+    this.applySettings();
+    this.saveChanged();
+    this.ui?.refresh();
+    return 'replaced';
+  }
+
+  /** Be told after every change of the save (GameHost.onSaveChanged). */
+  onSaveChanged(listener: () => void): () => void {
+    this.saveListeners.add(listener);
+    return () => this.saveListeners.delete(listener);
+  }
+
+  private saveChanged(): void {
+    for (const listener of [...this.saveListeners]) {
+      try {
+        listener();
+      } catch (err) {
+        console.warn('Tin Hats: a save listener failed', err);
+      }
+    }
   }
 
   /** Change one setting: checked and clamped like a stored one (volumes are whole numbers 0..100), applied at once and saved. */
@@ -829,6 +885,7 @@ export class App implements AppApi {
     clearSave(this.storage);
     this.tips.clear();
     this.applySettings();
+    this.saveChanged();
   }
 
   replayHints(): void {
@@ -870,6 +927,7 @@ export class App implements AppApi {
 
   private persist(): void {
     writeSave(this.storage, this.save);
+    this.saveChanged();
   }
 }
 

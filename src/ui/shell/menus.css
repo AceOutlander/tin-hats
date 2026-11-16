@@ -2012,6 +2012,49 @@ svg.th-group-icon {
   flex: 1 1 0;
 }
 
+/* The platform's own section in Settings (src/platform); the website has none. */
+.th-set-platform {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 6px 2px;
+  border-top: 1px solid rgba(233, 223, 195, 0.18);
+  border-bottom: 1px solid rgba(233, 223, 195, 0.18);
+}
+
+.th-set-platform-text {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.th-set-platform-text .th-label {
+  font-size: 12px;
+  color: var(--th-paper);
+}
+
+.th-set-platform-line {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--th-paper-dim);
+}
+
+.th-set-platform-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.th-set-platform-actions .th-btn-small {
+  padding: 0 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-transform: none;
+}
+
 .th-set-grid > .th-btn-danger {
   justify-self: start;
 }

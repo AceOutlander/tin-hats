@@ -27,6 +27,13 @@ Not pushed, version not bumped. Nothing changes on the website: its platform has
 - Tests: `tests/unit/meta-grants.test.ts`, `tests/unit/platform.test.ts`, `tests/e2e/shop-store.spec.ts`,
   `tests/e2e/screen-labels.spec.ts` (the Shop with a stand-in store at the three phone sizes), `docs/PLATFORM.md`.
 
+## Not yet live: the save lent to a platform, a section in Settings (2026-11-15, on main after v0.17.5, DECISIONS 560 to 562)
+
+`GameHost` hands a platform the save as text and takes one back (`saveText`, `readSave`, `replaceSave`,
+`onSaveChanged`); `Platform.settings` puts a platform's own block in Settings; the unused `cloud` part is removed.
+On the website nothing is different: no `attach`, no section. Tests: `tests/unit/platform-save.test.ts`,
+`tests/e2e/settings-section.spec.ts`.
+
 ## Not yet live: three owner decisions (2026-11-15, on main after the platform hooks, DECISIONS 549 to 551)
 
 Not pushed, version not bumped (the main session releases).

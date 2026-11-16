@@ -13,7 +13,7 @@ export const platform: Platform = {
   shell: null,
   store: null,
   reward: null,
-  cloud: null,
+  settings: null,
   entitlements: () => NOTHING_OWNED,
   extraUnit: null,
   testMode: null,

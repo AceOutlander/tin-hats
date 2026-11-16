@@ -22,7 +22,7 @@ import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import { extraUnitSlot, ownsExtraUnit } from '../platform/extraUnit';
 import type { SaveData } from '../meta';
-import type { StoreSection } from '../platform/types';
+import type { SettingsSection, StoreSection } from '../platform/types';
 import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts';
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
@@ -165,6 +165,8 @@ export interface DebugApi {
   ready: boolean;
   /** Stand a store section in for the platform's in the Shop (a test's own; null = none), from the next time it opens. */
   setStore(store: StoreSection | null): void;
+  /** Stand a Settings section in for the platform's (a test's own; null = none), from the next time Settings opens. */
+  setSettingsSection(section: SettingsSection | null): void;
   /**
    * The platform's extra unit (or a test's stand-in, src/platform/extraUnit.ts): whether one is installed, whether the
    * player may field it, whether its pictures have been made into textures yet, and the speech bubbles on screen.
@@ -396,10 +398,12 @@ export function installDebug(
   audio: GameAudio,
   admin: AdminController | null = null,
   setStore: (store: StoreSection | null) => void = () => {},
+  setSettingsSection: (section: SettingsSection | null) => void = () => {},
 ): DebugApi {
   const api: DebugApi = {
     ready: false,
     setStore,
+    setSettingsSection,
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),
     extraUnit() {
       const stats = view.getStats();

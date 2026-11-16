@@ -1,10 +1,11 @@
 /**
  * Settings screen: sound on or off, the Music, Ambience and Sound effects volumes, reduce flashing, show blood, tutorial hints, show FPS,
- * the default difficulty, and reset progress behind a confirm step. The controls sit in a scroll area with a cue,
+ * the default difficulty, the platform's own section when it has one (src/platform), and reset progress behind a confirm step. The controls sit in a scroll area with a cue,
  * so on the smallest phones the last row scrolls into view instead of being cut off.
  */
 import type { Difficulty } from '../../data/schema';
 import { WHATS_NEW } from '../../data/version';
+import type { SettingsAction, SettingsSection } from '../../platform/types';
 import type { SettingsView } from '../contracts';
 import { add, button, clear, el, stencil } from '../shell/dom';
 import { glyph } from '../shell/icons';
@@ -187,10 +188,56 @@ export const settingsScreen: ScreenFactory = (ctx) => {
   for (const item of notes.items) list.append(el('li', '', item));
   add(about, build, el('div', 'th-label', `What's new in v${notes.version}`), list);
 
+  // The platform's own section (src/platform): its title, its lines and its buttons, as it words them. The website has none.
+  const section: SettingsSection | null = ctx.opts.settings?.() ?? null;
+  let sectionBusy = false;
+  let sectionGone = false;
+  const sectionEl = section ? el('div', 'th-set-platform') : null;
+  function renderSection(): void {
+    if (!section || !sectionEl) return;
+    clear(sectionEl);
+    sectionEl.dataset.testid = 'settings-platform';
+    const panel = section.panel();
+    const text = el('div', 'th-set-platform-text');
+    text.setAttribute('role', 'status');
+    add(text, el('div', 'th-label', section.title));
+    for (const line of panel.lines) text.append(el('p', 'th-set-platform-line', line));
+    const row = el('div', 'th-set-platform-actions');
+    for (const action of panel.actions) {
+      const node = button({
+        testid: `settings-platform-${action.id}`,
+        className: 'th-btn-small',
+        label: action.label,
+        onTap: () => void runAction(action),
+      });
+      node.disabled = sectionBusy || action.disabled === true;
+      row.append(node);
+    }
+    add(sectionEl, text, row);
+    cue.update();
+  }
+  async function runAction(action: SettingsAction): Promise<void> {
+    if (sectionBusy) return;
+    ctx.app.uiSound('click');
+    sectionBusy = true;
+    renderSection();
+    try {
+      await action.run();
+    } catch (err) {
+      console.warn('Tin Hats UI: a settings action failed', err);
+    }
+    sectionBusy = false;
+    if (!sectionGone) renderSection();
+  }
+  const unsubscribe = section?.onChange?.(() => {
+    if (!sectionGone) renderSection();
+  });
+
   const grid = el('div', 'th-set-grid th-scroll');
   grid.dataset.scroll = '';
-  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, blood, hints, fps, diffRow, replay, reset, about);
+  add(grid, mute, music.el, ambience.el, sfx.el, reduceFlash, blood, hints, fps, diffRow, sectionEl, replay, reset, about);
   const cue = withScrollCue(grid, 'dark');
+  renderSection();
   add(plate, head, cue.el);
   root.append(plate);
 
@@ -229,7 +276,11 @@ export const settingsScreen: ScreenFactory = (ctx) => {
     refresh: render,
     mounted: () => cue.update(),
     resize: () => cue.update(),
-    destroy: () => cue.destroy(),
+    destroy: () => {
+      sectionGone = true;
+      unsubscribe?.();
+      cue.destroy();
+    },
     back() {
       ctx.go(ctx.session.settingsFrom);
     },

@@ -30,7 +30,7 @@ before the game's own data is read (see "The extra unit").
 | `shell` | `null` | Lifecycle of an installed app: `onPause`, `onResume`, `onBack`, `keepAwake`. |
 | `store` | `null` | A store section for the Shop: a title, small print, and a listing of offers (below). Every word shown comes from the platform. |
 | `reward` | `null` | A reward the player may ask for: whether one is available, how many are left today, and a `show()` that resolves with medals or nothing. |
-| `cloud` | `null` | Somewhere besides the device to keep the save: `status`, `load`, `save`. |
+| `settings` | `null` | A section for Settings: a title, plain lines and buttons (below). Every word shown comes from the platform. |
 | `entitlements()` | empty set | Ids of things the platform says the player owns. |
 | `extraUnit` | `null` | An extra unit for the roster: the entitlement that owns it and how it is drawn (below). |
 | `testMode` | `null` | One switch for the admin panel, in the platform's words: its services run against stand-ins while it is on. |
@@ -88,6 +88,24 @@ most) names the grant; the medals and the id are written to the save together be
 | `granted` | Given and saved. |
 | `already` | The save already holds this id: nothing changed. Safe to ask again after anything went wrong. |
 | `failed` | Not given: the save could not be written, the id or amount is unusable, or the medals would not all fit under the medal cap. |
+
+The game also lends a platform the save itself, so that a platform can keep it somewhere besides the device. The
+game does not know where, when or how: it only hands the save over as text and takes one back.
+
+| Function | Meaning |
+| --- | --- |
+| `saveText()` | The save as it stands now, as text (the same document the game stores). |
+| `readSave(text)` | A copy from elsewhere, possibly made by an older version: brought up to date and checked exactly as the game checks its own stored save. The clean save as text, or `null` when this version cannot read it (damaged, not a save, or from a newer version). Changes nothing. |
+| `replaceSave(text)` | Put that save in place of the game's. `replaced`: checked, written, in use, its settings applied and the screens redrawn. `busy`: a battle is on; nothing changed, ask again later. `failed`: unreadable or it could not be written; nothing changed. |
+| `onSaveChanged(listener)` | Called after every change of the save on this device: any write, a grant, a replaced save, a reset. |
+
+### The Settings section (`src/ui/screens/settings.ts`)
+
+When `platform.settings` is not null, Settings shows one more block above "Replay tutorial": the section's `title`,
+the `lines` of its `panel()` and one button per action (`label`; `disabled` greys it). Pressing a button calls its
+`run()`; every button of the section waits until it resolves, then the panel is read again. The panel is also read
+again whenever the platform calls its `onChange` listener. The game keeps nothing of it and writes nothing of it to
+the save.
 
 ### The test mode switch
 
@@ -154,4 +172,4 @@ An extra unit has to be there before the game loads, so a test page carries it: 
 phone sizes). `window.__TH.extraUnit()` says whether one is installed, owned, drawn yet, and how many speech bubbles
 are up. The unit tests install the same made-up unit before importing the sim (`tests/unit/extra-unit.test.ts`).
 
-The reward and cloud saves are typed but read by nothing yet.
+The reward is typed but read by nothing yet.
