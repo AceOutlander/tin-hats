@@ -2,6 +2,20 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: the extra unit slot for platforms (2026-11-15, on main after the store section, DECISIONS 556 to 559)
+
+Not pushed, version not bumped. Nothing changes on the website: its platform has no extra unit, so no table, button,
+texture or battle is different (Stalingrad's ten missions and the proving ground were fingerprinted before and after,
+bot against AI, two seeds each: identical).
+- A platform may add one complete unit (`src/data/extraUnit.ts` for its data, `Platform.extraUnit` for the
+  entitlement and the art); the page's entry reads the platform first so the data is in place in time (556).
+- Sim, generic and unused by the game's own units: a melee weapon (`delivery: 'melee'`), a charge
+  (`UnitDef.charge`, the `charge` event), a limit per battle (`UnitDef.perBattle`) (557).
+- `BattleConfig.extraUnit`: side 0 only, set from the platform's entitlements as a battle starts; a unit drawn from
+  its own sheet (`SheetView`); textures made on first use, never at startup; nothing in the save (558).
+- Tests: `tests/unit/extra-unit*.test.ts`, `tests/unit/platform-imports.test.ts`, `tests/e2e/extra-unit.spec.ts`,
+  `tests/e2e/screen-labels.spec.ts` (one more unit in the tray at the three phone sizes); `docs/PLATFORM.md` (559).
+
 ## Not yet live: the Shop's store section for platforms (2026-11-15, on main after v0.17.4, DECISIONS 552 to 555)
 
 Not pushed, version not bumped. Nothing changes on the website: its platform has no store, so the Shop is as it was.
