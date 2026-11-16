@@ -20,6 +20,10 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.7',
+    items: ['A small fix to a developer testing tool. Nothing changes in how the game plays.'],
+  },
+  {
     version: '0.17.6',
     items: ['More behind-the-scenes groundwork for the phone app. Nothing changes in how the game plays.'],
   },
