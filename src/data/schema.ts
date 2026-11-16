@@ -104,7 +104,8 @@ export type UnitAction =
 /**
  * How a weapon delivers damage. hitscan = instant tracer; direct = fast flat projectile; lob = arcing indirect shell;
  * melee = a blow that needs contact: it lands at once on a target within reach and never misses (no hit roll, no
- * tracer, no muzzle flash). A melee weapon's range must reach past config.contactGap, the closest two lines come.
+ * tracer, no muzzle flash). Its range is its reach: to where a man in the open stands, or to the edge of the trench,
+ * building or rubble a man is in. It must be more than config.contactGap, the closest two lines come to each other.
  */
 export type Delivery = 'hitscan' | 'direct' | 'lob' | 'melee';
 

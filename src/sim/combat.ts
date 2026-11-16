@@ -125,6 +125,18 @@ function unitRank(w: World, wi: number, t: UnitState): number {
 }
 
 /**
+ * How far a blow that needs contact (delivery 'melee') has to reach for unit t from x: a man in a trench, at a
+ * building's windows, in rubble or behind a cover prop is struck from the edge of his cover (the lines never come
+ * nearer than that), anyone else from where he stands.
+ */
+function meleeGap(w: World, t: UnitState, x: number): number {
+  if (t.trenchId < 0 || t.trench < 0) return t.x > x ? t.x - x : x - t.x;
+  const c = w.state.trenches[t.trench];
+  const d = (c.x > x ? c.x - x : x - c.x) - w.trenchHalf[t.trench];
+  return d > 0 ? d : 0;
+}
+
+/**
  * Find the best target for a mount (at m.x): the lowest rank, then the nearest. The result is
  * left in the found* variables; returns false if nothing is in range.
  */
@@ -146,6 +158,7 @@ function search(w: World, m: MountState, side: number): boolean {
   }
   const minRange = weapon.minRange;
   const direct = weapon.delivery !== 'lob';
+  const melee = WEAPON_MELEE[wi] === 1;
   // Fog, blizzard, dust, smoke and night (src/sim/sky.ts): direct fire picks targets only this far, but where a flare
   // burns. Equal to range in clear daylight, so nothing changes then.
   const seen = direct ? range * s.sky.visibility : range;
@@ -168,7 +181,7 @@ function search(w: World, m: MountState, side: number): boolean {
     // A Tank Hunter crawling up to a vehicle is out of sight of its slits and below its gun (DECISIONS 460).
     if (t.stalking && m.vehicle) continue;
     if (masked && disguised(s, t)) continue;
-    const d = t.x > x ? t.x - x : x - t.x;
+    const d = melee ? meleeGap(w, t, x) : t.x > x ? t.x - x : x - t.x;
     if (d > range || d < minRange) continue;
     if (d > seen && !flareLit(s, t.x)) continue;
     if ((mask & (1 << unitClass(t))) === 0) continue;
@@ -298,7 +311,7 @@ function targetValid(w: World, m: MountState): boolean {
     default:
       return false;
   }
-  const d = tx > x ? tx - x : x - tx;
+  const d = WEAPON_MELEE[wi] === 1 && m.targetType === TARGET_UNIT ? meleeGap(w, s.units[m.targetIndex], x) : tx > x ? tx - x : x - tx;
   let range = weapon.range * m.rangeMul;
   const g = w.ground;
   if (g !== null) {

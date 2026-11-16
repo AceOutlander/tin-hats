@@ -121,12 +121,14 @@ function senseAdvance(w: World, u: UnitState, dir: number, hasTarget: boolean, p
   if (!weapon) {
     u.engaged = patient;
   } else if (hasTarget) {
-    if (!u.engaged) {
+    if (weapon.delivery === 'melee') {
+      // A blow that needs contact is struck from wherever its target is within reach (the search's own measure: a
+      // man in cover is reached from the edge of his cover).
+      u.engaged = true;
+    } else if (!u.engaged) {
       const m = u.mount;
       const d = m.aimX > u.x ? m.aimX - u.x : u.x - m.aimX;
-      let engageAt = weapon.range * u.def.engageFrac;
-      // A firing line spreads out in depth; a blow that needs contact (delivery 'melee') is struck from its reach.
-      if (weapon.delivery !== 'melee') engageAt -= u.jitter * CONFIG.engageSpread;
+      let engageAt = weapon.range * u.def.engageFrac - u.jitter * CONFIG.engageSpread;
       if (engageAt < weapon.minRange) engageAt = weapon.minRange;
       u.engaged = d <= engageAt || (goal - u.x) * dir <= 0;
     }

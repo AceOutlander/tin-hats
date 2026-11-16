@@ -134,6 +134,36 @@ describe('an installed extra unit', () => {
     expect(battle.state.sides[1].stats.lost).toBeGreaterThan(0);
   });
 
+  it('reaches men in a trench from its edge, and no further', () => {
+    const battle = sim.createBattle({
+      mission: matchup.matchupMission([{ kind: 'extra', count: 1 }], [{ kind: 'rifle', count: 4 }], 'trench'),
+      difficulty: 'normal',
+      seed: 11,
+      upgrades: {},
+      commanders: ['human', 'human'],
+    });
+    battle.command(0, { type: 'order', order: 'advance' });
+    battle.command(1, { type: 'order', order: 'hold' });
+    const reach = MADE_UP_EXTRA.weapons[0].range;
+    run(battle, 1);
+    const trench = battle.state.trenches.find((t) => t.occupants > 0);
+    if (!trench) throw new Error('the defenders are not in a trench');
+    let blows = 0;
+    let beyondReach = 0;
+    run(battle, 90, (e) => {
+      // Its blows at the men (once they are gone it rides on to their headquarters).
+      if (e.type !== 'shot' || e.weapon !== 'madeUpBlade' || e.target !== 'unit') return;
+      blows++;
+      expect(e.hit).toBe(true);
+      // The man may stand further away than the blade is long; the near edge of his trench never is.
+      if (Math.abs(e.x2 - e.x) > reach) beyondReach++;
+      expect(Math.max(0, Math.abs(trench.x - e.x) - trench.width / 2)).toBeLessThanOrEqual(reach + 1e-6);
+    });
+    expect(blows).toBeGreaterThan(3);
+    expect(beyondReach).toBeGreaterThan(0);
+    expect(battle.state.sides[1].stats.lost).toBe(4);
+  });
+
   it('charges: faster with the enemy near, announced at most once every few seconds', () => {
     const battle = sim.createBattle({
       mission: matchup.matchupMission([{ kind: 'extra', count: 1 }], [{ kind: 'rifle', count: 2 }], 'open'),
