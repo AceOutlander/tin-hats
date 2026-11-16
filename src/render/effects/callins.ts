@@ -4,7 +4,6 @@
  */
 import type Phaser from 'phaser';
 import { RENDER } from '../../data/render';
-import type { FactionId, Order } from '../../data/schema';
 import type { SpriteRegistry } from '../atlas';
 import { addImage, type Layers } from '../layers';
 import { FLAME_H, FLAME_W, flameKey, speechKey } from '../sprites';
@@ -125,8 +124,8 @@ export class SpeechBubbles {
     return n;
   }
 
-  /** The commander `unitId` (at x, y if his view is not found) shouts line `index` for `order`. */
-  say(unitId: number, faction: FactionId, order: Order, index: number, x: number, y: number): void {
+  /** The speaker `unitId` (at x, y if his view is not found) says the line of the bubble sprite `k`. */
+  say(unitId: number, k: string, x: number, y: number): void {
     // One bubble per speaker: a new order replaces his old line.
     let b: Bubble | null = null;
     for (const q of this.bubbles) if (q.live && q.unitId === unitId) b = q;
@@ -140,7 +139,6 @@ export class SpeechBubbles {
     b.unitId = unitId;
     b.x = x;
     b.y = y;
-    const k = speechKey(faction, order, index);
     if (k !== b.key && this.reg.has(k)) {
       const fr = this.reg.get(k);
       b.img.setFrame(fr.frame);

@@ -20,6 +20,7 @@ import { getStalingradMission } from '../data/missions/stalingrad';
 import type { CampaignId, Difficulty, MissionMode, Order, SupportKind, UnitKind, UpgradeLevels } from '../data/schema';
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
+import { extraUnitSlot, ownsExtraUnit } from '../platform/extraUnit';
 import type { SaveData } from '../meta';
 import type { StoreSection } from '../platform/types';
 import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts';
@@ -164,6 +165,11 @@ export interface DebugApi {
   ready: boolean;
   /** Stand a store section in for the platform's in the Shop (a test's own; null = none), from the next time it opens. */
   setStore(store: StoreSection | null): void;
+  /**
+   * The platform's extra unit (or a test's stand-in, src/platform/extraUnit.ts): whether one is installed, whether the
+   * player may field it, whether its pictures have been made into textures yet, and the speech bubbles on screen.
+   */
+  extraUnit(): { installed: boolean; owned: boolean; pictures: boolean; bubbles: number };
   /** Give medals once, as a platform does (GameHost.grantMedals). */
   grantMedals(medals: number, grantId: string): 'granted' | 'already' | 'failed';
   /** The campaign on the map, in order. */
@@ -395,6 +401,10 @@ export function installDebug(
     ready: false,
     setStore,
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),
+    extraUnit() {
+      const stats = view.getStats();
+      return { installed: extraUnitSlot() !== null, owned: ownsExtraUnit(), pictures: stats.extraUnitPictures, bubbles: stats.speechBubbles };
+    },
 
     missions() {
       return app.missions.map((m) => ({

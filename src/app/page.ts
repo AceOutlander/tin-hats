@@ -10,6 +10,7 @@ import { CAMPAIGNS } from '../data/campaigns';
 import { isVehicleKind, missionEra } from '../data/eras';
 import type { FactionId, Side, UnitKind } from '../data/schema';
 import { createMemoryStorage, type StorageLike } from '../meta';
+import { extraUnitSlot } from '../platform/extraUnit';
 import type { App } from './app';
 
 /** localStorage if it works (it can throw or be full in private windows), else a store that lives until the page closes. */
@@ -36,6 +37,18 @@ function menuFactions(app: App): readonly [FactionId, FactionId] {
  */
 export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: UnitKind, side: Side, missionId?: number) => void {
   return (canvas, kind, side, missionId) => {
+    // A platform's extra unit is the same under every flag and date: its own portrait.
+    if (kind === 'extra') {
+      const ctx = canvas.getContext('2d');
+      const slot = extraUnitSlot();
+      if (!ctx || !slot) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      slot.art.portrait(ctx, canvas.width, canvas.height);
+      ctx.restore();
+      return;
+    }
     const session = app.session;
     const faction = session ? session.battle.state.sides[side].faction : menuFactions(app)[side];
     // The portrait shows the unit as its mission's era arms it (src/data/eras.ts): the BT-7 in June 1941, the Tank

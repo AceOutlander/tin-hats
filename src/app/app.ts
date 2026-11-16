@@ -94,6 +94,11 @@ export interface AppDeps {
   showUnreleased?: boolean;
   /** Quartermaster upgrades. Default: every upgrade in src/data/upgrades.ts. */
   upgradeDefs?: readonly UpgradeDef[];
+  /**
+   * Whether the player may field the platform's extra unit, asked as each battle starts (src/platform/extraUnit.ts).
+   * Default: never (the website has no such unit).
+   */
+  extraUnit?: () => boolean;
   /** Clock for the frame-time averages. */
   now?: () => number;
   /** Random numbers in 0..1 for battle seeds. */
@@ -152,6 +157,8 @@ export class App implements AppApi {
   musicIntensity: MusicIntensity | null = null;
   /** The campaign map track that is on, or null. */
   private mapMusic: MusicTrackName | null = null;
+  /** Whether the player may field the platform's extra unit (AppDeps.extraUnit). */
+  private readonly extraUnit: () => boolean;
   /** Offer unreleased campaigns (AppDeps.showUnreleased). */
   private readonly showUnreleased: boolean;
   /** A battle let go of the menu theme's buffer: the title renders it again. */
@@ -171,6 +178,7 @@ export class App implements AppApi {
     this.campaigns = deps.campaigns ?? (deps.missions ? [{ id: 'stalingrad', missions: deps.missions }] : DEFAULT_CAMPAIGNS);
     this.showUnreleased = deps.showUnreleased ?? false;
     this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
+    this.extraUnit = deps.extraUnit ?? (() => false);
     this.random = deps.random ?? Math.random;
     this.save = loadSave(deps.storage, this.saveRules).data;
     // The map opens on the campaign of the mission last played, else on the first one offered.
@@ -356,6 +364,9 @@ export class App implements AppApi {
       upgrades: { ...this.save.upgrades },
       commanders: [this.autopilot ? 'bot' : 'human', 'ai'],
       upgradeDefs: this.upgradeDefs,
+      // A platform's extra unit, when the player owns it: in every campaign's missions and on the proving grounds,
+      // not in Basic Training (its lessons point at the buttons of a fixed bar).
+      extraUnit: !isTraining(mission) && this.extraUnit(),
     });
     this.view.attach(battle, { playerSide: 0, weather: this.weatherMode, visualSeed: seed + APP.visualSeedOffset });
     this.view.setAudio(this.audio);

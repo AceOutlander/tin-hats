@@ -9,8 +9,11 @@
  * The Shop's store section (a platform's; the website has none) is checked the same way with a stand-in store
  * (tests/e2e/fake-store.ts): every word of it inside its box, no button over its card's text, nothing wider than the
  * list, in every state an offer can show.
+ * The battle is checked a second time with one more unit in the tray: a made-up extra unit standing in for a
+ * platform's (tests/e2e/fake-extra-unit.ts; the website has none), its button scrolled into view.
  */
 import type { Page } from '@playwright/test';
+import { FAKE_EXTRA, installFakeExtraUnit } from './fake-extra-unit';
 import { FAKE_STORE, installFakeStore } from './fake-store';
 import { arrived, BATTLE_LOAD_MS, expect, open, tap, tapIn, test, type Hooked } from './helpers';
 
@@ -256,6 +259,33 @@ for (const size of SIZES) {
         'HUD buttons',
       ).toEqual([]);
       expect(await page.evaluate(trayOverOrders), 'the unit tray and the orders').toEqual([]);
+      expect(problems).toEqual([]);
+    });
+
+    test('battle with an extra unit: one more unit button fits, and the tray still stays clear of the orders', async ({ page, problems }) => {
+      await installFakeExtraUnit(page);
+      await fullSave(page);
+      await open(page);
+      await page.evaluate(() => (window as unknown as Hooked).__TH?.startStalingrad(1006, 'normal', 1));
+      await expect(page.getByTestId('order-advance')).toBeVisible({ timeout: BATTLE_LOAD_MS });
+      await page.waitForTimeout(800);
+      const extra = page.getByTestId('train-extra');
+      await expect(extra).toHaveCount(1);
+      await expect(extra.locator('.th-tbtn-name')).toHaveText(FAKE_EXTRA.label);
+      const selectors = ['[data-testid^="order-"]', '[data-testid^="support-"]', '.th-sbtn-name', '.th-obj-text', '.th-obj-phase', '.th-tbtn-name', '.th-tbtn-price', '[data-testid="deploy-at"]'];
+      // As the battle opens (the tray at its start), then with the tray scrolled to its last button.
+      expect(await page.evaluate(spills, selectors), 'HUD buttons, the tray at its start').toEqual([]);
+      expect(await page.evaluate(trayOverOrders), 'the unit tray and the orders, the tray at its start').toEqual([]);
+      await extra.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(300);
+      const box = await extra.boundingBox();
+      const tray = await page.locator('.th-train').boundingBox();
+      expect(box !== null && tray !== null && box.x >= tray.x - 1 && box.x + box.width <= tray.x + tray.width + 1, 'the extra unit button is wholly inside the tray').toBe(true);
+      await tap(page, 'callins');
+      await expect(page.getByTestId('callins-column')).toBeVisible();
+      await page.waitForTimeout(400);
+      expect(await page.evaluate(spills, selectors), 'HUD buttons, the tray at its end').toEqual([]);
+      expect(await page.evaluate(trayOverOrders), 'the unit tray and the orders, the tray at its end').toEqual([]);
       expect(problems).toEqual([]);
     });
   });

@@ -51,26 +51,29 @@ import {
 } from '../art/vehicles';
 import type { SpriteSpec } from '../art/types';
 import { TANK_LAYOUT, TANK_MAX_WHEELS, TRENCH_LAYOUT, WIRE_LAYOUT, type VehicleLook } from '../data/artLayout';
+import { extraUnitData } from '../data/extraUnit';
 import { FX_KEYS } from '../data/fx';
 import { BUILDING_LAYOUT } from '../data/looksBuilding';
 import { FIGURE_AT_RIFLE_MODELS } from '../data/figure';
 import { GEAR_NONE } from '../data/looksGear';
 import { SUPPLY_TRUCK_LAYOUT } from '../data/looksSupply';
 import { RENDER } from '../data/render';
-import { infantryLookOf, missionEra, resolveEra, unitVehicleLook, teamMateOf, type ResolvedEra, type VehicleKind } from '../data/eras';
+import { infantryLookOf, isVehicleKind, missionEra, resolveEra, unitVehicleLook, teamMateOf, type ResolvedEra } from '../data/eras';
 import type { DamageType, FactionId, MissionDef, Side, UnitKind } from '../data/schema';
 import { SAPPER_CART_HANDLE, type GearLevels, type SapperStyle, type SideLooks } from '../data/upgradeLooks';
 import { VIEW } from '../data/view';
 import { WEAPONS } from '../data/weapons';
 import { createRng, mixSeed, type Rng01 } from '../fx';
 import { lookStyle, planeGearOf } from '../meta/looks';
+import { extraUnitSlot } from '../platform/extraUnit';
+import type { ExtraUnitAnim, ExtraUnitArt } from '../platform/types';
 import type { BattleState, UnitState } from '../sim';
 import type { SpriteRegistry } from './atlas';
 import { BloodPools, type PoolImage } from './blood';
 import { apcHopLift } from './apcHop';
 import { HpReveal } from './hpReveal';
 import { addImage, type Layers } from './layers';
-import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE } from './sprites';
+import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE, shoutKey, speechSpec } from './sprites';
 import { inStandingWire, wireStruggle } from './wireRules';
 
 type Img = Phaser.GameObjects.Image;
@@ -80,6 +83,8 @@ const STATE_LIVE = 1;
 const STATE_DYING = 2;
 
 const U = RENDER.unit;
+/** Atlas group of a platform's extra unit (its pictures): built the first time a battle may field it, never at startup. */
+const EXTRA_GROUP = 'extraUnit';
 /** Atlas group of the tank, APC and plane gear variants a battle needs (built in setLooks, dropped in reset). */
 const GEAR_GROUP = 'unitGear';
 /** Vehicle kinds whose look may carry gear (the look decides: isGearLook). */
@@ -826,11 +831,146 @@ class TankView extends UnitViewBase {
   }
 }
 
-export type UnitView = FigureView | TankView;
+/**
+ * A unit drawn as one picture at a time from a sheet of its own (a platform's extra unit, ExtraUnitArt): standing,
+ * moving and charging by the distance it travels, striking when it fires, and falling when it dies. It stands on the
+ * ground line like a vehicle: no formation offset, no step down into a trench.
+ */
+class SheetView extends UnitViewBase {
+  art: ExtraUnitArt | null = null;
+  private key = '';
+  private inv = 1;
+  /** Seconds since it last stood still or was reset (the standing loop), and wu travelled (the gaits). */
+  private clock = 0;
+  private travelled = 0;
+  /** Seconds into the blow it is striking; past the strike's length when it is not. */
+  private strike = Infinity;
+  /** True while the picture sits in the layer above the trench parapets (as a vehicle crossing one). */
+  over = false;
 
-/** The APC and the light tank are drawn as the faction's tank until the units job gives them their own art. */
+  constructor(row: number, reg: SpriteRegistry, scene: Phaser.Scene, layers: Layers) {
+    super(row, reg, scene, layers);
+    const img = addImage(scene, this.layer, reg.get(RENDER_KEYS.white).frame);
+    img.visible = false;
+    this.images.push(img);
+  }
+
+  reset(art: ExtraUnitArt): void {
+    this.art = art;
+    this.bodyH = art.height;
+    this.key = '';
+    this.clock = 0;
+    this.travelled = 0;
+    this.strike = Infinity;
+  }
+
+  setShown(on: boolean): void {
+    if (on === this.shown) return;
+    this.shown = on;
+    if (!on) {
+      this.images[0].visible = false;
+      this.shadow.visible = false;
+      this.hidePips();
+    }
+  }
+
+  applyAlpha(a: number): void {
+    if (Math.abs(a - this.appliedAlpha) < 0.004) return;
+    this.appliedAlpha = a;
+    this.images[0].alpha = a;
+  }
+
+  setOver(on: boolean, overLayer: Phaser.GameObjects.Layer): void {
+    if (on === this.over) return;
+    this.over = on;
+    (on ? overLayer : this.layer).add(this.images[0]);
+  }
+
+  /** True while it stands over a trench or a wire belt (it is then drawn above their near edges). */
+  groundOver(trenches: BattleState['trenches'], wires: BattleState['wires']): boolean {
+    const half = ((this.art?.length ?? 0) * this.s) / 2;
+    for (let t = 0; t < trenches.length; t++) {
+      if (trenches[t].building < 0 && Math.abs(trenches[t].x - this.x) < trenches[t].width / 2 + half) return true;
+    }
+    for (let i = 0; i < wires.length; i++) {
+      if (Math.abs(wires[i].x - this.x) < wires[i].width / 2 + half) return true;
+    }
+    return false;
+  }
+
+  private frameOf(anim: ExtraUnitAnim, position: number, loop: boolean): string {
+    const n = anim.frames.length;
+    const i = Math.floor(position * anim.rate);
+    return anim.frames[loop ? ((i % n) + n) % n : Math.min(n - 1, Math.max(0, i))];
+  }
+
+  /**
+   * Draw this frame. `moved` = wu travelled since the last one, `charging` = at a charge; `dead` = the fall, by the
+   * time since death.
+   */
+  draw(dt: number, moved: number, moving: boolean, charging: boolean, dead: boolean): void {
+    const art = this.art;
+    if (!art) return;
+    let key: string;
+    if (dead) {
+      key = this.frameOf(art.death, this.deadTime, false);
+    } else {
+      if (this.fired) this.strike = 0;
+      else this.strike += dt;
+      if (this.strike * art.strike.rate < art.strike.frames.length) {
+        key = this.frameOf(art.strike, this.strike, false);
+      } else if (moving) {
+        this.travelled += Math.abs(moved) / this.s;
+        this.clock = 0;
+        key = this.frameOf(charging ? art.charge : art.move, this.travelled, true);
+      } else {
+        this.clock += dt;
+        key = this.frameOf(art.idle, this.clock, true);
+      }
+    }
+    const img = this.images[0];
+    if (key !== this.key) {
+      const f = this.reg.get(key);
+      img.setFrame(f.frame);
+      this.inv = 1 / f.scale;
+      this.key = key;
+    }
+    const k = this.turnK < 0 ? Math.min(this.turnK, -U.tankTurnMinK) : Math.max(this.turnK, U.tankTurnMinK);
+    img.visible = true;
+    img.x = this.x;
+    img.y = this.y + this.sink;
+    img.rotation = 0;
+    img.scaleX = k * this.s * this.inv;
+    img.scaleY = this.s * this.inv;
+    this.placeShadow(art.length * U.tankShadowPad, U.tankShadowH);
+  }
+
+  /** Seconds the fall takes (its last picture then lies still). */
+  deathEnd(): number {
+    const d = this.art?.death;
+    return d && d.rate > 0 ? d.frames.length / d.rate : 0;
+  }
+
+  muzzle(out: { x: number; y: number }): void {
+    out.x = this.x + this.turnK * this.s * (this.art?.reach.x ?? 0);
+    out.y = this.y + this.s * (this.art?.reach.y ?? 0);
+  }
+
+  muzzleDir(out: { x: number; y: number }): void {
+    out.x = this.turnK < 0 ? -1 : 1;
+    out.y = 0;
+  }
+}
+
+export type UnitView = FigureView | TankView | SheetView;
+
+/**
+ * Kinds that stand on the ground line as a vehicle does (no formation offset, no door funnel, no step into a trench):
+ * the nations' vehicles (the APC and the light tank are drawn as the faction's tank until they get their own art) and
+ * a platform's extra unit, which is drawn from its own sheet (SheetView).
+ */
 function isVehicle(kind: UnitKind): boolean {
-  return kind === 'tank' || kind === 'heavyTank' || kind === 'apc' || kind === 'lightTank';
+  return isVehicleKind(kind) || kind === 'extra';
 }
 
 /**
@@ -855,6 +995,7 @@ export class UnitViews {
   private readonly dying: UnitView[] = [];
   private readonly figurePool: FigureView[][] = [];
   private readonly tankPool: TankView[][] = [];
+  private readonly sheetPool: SheetView[][] = [];
   private readonly rng: Rng01;
   private seed = 0;
   controlledId = -1;
@@ -899,6 +1040,7 @@ export class UnitViews {
     for (let r = 0; r < VIEW.rows; r++) {
       this.figurePool.push([]);
       this.tankPool.push([]);
+      this.sheetPool.push([]);
     }
     this.rng = createRng(1);
     const ring = reg.get(FX_KEYS.ui.selectRing);
@@ -954,6 +1096,27 @@ export class UnitViews {
     if (specs.length > 0) this.reg.addAtlas(GEAR_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
   }
 
+  /**
+   * The pictures of a platform's extra unit, built the first time a battle may field it (the battle view asks when a
+   * side may train it; a unit of the kind appearing any other way asks too). Kept for the rest of the session.
+   */
+  ensureExtraUnit(): ExtraUnitArt | null {
+    const slot = extraUnitSlot();
+    if (!slot) return null;
+    if (!this.hasExtraUnit()) {
+      // With its pictures, the bubbles of what it shouts (ExtraUnitData.shouts).
+      const shouts = (extraUnitData()?.shouts ?? []).map((line, i) => speechSpec(shoutKey(i), line));
+      this.reg.addAtlas(EXTRA_GROUP, [...slot.art.pictures, ...shouts], VIEW.textureScale, RENDER.atlasMaxSize);
+    }
+    return slot.art;
+  }
+
+  /** True once the extra unit's pictures are textures (ensureExtraUnit). */
+  hasExtraUnit(): boolean {
+    const slot = extraUnitSlot();
+    return slot !== null && this.reg.has(slot.art.idle.frames[0]);
+  }
+
   private gearOf(side: Side, kind: UnitKind): GearLevels {
     return this.looks[side]?.gear[kind] ?? GEAR_NONE;
   }
@@ -989,10 +1152,15 @@ export class UnitViews {
   private acquire(u: UnitState, state: BattleState): UnitView {
     const row = Math.max(0, Math.min(VIEW.rows - 1, u.row | 0));
     let v: UnitView;
-    if (isVehicle(u.kind)) {
+    const sheet = u.kind === 'extra' ? this.ensureExtraUnit() : null;
+    if (sheet !== null) {
+      const sv = this.sheetPool[row].pop() ?? new SheetView(row, this.reg, this.scene, this.layers);
+      sv.reset(sheet);
+      v = sv;
+    } else if (isVehicleKind(u.kind)) {
       const pool = this.tankPool[row];
       const tv = pool.pop() ?? new TankView(row, this.reg, this.scene, this.layers);
-      tv.reset(u.kind, u.faction, unitVehicleLook(this.eraOf(u.faction), u.kind as VehicleKind, u.look));
+      tv.reset(u.kind, u.faction, unitVehicleLook(this.eraOf(u.faction), u.kind, u.look));
       tv.setGear(this.gearOf(u.side, u.kind));
       v = tv;
     } else {
@@ -1086,8 +1254,10 @@ export class UnitViews {
     if (v instanceof TankView) {
       v.setOver(false, this.layers.byName.vehicleOver);
       this.tankPool[v.row].push(v);
-    }
-    else this.figurePool[v.row].push(v);
+    } else if (v instanceof SheetView) {
+      v.setOver(false, this.layers.byName.vehicleOver);
+      this.sheetPool[v.row].push(v);
+    } else this.figurePool[v.row].push(v);
   }
 
   /** The commander gave an order: he points the way while his bubble shows. */
@@ -1128,6 +1298,7 @@ export class UnitViews {
       v.setOver(false, this.layers.byName.vehicleOver);
       v.hideReload();
     }
+    if (v instanceof SheetView) v.setOver(false, this.layers.byName.vehicleOver);
     v.sendBack();
     if (v instanceof FigureView) {
       const fromFront = dir !== 0 && dir === -v.facing;
@@ -1212,7 +1383,7 @@ export class UnitViews {
     for (let i = 0; i < list.length; i++) {
       const v = list[i];
       const tank = v instanceof TankView;
-      const still = tank ? 0 : (v as FigureView).anim.deathEnd;
+      const still = v instanceof FigureView ? v.anim.deathEnd : v instanceof SheetView ? v.deathEnd() : 0;
       const t = v.deadTime - still - (tank ? U.huskLinger : U.corpseLinger);
       if (t >= 0) continue;
       lying++;
@@ -1390,6 +1561,10 @@ export class UnitViews {
       inp.hit = v.hit;
       inp.death = null;
       v.draw(dt);
+    } else if (v instanceof SheetView) {
+      v.setOver(v.groundOver(state.trenches, state.wires), this.layers.byName.vehicleOver);
+      // When the battle is over the sim stops stepping, so velX is stale: it stands.
+      v.draw(dt, moved, !state.over && u.velX !== 0, u.charging, false);
     } else {
       const tk = v.tank;
       v.setOver(v.groundOver(state.trenches, state.wires), this.layers.byName.vehicleOver);
@@ -1424,7 +1599,7 @@ export class UnitViews {
   private updateDying(v: UnitView, dt: number, camLeft: number, camRight: number): void {
     v.deadTime += dt;
     const tank = v instanceof TankView;
-    const still = tank ? 0 : (v as FigureView).anim.deathEnd;
+    const still = v instanceof FigureView ? v.anim.deathEnd : v instanceof SheetView ? v.deathEnd() : 0;
     const linger = tank ? U.huskLinger : U.corpseLinger;
     const fade = tank ? U.huskFade : U.corpseFade;
     const t = v.deadTime - still - linger;
@@ -1450,6 +1625,8 @@ export class UnitViews {
       v.input.hit = false;
       v.draw(dt);
       if (v.blood >= 0) this.blood.place(v.blood, v.unitId, v.deadTime, v.torsoX(), v.y + v.sink, v.s, v.alpha);
+    } else if (v instanceof SheetView) {
+      v.draw(dt, 0, false, false, true);
     } else {
       v.draw(true);
     }
@@ -1492,7 +1669,7 @@ export class UnitViews {
     ring.visible = true;
     ring.x = v.x;
     ring.y = sunk ? v.y : v.y + v.sink * 0.5;
-    const k = v instanceof TankView ? TANK_LAYOUT[v.look].length / M.ringBaseW : 1;
+    const k = v instanceof TankView ? TANK_LAYOUT[v.look].length / M.ringBaseW : v instanceof SheetView && v.art ? v.art.length / M.ringBaseW : 1;
     ring.scaleX = this.ringScale * v.s * k;
     ring.scaleY = this.ringScale * v.s * Math.min(k, M.ringMaxTall);
     ring.alpha = RENDER.marker.ringAlpha;

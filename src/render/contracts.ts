@@ -114,6 +114,10 @@ export interface RenderStats {
   imagesVisible: number;
   /** Live effect counts. */
   tracers: number;
+  /** Speech bubbles on screen now. */
+  speechBubbles: number;
+  /** True once the pictures of a platform's extra unit have been made into textures (never at startup). */
+  extraUnitPictures: boolean;
   /** Particle images drawn last frame. */
   particles: number;
   /** Particles alive in the system (drawn or waiting out a delay). */

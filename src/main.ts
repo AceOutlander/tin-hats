@@ -5,9 +5,15 @@
  * modulepreload link for each in index.html (vite.config.ts, preloadBigScripts); only their starting is in turn.
  */
 import './ui/theme.css';
+// The platform first (through its extra unit, src/platform/extraUnit.ts): a platform may add a unit to the game's
+// data, and that has to be in place before any of the game's own modules is read (they are loaded below, in boot).
+import { standInExtraUnit } from './platform/extraUnit';
 import { STARTUP_PROGRESS, bootBar, markStartup } from './app/startup';
 import { registerServiceWorker } from './pwa';
 import { nextTask } from './render/task';
+
+// Tests only (?debug=1): a made-up extra unit the page carries stands in for a platform's.
+standInExtraUnit(window.location.search, window);
 
 async function load(): Promise<void> {
   const progress = bootBar();

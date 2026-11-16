@@ -12,6 +12,7 @@ import { browserStorage, createFlagPainter, createIconPainter, createUpgradePain
 import { STARTUP_PROGRESS, markStartup, viewProgress } from './app/startup';
 import { withStorageFallback } from './meta';
 import { platform } from './platform';
+import { ownsExtraUnit } from './platform/extraUnit';
 import type { StoreSection } from './platform/types';
 import { installShell } from './platform/shell';
 import { reportScreen } from './pwa';
@@ -47,7 +48,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   // again on an empty store.
   const app = withStorageFallback(
     browserStorage(),
-    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV) }),
+    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV), extraUnit: ownsExtraUnit }),
     (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
   );
   markStartup('th:app');

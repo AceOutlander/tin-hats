@@ -465,6 +465,8 @@ export class BattleViewImpl implements BattleView {
     this.units.setLooks(1, looks[1]);
     // The mission's date and climate pick each nation's era looks (src/data/eras.ts).
     this.units.setMission(mission);
+    // A platform's extra unit: its pictures are made here, the first time a battle may field it (never at startup).
+    if (state.sides[0].available.extra || state.sides[1].available.extra) this.units.ensureExtraUnit();
     this.effects.ctx.planes.setLooks(0, looks[0]);
     this.effects.ctx.planes.setLooks(1, looks[1]);
     this.effects.ctx.planes.setAircraft(0, sideEra(mission, 0).aircraft);
@@ -870,6 +872,8 @@ export class BattleViewImpl implements BattleView {
       images,
       imagesVisible: visible,
       tracers: this.effects?.ctx.tracers.count ?? 0,
+      speechBubbles: this.effects?.ctx.speech.shown() ?? 0,
+      extraUnitPictures: this.units?.hasExtraUnit() ?? false,
       particles: this.effects?.particleCount() ?? 0,
       particlesLive: this.effects?.ctx.particles.count ?? 0,
       quality: this.quality.level,

@@ -205,6 +205,11 @@ export function speechKey(faction: FactionId, order: Order, i: number): string {
   return `rd/speech/${faction}/${order}/${i}`;
 }
 
+/** The bubble of shout `i` of a platform's extra unit (ExtraUnitData.shouts). */
+export function shoutKey(i: number): string {
+  return `rd/shout/${i}`;
+}
+
 /** Bubble width (wu) for a line: estimated from its length so no canvas is needed to lay it out. */
 export function speechWidth(line: string): number {
   const S = RENDER.speech;
@@ -219,55 +224,57 @@ export function speechHeight(): number {
 
 const SPEECH_ORDERS: readonly Order[] = ['fallBack', 'hold', 'advance'];
 
-function speechSpecs(): SpriteSpec[] {
+/** One speech bubble with its line of text, under `key`. */
+export function speechSpec(key: string, line: string): SpriteSpec {
   const S = RENDER.speech;
+  const w = speechWidth(line);
+  const h = speechHeight();
+  return {
+    key,
+    w,
+    h,
+    // Origin at the tip of the tail (placed just above the speaker's head).
+    ax: 0.5,
+    ay: 1,
+    draw(ctx) {
+      const bh = h - S.tail;
+      ctx.save();
+      ctx.beginPath();
+      const r = 6;
+      ctx.moveTo(r + 1, 1);
+      ctx.lineTo(w - r - 1, 1);
+      ctx.quadraticCurveTo(w - 1, 1, w - 1, r + 1);
+      ctx.lineTo(w - 1, bh - r);
+      ctx.quadraticCurveTo(w - 1, bh, w - r - 1, bh);
+      ctx.lineTo(w / 2 + 6, bh);
+      ctx.lineTo(w / 2, h - 1);
+      ctx.lineTo(w / 2 - 3, bh);
+      ctx.lineTo(r + 1, bh);
+      ctx.quadraticCurveTo(1, bh, 1, bh - r);
+      ctx.lineTo(1, r + 1);
+      ctx.quadraticCurveTo(1, 1, r + 1, 1);
+      ctx.closePath();
+      ctx.fillStyle = '#f2ead2';
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = '#2a2418';
+      ctx.stroke();
+      ctx.font = `bold ${S.font}px "Trebuchet MS", "Segoe UI", Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1d1a12';
+      ctx.fillText(line, w / 2, bh / 2 + 0.5, w - S.padX * 2 + 4);
+      ctx.restore();
+    },
+  };
+}
+
+function speechSpecs(): SpriteSpec[] {
   const out: SpriteSpec[] = [];
   for (const f of Object.keys(SPEECH) as FactionId[]) {
     for (const order of SPEECH_ORDERS) {
       const lines = SPEECH[f][order];
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const w = speechWidth(line);
-        const h = speechHeight();
-        out.push({
-          key: speechKey(f, order, i),
-          w,
-          h,
-          // Origin at the tip of the tail (placed just above the speaker's head).
-          ax: 0.5,
-          ay: 1,
-          draw(ctx) {
-            const bh = h - S.tail;
-            ctx.save();
-            ctx.beginPath();
-            const r = 6;
-            ctx.moveTo(r + 1, 1);
-            ctx.lineTo(w - r - 1, 1);
-            ctx.quadraticCurveTo(w - 1, 1, w - 1, r + 1);
-            ctx.lineTo(w - 1, bh - r);
-            ctx.quadraticCurveTo(w - 1, bh, w - r - 1, bh);
-            ctx.lineTo(w / 2 + 6, bh);
-            ctx.lineTo(w / 2, h - 1);
-            ctx.lineTo(w / 2 - 3, bh);
-            ctx.lineTo(r + 1, bh);
-            ctx.quadraticCurveTo(1, bh, 1, bh - r);
-            ctx.lineTo(1, r + 1);
-            ctx.quadraticCurveTo(1, 1, r + 1, 1);
-            ctx.closePath();
-            ctx.fillStyle = '#f2ead2';
-            ctx.fill();
-            ctx.lineWidth = 1.6;
-            ctx.strokeStyle = '#2a2418';
-            ctx.stroke();
-            ctx.font = `bold ${S.font}px "Trebuchet MS", "Segoe UI", Arial, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#1d1a12';
-            ctx.fillText(line, w / 2, bh / 2 + 0.5, w - S.padX * 2 + 4);
-            ctx.restore();
-          },
-        });
-      }
+      for (let i = 0; i < lines.length; i++) out.push(speechSpec(speechKey(f, order, i), lines[i]));
     }
   }
   return out;

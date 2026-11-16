@@ -10,10 +10,12 @@
  */
 import { HQ_LAYOUT, TANK_LAYOUT } from '../../data/artLayout';
 import { CONFIG } from '../../data/config';
+import { extraUnitData } from '../../data/extraUnit';
 import { FX_TRACERS } from '../../data/fx';
 import { RENDER } from '../../data/render';
 import { ORDER_WHISTLE } from '../../data/sounds';
 import { SUPPORTS, offMapFire } from '../../data/supports';
+import { UNITS } from '../../data/units';
 import { VIEW } from '../../data/view';
 import { WEAPONS } from '../../data/weapons';
 import { shakeStrength } from '../../fx';
@@ -24,6 +26,7 @@ import type { FactionId } from '../../data/schema';
 import { isPlaneKind, speechLine, speechOrder, targetMarkerPeak } from './callinMath';
 import type { EffectContext, Point } from './index';
 import { PRESET_DEFS } from './presets';
+import { shoutKey, speechKey } from '../sprites';
 
 export type EffectHandler = (fx: EffectContext, e: SimEvent) => void;
 
@@ -158,12 +161,16 @@ function onShot(fx: EffectContext, e: SimEvent): void {
   const gy = fx.groundY(e.row);
   const gy2 = fx.groundY(e.row2);
   const hitscan = !weapon || weapon.delivery === 'hitscan';
+  // A blow that needs contact: no flash, no case, no tracer; only what it does where it lands (below).
+  const melee = weapon !== undefined && weapon.delivery === 'melee';
   // A shooter hidden behind a tank on a nearer row: no flash on top of the tank, and the round appears at its edge.
   const edge = e.source === 'unit' ? fx.units.coverEdge(from.x, from.y, e.row, dir, e.unit) : NaN;
   const hidden = !Number.isNaN(edge);
   if (hidden) from.x = edge;
 
-  if (hitscan) {
+  if (melee) {
+    // Nothing at the striker's end.
+  } else if (hitscan) {
     if (!hidden) {
       fx.play('muzzleFlash', from.x, from.y, to.x - from.x, to.y - from.y, gy, 1);
       if (fx.night > 0.15) fx.play('flashGlow', from.x + dir * 8, from.y, 1, 0, gy, 1);
@@ -201,7 +208,7 @@ function onShot(fx: EffectContext, e: SimEvent): void {
   if (e.hit) {
     if (e.target === 'unit') {
       const v = fx.units.viewAtSlot(e.targetIndex);
-      const armoured = v !== null && (v.kind === 'tank' || v.kind === 'heavyTank' || v.kind === 'apc' || v.kind === 'lightTank');
+      const armoured = v !== null && UNITS[v.kind].class === 'vehicle';
       if (armoured) {
         fx.ambient.delayed.add('armourSparks', delay, to.x, to.y, -dir, -0.2, gy2, 1);
         if (fx.rng() < AU.impactChance) fx.sound.at('ricochet', to.x, AU.impactVolume);
@@ -358,8 +365,25 @@ function onSpeech(fx: EffectContext, e: SimEvent): void {
   const v = fx.units.findById(e.unitId);
   const x = v ? v.x : e.x;
   const y = v ? v.y - v.bodyH * v.s : fx.groundY(e.row) - VIEW.figureHeight;
-  fx.speech.say(e.unitId, faction, order, line.index, x, y);
+  fx.speech.say(e.unitId, speechKey(faction, order, line.index), x, y);
   fx.sound.at('speechCue', x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
+}
+
+/**
+ * A unit started a charge. A platform's extra unit shouts as it goes (ExtraUnitData.shouts, in turn by the event's
+ * count): a speech bubble over it and its own sound. Nothing for a unit with no shouts.
+ */
+function onCharge(fx: EffectContext, e: SimEvent): void {
+  const data = e.kind === 'extra' ? extraUnitData() : null;
+  if (!data) return;
+  const v = fx.units.findById(e.unitId);
+  const x = v ? v.x : e.x;
+  const n = data.shouts.length;
+  if (n > 0) {
+    const y = v ? v.y - v.bodyH * v.s : fx.groundY(e.row) - VIEW.figureHeight;
+    fx.speech.say(e.unitId, shoutKey(Math.abs(Math.floor(e.value)) % n), x, y);
+  }
+  if (data.shoutSound !== null) fx.sound.at(data.shoutSound, x, e.side === fx.playerSide ? 1 : AU.enemyVolume);
 }
 
 /** A flamethrower's tank went up: a fireball at his back and the body burning (the death and blast follow). */
@@ -521,5 +545,6 @@ export const EFFECT_HANDLERS: Partial<Record<SimEventType, EffectHandler>> = {
   planePass: onPlanePass,
   planeDown: onPlaneDown,
   speech: onSpeech,
+  charge: onCharge,
   ignite: onIgnite,
 };

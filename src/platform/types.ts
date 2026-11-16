@@ -106,10 +106,62 @@ export interface CloudSave {
 
 // --- an extra unit ---------------------------------------------------------------------------------------------------------
 
-/** A unit a platform may add to the roster. Left open on purpose: the first platform to provide one settles its shape. */
+/**
+ * One picture of the extra unit, drawn in code like all the game's art (the same shape as the game's SpriteSpec):
+ * sizes and drawing coordinates in world units, the anchor as a 0..1 fraction of w and h. The unit faces right (+x)
+ * and its anchor is the point on the ground under the middle of its body.
+ */
+export interface ExtraUnitPicture {
+  /** Unique among every picture of the game: start it with "extra/". */
+  readonly key: string;
+  readonly w: number;
+  readonly h: number;
+  readonly ax: number;
+  readonly ay: number;
+  /** Draw into a context whose origin is the picture's top-left corner. Must not leave state changed. */
+  draw(ctx: CanvasRenderingContext2D): void;
+}
+
+/**
+ * Pictures shown one after another, by key. `rate` is pictures per second for what happens in time (standing,
+ * striking, falling) and pictures per world unit travelled for what happens on the move (moving, charging).
+ */
+export interface ExtraUnitAnim {
+  readonly frames: readonly string[];
+  readonly rate: number;
+}
+
+/** How the extra unit looks: its pictures, which of them show what, and its portrait for buttons and cards. */
+export interface ExtraUnitArt {
+  /** Every picture the animations name. Made into textures the first time a battle may field the unit, never at startup. */
+  readonly pictures: readonly ExtraUnitPicture[];
+  /** Standing (a loop). */
+  readonly idle: ExtraUnitAnim;
+  /** Moving and charging (loops, by distance). */
+  readonly move: ExtraUnitAnim;
+  readonly charge: ExtraUnitAnim;
+  /** One blow, played once each time its weapon strikes. */
+  readonly strike: ExtraUnitAnim;
+  /** The fall, played once when it dies; the last picture lies there until the body fades. */
+  readonly death: ExtraUnitAnim;
+  /** Its height and length in world units: where its health pips and its shout go, how big its shadow is. */
+  readonly height: number;
+  readonly length: number;
+  /** Where its weapon strikes from, from the anchor, facing right (world units; up is negative y). */
+  readonly reach: { readonly x: number; readonly y: number };
+  /** Its portrait, drawn to fill a w x h pixel box (the training button, the cards). */
+  portrait(ctx: CanvasRenderingContext2D, w: number, h: number): void;
+}
+
+/**
+ * A unit a platform adds to the roster, in two halves. Its rules, weapons, sounds and words are data the platform
+ * installs while its module loads (`installExtraUnit` in src/data/extraUnit.ts: the game's tables are built from
+ * them). This slot is the other half: who may field it and how it is drawn.
+ */
 export interface ExtraUnitSlot {
-  readonly id: string;
-  readonly [key: string]: unknown;
+  /** The id among `entitlements()` that says the player owns the unit; without it the game never offers it. */
+  readonly entitlement: string;
+  readonly art: ExtraUnitArt;
 }
 
 // --- what the game lends a platform ------------------------------------------------------------------------------------------
