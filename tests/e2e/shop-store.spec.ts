@@ -6,10 +6,14 @@
  * done (the medals arrive through the game and are saved), cancelled (nothing said), pending (settled later by the
  * platform), failed, and owned.
  * Picture: docs/screenshots/shop-store.png.
+ *
+ * The reward section (the platform's second section; the website has none either) is drawn the same way under the
+ * store's: asked for only by a tap, done (the medals arrive), none to be had (said calmly, not as a failure), and
+ * none left (the platform's line, the button waits). Picture: docs/screenshots/shop-reward.png.
  */
 import { join } from 'node:path';
 import { arrived, expect, type Hooked, memorySave, open, savedGame, SHOT_DIR, tapIn, test, toMap } from './helpers';
-import { FAKE_STORE, installFakeStore } from './fake-store';
+import { FAKE_REWARD, FAKE_STORE, installFakeReward, installFakeStore } from './fake-store';
 
 test.describe('the store section of the Shop', () => {
   test('is not there on the website: no section, no heading, no notice', async ({ page }) => {
@@ -19,6 +23,7 @@ test.describe('the store section of the Shop', () => {
     const shop = arrived(page, 'armoury');
     await expect(shop.getByTestId('armoury-item-smoke')).toBeVisible();
     await expect(page.locator('[data-testid="store-section"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="reward-section"]')).toHaveCount(0);
     await expect(page.locator('.th-store, .th-store-offer, .th-store-note')).toHaveCount(0);
     const headings = await page.evaluate(() => [...document.querySelectorAll('.th-screen[data-screen="armoury"] .th-qm-group h2')].map((h) => h.textContent ?? ''));
     expect(headings).toEqual(['Call-in charges', 'Extras', 'Core roles', 'New units']);
@@ -91,5 +96,60 @@ test.describe('the store section of the Shop', () => {
     await tapIn(page, 'armoury', 'armoury-buy-smoke');
     await expect(shop.getByTestId('store-section')).toBeVisible();
     await expect(section.getByTestId('store-status-one')).toHaveText(FAKE_STORE.done);
+  });
+
+  test('shows the reward section under the store section, and never acts unless asked', async ({ page }) => {
+    await open(page);
+    await installFakeStore(page);
+    await installFakeReward(page);
+    await toMap(page);
+    await tapIn(page, 'campaign', 'armoury');
+    const shop = arrived(page, 'armoury');
+    const section = shop.getByTestId('reward-section');
+    await expect(section).toBeVisible();
+    await expect(section.locator('h2')).toContainText(FAKE_REWARD.title);
+    for (const note of FAKE_REWARD.notes) await expect(section).toContainText(note);
+    // Call-in charges, the store, then the reward; and the two sections keep their own test ids.
+    const order = await page.evaluate(() => [...document.querySelectorAll('.th-screen[data-screen="armoury"] .th-qm-group')].map((g) => g.querySelector('h2')?.textContent ?? ''));
+    expect(order[1]).toContain(FAKE_STORE.title);
+    expect(order[2]).toContain(FAKE_REWARD.title);
+    await expect(shop.getByTestId('store-section').getByTestId('store-buy-one')).toBeVisible();
+    await expect(section.getByTestId('store-buy-one')).toHaveCount(0);
+    await expect(section.getByTestId('reward-offer-task')).toContainText(FAKE_REWARD.left(2));
+    await expect(section.getByTestId('reward-buy-task')).toHaveText('Begin');
+    // Nothing was given or asked by opening the Shop.
+    await expect(shop.getByTestId('medals-available')).toHaveText('0');
+    expect((await memorySave(page)).grants).toBeUndefined();
+
+    // Done: the medals arrive through the game, and the card counts down.
+    await tapIn(page, 'armoury', 'reward-buy-task');
+    await expect(section.getByTestId('reward-offer-task')).toHaveAttribute('data-state', 'busy');
+    await expect(section.getByTestId('reward-buy-none')).toBeDisabled();
+    await expect(section.getByTestId('reward-status-task')).toHaveText(FAKE_REWARD.done);
+    await expect(shop.getByTestId('medals-available')).toHaveText('4');
+    await expect(section.getByTestId('reward-offer-task')).toContainText(FAKE_REWARD.left(1));
+    await section.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(SHOT_DIR, 'shop-reward.png') });
+
+    // None to be had: the platform's line, said calmly (not the failed state), nothing given, and it can be asked again.
+    await tapIn(page, 'armoury', 'reward-buy-none');
+    await expect(section.getByTestId('reward-offer-none')).toHaveAttribute('data-state', 'unavailable');
+    await expect(section.getByTestId('reward-status-none')).toHaveText(FAKE_REWARD.none);
+    await expect(section.getByTestId('reward-buy-none')).toBeEnabled();
+    const colours = await page.evaluate(() => {
+      const of = (id: string): string => getComputedStyle(document.querySelector(`[data-testid="${id}"]`) as Element).color;
+      return { calm: of('reward-status-none'), done: of('reward-status-task') };
+    });
+    expect(colours.calm).toBe(colours.done);
+    await expect(shop.getByTestId('medals-available')).toHaveText('4');
+
+    // None left: the platform's line under the offer, and its button waits.
+    await tapIn(page, 'armoury', 'reward-buy-task');
+    await expect(shop.getByTestId('medals-available')).toHaveText('8');
+    await expect(section.getByTestId('reward-offer-task')).toHaveAttribute('data-state', 'unavailable');
+    await expect(section.getByTestId('reward-status-task')).toHaveText(FAKE_REWARD.used);
+    await expect(section.getByTestId('reward-buy-task')).toBeDisabled();
+    expect((await memorySave(page)).grants).toEqual(['fake-task-1', 'fake-task-2']);
   });
 });

@@ -3,7 +3,8 @@
  * use in battle spends one; owner, 2026-11-09), the extras (the Battle for Poland as a locked entry with its medal
  * price: no purchase flow in this repo), and every unit type (free, unlocked, or locked with the mission that unlocks
  * it; units are unlocked by missions, never sold). Reached from the campaign map. When the platform has a store
- * section (src/platform; the website has none) it sits under the call-in charges, drawn by ./storeSection.
+ * section (src/platform; the website has none) it sits under the call-in charges, drawn by ./storeSection, and the
+ * platform's reward section, when it has one, sits under that, drawn the same way.
  */
 import type { SupportKind, UnitKind } from '../../data/schema';
 import type { ArmouryItemView } from '../contracts';
@@ -61,7 +62,11 @@ export const armouryScreen: ScreenFactory = (ctx) => {
 
   // The platform's own section, when it has one: built once so its state outlives a refresh of the list.
   const platformStore = ctx.opts.store?.() ?? null;
-  const store = platformStore ? createStoreSection(platformStore, { sound: (name) => ctx.app.uiSound(name), changed: () => listCue.update() }) : null;
+  const sectionHooks = { sound: (name: 'click' | 'deny' | 'confirm') => ctx.app.uiSound(name), changed: () => listCue.update() };
+  const store = platformStore ? createStoreSection(platformStore, sectionHooks) : null;
+  const platformReward = ctx.opts.reward?.() ?? null;
+  const reward = platformReward ? createStoreSection(platformReward, sectionHooks, 'reward') : null;
+  const platformSections = [store, reward].filter((s) => s !== null);
 
   function icon(item: ArmouryItemView): Element {
     if (item.type === 'support') return supportIcon(item.kind as SupportKind, 'th-support-icon th-arm-plane');
@@ -140,11 +145,11 @@ export const armouryScreen: ScreenFactory = (ctx) => {
     const scrollTop = list.scrollTop;
     clear(list);
     const sections = armourySections(view.armoury ?? []);
-    if (sections.length === 0 && !store) list.append(el('p', 'th-type th-qm-empty', 'The Shop is empty.'));
+    if (sections.length === 0 && platformSections.length === 0) list.append(el('p', 'th-type th-qm-empty', 'The Shop is empty.'));
     // Under the call-in charges (what medals are spent on), above the extras and the units.
     const storeAt = sections[0]?.items[0]?.type === 'support' ? 1 : 0;
     sections.forEach((s, at) => {
-      if (store && at === storeAt) list.append(store.el);
+      if (at === storeAt) for (const s of platformSections) list.append(s.el);
       const section = el('section', 'th-qm-group');
       const heading = el('h2', 'th-group');
       add(heading, glyph('medal', 'th-icon th-group-icon'), el('span', undefined, s.name));
@@ -153,7 +158,7 @@ export const armouryScreen: ScreenFactory = (ctx) => {
       add(section, heading, grid);
       list.append(section);
     });
-    if (store && sections.length <= storeAt) list.append(store.el);
+    if (sections.length <= storeAt) for (const s of platformSections) list.append(s.el);
     list.scrollTop = scrollTop;
     listCue.update();
   }
@@ -165,7 +170,7 @@ export const armouryScreen: ScreenFactory = (ctx) => {
     refresh: render,
     resize: () => listCue.update(),
     destroy: () => {
-      store?.destroy();
+      for (const s of platformSections) s.destroy();
       listCue.destroy();
     },
     back() {

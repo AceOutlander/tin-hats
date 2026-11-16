@@ -167,6 +167,8 @@ export interface DebugApi {
   setStore(store: StoreSection | null): void;
   /** Stand a Settings section in for the platform's (a test's own; null = none), from the next time Settings opens. */
   setSettingsSection(section: SettingsSection | null): void;
+  /** Stand a reward section in for the platform's in the Shop (a test's own; null = none), from the next time it opens. */
+  setRewardSection(section: StoreSection | null): void;
   /**
    * The platform's extra unit (or a test's stand-in, src/platform/extraUnit.ts): whether one is installed, whether the
    * player may field it, whether its pictures have been made into textures yet, and the speech bubbles on screen.
@@ -399,11 +401,13 @@ export function installDebug(
   admin: AdminController | null = null,
   setStore: (store: StoreSection | null) => void = () => {},
   setSettingsSection: (section: SettingsSection | null) => void = () => {},
+  setRewardSection: (section: StoreSection | null) => void = () => {},
 ): DebugApi {
   const api: DebugApi = {
     ready: false,
     setStore,
     setSettingsSection,
+    setRewardSection,
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),
     extraUnit() {
       const stats = view.getStats();

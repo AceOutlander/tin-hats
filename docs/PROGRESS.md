@@ -2,6 +2,13 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: the reward section for platforms (2026-11-15, on main after the save lent to a platform, DECISIONS 563 to 565)
+
+Not pushed, version not bumped. Nothing changes on the website: its platform has no reward, so the Shop is as it was.
+`Platform.reward` is now a second `StoreSection` drawn under the store's by the same code (the unused status-and-show
+shape is removed); an offer can end as `unavailable` (none to be had, said calmly) or be marked `unavailable` (none
+left for now). Tests: `tests/e2e/shop-store.spec.ts`, `tests/e2e/screen-labels.spec.ts`; `docs/PLATFORM.md`.
+
 ## Not yet live: the extra unit slot for platforms (2026-11-15, on main after the store section, DECISIONS 556 to 559)
 
 Not pushed, version not bumped. Nothing changes on the website: its platform has no extra unit, so no table, button,

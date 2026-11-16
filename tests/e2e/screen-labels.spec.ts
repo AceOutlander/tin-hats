@@ -14,7 +14,7 @@
  */
 import type { Page } from '@playwright/test';
 import { FAKE_EXTRA, installFakeExtraUnit } from './fake-extra-unit';
-import { FAKE_STORE, installFakeStore } from './fake-store';
+import { FAKE_REWARD, FAKE_STORE, installFakeReward, installFakeStore } from './fake-store';
 import { arrived, BATTLE_LOAD_MS, expect, open, tap, tapIn, test, type Hooked } from './helpers';
 
 const SIZES = [
@@ -199,6 +199,8 @@ for (const size of SIZES) {
       await fullSave(page);
       await open(page);
       await installFakeStore(page);
+      // The reward section is drawn by the same code with the same classes, so every check below covers it too.
+      await installFakeReward(page);
       await tap(page, 'play');
       await settled(page);
       await tapIn(page, 'campaigns', 'campaign-stalingrad');
@@ -209,6 +211,7 @@ for (const size of SIZES) {
       const shop = '.th-screen.is-in[data-screen="armoury"]';
       const section = page.getByTestId('store-section');
       await expect(section.getByTestId('store-buy-five')).toBeVisible();
+      await expect(page.getByTestId('reward-section')).toContainText(FAKE_REWARD.title);
       const check = async (when: string): Promise<void> => {
         const words = ['.th-up-name', '.th-up-desc', 'button', '.th-btn-label', '.th-btn-sub', '.th-group', '.th-store-msg', '.th-store-status', '.th-store-note'];
         expect(await page.evaluate(spills, words.map((w) => `${shop} ${w}`)), `Shop with a store, ${when}`).toEqual([]);
@@ -241,6 +244,11 @@ for (const size of SIZES) {
       await expect(section.getByTestId('store-buy-five')).toHaveText('Owned');
       await tapIn(page, 'armoury', 'store-buy-three');
       await expect(section.getByTestId('store-status-three')).toHaveText(FAKE_STORE.pending);
+      // And the reward section's own: one done, one with none to be had.
+      await tapIn(page, 'armoury', 'reward-buy-task');
+      await expect(page.getByTestId('reward-status-task')).toHaveText(FAKE_REWARD.done);
+      await tapIn(page, 'armoury', 'reward-buy-none');
+      await expect(page.getByTestId('reward-status-none')).toHaveText(FAKE_REWARD.none);
       await check('with every state showing');
       expect(problems).toEqual([]);
     });

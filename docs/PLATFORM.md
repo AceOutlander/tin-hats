@@ -29,7 +29,7 @@ before the game's own data is read (see "The extra unit").
 | `installed` | `false` | The game runs as an installed app. |
 | `shell` | `null` | Lifecycle of an installed app: `onPause`, `onResume`, `onBack`, `keepAwake`. |
 | `store` | `null` | A store section for the Shop: a title, small print, and a listing of offers (below). Every word shown comes from the platform. |
-| `reward` | `null` | A reward the player may ask for: whether one is available, how many are left today, and a `show()` that resolves with medals or nothing. |
+| `reward` | `null` | A second section for the Shop, under the store's: things the player may choose to do for a reward (below). The same shape as `store`; every word shown comes from the platform. |
 | `settings` | `null` | A section for Settings: a title, plain lines and buttons (below). Every word shown comes from the platform. |
 | `entitlements()` | empty set | Ids of things the platform says the player owns. |
 | `extraUnit` | `null` | An extra unit for the roster: the entitlement that owns it and how it is drawn (below). |
@@ -72,10 +72,24 @@ and the platform's own line for it is shown under the offer until that offer is 
 | `pending` | The platform's line. Nothing has been given yet; the platform settles it later by itself. |
 | `cancelled` | Nothing: the card is as it was. |
 | `failed` | The platform's line, in red. |
+| `unavailable` | The platform's line, in the usual colour and without the "refused" sound: there is none to be had just now, through nobody's fault. Nothing changed and it can be asked for again. |
+
+An offer may also carry an `unavailable` line of its own (none left for now): the line shows under the offer and its
+button waits, as with `pending`.
 
 After every outcome the Shop asks for the listing again, and also whenever the platform calls its `onChange`
 listener (something unsettled was settled). The section shows nothing until the first listing arrives, and stays
 hidden when a listing has neither offers nor a message. The game never gives anything for an outcome itself.
+
+### The reward section (the same file, in the Shop)
+
+When `platform.reward` is not null the Shop shows one more section under the store section (or under the call-in
+charges when there is no store). It is a `StoreSection` like the store's and is drawn by the same code: a title, a
+message, cards with a button, small print, the same outcomes. What an offer asks of the player and what it gives are
+the platform's business; whatever it gives, the platform gives itself through `GameHost.grantMedals`. The game adds
+two promises of its own: nothing of the section ever happens unless the player presses one of its buttons, and it is
+drawn in the Shop only, never during a battle and never as a panel over another screen. Its test ids start with
+`reward-` where the store's start with `store-`.
 
 ### What the game lends a platform (`GameHost`, handed to `attach`)
 
@@ -162,7 +176,8 @@ The sim capabilities it may lean on are generic, and no unit of the game uses th
 ### For tests
 
 With `?debug=1`, `window.__TH.setStore(section)` stands a store section in for the platform's (from the next time the
-Shop opens) and `window.__TH.grantMedals` is the host's method. `tests/e2e/fake-store.ts` is a made-up store used by
+Shop opens) and `window.__TH.grantMedals` is the host's method. `window.__TH.setRewardSection(section)` does the same for the reward
+section. `tests/e2e/fake-store.ts` holds a made-up store and a made-up reward, used by
 `tests/e2e/shop-store.spec.ts` and `tests/e2e/screen-labels.spec.ts`.
 
 An extra unit has to be there before the game loads, so a test page carries it: with `?debug=1`, a
@@ -172,4 +187,3 @@ An extra unit has to be there before the game loads, so a test page carries it: 
 phone sizes). `window.__TH.extraUnit()` says whether one is installed, owned, drawn yet, and how many speech bubbles
 are up. The unit tests install the same made-up unit before importing the sim (`tests/unit/extra-unit.test.ts`).
 
-The reward is typed but read by nothing yet.

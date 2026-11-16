@@ -96,3 +96,53 @@ export async function installFakeStore(page: Page): Promise<void> {
     th.setStore(store);
   }, FAKE_STORE);
 }
+
+/**
+ * A stand-in reward section (Platform.reward: the Shop's second platform section). Made up, like the store above:
+ *   task   done after a moment, gives 4 medals through the game; it can be had twice, then it is unavailable
+ *   none   there is none to be had just now (the `unavailable` outcome): said calmly, nothing changes
+ */
+export const FAKE_REWARD = {
+  title: 'Odd jobs',
+  notes: ['A line of small print under the reward, as the platform words it.'],
+  left: (n: number): string => `A made-up task. ${n} of 2 left for now.`,
+  done: 'Done: 4 medals added.',
+  used: 'That is all for now.',
+  none: 'There is none just now. Nothing was changed.',
+} as const;
+
+export async function installFakeReward(page: Page): Promise<void> {
+  await page.evaluate((words) => {
+    const th = (window as unknown as { __TH: DebugApi }).__TH;
+    const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+    let had = 0;
+    const reward: StoreSection = {
+      title: words.title,
+      notes: words.notes,
+      list: async () => ({
+        offers: [
+          {
+            id: 'task',
+            title: 'Do a task: +4 medals',
+            description: `A made-up task. ${2 - had} of 2 left for now.`,
+            priceLabel: 'Begin',
+            unavailable: had >= 2 ? words.used : undefined,
+            async buy(): Promise<OfferOutcome> {
+              await wait(300);
+              had += 1;
+              return th.grantMedals(4, `fake-task-${had}`) === 'granted' ? { kind: 'done', message: words.done } : { kind: 'failed', message: 'Not given.' };
+            },
+          },
+          {
+            id: 'none',
+            title: 'Another task',
+            description: 'Never has one to give.',
+            priceLabel: 'Begin',
+            buy: async () => ({ kind: 'unavailable', message: words.none }),
+          },
+        ],
+      }),
+    };
+    th.setRewardSection(reward);
+  }, { title: FAKE_REWARD.title, notes: FAKE_REWARD.notes, done: FAKE_REWARD.done, used: FAKE_REWARD.used, none: FAKE_REWARD.none });
+}

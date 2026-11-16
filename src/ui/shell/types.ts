@@ -32,6 +32,8 @@ export interface UiOptions {
   createHud?: CreateHud | null;
   /** The platform's store section for the Shop, read each time the Shop opens; absent or null = the Shop has none. */
   store?: () => StoreSection | null;
+  /** The platform's reward section for the Shop, read the same way; absent or null = the Shop has none. */
+  reward?: () => StoreSection | null;
   /** The platform's section for Settings, read each time Settings opens; absent or null = Settings has none. */
   settings?: () => SettingsSection | null;
   /** Called after every screen change, including the first. */

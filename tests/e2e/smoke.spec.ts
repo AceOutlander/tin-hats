@@ -30,6 +30,7 @@ test.describe('debug hooks', () => {
         'admin',
         'extraUnit',
         'grantMedals',
+        'setRewardSection',
         'setSettingsSection',
         'setStore',
         'audio',

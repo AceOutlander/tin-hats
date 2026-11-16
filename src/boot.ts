@@ -60,9 +60,11 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   const shell = installShell(platform, app, document);
   // The Shop's store section is the platform's (the website has none); the debug hooks may stand one in for a test.
   let standInStore: StoreSection | null | undefined;
+  let standInReward: StoreSection | null | undefined;
   let standInSettings: SettingsSection | null | undefined;
   const ui = createUi(uiEl, app, {
     store: () => (standInStore !== undefined ? standInStore : platform.store),
+    reward: () => (standInReward !== undefined ? standInReward : platform.reward),
     settings: () => (standInSettings !== undefined ? standInSettings : platform.settings),
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
@@ -82,7 +84,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   app.attachUi(ui);
   installAdminUi(uiEl, admin);
   installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin, (store) => (standInStore = store), (section) => (standInSettings = section)) : null;
+  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section)) : null;
   // What the game lends its platform (an installed app's; the website's takes nothing).
   platform.attach?.({
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),

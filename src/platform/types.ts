@@ -41,7 +41,9 @@ export type OfferOutcome =
   /** The player backed out: nothing changes and nothing is said. */
   | { readonly kind: 'cancelled' }
   /** It did not go through. */
-  | { readonly kind: 'failed'; readonly message: string };
+  | { readonly kind: 'failed'; readonly message: string }
+  /** There is none to be had just now, through nobody's fault: nothing changes, and the platform's line is said calmly. */
+  | { readonly kind: 'unavailable'; readonly message: string };
 
 /** One thing on offer. Every word shown, the price label included, comes from the platform. */
 export interface StoreOffer {
@@ -53,6 +55,8 @@ export interface StoreOffer {
   readonly owned?: boolean;
   /** Set while an earlier request for it is still unsettled: shown under the offer, and it cannot be asked for again. */
   readonly pending?: string;
+  /** Set while it cannot be asked for (none left for now): shown under the offer, and its button waits. */
+  readonly unavailable?: string;
   buy(): Promise<OfferOutcome>;
 }
 
@@ -73,23 +77,6 @@ export interface StoreSection {
   onChange?(listener: () => void): Unsubscribe;
 }
 
-// --- a reward the player may ask for -----------------------------------------------------------------------------------
-
-export interface RewardStatus {
-  /** Whether one can be shown right now. */
-  readonly available: boolean;
-  /** How many are left today. */
-  readonly leftToday: number;
-  /** The medals one gives. */
-  readonly medals: number;
-}
-
-/** Something the player may choose to sit through for medals. Never shown unless the player asks. */
-export interface RewardOffer {
-  status(): RewardStatus;
-  /** Show it. Resolves with the medals to grant, or null when it was not seen to the end. */
-  show(): Promise<{ readonly medals: number } | null>;
-}
 
 // --- a section in Settings ---------------------------------------------------------------------------------------------
 
@@ -229,8 +216,11 @@ export interface Platform {
   readonly shell: AppShell | null;
   /** A store section for the Shop. */
   readonly store: StoreSection | null;
-  /** A reward the player may ask for. */
-  readonly reward: RewardOffer | null;
+  /**
+   * A second section for the Shop, under the store's: things the player may choose to do for a reward. It is drawn
+   * exactly as the store section is, and nothing of it ever happens unless the player presses one of its buttons.
+   */
+  readonly reward: StoreSection | null;
   /** A section for Settings. */
   readonly settings: SettingsSection | null;
   /** What the platform says the player owns, by id. */
