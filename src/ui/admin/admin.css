@@ -68,6 +68,15 @@
   cursor: pointer;
 }
 
+/* In the Shop the right edge is a column of buy buttons that scrolls under it: there it sits in the bottom left
+   corner instead, where only the cards' pictures pass under it. */
+[data-screen='armoury'] .th-admin-fab {
+  top: auto;
+  right: auto;
+  bottom: calc(var(--th-safe-bottom) + 4px);
+  left: calc(var(--th-safe-left) + 4px);
+}
+
 .th-admin-panel {
   position: absolute;
   top: 0;
