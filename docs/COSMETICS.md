@@ -170,3 +170,46 @@ owner has it):
 Note for whoever builds it (not the owner's words): the normal bomber's engine sound is how the player hears a
 run coming. A nearly silent fly-in must not hide a warning the player relies on; this skin is the player's own
 bomber, so check that nothing about an enemy bomber changes.
+
+## The Common set (owner, 2026-11-18)
+
+Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
+to draw."
+
+Status of every item in this section: design note only. Don't build it yet.
+
+### British
+
+- "Desert Rat" (Riflemen): a sand-coloured cloth cover on the dish helmet, tied with a cord, plus a loose khaki neck scarf that flaps slightly when they run. Uniforms get a faint sun-bleached tint.
+- "Tea Time" (all British infantry): a dented tin mug hangs from the back of the webbing and swings as they move. When idle on Hold, every so often a soldier lifts the mug for a sip.
+- "Highlander" (Riflemen): a small green-and-red tartan patch on the side of the helmet, and a matching tartan hackle (a short feather tuft) poking up from the helmet band.
+- "Muddy Boots" (all British infantry): mud splatter on boots and trousers up to the knees, a few smears on the jacket, and darker, worn-looking webbing.
+
+### Soviet
+
+- "Ushanka" (Riflemen): a grey fur hat with the ear flaps tied up, replacing the helmet, with a small plain red star on the front.
+- "Red Scarf" (all Soviet infantry): a bright red scarf wrapped around the neck, with one end trailing over the shoulder and fluttering when they move.
+- "Patched Up" (Conscripts): white bandage wraps on one arm or the head (varying per soldier), plus darker cloth patches sewn onto the sleeves and knees.
+- "Painted Star" (T-34): a large red star painted on both sides of the turret with a thin white outline, plus a short hand-painted slogan stripe (simple, no real text needed) along the hull.
+
+### Enemy German (the player picks how enemies look)
+
+- "Dust Coat": faded, dusty field-grey uniforms with lighter patches at the shoulders and knees, and dust puffs from their boots when they walk.
+- "Splinter": helmet covers and smocks in a sharp, angular splinter camo pattern of greens and browns. No symbols.
+
+### Vehicles and call-ins (every nation)
+
+- "Kill Marks" (all tanks): a row of small white painted rings on the gun barrel near the turret, adding one ring each time that tank destroys an enemy vehicle in the battle.
+- "Sandbag Armour" (all tanks): sandbags stacked along the front and sides of the hull, plus spare track links hung on the turret. Bags slip off one by one as the tank takes damage.
+- "Nose Art" (fighter plane): an original cartoon shark mouth with teeth and an eye painted on the nose, plus a little pin-up-free cartoon mascot badge (an original design) on the side.
+- "Red Smoke" (smoke screen call-in): red smoke instead of grey, with the same size, timing and effect.
+
+Notes for whoever builds these (not the owner's words):
+
+- Several of these move or change during a battle (the scarf, the mug and the sip, dust puffs, kill rings, sandbags
+  slipping off). They read the battle; they never write to it. "Sandbag Armour" is a picture of armour and gives
+  none.
+- "Tea Time": the sip plays only while a soldier is idle and must never delay him aiming or firing.
+- "Red Smoke" must hide exactly what grey smoke hides, to the eye as well as in the rules: same density and edge.
+- "Dust Coat" and "Splinter" are enemy skins for every German soldier type unless the owner says otherwise.
+- "Kill Marks": say how many rings fit on a barrel before they stop being added.
