@@ -5,6 +5,25 @@ straight on to the next job. Keep working until the usage limit; keep `docs/PROG
 Publishing steps: `CLAUDE.md`, "Push to live". Near the usage limit: stop at a clean commit, update PROGRESS.md, and
 schedule a resume just after the reset.
 
+## NEXT after the Play launch run (owner, 2026-11-18): cosmetic supply crates
+
+Owner, verbatim:
+
+"New feature: cosmetic supply crates. Add it to the queue right after the current Play-launch run.
+- Build the crate system only, with no actual cosmetics: I'll design every item myself. Use clearly marked placeholder items for testing, and keep crates hidden from players until my designs are added. Make adding a new cosmetic as simple as dropping in my art and one data entry, and write a short guide in docs/ explaining how, including what file format and size my designs should be.
+- Cosmetics are visual only and never affect stats: uniform skins, helmet styles, flag designs, unit nameplates, victory animations, and Store and menu themes, per nation, with no Nazi symbols.
+- Rarities: Common, Rare, Epic, Legendary. Show the exact odds in the Store before buying, and in the crate details.
+- A guarantee: at least one Rare every 5 crates and one Legendary every 30, with the counters shown.
+- No duplicates until a set is complete; after that, a duplicate turns into medals.
+- Bought with medals only, never directly with money. Free crates come from first mission wins and campaign completions, about 1 per 3 missions.
+- No timers, countdowns or pressure tactics. A simple opening animation that can be skipped.
+- Owned cosmetics go in an "Armoury → Appearance" tab, where players pick what to wear.
+- Update the rating answers: "Paid random items: Yes (cosmetic only, odds shown, bought with in-game currency)". Check the country rules for paid loot boxes (Belgium in particular), and turn crate purchases off in countries that restrict them, showing only free crates there.
+- The admin panel can grant crates and test the odds."
+
+Notes for whoever builds it (not the owner's words): starts only after the Play-launch run is finished. The rating
+answer, the country switch and anything about buying belong to the installed app, not to the website build; the
+draws must be deterministic and testable; nothing shows to players until the owner's designs are in.
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
