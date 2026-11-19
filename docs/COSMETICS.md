@@ -110,8 +110,17 @@ Owner, verbatim (2026-11-18):
 - The rifle wrapped in white cloth strips.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
-before drawing.
+Status: design note only. Don't build it yet.
+
+What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
+owner has it):
+
+- A black-and-white wartime photo of a sniper lying in snow, seen from the front.
+- A loose white hood, peaked at the top, falling over the shoulders like a cape; the whole suit is baggy.
+- A white cloth mask over the whole face with two narrow eye slits and nothing else. (The skin puts the
+  dark-lensed goggles over this.)
+- Thick mittens, darker than the suit in the photo; the owner wants them white.
+- A long bolt-action rifle with a wooden stock, held low along the snow. (The skin wraps it in white strips.)
 
 ## "Evolved" (Epic), Soviet Riflemen
 
@@ -122,8 +131,18 @@ Owner, verbatim (2026-11-18):
 - No real unit patches, badges or insignia copied; use simple generic shapes.
 - Purely cosmetic: same fire rate, damage, range and everything else as the normal Rifleman. Single shots, not rapid fire, with only the rifle's look and sound changed.
 
-Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
-before drawing.
+Status: design note only. Don't build it yet.
+
+What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
+owner has it):
+
+- A parade photo of soldiers marching in ranks, rifles held across the chest.
+- Dark red berets worn pulled to one side.
+- A camouflage uniform in small blotches of light green, tan and a little brown, jacket and trousers alike.
+- A black belt, black gloves and tall black lace-up boots with the trousers tucked in.
+- Black assault rifles with a folding stock and a curved magazine, on a sling.
+- The photo has shoulder patches, a striped undershirt at the collar and no plate carrier. For the skin: no
+  patches or badges at all, and add the plate-carrier vest with pouches that the owner asks for.
 
 ## "Night Wing" (Legendary), Allied bomber (every Allied nation)
 
@@ -135,8 +154,18 @@ Owner, verbatim (2026-11-18):
 - No real squadron markings or tail numbers copied.
 - Purely cosmetic: the same bombing run, area, damage, timing and cooldown as the normal bomber.
 
-Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
-before drawing.
+Status: design note only. Don't build it yet.
+
+What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
+owner has it):
+
+- A stealth flying-wing bomber seen from above and slightly in front, banked toward the camera.
+- One smooth dark grey wing with no tail and no separate body; the front edge is a straight swept V.
+- The back edge is a saw-tooth: a large W of points across the whole span.
+- A low rounded hump at the centre with a small dark windscreen at the nose.
+- Two flush engine intakes on top, one each side of the hump, with shallow exhaust troughs behind them.
+- Faint panel lines over the surface. The photo has a number and small emblems near the cockpit: leave all of
+  them out.
 
 Note for whoever builds it (not the owner's words): the normal bomber's engine sound is how the player hears a
 run coming. A nearly silent fly-in must not hide a warning the player relies on; this skin is the player's own
