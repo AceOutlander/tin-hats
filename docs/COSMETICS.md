@@ -112,3 +112,15 @@ Owner, verbatim (2026-11-18):
 
 Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
 before drawing.
+
+## "Evolved" (Epic), Soviet Riflemen
+
+Owner, verbatim (2026-11-18):
+
+- A modern-day soldier look, based on the attached reference photo for the general look only: red berets, a modern green-and-tan digital/multi-tone camo uniform, a plate-carrier vest with pouches, tactical gloves and black combat boots.
+- The rifle is drawn as a modern AK-12-style assault rifle.
+- No real unit patches, badges or insignia copied; use simple generic shapes.
+- Purely cosmetic: same fire rate, damage, range and everything else as the normal Rifleman. Single shots, not rapid fire, with only the rifle's look and sound changed.
+
+Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
+before drawing.
