@@ -102,6 +102,36 @@ Notes for whoever builds it (not the owner's words):
 - The odds are shown exactly; only the name and picture of the "???" item are secret. Check that this satisfies
   the store's rule on disclosing odds before purchase.
 - With one unique item in "???" and the no-duplicates rule, say what a second "???" roll gives.
+### Added to the crate design (owner, 2026-11-18): the crate opening animation
+
+Owner, verbatim:
+
+"Add to the crate design in docs/QUEUE.md: the crate opening animation.
+
+## Standard Crate look and opening
+- A semi-dark olive-green WW2-style wooden weapons crate with stencilled markings (generic, no real unit text), metal corner brackets and a padlock on the front.
+- Opening: the padlock shakes, then is ripped off by an invisible force and flies away. The lid bursts open, and a flash of colour pours out, revealing the rarity:
+  - Common: white
+  - Uncommon: green
+  - Rare: blue
+  - Epic: purple
+  - Legendary: yellow/gold
+  - Mythic: red
+  - ???: the screen goes completely dark for 1 second, then explodes with crackling electricity and lightning before the item appears.
+- Higher rarities get a bigger flash, more light rays and a stronger sound.
+- Skippable with a tap, as planned.
+- Premium, Elite, Titan and God crates get their own looks later; I'll design them. Until then they reuse this animation with their own colour tint."
+
+Notes for whoever builds it (not the owner's words):
+
+- The item is decided before the animation starts and saved at once, so a skip, a crash or closing the app can
+  never change or lose what was won. The animation only shows it.
+- Flashes: one burst that fades, never a rapid strobe, and the "???" lightning included; keep within the usual
+  limit of three flashes a second for players sensitive to flashing light.
+- Colour is not the only sign of rarity: show the rarity's name with the item, for players who cannot tell the
+  colours apart (red and green in particular).
+- The crate's own colour tint (for Premium, Elite, Titan, God) must not be mistaken for a rarity colour.
+- Textures are made on first use, never at startup (the startup budget).
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
