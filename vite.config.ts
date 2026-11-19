@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -51,6 +53,54 @@ function preloadBigScripts(): Plugin {
   };
 }
 
+/** The switch a build sets to leave the admin panel out: `TIN_HATS_ADMIN_PANEL=off` in its environment. */
+const ADMIN_PANEL_SWITCH = 'TIN_HATS_ADMIN_PANEL';
+/** The module that joins the admin panel to the game, and the empty one a build without the panel gets in its place. */
+const ADMIN_PANEL = fileURLToPath(new URL('./src/adminPanel/index.ts', import.meta.url));
+const NO_ADMIN_PANEL = fileURLToPath(new URL('./src/adminPanel/none.ts', import.meta.url));
+
+/** The same file, whatever the slashes and the case of the drive letter. */
+function samePath(a: string, b: string): boolean {
+  const norm = (p: string): string => resolve(p).split(sep).join('/').toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/** True when this build must not contain the admin panel. Anything but on, off or nothing stops the build. */
+function adminPanelOff(): boolean {
+  const value = process.env[ADMIN_PANEL_SWITCH];
+  if (value === undefined || value === '' || value === 'on') return false;
+  if (value === 'off') return true;
+  throw new Error(`${ADMIN_PANEL_SWITCH} is "${value}": it must be "on" or "off"`);
+}
+
+/**
+ * A build without the admin panel (docs/PLATFORM.md): with the switch off, the one module through which the game
+ * reaches the panel (src/adminPanel/index.ts) resolves to the empty src/adminPanel/none.ts, so the panel's code,
+ * styles, entry gesture and code hash never enter the build. The website's build never sets the switch and is not
+ * touched by this.
+ */
+function adminPanelSwitch(): Plugin {
+  let off = false;
+  let swapped = 0;
+  return {
+    name: 'tin-hats-admin-panel-switch',
+    enforce: 'pre',
+    config() {
+      off = adminPanelOff();
+    },
+    async resolveId(source, importer, options) {
+      if (!off || !importer || !/(^|[/])adminPanel$/.test(source)) return null;
+      const found = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (!found || !samePath(found.id, ADMIN_PANEL)) return null;
+      swapped++;
+      return NO_ADMIN_PANEL;
+    },
+    buildEnd(error) {
+      if (off && !error && swapped === 0) throw new Error('the game never imported src/adminPanel: the admin panel was not left out');
+    },
+  };
+}
+
 // base './' keeps every asset URL relative so the build can be dropped into a
 // Capacitor webview (file-style origin) as well as served from any sub-path.
 export default defineConfig({
@@ -75,6 +125,7 @@ export default defineConfig({
   server: { host: true },
   preview: { host: true },
   plugins: [
+    adminPanelSwitch(),
     preloadBigScripts(),
     VitePWA({
       // The page registers the worker itself (src/pwa), so nothing is injected and no update prompt appears mid-battle.

@@ -26,7 +26,8 @@ test.describe('the store section of the Shop', () => {
     await expect(page.locator('[data-testid="reward-section"]')).toHaveCount(0);
     await expect(page.locator('.th-store, .th-store-offer, .th-store-note')).toHaveCount(0);
     const headings = await page.evaluate(() => [...document.querySelectorAll('.th-screen[data-screen="armoury"] .th-qm-group h2')].map((h) => h.textContent ?? ''));
-    expect(headings).toEqual(['Call-in charges', 'Extras', 'Core roles', 'New units']);
+    // No "Extras": its one entry, the Battle for Poland, is not on show until that campaign exists (APP.polandExists).
+    expect(headings).toEqual(['Call-in charges', 'Core roles', 'New units']);
   });
 
   test('shows what the platform offers, and every way a request can end', async ({ page }) => {

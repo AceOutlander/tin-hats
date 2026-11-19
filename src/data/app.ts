@@ -59,6 +59,12 @@ export interface AppTunables {
   notices: { airdrop: string; wave: string; boss: string; prepEnded: string; sideObjective: string };
   /** One line per support for the briefing's "new support" card. */
   supportBlurbs: Record<SupportKind, string>;
+  /**
+   * Whether the Battle for Poland campaign exists yet. While it does not, the Shop shows nothing of it: no card, and
+   * no "Extras" heading over an empty section. The words and the price below stay, ready for the day it does: this is
+   * the one place to switch it back on.
+   */
+  polandExists: boolean;
   /** The Shop's locked entry for the paid Battle for Poland campaign (its medal price is MEDALS.polandPrice). */
   polandName: string;
   polandBlurb: string;
@@ -123,6 +129,7 @@ export const APP: AppTunables = {
     prepEnded: 'Here they come!',
     sideObjective: 'Side objective: {text}',
   },
+  polandExists: false,
   polandName: 'Battle for Poland',
   polandBlurb: 'September 1939: a ten-mission campaign as Poland, holding out against two invasions.',
   polandNote: 'Coming later',

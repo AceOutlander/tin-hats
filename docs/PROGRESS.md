@@ -2,6 +2,22 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: three owner decisions for platform builds (2026-11-17, on main after v0.17.7, DECISIONS 566 to 570)
+
+Not pushed, version not bumped (still 0.17.7). One change shows on the website; the other two change nothing there.
+
+- **The Battle for Poland is hidden in the Shop** until the campaign exists (website too): `APP.polandExists` is
+  false, so there is no locked entry and no "Extras" heading. The words and the price are kept; switching the flag on
+  brings the entry back. `tests/unit/shop-extras.test.ts`; `armoury.spec.ts` and `shop-store.spec.ts` updated.
+- **A build can leave the admin panel out** (`TIN_HATS_ADMIN_PANEL=off` in the build's environment): the one module
+  through which the game reaches the panel, `src/adminPanel/index.ts`, is exchanged for the empty `none.ts`, and the
+  panel's code, styles, secret entry, code hash and debug hook are not in that build. The website's build is as it
+  was (same stylesheet, byte for byte). `docs/PLATFORM.md`, "A build without the admin panel", lists what goes, what
+  stays and how to prove it; `tests/unit/admin-panel-build.test.ts` makes both builds and checks.
+- **A platform may name the release stage, or none** (`Platform.releaseStage`; `versionLabel` in
+  `src/data/version.ts`). The website still reads "Beta v0.17.7" on the title and in Settings.
+  `tests/unit/version.test.ts`, `tests/e2e/version-label.spec.ts`.
+
 ## Not yet live: the reward section for platforms (2026-11-15, on main after the save lent to a platform, DECISIONS 563 to 565)
 
 Not pushed, version not bumped. Nothing changes on the website: its platform has no reward, so the Shop is as it was.

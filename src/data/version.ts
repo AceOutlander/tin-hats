@@ -1,14 +1,26 @@
 /**
  * The game's version and the "What's new" note shown in Settings.
  *
- * The version number itself lives in package.json (one place); this file holds the release stage and the notes. While
- * the game is in beta the version starts with 0: bump the middle number for a feature update and the last number for a
- * bug-fix-only update, as part of every push to live (CLAUDE.md, "Push to live"), and put the newest notes first. A
- * unit test fails if the newest notes do not match package.json, so a bump without notes (or the reverse) is caught.
+ * The version number itself lives in package.json (one place); this file holds the release stage, the one function
+ * that words the version for the player (versionLabel) and the notes. While the game is in beta the version starts
+ * with 0: bump the middle number for a feature update and the last number for a bug-fix-only update, as part of every
+ * push to live (CLAUDE.md, "Push to live"), and put the newest notes first. A unit test fails if the newest notes do
+ * not match package.json, so a bump without notes (or the reverse) is caught.
  */
 
-/** Shown before the number: "Beta v0.9.0". */
+/** Shown before the number: "Beta v0.9.0". The game's own stage: the website's, and that of a platform which names no other. */
 export const RELEASE_STAGE = 'Beta';
+
+/**
+ * The version as the player reads it, on the title and in Settings: the stage, then "v" and the number
+ * ("Beta v0.9.0"). This is the one place the stage is put before the number. The stage is the game's own unless the
+ * place the game runs in supplies another (Platform.releaseStage, src/platform/types.ts); an empty stage leaves the
+ * number by itself ("v0.9.0").
+ */
+export function versionLabel(version: string, stage: string = RELEASE_STAGE): string {
+  const word = stage.trim();
+  return word === '' ? `v${version}` : `${word} v${version}`;
+}
 
 export interface ReleaseNotes {
   /** Without the "v", e.g. "0.9.0". */

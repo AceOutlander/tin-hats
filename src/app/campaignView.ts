@@ -273,16 +273,18 @@ export function buildUpcomingCards(upcoming: readonly UpcomingCampaign[] = UPCOM
 
 /**
  * The Shop (the screen the Armoury was): the call-in charges for sale with the count held, the extras (the Battle for
- * Poland as a locked entry with its medal price: no purchase here), then every unit type (free, unlocked, or locked
- * with the mission that unlocks it; units are not sold since the owner's change of 2026-11-09). Names and blurbs are
- * those of the nation the player commands in the current campaign; other nations' names are never shown (owner,
- * 2026-11-08). The British names are the default (the proving ground); a campaign passes its own nation.
+ * Poland as a locked entry with its medal price: no purchase here; listed only once the campaign exists,
+ * APP.polandExists), then every unit type (free, unlocked, or locked with the mission that unlocks it; units are not
+ * sold since the owner's change of 2026-11-09). Names and blurbs are those of the nation the player commands in the
+ * current campaign; other nations' names are never shown (owner, 2026-11-08). The British names are the default (the
+ * proving ground); a campaign passes its own nation.
  */
 export function buildArmoury(
   save: SaveData,
   nation: FactionId = 'british',
   unlocked: readonly UnitKind[] = [],
   missions: readonly MissionDef[] = [],
+  polandExists: boolean = APP.polandExists,
 ): ArmouryItemView[] {
   const own = FACTIONS[nation];
   const out: ArmouryItemView[] = [];
@@ -302,19 +304,21 @@ export function buildArmoury(
       canBuy: canBuyCharge(save, kind),
     });
   }
-  out.push({
-    id: 'poland',
-    type: 'extra',
-    kind: 'rifle',
-    name: APP.polandName,
-    blurb: APP.polandBlurb,
-    price: MEDALS.polandPrice,
-    isNew: false,
-    free: false,
-    owned: false,
-    canBuy: false,
-    lockedNote: APP.polandNote,
-  });
+  if (polandExists) {
+    out.push({
+      id: 'poland',
+      type: 'extra',
+      kind: 'rifle',
+      name: APP.polandName,
+      blurb: APP.polandBlurb,
+      price: MEDALS.polandPrice,
+      isNew: false,
+      free: false,
+      owned: false,
+      canBuy: false,
+      lockedNote: APP.polandNote,
+    });
+  }
   for (const u of MEDALS.units) {
     if (!playerUnitKinds().includes(u.kind)) continue;
     const free = isFree(u.kind);

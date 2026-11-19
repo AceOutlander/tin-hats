@@ -4,7 +4,6 @@
  * src/main.ts loads this module (after the engine) and calls boot().
  */
 import { createAudio } from './audio';
-import { AdminController } from './app/admin';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
@@ -18,7 +17,8 @@ import { installShell } from './platform/shell';
 import { reportScreen } from './pwa';
 import { createBattleView, nextTask } from './render';
 import { createUi } from './ui';
-import { installAdminUi } from './ui/admin';
+// After the UI: the panel's styles follow the game's in the built stylesheet, as they always have.
+import { createAdminPanel } from './adminPanel';
 
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
@@ -54,8 +54,9 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   markStartup('th:app');
   progress(STARTUP_PROGRESS.app);
   await nextTask();
-  // The hidden admin panel: nothing of it shows until the secret entry and the code (src/ui/admin).
-  const admin = new AdminController({ app, view, ui: () => app.currentUi });
+  // The hidden admin panel: nothing of it shows until the secret entry and the code (src/ui/admin). Null in a build
+  // made without the panel (src/adminPanel): there is then no entry, no listener and no code of it at all.
+  const admin = createAdminPanel({ app, view, ui: () => app.currentUi });
   // An installed app's lifecycle and back action; on the website there is none and this does nothing (src/platform).
   const shell = installShell(platform, app, document);
   // The Shop's store section is the platform's (the website has none); the debug hooks may stand one in for a test.
@@ -66,15 +67,18 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
     store: () => (standInStore !== undefined ? standInStore : platform.store),
     reward: () => (standInReward !== undefined ? standInReward : platform.reward),
     settings: () => (standInSettings !== undefined ? standInSettings : platform.settings),
+    // The word before the version number is the game's own unless the platform names another, or none.
+    releaseStage: platform.releaseStage,
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
     paintFlag: createFlagPainter(),
     createHud,
+    titleEmblem: admin?.markEntry,
     onScreen: (screen) => {
       app.onScreen(screen);
       // A new version of the game waits for the battle screens to be left (src/pwa).
       reportScreen(screen);
-      admin.screenChanged();
+      admin?.screenChanged();
       shell.screenChanged(screen);
     },
     onPortrait: (portrait) => {
@@ -82,9 +86,9 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
     },
   });
   app.attachUi(ui);
-  installAdminUi(uiEl, admin);
+  admin?.install(uiEl);
   installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section)) : null;
+  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin ? admin.debugHooks() : null, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section)) : null;
   // What the game lends its platform (an installed app's; the website's takes nothing).
   platform.attach?.({
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),

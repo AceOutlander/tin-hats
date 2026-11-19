@@ -39,6 +39,7 @@ alternative and note it under Known issues in `docs/PROGRESS.md`.
 | Sim time budget (heavy 100-a-side headless battle; part of test:unit) | `x.cmd npx vitest run tests/unit/sim-budget.test.ts` |
 | Frame-time budget (needs a build; proving ground at CPU x4, a few minutes) | `x.cmd npm run test:perf` |
 | Startup budget alone (needs a build; CPU x4, about a minute; before every push to live) | `x.cmd npx playwright test -c playwright.perf.config.ts startup` |
+| The game built without the admin panel, in a browser (makes its own build; `docs/PLATFORM.md`) | `x.cmd npx playwright test -c playwright.noadmin.config.ts` |
 | Screenshot a dev page or the game | `x.cmd npx tsx tools/shot.ts <urlPath> <out.png> [flags]` (see the header of `tools/shot.ts`) |
 
 The two budget tests guard against lag coming back. `tests/unit/sim-budget.test.ts` replays one deterministic battle

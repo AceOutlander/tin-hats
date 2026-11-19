@@ -69,9 +69,8 @@ export const titleScreen: ScreenFactory = (ctx) => {
   const logo = el('div', 'th-logo');
   const helmet = el('div', 'th-logo-helmet');
   helmet.dataset.testid = 'title-helmet';
-  // Takes taps (they do nothing visible): the hidden admin panel's secret entry counts them (src/ui/admin).
-  helmet.dataset.interactive = '';
-  helmet.dataset.adminTap = '';
+  // A plain picture, unless the page has a use for it (UiOptions.titleEmblem).
+  ctx.opts.titleEmblem?.(helmet);
   // The game's logo, whatever nation is played: it does not follow the campaign.
   helmet.append(helmetIcon('th-helmet', GAME_EMBLEM));
   add(

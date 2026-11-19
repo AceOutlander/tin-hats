@@ -1,7 +1,7 @@
 /**
  * Medals and the Shop (the screen the Armoury was) in the production build, on a phone in landscape with real touches:
- * the debug hooks that give and take medals, buying a call-in charge in the Shop from the campaign map, the Battle for
- * Poland as a locked entry with its medal price, units locked until their mission, the briefing's loadout (the
+ * the debug hooks that give and take medals, buying a call-in charge in the Shop from the campaign map, nothing of the
+ * Battle for Poland on show while that campaign does not exist, units locked until their mission, the briefing's loadout (the
  * call-ins brought, lent ones included), the charge count on the battle's call-in buttons, a mission's NEW UNIT card
  * and its own units in battle, the replay line, and the medals breakdown on the victory screen (owner, 2026-11-09:
  * every call-in is medal-bought charges).
@@ -53,9 +53,10 @@ test.describe('armoury', () => {
     for (const c of MEDALS.charges) await expect(shop.getByTestId(`armoury-item-${c.kind}`)).toBeAttached();
     await expect(shop.getByTestId('armoury-count-smoke')).toHaveText(` ×${SMOKE.starter}`);
     await expect(shop.getByTestId('armoury-buy-bomber')).toBeDisabled();
-    // The Battle for Poland: a locked entry with its medal price, and no way to buy it here.
-    await expect(shop.getByTestId('armoury-buy-poland')).toBeDisabled();
-    await expect(shop.getByTestId('armoury-buy-poland')).toContainText(String(MEDALS.polandPrice));
+    // The Battle for Poland does not exist yet (APP.polandExists): nothing of it is on show, and no empty "Extras".
+    await expect(page.locator('[data-testid="armoury-item-poland"], [data-testid="armoury-buy-poland"]')).toHaveCount(0);
+    await expect(shop).not.toContainText('Poland');
+    await expect(shop.locator('.th-qm-group h2', { hasText: 'Extras' })).toHaveCount(0);
     // Units are unlocked by missions: riflemen issued free, the assault troops locked until mission 3.
     await expect(shop.getByTestId('armoury-item-rifle')).toHaveAttribute('data-owned', 'true');
     await expect(shop.getByTestId('armoury-buy-assault')).toBeDisabled();

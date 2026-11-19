@@ -13,6 +13,9 @@ of that through one small interface, so it never knows which place it is in.
 | `shell.ts` | Joins an installed app's lifecycle and back action to the game (`installShell`, called once in `src/boot.ts`). |
 | `extraUnit.ts` | The extra unit as the game asks about it: is there one, how is it drawn, may the player field it. |
 
+One more module can be exchanged by a build, by the game's own switch: `src/adminPanel/index.ts` (see "A build
+without the admin panel").
+
 Game code imports `platform` from `src/platform` and the types from `src/platform/types`. A build for another place
 points the first import at its own module (a bundler alias or resolve hook on `src/platform/index.ts`); that module
 must export a `platform` of the same type. Nothing else in the game changes. Every import names the folder
@@ -33,7 +36,8 @@ before the game's own data is read (see "The extra unit").
 | `settings` | `null` | A section for Settings: a title, plain lines and buttons (below). Every word shown comes from the platform. |
 | `entitlements()` | empty set | Ids of things the platform says the player owns. |
 | `extraUnit` | `null` | An extra unit for the roster: the entitlement that owns it and how it is drawn (below). |
-| `testMode` | `null` | One switch for the admin panel, in the platform's words: its services run against stand-ins while it is on. |
+| `testMode` | `null` | One switch for the admin panel, in the platform's words: its services run against stand-ins while it is on. Nothing reads it in a build made without the panel (below). |
+| `releaseStage` | absent | The word before the version number on the title and in Settings. Absent: the game's own, "Beta". An empty text: none (below). |
 | `attach(game)` | absent | Called once at start with what the game lends the platform (`GameHost`, below). |
 
 Rules for anything built on these:
@@ -124,7 +128,19 @@ the save.
 ### The test mode switch
 
 When `platform.testMode` is not null, the admin panel's Campaign tab lists "Platform test mode": one button with the
-platform's `label` (pressed while `on()`), calling `set`, and its `note` under it.
+platform's `label` (pressed while `on()`), calling `set`, and its `note` under it. The panel is the only way to it:
+a build made without the panel (below) has no such entry and never reads `testMode`, so a platform that makes such a
+build should leave its stand-ins out of it too.
+
+### The release stage
+
+The title's corner and the first line of Settings' "About" show the version as `versionLabel` words it
+(`src/data/version.ts`, the one place the stage is put before the number; the UI asks it once, in `src/ui/index.ts`).
+On the website that is the game's own stage and the number: "Beta v0.9.0". A platform names another with
+`releaseStage` ("Early access" gives "Early access v0.9.0"), or none with an empty text ("v0.9.0"). Nothing else the
+game shows carries the stage: the "What's new" heading names the number alone, and the update notice, the page's
+title and the manifest name no version (`tests/unit/version.test.ts` holds the source to that;
+`tests/e2e/version-label.spec.ts` reads the website's two lines).
 
 ### The extra unit
 
@@ -187,3 +203,75 @@ An extra unit has to be there before the game loads, so a test page carries it: 
 phone sizes). `window.__TH.extraUnit()` says whether one is installed, owned, drawn yet, and how many speech bubbles
 are up. The unit tests install the same made-up unit before importing the sim (`tests/unit/extra-unit.test.ts`).
 
+## A build without the admin panel
+
+The website has a hidden admin panel for testing (seven taps on the title's helmet, or a key combination, then a
+code). A build may leave it out: not hidden or switched off, absent from what is built.
+
+**How.** The game reaches the panel through one module, `src/adminPanel/index.ts` (`createAdminPanel`, called once in
+`src/boot.ts`). Next to it sits `src/adminPanel/none.ts`, which exports the same function and returns null. A build
+made with this set in its environment gets `none.ts` in place of `index.ts`:
+
+```
+TIN_HATS_ADMIN_PANEL=off
+```
+
+The switch is the game's own (`adminPanelSwitch` in `vite.config.ts`), so a build that drives the game's Vite with
+the game's config only has to set the variable before it builds (`process.env.TIN_HATS_ADMIN_PANEL = 'off'`). Unset,
+empty or `on` keeps the panel; anything else stops the build, and so does a build told to leave the panel out that
+never came across the module. The website's build never sets it.
+
+A build with a Vite config of its own (one that does not load the game's `vite.config.ts`, so the switch is not
+there to read the variable) does the same exchange itself, with the alias or resolve hook it already uses for
+`src/platform/index.ts`: point `src/adminPanel/index.ts` at `src/adminPanel/none.ts`. Both files are the game's, so
+nothing is copied or forked. Either way, check the built output for the texts listed under "How to prove it".
+
+**What is then not in the build.** Everything that is the panel's own, because nothing else imports any of it
+(`tests/unit/admin-panel-build.test.ts` holds the source to that):
+
+| Left out | Where it lives |
+| --- | --- |
+| The controller and every action it offers | `src/app/admin.ts` |
+| The lock: the tap run, the code check, its SHA-256 | `src/app/adminLock.ts` |
+| The panel's data: the salt and salted hash of the code, the key combination, tabs, squads, the "Platform test mode" entry | `src/data/admin.ts` |
+| The prompt, the button, the panel, the mode bar, the debug drawing, their styles | `src/ui/admin/` (with `admin.css`) |
+| The secret entry: the mark on the title's helmet and the two listeners | `markAdminEntry`, `installAdminUi` in `src/ui/admin/index.ts` |
+| The debug hook `window.__TH.admin` | it is `null` (`src/app/debug.ts` takes the hooks from the panel) |
+
+The title's helmet is then a plain picture: it carries no mark and nothing listens for taps on it.
+
+**What stays, and why.** A few entry points in code the game uses for other things, which the panel was the only
+caller of. With the panel gone nothing calls them and nothing on screen leads to them: the battle's `admin(action)`
+and the per-side cheat flags it sets (part of the sim, `src/sim/admin.ts`, read by the tick and covered by the sim's
+tests), `BattleSession.admin`, and on `App` the fields and methods named `admin…` (`adminTaps`, `adminDarkness`,
+`adminUnlockMissions`, `adminJump`). Two pieces of text stay with them: the result line for a battle the panel
+ended (`APP.reasons.admin`, never reached) and the old release note that announced the panel (in `WHATS_NEW`;
+Settings shows the newest note only).
+
+**How to prove it.** None of these may occur in any `.js`, `.css` or `.html` file of the build; every one of them
+occurs in the website's build:
+
+| Text | What it is |
+| --- | --- |
+| `th-admin-` | every class of the panel's elements and styles |
+| `admin-prompt`, `admin-code`, `admin-button` | the test ids of the prompt, the code field and the button |
+| `data-admin-tap` | the mark of the secret entry and the listener that looks for it |
+| `useHash` | the debug hook |
+| `Platform test mode` | the panel's entry for a platform's test mode |
+| the values of `ADMIN.passcode.salt` and `ADMIN.passcode.sha256` in `src/data/admin.ts` | the code's salt and salted hash (read them from the file; do not copy them anywhere) |
+
+`tests/unit/admin-panel-build.test.ts` makes both builds (about two seconds each, into temporary folders) and checks
+exactly this list both ways, that the two builds have the same files otherwise, and that a misspelt switch stops the
+build.
+
+In the running page, `window.__TH.admin` is `null` with `?debug=1`, the helmet has no `data-admin-tap`, seven taps
+on it or the key combination open nothing, and no style rule of the page names `th-admin`. A browser spec of its own
+makes such a build, serves it and checks that, and that the menus, the Shop and a battle work in it
+(`tests/noadmin/no-admin-panel.spec.ts`, with its own config, port and server; `dist` is not touched):
+
+```powershell
+.\x.cmd npx playwright test -c playwright.noadmin.config.ts
+```
+
+`tools/no-admin-preview.ts`, which that config starts, shows what another repo's build does: set the variable, then
+call the game's Vite `build()` with the game's config.

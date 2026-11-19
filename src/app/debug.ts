@@ -27,7 +27,6 @@ import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts'
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
-import type { AdminController } from './admin';
 import type { App } from './app';
 import { MENU_MUSIC, type MenuStormStats } from './menuStorm';
 import type { LayerChange } from './musicIntensity';
@@ -266,7 +265,7 @@ export interface DebugApi {
   music: MusicHooks;
   /** The battle music. */
   battleMusic: BattleMusicHooks;
-  /** The hidden admin panel (null when the page has none). */
+  /** The hidden admin panel (null when the page has none: src/adminPanel). */
   admin: AdminHooks | null;
 }
 
@@ -398,7 +397,7 @@ export function installDebug(
   view: BattleView,
   ui: UiHandle,
   audio: GameAudio,
-  admin: AdminController | null = null,
+  admin: AdminHooks | null = null,
   setStore: (store: StoreSection | null) => void = () => {},
   setSettingsSection: (section: SettingsSection | null) => void = () => {},
   setRewardSection: (section: StoreSection | null) => void = () => {},
@@ -792,12 +791,7 @@ export function installDebug(
       },
     },
 
-    admin: admin
-      ? {
-          useHash: (hex) => admin.lockState.useHash(String(hex)),
-          unlocked: () => admin.isUnlocked(),
-        }
-      : null,
+    admin,
 
     battleMusic: {
       stats: () => JSON.parse(JSON.stringify(audio.battleMusicStats())) as BattleMusicStats,

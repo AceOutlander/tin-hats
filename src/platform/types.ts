@@ -227,8 +227,13 @@ export interface Platform {
   entitlements(): ReadonlySet<string>;
   /** An extra unit for the roster. */
   readonly extraUnit: ExtraUnitSlot | null;
-  /** A test mode switch for the admin panel. */
+  /** A test mode switch for the admin panel. Nothing reads it in a build made without the panel. */
   readonly testMode: PlatformTestMode | null;
+  /**
+   * The release stage: the word shown before the version number on the title and in Settings. Absent: the game's
+   * own (src/data/version.ts). An empty text: none, and the version reads "v0.9.0".
+   */
+  readonly releaseStage?: string;
   /** Called once, when the game is running, with what the game lends the platform. */
   attach?(game: GameHost): void;
 }

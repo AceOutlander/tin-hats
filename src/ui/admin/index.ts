@@ -26,6 +26,15 @@ export function isAdminCombo(ev: KeyboardEvent): boolean {
   return ev.code === k.code && ev.ctrlKey === k.ctrl && ev.altKey === k.alt && ev.shiftKey === k.shift && !ev.metaKey;
 }
 
+/**
+ * Make an element the place of the secret entry: it takes taps (they do nothing visible) and the listener below
+ * counts them. The title screen hands its helmet here each time it is built (UiOptions.titleEmblem).
+ */
+export function markAdminEntry(target: HTMLElement): void {
+  target.dataset.interactive = '';
+  target.setAttribute('data-admin-tap', '');
+}
+
 export function installAdminUi(root: HTMLElement, api: AdminApi): AdminUiHandle {
   const doc = root.ownerDocument;
   const win = doc.defaultView ?? window;

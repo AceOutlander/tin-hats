@@ -7,7 +7,7 @@
  *   ui.show('title');
  */
 import { version as packageVersion } from '../../package.json';
-import { RELEASE_STAGE } from '../data/version';
+import { versionLabel } from '../data/version';
 import { isBackPress } from '../platform/shell';
 import type { AppApi, CampaignView, HudState, PanelDropsState, ScreenId, UiApi } from './contracts';
 import { armouryScreen } from './screens/armoury';
@@ -64,7 +64,7 @@ const SCREENS: Record<Exclude<ScreenId, 'battle'>, ScreenFactory> = {
 };
 
 export function createUi(root: HTMLElement, app: AppApi, opts: UiOptions = {}): UiHandle {
-  const options: UiOptions = { ...opts, version: opts.version ?? `${RELEASE_STAGE} v${packageVersion}` };
+  const options: UiOptions = { ...opts, version: opts.version ?? versionLabel(packageVersion, opts.releaseStage) };
   const doc = root.ownerDocument;
   const win = doc.defaultView ?? window;
 

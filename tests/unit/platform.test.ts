@@ -68,6 +68,7 @@ describe('the website platform', () => {
     expect(platform.extraUnit).toBeNull();
     expect(platform.testMode).toBeNull();
     expect(platform.attach).toBeUndefined();
+    expect(platform.releaseStage).toBeUndefined();
     expect(platform.entitlements().size).toBe(0);
   });
 

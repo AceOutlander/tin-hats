@@ -1,10 +1,11 @@
 /**
  * The Shop (it was the Armoury; screen id and test ids kept): call-in charges bought with medals, one at a time (each
  * use in battle spends one; owner, 2026-11-09), the extras (the Battle for Poland as a locked entry with its medal
- * price: no purchase flow in this repo), and every unit type (free, unlocked, or locked with the mission that unlocks
- * it; units are unlocked by missions, never sold). Reached from the campaign map. When the platform has a store
- * section (src/platform; the website has none) it sits under the call-in charges, drawn by ./storeSection, and the
- * platform's reward section, when it has one, sits under that, drawn the same way.
+ * price, listed only once that campaign exists: until then there is no card and no "Extras" heading; no purchase
+ * flow in this repo), and every unit type (free, unlocked, or locked with the mission that unlocks it; units are
+ * unlocked by missions, never sold). Reached from the campaign map. When the platform has a store section
+ * (src/platform; the website has none) it sits under the call-in charges, drawn by ./storeSection, and the platform's
+ * reward section, when it has one, sits under that, drawn the same way.
  */
 import type { SupportKind, UnitKind } from '../../data/schema';
 import type { ArmouryItemView } from '../contracts';
@@ -19,7 +20,10 @@ interface Section {
   items: ArmouryItemView[];
 }
 
-/** Call-in charges, then the extras, then the core roles (free ones first) and the new units. */
+/**
+ * Call-in charges, then the extras, then the core roles (free ones first) and the new units. A section with nothing
+ * in it is left out, heading and all.
+ */
 export function armourySections(items: readonly ArmouryItemView[]): Section[] {
   const charges: Section = { name: 'Call-in charges', items: [] };
   const extras: Section = { name: 'Extras', items: [] };

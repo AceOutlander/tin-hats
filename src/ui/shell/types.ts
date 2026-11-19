@@ -40,8 +40,15 @@ export interface UiOptions {
   onScreen?: (screen: ScreenId) => void;
   /** Called when the "rotate your phone" overlay appears (true) or goes away (false). */
   onPortrait?: (portrait: boolean) => void;
-  /** Version text on the title screen; defaults to the package version. */
+  /**
+   * The version text on the title screen and in Settings, whole. Absent (the game): the package version behind its
+   * release stage, as versionLabel words it (src/data/version.ts).
+   */
   version?: string;
+  /** The platform's own release stage for that text (Platform.releaseStage); absent = the game's, empty = none. */
+  releaseStage?: string;
+  /** Called with the title's emblem (the helmet) each time the title screen is built; absent = a plain picture. */
+  titleEmblem?: (emblem: HTMLElement) => void;
   /** Install the page lockdown (scroll, zoom, selection, context menu). Default true. */
   lockdown?: boolean;
 }
