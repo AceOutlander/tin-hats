@@ -8,7 +8,8 @@ itself is queued in `docs/QUEUE.md` ("cosmetic supply crates"); the owner design
 - Cosmetics are visual only and never affect stats.
 - Skins don't have to be historically accurate; they're separate from the history and lore. (Owner, 2026-11-18.)
 - No swastikas, SS runes or any other Nazi party symbols, as everywhere in the game.
-- Rarity tiers, lowest first: Common, Uncommon, Rare, Epic, Legendary. "Uncommon" was added by the owner on
+- Rarity tiers, lowest first: Common, Uncommon, Rare, Epic, Legendary, Mythic. ("Mythic" appears in the owner's
+  Premium Crate odds of 2026-11-18; no Mythic item is designed yet.) "Uncommon" was added by the owner on
   2026-11-18, between Common and Rare; the crate spec in `docs/QUEUE.md` was written before it.
 - A skin can be for the enemy: the player chooses how the enemy soldiers look to them. Still visual only.
 

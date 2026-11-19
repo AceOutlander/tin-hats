@@ -28,6 +28,26 @@ draws must be deterministic and testable; nothing shows to players until the own
 Owner, 2026-11-18, after the spec above: add "Uncommon" as a rarity tier between Common and Rare. The odds and the
 guarantees must be set for five tiers; ask the owner if the guarantees should change. Item designs are in
 `docs/COSMETICS.md`, which also says a skin can be an enemy skin.
+### Added to the crate design (owner, 2026-11-18): a "Premium Crate"
+
+Owner, verbatim:
+
+"Add to the crate design in docs/QUEUE.md: a "Premium Crate".
+- Costs 5x a normal crate, in medals only, never directly with money.
+- Odds: Uncommon 40%, Rare 35%, Epic 18%, Legendary 6%, Mythic 1%, no Commons. Show the exact odds in the Store.
+- Guarantees: an Epic every 5 premium crates and a Legendary every 15.
+- Same rules as normal crates: no duplicates until a set is complete, no timers or pressure tactics, and keep all prices and odds in data.
+- Check that a premium crate stays a fair deal compared with normal crates, and tell me the medal prices you set."
+
+Notes for whoever builds it (not the owner's words):
+
+- "Mythic" is new here: a sixth tier, taken to sit above Legendary. No item of that tier is designed yet, and the
+  normal crate's odds were never given as numbers. Ask the owner for both before fixing the tables.
+- The fairness check the owner asks for: for each tier, compare the expected number of items per medal from a
+  premium crate with five normal crates, guarantees included, and report it with the prices. A premium crate must
+  not be the worse buy for the tiers it is sold for.
+- "No duplicates until a set is complete" with no Commons in the crate: say what a premium crate gives when every
+  item of the tier it rolled is already owned.
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
