@@ -89,3 +89,15 @@ Notes for whoever builds it (not the owner's words): the mech is much taller tha
 the hitbox stays the tank's, so shots that pass through its upper body will miss; check how that reads. The
 ground shake is a picture effect only. A skin that changes a shot's look (beam, blue blast, blue tracers) must
 not change its timing, range or damage.
+
+## "Frost Ghoul" (Epic), Soviet Sniper
+
+Owner, verbatim (2026-11-18):
+
+- An all-white winter camouflage suit with a loose hood, white mittens and a white cloth face mask, based on the attached reference photo for the general look only.
+- Modern tactical goggles worn over the face mask, with dark lenses and a strap around the hood.
+- The rifle wrapped in white cloth strips.
+- Purely cosmetic, no gameplay change.
+
+Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
+before drawing.
