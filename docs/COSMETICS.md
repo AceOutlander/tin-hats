@@ -83,12 +83,23 @@ Owner, verbatim (2026-11-18):
 - On destruction it collapses to its knees and sparks, then breaks apart in a blue-tinted explosion.
 - Readable at phone size and cheap to draw.
 
+Owner, added later the same day (verbatim):
+
+- More bulk: thicker legs and thighs, and wider, heavier feet, so it looks like it can carry the cannon.
+- A bigger cannon arm, with a short glowing light-blue charge-up at the barrel just before each shot, timed to the King Tiger's normal reload so it stays purely cosmetic.
+- Keep the height about where it is, or a touch taller than the King Tiger's length.
+
+Reference sketch (ours, drawn for this note; version 2, with the changes above): `docs/cosmetics/cyber-chassis-concept.svg`.
+It shows the mech from the side as an enemy, with a soldier and a King Tiger outline for scale, and an inset of the
+charge-up. It is a concept drawing, not game art.
+
 Status: design note only. Don't build it yet.
 
 Notes for whoever builds it (not the owner's words): the mech is much taller than the tank it stands for, while
 the hitbox stays the tank's, so shots that pass through its upper body will miss; check how that reads. The
 ground shake is a picture effect only. A skin that changes a shot's look (beam, blue blast, blue tracers) must
-not change its timing, range or damage.
+not change its timing, range or damage. The charge-up glow plays inside the last moments of the normal reload; it must never
+delay the shot.
 
 ## "Frost Ghoul" (Epic), Soviet Sniper
 
