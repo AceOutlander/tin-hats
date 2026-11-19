@@ -188,6 +188,30 @@ Note for whoever builds it (not the owner's words): the heavier stride is a chan
 legs only. He must cover the same ground in the same time as the normal DP Gunner, so the feet must not appear
 to slide.
 
+## "Heaven's Gate" (Legendary), HQ (every nation)
+
+Owner, verbatim (2026-11-18):
+
+- The HQ becomes a pair of tall, ornate golden gates in an arched frame, with soft beams of warm white-gold light pouring out between the bars.
+- It sits on a bank of soft white clouds and hovers slightly above the ground with a gentle up-and-down drift, the clouds slowly swirling around its base.
+- Small glowing motes of light float upward from it now and then.
+- Non-religious: no crosses, angels, scripture or religious symbols, just the gates, light and clouds.
+- Units train and walk out through the gates as normal, and the light flares briefly each time.
+- As the HQ takes damage, the light dims and flickers, and the gold gets scorched. When destroyed, the light bursts out and fades.
+- It replaces the HQ's look at every Quartermaster upgrade level, so upgrades are shown with extra gold detail and more light instead.
+- Purely cosmetic: same size, hitbox, health and everything else as the normal HQ.
+
+Status: design note only. Don't build it yet.
+
+Notes for whoever builds it (not the owner's words):
+
+- The HQ flies the nation's flag and shows the HQ's health and upgrade level today; say where each goes on the
+  gates, so a player can still tell whose HQ it is and how it stands.
+- It hovers, but units walk on the ground: the clouds must reach the ground at the doorway so nobody steps out
+  into the air, and the drift must not move the place shots land.
+- The beams of light must not hide units or shots in front of the HQ.
+- It needs a look for night and for bad weather that stays readable without lighting up the battlefield.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
