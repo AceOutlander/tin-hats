@@ -94,6 +94,19 @@ Owner, verbatim:
 - Give it a dramatic over-the-top opening animation, and a joke description in the Store.
 "
 
+Owner, added later the same day (verbatim):
+
+"Add to the God Crate in docs/QUEUE.md: a joke outcome when it gives the 1% Mythic instead of ???.
+- Build-up exactly like a ??? reveal (dark screen, crackling electricity), then it fizzles out into a tiny, sad red flash.
+- A sad descending trombone "womp womp womp wommmp" sound, synthesized in code.
+- A small "skill issue" popup that wobbles and fades.
+- They still get the Mythic item."
+
+Note for whoever builds this outcome (not the owner's words): a reveal that looks like the top prize and then takes
+it away is the "near miss" effect that loot-box rules and store reviewers single out, and here it follows a very
+large spend. Raise it with the owner before building; if it stays, the item shown at the end and its rarity name
+must be plain, and the joke must not read as blaming the player for the roll.
+
 Notes for whoever builds it (not the owner's words):
 
 - "Shown but can't be opened" is taken to mean it cannot be bought either until the secret item exists: no medals
