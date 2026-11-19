@@ -281,6 +281,28 @@ Notes for whoever builds it (not the owner's words):
 - The popups are jokes about cheating. The game has no multiplayer, so nobody is deceived, but keep the wording
   plainly silly and never show them on a result or score screen.
 
+## "Zeus" (Mythic), Mortar Team
+
+Owner, verbatim (2026-11-18):
+
+- The mortar team becomes a Greek-god figure: a white robe, a gold laurel wreath, a long flowing white beard, and a faint golden glow. An original design inspired by classical Greek art, not based on any modern game or film version.
+- When standing still, he sits on a grand white marble-and-gold throne. When the unit moves, the throne fades away and reappears when he stops.
+- To fire, he raises his arm and points at the target. A bolt of lightning crashes down from above onto the target spot with a flash and a thunder crack, instead of a mortar shell.
+- The lightning lands on the mortar's normal target and timing, with the same splash area, so players can still read where it hits.
+- Purely cosmetic: same size, hitbox, speed, range (including minimum range), damage, splash and reload as the normal mortar.
+
+Status: design note only. Don't build it yet.
+
+Notes for whoever builds it (not the owner's words):
+
+- A mortar shell takes time to fly, and that flight is what a player watches to see where it will land. The
+  bolt must strike at the moment the shell would have landed, not when he points: show the wait (his raised arm,
+  a gathering glow in the sky over the target) for as long as the shell would be in the air.
+- The mortar team is two men. Say whether the second man is gone, or stands by the throne.
+- The thunder crack must not be mistaken for the weather's own thunder on storm maps, and the flash follows the
+  three-flashes-a-second limit.
+- The throne is as wide as the team's normal footprint or it will cover neighbours.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
