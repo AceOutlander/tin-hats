@@ -70,3 +70,22 @@ a parade version; the owner wants the plain field version of the same shape:
 - A round boss on each side holding the chin strap, which is worn up over the front peak or down under the chin.
 - On the photo the fittings are brass and the front carries a large rayed star plate: for the skin, make the
   fittings dull grey steel and the plate small and plain, with no badge, crest or lettering.
+
+## "Cyber Chassis" (Legendary), enemy skin for the German King Tiger
+
+Owner, verbatim (2026-11-18):
+
+- The player chooses this as how enemy King Tigers look. Purely cosmetic: it uses the King Tiger's exact hitbox, speed, armour, damage, reload and every other stat.
+- The King Tiger becomes a towering two-legged combat mech, about as tall as a King Tiger is long, walking with heavy, stomping steps that shake the ground slightly.
+- Dark gunmetal armour plating with glowing light-blue seams and a light-blue visor.
+- Left arm: a large arm cannon. Its shot is a bright light-blue laser beam that ends in an explosion with a blue tint, firing on the King Tiger's normal reload.
+- Right arm: a heavy machine gun firing light-blue tracers, replacing the tank's machine gun.
+- On destruction it collapses to its knees and sparks, then breaks apart in a blue-tinted explosion.
+- Readable at phone size and cheap to draw.
+
+Status: design note only. Don't build it yet.
+
+Notes for whoever builds it (not the owner's words): the mech is much taller than the tank it stands for, while
+the hitbox stays the tank's, so shots that pass through its upper body will miss; check how that reads. The
+ground shake is a picture effect only. A skin that changes a shot's look (beam, blue blast, blue tracers) must
+not change its timing, range or damage.
