@@ -48,6 +48,38 @@ Notes for whoever builds it (not the owner's words):
   not be the worse buy for the tiers it is sold for.
 - "No duplicates until a set is complete" with no Commons in the crate: say what a premium crate gives when every
   item of the tier it rolled is already owned.
+### Crate design update (owner, 2026-11-18, later): four crate tiers
+
+This replaces the earlier prices and odds above where they differ (the Premium Crate is 1,000 medals, not "5x").
+
+Owner, verbatim:
+
+"Update the crate design in docs/QUEUE.md: four crate tiers, bought with medals only (never directly with money), with exact odds shown in the Store and kept in data:
+- Standard Crate: 350 medals. Common 45.9%, Uncommon 30%, Rare 18%, Epic 5%, Legendary 1%, Mythic 0.1%. Guarantees: a Rare every 5, a Legendary every 30.
+- Premium Crate: 1,000 medals. Uncommon 40%, Rare 35%, Epic 18%, Legendary 6%, Mythic 1%.
+- Elite Crate: 3,000 medals. Rare 45%, Epic 35%, Legendary 16%, Mythic 4%.
+- Titan Crate: 5,000 medals. Legendary 90%, Mythic 10%.
+Free crates earned from playing are Standard Crates. Same rules for all: no duplicates until a set is complete, then duplicates turn into medals; no timers or pressure tactics."
+
+Notes for whoever builds it (not the owner's words):
+
+- Each table adds up to 100%. Mythic is the sixth tier, above Legendary.
+- The Premium Crate's guarantees from the note above (an Epic every 5, a Legendary every 15) were not repeated
+  here; ask the owner whether they stand, and whether Elite and Titan get any.
+- Medals per item, from the odds alone (price divided by chance; guarantees in brackets where given):
+
+  | Crate | per Rare | per Epic | per Legendary | per Mythic |
+  | --- | --- | --- | --- | --- |
+  | Standard, 350 | 1,944 | 7,000 | 35,000 (about 9,100 with the 30-crate guarantee) | 350,000 |
+  | Premium, 1,000 | 2,857 | 5,556 | 16,667 (about 10,100 with a 15-crate guarantee) | 100,000 |
+  | Elite, 3,000 | 6,667 | 8,571 | 18,750 | 75,000 |
+  | Titan, 5,000 | none | none | 5,556 | 50,000 |
+
+  As written, the Elite Crate costs more per Rare, per Epic and per Legendary than the Premium Crate, and more per
+  Legendary and per Mythic than the Titan Crate, so it is never the best buy for anything. The Standard Crate with
+  its guarantee is a cheaper way to a Legendary than Premium or Elite. Tell the owner before fixing the tables.
+- The duplicate rule needs the medal value of a duplicate per tier, in data, and it must never pay back more than
+  the crate cost.
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
