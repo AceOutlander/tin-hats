@@ -32,5 +32,17 @@ Owner, verbatim (2026-11-18):
 - Simplified to read clearly at phone size in the stick-figure style.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet. The reference photo is the owner's and is not in the repo; ask for it
-before drawing.
+Status: design note only. Don't build it yet.
+
+What the reference photo shows (described here because the photo is not ours to publish and is not in the repo;
+the owner has it):
+
+- A tall, rounded dome that narrows toward the top, in bright silver steel.
+- The front peak is long and comes to a point low over the brow; the back peak is short. A thin gold edge runs
+  round the whole brim.
+- An eight-pointed rayed gold star on the front. Its centre is a round silver band with lettering and a badge
+  inside: replace both with our own simple emblem and no lettering.
+- A gold band of laurel leaves round the dome above the brim, ending at a gold rose-shaped boss on each side.
+- A gold curb chain from the side boss, hanging in a loop under the chin.
+- A gold leaf-shaped spike on top, a little taller than a hand is wide, with a ring of gold leaves at its foot.
+- A cream horsehair plume from the spike, falling down the back to about the level of the chin.
