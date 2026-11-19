@@ -87,6 +87,8 @@ Owner, verbatim:
 "Add to the crate design in docs/QUEUE.md: a joke "God Crate".
 - Costs 199,999 medals, bought with any medals.
 - Odds: Legendary 50%, Mythic 49%, ??? 1%. Show the exact odds in the Store.
+  (Replaced by the owner later the same day, verbatim: "odds are now Mythic 1%, ??? 99%. Show the exact odds in the
+  Store. Everything else stays the same." The God Crate's odds are Mythic 1%, ??? 99%.)
 - "???" is a secret rarity above Mythic, with a single unique item I'll design later. Until then, the God Crate is shown in the Store but can't be opened.
 - Buying it shows a confirmation screen with the price and odds before spending.
 - Give it a dramatic over-the-top opening animation, and a joke description in the Store.
@@ -101,7 +103,8 @@ Notes for whoever builds it (not the owner's words):
   to it in full, and the store listing must not call it a joke that cannot be bought if it can.
 - The odds are shown exactly; only the name and picture of the "???" item are secret. Check that this satisfies
   the store's rule on disclosing odds before purchase.
-- With one unique item in "???" and the no-duplicates rule, say what a second "???" roll gives.
+- With one unique item in "???" at 99% and the no-duplicates rule, the first God Crate almost always gives that
+  item and every later one almost always rolls a duplicate: say what a second "???" roll gives.
 ### Added to the crate design (owner, 2026-11-18): the crate opening animation
 
 Owner, verbatim:
