@@ -80,6 +80,28 @@ Notes for whoever builds it (not the owner's words):
   its guarantee is a cheaper way to a Legendary than Premium or Elite. Tell the owner before fixing the tables.
 - The duplicate rule needs the medal value of a duplicate per tier, in data, and it must never pay back more than
   the crate cost.
+### Added to the crate design (owner, 2026-11-18): a joke "God Crate"
+
+Owner, verbatim:
+
+"Add to the crate design in docs/QUEUE.md: a joke "God Crate".
+- Costs 199,999 medals, bought with any medals.
+- Odds: Legendary 50%, Mythic 49%, ??? 1%. Show the exact odds in the Store.
+- "???" is a secret rarity above Mythic, with a single unique item I'll design later. Until then, the God Crate is shown in the Store but can't be opened.
+- Buying it shows a confirmation screen with the price and odds before spending.
+- Give it a dramatic over-the-top opening animation, and a joke description in the Store.
+"
+
+Notes for whoever builds it (not the owner's words):
+
+- "Shown but can't be opened" is taken to mean it cannot be bought either until the secret item exists: no medals
+  may be taken for a crate that cannot be opened. Confirm with the owner.
+- At the pack prices this crate is about CA$890 of medals. It is a joke in the Store's words, but it is a real
+  purchase of a random item; the confirmation screen, the odds and the country rules for paid random items apply
+  to it in full, and the store listing must not call it a joke that cannot be bought if it can.
+- The odds are shown exactly; only the name and picture of the "???" item are secret. Check that this satisfies
+  the store's rule on disclosing odds before purchase.
+- With one unique item in "???" and the no-duplicates rule, say what a second "???" roll gives.
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
