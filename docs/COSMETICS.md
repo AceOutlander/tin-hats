@@ -8,7 +8,7 @@ itself is queued in `docs/QUEUE.md` ("cosmetic supply crates"); the owner design
 - Cosmetics are visual only and never affect stats.
 - Skins don't have to be historically accurate; they're separate from the history and lore. (Owner, 2026-11-18.)
 - No swastikas, SS runes or any other Nazi party symbols, as everywhere in the game.
-- Rarity tiers, lowest first: Common, Uncommon, Rare, Epic, Legendary, Mythic. ("Mythic" appears in the owner's
+- Rarity tiers, lowest first: Common, Uncommon, Rare, Epic, Legendary, Mythic, and the secret "???" above Mythic (one item, "Hacked", from the God Crate). ("Mythic" appears in the owner's
   Premium Crate odds of 2026-11-18; no Mythic item is designed yet.) "Uncommon" was added by the owner on
   2026-11-18, between Common and Rare; the crate spec in `docs/QUEUE.md` was written before it.
 - A skin can be for the enemy: the player chooses how the enemy soldiers look to them. Still visual only.
@@ -253,6 +253,33 @@ Notes for whoever builds it (not the owner's words): this is the first skin that
 rifleman pose (aim standing, kneeling, prone, in a trench, at a window, reloading, carrying) needs an arm-gun
 version, and the shot must leave from where the rifle's muzzle would be so tracers and timing do not change. A
 fallen rifleman drops no rifle.
+
+## "Hacked" (??? rarity, the God Crate's item), every unit on the player's side
+
+Owner, verbatim (2026-11-18):
+
+- Every allied unit, vehicle, plane and call-in gets a black-and-neon-green hacker look: black bodies with glowing green outlines, flickering green code (generic terminal-style characters and binary, not copied from any film) scrolling across them, and glitchy colour-split edges.
+- Infantry levitate a little off the ground in a broken, jittery way: snapping between poses, stuttering, and occasionally glitching a step forward or back.
+- Instead of normal idle animations, they tap on floating green holographic hack panels, as if they're cheating. Small popups like "aimbot.exe" or "god_mode = true" flash above them now and then (just text, no real effect).
+- Vehicles and planes flicker and leave glitch trails; tanks hover slightly with pixelated tracks.
+- Shots leave green glitchy tracers, explosions burst into green pixels, and dead units dissolve into falling green code.
+- Every unit must stay recognizable: keep each unit's silhouette, weapon shape and size, so players can tell a rifleman from a machine gunner or a medic at a glance.
+- Purely cosmetic: same size, hitboxes, speed, health, damage and everything else as normal.
+
+Status: design note only. Don't build it yet. The God Crate cannot be opened until this is built.
+
+Notes for whoever builds it (not the owner's words):
+
+- The glitch step forward or back and the levitation are drawn offsets only: the unit's true place, where shots
+  land and what it can reach never move. A unit must not look as if it stands somewhere it does not.
+- Units are black figures already; on night maps a black body with a green outline must still read, and the two
+  sides must still be told apart at a glance.
+- Flicker and colour-split: slow and soft, within the limit of three flashes a second, and switched off by any
+  reduced-motion or reduced-flash setting.
+- This is one skin over every unit, vehicle, plane, shot and explosion: it is by far the largest item to draw.
+  Do it as a filter and overlay on the normal art where possible, and measure the frame rate with full armies.
+- The popups are jokes about cheating. The game has no multiplayer, so nobody is deceived, but keep the wording
+  plainly silly and never show them on a result or score screen.
 
 ## The Common set (owner, 2026-11-18)
 
