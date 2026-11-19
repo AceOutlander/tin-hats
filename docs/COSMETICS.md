@@ -233,6 +233,26 @@ Notes for whoever builds it (not the owner's words): every death of this skin le
 the blood setting. The footsteps and the steam hiss are sounds a normal flamethrower does not make; keep them no
 louder than a soldier's so the skin gives no warning the normal look does not.
 
+## "Iron Tommy" (Legendary), British Riflemen
+
+Owner, verbatim (2026-11-18):
+
+- Use the attached image for the general powered-exoskeleton idea only; don't copy its design.
+- Each rifleman wears a light powered exoskeleton over his battledress: an open steel frame along the arms, spine and legs, with small pistons at the knees and elbows that move as he walks.
+- A compact power pack on his back with a faint cool-white glow and a small exhaust vent.
+- He keeps the classic British dish helmet, with a modern clear visor added and a thin glowing strip along the brim.
+- Instead of holding a rifle, a compact gun is built into his right forearm. He raises the arm to aim and fires from it.
+- Pistons hiss softly when he stops or kneels.
+- Purely cosmetic: same size, hitbox, speed, health, damage, fire rate and everything else as the normal Rifleman.
+
+Status: design note only. Don't build it yet. The reference image did not arrive with the note; ask the owner for
+it before drawing. It is for the general idea only: nothing of its design may be copied.
+
+Notes for whoever builds it (not the owner's words): this is the first skin that removes the held weapon, so every
+rifleman pose (aim standing, kneeling, prone, in a trench, at a window, reloading, carrying) needs an arm-gun
+version, and the shot must leave from where the rifle's muzzle would be so tracers and timing do not change. A
+fallen rifleman drops no rifle.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
