@@ -124,3 +124,20 @@ Owner, verbatim (2026-11-18):
 
 Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
 before drawing.
+
+## "Night Wing" (Legendary), Allied bomber (every Allied nation)
+
+Owner, verbatim (2026-11-18):
+
+- The bomber call-in becomes a modern stealth flying-wing bomber, based on the attached reference photo for the general shape only: a dark grey tailless wing with a jagged, saw-tooth back edge, a smooth central hump for the cockpit and flush engine intakes on top.
+- Drawn slightly tilted toward the camera so the wing shape reads in the side view, not as a flat sliver.
+- Nearly silent fly-in with a low hum, and a faint heat shimmer behind it.
+- No real squadron markings or tail numbers copied.
+- Purely cosmetic: the same bombing run, area, damage, timing and cooldown as the normal bomber.
+
+Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
+before drawing.
+
+Note for whoever builds it (not the owner's words): the normal bomber's engine sound is how the player hears a
+run coming. A nearly silent fly-in must not hide a warning the player relies on; this skin is the player's own
+bomber, so check that nothing about an enemy bomber changes.
