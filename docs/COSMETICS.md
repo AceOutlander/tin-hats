@@ -171,6 +171,23 @@ Note for whoever builds it (not the owner's words): the normal bomber's engine s
 run coming. A nearly silent fly-in must not hide a warning the player relies on; this skin is the player's own
 bomber, so check that nothing about an enemy bomber changes.
 
+## "Spetsnaz" (Epic), Soviet DP Gunner
+
+Owner, verbatim (2026-11-18):
+
+- A heavy, rounded olive-green armoured helmet with a thick flip-down visor that has a narrow eye slit, based on the attached reference photo for the general look only. Paint a short white stencilled code on the visor (an original one, not copied).
+- A bulky, heavy look: a thick armoured vest with plates, padded shoulders, heavy gloves and boots, and pouches packed with spare round pan magazines.
+- He carries the DP-28 light machine gun with its flat round pan magazine on top, as normal.
+- He walks with a slightly slower, heavier-looking stride (animation only).
+- Purely cosmetic: the same speed, health, damage, fire rate and everything else as the normal DP Gunner.
+
+Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
+before drawing.
+
+Note for whoever builds it (not the owner's words): the heavier stride is a change of pose and timing of the
+legs only. He must cover the same ground in the same time as the normal DP Gunner, so the feet must not appear
+to slide.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
