@@ -24,6 +24,10 @@ Owner, verbatim:
 Notes for whoever builds it (not the owner's words): starts only after the Play-launch run is finished. The rating
 answer, the country switch and anything about buying belong to the installed app, not to the website build; the
 draws must be deterministic and testable; nothing shows to players until the owner's designs are in.
+
+Owner, 2026-11-18, after the spec above: add "Uncommon" as a rarity tier between Common and Rare. The odds and the
+guarantees must be set for five tiers; ask the owner if the guarantees should change. Item designs are in
+`docs/COSMETICS.md`, which also says a skin can be an enemy skin.
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)

@@ -8,6 +8,9 @@ itself is queued in `docs/QUEUE.md` ("cosmetic supply crates"); the owner design
 - Cosmetics are visual only and never affect stats.
 - Skins don't have to be historically accurate; they're separate from the history and lore. (Owner, 2026-11-18.)
 - No swastikas, SS runes or any other Nazi party symbols, as everywhere in the game.
+- Rarity tiers, lowest first: Common, Uncommon, Rare, Epic, Legendary. "Uncommon" was added by the owner on
+  2026-11-18, between Common and Rare; the crate spec in `docs/QUEUE.md` was written before it.
+- A skin can be for the enemy: the player chooses how the enemy soldiers look to them. Still visual only.
 
 ## Skin 1: "Night Ops" (Epic), British soldiers
 
@@ -46,3 +49,24 @@ the owner has it):
 - A gold curb chain from the side boss, hanging in a loop under the chin.
 - A gold leaf-shaped spike on top, a little taller than a hand is wide, with a ring of gold leaves at its foot.
 - A cream horsehair plume from the spike, falling down the back to about the level of the chin.
+
+## "Old Times" (Uncommon), enemy skin for German forces
+
+Owner, verbatim (2026-11-18):
+
+- The player chooses this as how enemy German soldiers look. Purely cosmetic, no gameplay change.
+- A WW1 spiked helmet (Pickelhaube) based on the attached reference, but in plain field style: black leather with dull grey-steel fittings instead of gold, a small plain front plate, and a simple chin strap. No shiny brass or ornate badge.
+- Full WW1 field gear: a field-grey tunic with buttons down the front, leather belts with ammo pouches, tall boots, a rolled blanket over the shoulder and a bayonet on the rifle.
+- No Nazi symbols, as always.
+
+Status: design note only. Don't build it yet.
+
+What the reference photo shows (the photo is not ours to publish and is not in the repo; the owner has it). It is
+a parade version; the owner wants the plain field version of the same shape:
+
+- A low, rounded black leather skull with a short squared front peak and a short neck guard at the back.
+- A spike on top: a round base plate, a short neck with small vent holes, then a smooth pointed cone.
+- A metal edge round the front peak and a thin metal strip up the back of the skull.
+- A round boss on each side holding the chin strap, which is worn up over the front peak or down under the chin.
+- On the photo the fittings are brass and the front carries a large rayed star plate: for the skin, make the
+  fittings dull grey steel and the plate small and plain, with no badge, crest or lettering.
