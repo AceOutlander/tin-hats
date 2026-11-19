@@ -212,6 +212,27 @@ Notes for whoever builds it (not the owner's words):
 - The beams of light must not hide units or shots in front of the HQ.
 - It needs a look for night and for bad weather that stays readable without lighting up the battlefield.
 
+## "Furnace Walker" (Legendary), enemy skin for the German Flamethrower
+
+Owner, verbatim (2026-11-18):
+
+- The player chooses this as how enemy flamethrowers look. Use the attached image for the general dieselpunk-robot idea only; don't copy its design, colours or emblem.
+- The flamethrower becomes a riveted iron robot soldier in soot-blackened steel with dull bronze joints, the same size and shape as a normal soldier.
+- Its head is a squat, round iron furnace hatch with a single glowing orange grille for a face.
+- A fuel tank built into its back, with two hoses running to a two-barrelled flame cannon held in both hands.
+- Small exhaust pipes on its shoulders puff dark smoke, and the grille glows brighter while it fires.
+- Clanking footsteps, with a hiss of steam when it stops.
+- When the fuel tank is hit from behind, the usual fireball, and it collapses into a smoking heap of parts (no blood).
+- No symbols or emblems.
+- Purely cosmetic: same size, hitbox, speed, range, damage and everything else as the normal flamethrower.
+
+Status: design note only. Don't build it yet. The reference image did not arrive with the note; ask the owner for
+it before drawing. It is for the general idea only: nothing of its design, colours or emblem may be copied.
+
+Notes for whoever builds it (not the owner's words): every death of this skin leaves parts and no blood, whatever
+the blood setting. The footsteps and the steam hiss are sounds a normal flamethrower does not make; keep them no
+louder than a soldier's so the skin gives no warning the normal look does not.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
