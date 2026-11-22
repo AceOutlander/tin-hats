@@ -338,6 +338,21 @@ Status of every item in this section: design note only. Don't build it yet.
 - "Nose Art" (fighter plane): an original cartoon shark mouth with teeth and an eye painted on the nose, plus a little pin-up-free cartoon mascot badge (an original design) on the side.
 - "Red Smoke" (smoke screen call-in): red smoke instead of grey, with the same size, timing and effect.
 
+### Every Allied nation (owner, 2026-11-21)
+
+Owner, verbatim:
+
+**"Frostbite" (Common), Riflemen of every Allied nation**
+
+- A separate item for each nation's riflemen (British, Soviet and future Allied nations), each unlocked on its own.
+- Colour change only, no shape or gear changes: uniforms and helmets turn white with a green camouflage pattern.
+- Purely cosmetic, no gameplay change.
+
+Status: design note only. Don't build it yet.
+
+Note (not the owner's words): this is the simplest kind of skin, a recolour of the normal art, and a good first
+one to prove the system with. Each nation's version counts as its own item in a set, for the no-duplicates rule.
+
 Notes for whoever builds these (not the owner's words):
 
 - Several of these move or change during a battle (the scarf, the mug and the sip, dust puffs, kill rings, sandbags
