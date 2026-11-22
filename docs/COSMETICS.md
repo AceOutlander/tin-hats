@@ -329,6 +329,9 @@ Owner, verbatim (2026-11-21):
 - When the canister is hit from behind, it bursts in a green splash instead of a fireball, leaving a small green puddle for the usual few seconds.
 - Purely cosmetic: same range, damage, timing and everything else as the normal flamethrower.
 
+Owner, 2026-11-21, confirming: "yeah no gore just like a green fire skin". Treat it as the normal flame recoloured
+green, with the canister and splashes above: nothing more graphic than the fire it replaces.
+
 Status: design note only. Don't build it yet.
 
 Notes (not the owner's words):
