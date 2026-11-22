@@ -11,6 +11,7 @@ itself is queued in `docs/QUEUE.md` ("cosmetic supply crates"); the owner design
 - Rarity tiers, lowest first: Common, Uncommon, Rare, Epic, Legendary, Mythic, and the secret "???" above Mythic (one item, "Hacked", from the God Crate). ("Mythic" appears in the owner's
   Premium Crate odds of 2026-11-18; no Mythic item is designed yet.) "Uncommon" was added by the owner on
   2026-11-18, between Common and Rare; the crate spec in `docs/QUEUE.md` was written before it.
+- "Special" (owner, 2026-11-21) is a rarity outside the crate tiers, for skins that never drop from crates.
 - A skin can be for the enemy: the player chooses how the enemy soldiers look to them. Still visual only.
 
 ## Skin 1: "Night Ops" (Epic), British soldiers
@@ -298,7 +299,8 @@ Notes for whoever builds it (not the owner's words):
 - A mortar shell takes time to fly, and that flight is what a player watches to see where it will land. The
   bolt must strike at the moment the shell would have landed, not when he points: show the wait (his raised arm,
   a gathering glow in the sky over the target) for as long as the shell would be in the air.
-- The mortar team is two men. Say whether the second man is gone, or stands by the throne.
+- The mortar team is two men; with this skin it is just him (owner, 2026-11-21: "the morter team for zeus is just
+  him"). The second man is not drawn; the unit's size and hitbox stay the team's.
 - The thunder crack must not be mistaken for the weather's own thunder on storm maps, and the flash follows the
   three-flashes-a-second limit.
 - The throne is as wide as the team's normal footprint or it will cover neighbours.

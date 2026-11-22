@@ -148,6 +148,12 @@ Notes for whoever builds it (not the owner's words):
   colours apart (red and green in particular).
 - The crate's own colour tint (for Premium, Elite, Titan, God) must not be mistaken for a rarity colour.
 - Textures are made on first use, never at startup (the startup budget).
+### More Google Play work (owner, 2026-11-21)
+
+The owner added a spec for the installed app on 2026-11-21. It is kept word for word in the private app repo,
+`docs/QUEUE.md` there, because this repo holds no prices or store plans. It adds a "Special" rarity for skins that
+do not come from crates.
+
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
