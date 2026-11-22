@@ -88,7 +88,7 @@ Owner, verbatim:
 - Costs 199,999 medals, bought with any medals.
 - Odds: Legendary 50%, Mythic 49%, ??? 1%. Show the exact odds in the Store.
   (Replaced by the owner later the same day, verbatim: "odds are now Mythic 1%, ??? 99%. Show the exact odds in the
-  Store. Everything else stays the same." The God Crate's odds are Mythic 1%, ??? 99%.)
+  Store. Everything else stays the same." Replaced again on 2026-11-21, see "God Crate, latest" below.)
 - "???" is a secret rarity above Mythic, with a single unique item I'll design later. Until then, the God Crate is shown in the Store but can't be opened.
 - Buying it shows a confirmation screen with the price and odds before spending.
 - Give it a dramatic over-the-top opening animation, and a joke description in the Store.
@@ -101,6 +101,13 @@ Owner, added later the same day (verbatim):
 - A sad descending trombone "womp womp womp wommmp" sound, synthesized in code.
 - A small "skill issue" popup that wobbles and fades.
 - They still get the Mythic item."
+
+**God Crate, latest (owner, 2026-11-21, verbatim):** "odds are now ??? 99.99% and Common 0.01% (no Mythic). Show the
+exact odds in the Store. The joke "womp womp" outcome now plays when it gives the Common: the ??? build-up, then a
+tiny sad white flash, the sad trombone sound and the "skill issue" popup. They still get the Common item."
+
+So the God Crate's odds are: ??? 99.99%, Common 0.01%. The joke outcome is for the Common, with a white flash (the
+Common colour), not for a Mythic.
 
 Note for whoever builds this outcome (not the owner's words): a reveal that looks like the top prize and then takes
 it away is the "near miss" effect that loot-box rules and store reviewers single out, and here it follows a very
