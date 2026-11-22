@@ -180,6 +180,44 @@ The owner added a spec for the installed app on 2026-11-21. It is kept word for 
 `docs/QUEUE.md` there, because this repo holds no prices or store plans. It adds a "Special" rarity for skins that
 do not come from crates.
 
+### Crate balance fix (owner, 2026-11-22): the tables to build from
+
+Owner, verbatim:
+
+"Crate balance fix: give each crate a clear purpose. Premium stays the best for Epics, Elite becomes the best for Legendaries, and Titan the best for Mythics.
+- Elite Crate (3,000): Epic 35%, Legendary 45%, Mythic 20%.
+- Titan Crate (5,000): Legendary 60%, Mythic 40%.
+Rerun the fairness check and confirm each crate is the best buy for its tier, and that no crate is the worst buy at every tier. Update docs/QUEUE.md."
+
+**The crate tables as they now stand** (this replaces every earlier table and fairness note above):
+
+| Crate | Medals | Common | Uncommon | Rare | Epic | Legendary | Mythic | Guarantees |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Standard | 350 | 45.9% | 30% | 18% | 5% | 1% | 0.1% | a Rare every 5, a Legendary every 30 |
+| Premium | 1,000 | 30% | 25% | 20% | 15% | 8% | 2% | an Epic every 5, a Legendary every 15 |
+| Elite | 3,000 | | | | 35% | 45% | 20% | none given |
+| Titan | 5,000 | | | | | 60% | 40% | none given |
+| God | 199,999 | 0.01% | | | | | | ??? 99.99%; one per player; see its own entries |
+
+Fairness check (not the owner's words; computed 2026-11-22). Medals per item of a tier = price divided by the
+chance, or by the average with the guarantee where the crate has one for that tier:
+
+  | Crate | per Rare | per Epic | per Legendary | per Mythic |
+  | --- | --- | --- | --- | --- |
+  | Standard, 350 | 1,944 (about 1,200 with its guarantee) | 7,000 | 35,000 (about 9,100 with its guarantee) | 350,000 |
+  | Premium, 1,000 | 5,000 | 6,667 (about 3,700 with its guarantee) | 12,500 (about 8,900 with its guarantee) | 50,000 |
+  | Elite, 3,000 | none | 8,571 | 6,667 | 15,000 |
+  | Titan, 5,000 | none | none | 8,333 | 12,500 |
+
+- Best buy per tier: Rare, Standard; Epic, Premium; Legendary, Elite; Mythic, Titan. Each crate is the best buy for
+  its tier, as the owner asked.
+- No crate is the worst buy at every tier it holds: Standard is worst for Legendary and Mythic but best for Rare;
+  Elite is worst for Epic but best for Legendary; Premium and Titan are worst at nothing.
+- The margins are thin at the top: Elite beats Titan per Legendary by a fifth (6,667 against 8,333), and Titan
+  beats Elite per Mythic by a sixth (12,500 against 15,000). A change of a few points to either table can flip
+  them, so a unit test must hold these four "best buy" results and the "not worst everywhere" rule.
+- A Mythic is now far easier to get than before: 2 in 5 Titan Crates. Only one Mythic item is designed ("Zeus"),
+  so with the no-duplicates rule most Mythic rolls would turn into medals until more exist.
 ## NOW (owner, 2026-11-11), in this order
 
 ### 1. Automatic updates (done on branch auto-update, DECISIONS 461; ships with the next update)
