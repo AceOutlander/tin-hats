@@ -212,7 +212,8 @@ chance, or by the average with the guarantee where the crate has one for that ti
 - Best buy per tier: Rare, Standard; Epic, Premium; Legendary, Elite; Mythic, Titan. Each crate is the best buy for
   its tier, as the owner asked.
 - No crate is the worst buy at every tier it holds: Standard is worst for Legendary and Mythic but best for Rare;
-  Elite is worst for Epic but best for Legendary; Premium and Titan are worst at nothing.
+  Elite is worst for Epic but best for Legendary; Premium is worst for Rare (of the two crates that hold Rares) but
+  best for Epic; Titan is worst at nothing.
 - The margins are thin at the top: Elite beats Titan per Legendary by a fifth (6,667 against 8,333), and Titan
   beats Elite per Mythic by a sixth (12,500 against 15,000). A change of a few points to either table can flip
   them, so a unit test must hold these four "best buy" results and the "not worst everywhere" rule.
