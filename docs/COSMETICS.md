@@ -342,6 +342,22 @@ Notes (not the owner's words):
 - The green mist is a picture only and hides nothing, unlike smoke.
 - The puddle lies on the ground beside the body, as the fire does today, never on it.
 
+## "Reinforced" (Rare), all tanks of every nation
+
+Owner, verbatim (2026-11-22):
+
+- Extra bolted-on steel plates on the hull and turret, side skirt shields over the tracks, and heavier armoured track links.
+- A slightly scuffed, battle-worn look on the new plates.
+- Purely cosmetic: same size, hitbox, armour, speed and everything else as the normal tank.
+
+Status: design note only. Don't build it yet.
+
+Notes (not the owner's words): this is a picture of armour that gives none, like "Sandbag Armour"; say so in the
+item's description so a player does not expect it to help. The plates and skirts stay inside the tank's normal
+outline, or shots will seem to pass through them. Each tank model needs its own set of plates, so this is one
+item with as many drawings as there are tanks. "All tanks of every nation" is taken to mean the player's own
+tanks, whichever nation they command; say if enemy tanks are meant too.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
