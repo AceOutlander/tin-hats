@@ -319,6 +319,26 @@ Notes (not the owner's words): a deep blue tank must still stand out on night ma
 keep the stars bright enough to carry the outline. Say whether the tank's red star marking stays over the paint;
 it is how a player tells the side at a glance.
 
+## "Bioblaster" (Epic), Soviet Flamethrower
+
+Owner, verbatim (2026-11-21):
+
+- He carries a black canister on his back with a glass window showing glowing green, acid-like liquid sloshing inside, with a hose running to his blaster.
+- The blaster sprays a stream of glowing green liquid instead of fire, shaped and timed exactly like the normal flame, with green splashes and a faint green mist where it lands.
+- Enemies it kills just fall like any other death, with no melting, burns or gore.
+- When the canister is hit from behind, it bursts in a green splash instead of a fireball, leaving a small green puddle for the usual few seconds.
+- Purely cosmetic: same range, damage, timing and everything else as the normal flamethrower.
+
+Status: design note only. Don't build it yet.
+
+Notes (not the owner's words):
+
+- Keep it plainly science-fiction slime: bright, cartoon green, no gas clouds, no gas masks, no choking or
+  coughing poses. A real chemical weapon in a Second World War game would change the content rating answers and
+  the tone of the game; glowing slime from a ray-gun does not.
+- The green mist is a picture only and hides nothing, unlike smoke.
+- The puddle lies on the ground beside the body, as the fire does today, never on it.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
