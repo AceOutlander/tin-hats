@@ -305,6 +305,20 @@ Notes for whoever builds it (not the owner's words):
   three-flashes-a-second limit.
 - The throne is as wide as the team's normal footprint or it will cover neighbours.
 
+## "Constellation" (Uncommon), Soviet tanks
+
+Owner, verbatim (2026-11-21):
+
+- Every Soviet tank is painted a deep night-sky blue with small yellow stars scattered across the hull and turret, like a star map.
+- Colour and paint only, no shape changes.
+- Purely cosmetic, no gameplay change.
+
+Status: design note only. Don't build it yet.
+
+Notes (not the owner's words): a deep blue tank must still stand out on night maps, so give it a lighter edge or
+keep the stars bright enough to carry the outline. Say whether the tank's red star marking stays over the paint;
+it is how a player tells the side at a glance.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
