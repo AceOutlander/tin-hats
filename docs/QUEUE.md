@@ -109,6 +109,23 @@ tiny sad white flash, the sad trombone sound and the "skill issue" popup. They s
 So the God Crate's odds are: ??? 99.99%, Common 0.01%. The joke outcome is for the Common, with a white flash (the
 Common colour), not for a Mythic.
 
+**God Crate decisions (owner, 2026-11-21, verbatim):**
+
+"- Consolation: when the 0.01% Common outcome happens, play the joke, then give a free second God Crate right after ("Fine. Try again.").
+- It can't be bought until the "Hacked" item is built; until then it shows in the Store as "Coming soon".
+- One per player: once a player owns "Hacked", the God Crate's button is disabled and reads "YOU ALREADY HAVE THE BEST SKIN IN THE GAME!!!" Make sure the text fits the button at every phone size."
+
+These settle the open questions in the notes around this entry: it cannot be bought before "Hacked" exists; there
+is never a second "???" roll, because the crate cannot be bought once "Hacked" is owned; and the Common outcome is
+followed by a free God Crate. What is left for the builder:
+
+- The free second crate is granted and saved before the joke plays, so a crash cannot lose it. It can itself roll
+  the Common (1 in 10,000 again) and then gives another; no medals are ever taken for a free one.
+- "One per player" follows ownership of "Hacked", which is in the cloud save: a reinstall must not let it be
+  bought twice, and must not lose it.
+- The long button text goes through the label-fit tests at 667x375, 844x390 and 932x430 like every other label;
+  it may wrap to two lines but must not shrink below the smallest text size the game allows.
+
 Note for whoever builds this outcome (not the owner's words): a reveal that looks like the top prize and then takes
 it away is the "near miss" effect that loot-box rules and store reviewers single out, and here it follows a very
 large spend. Raise it with the owner before building; if it stays, the item shown at the end and its rarity name
