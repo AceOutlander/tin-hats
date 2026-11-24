@@ -7,6 +7,10 @@ schedule a resume just after the reset.
 
 ## NEXT after the Play launch run (owner, 2026-11-18): cosmetic supply crates
 
+Status, 2026-11-24: stage 1 (the system, with placeholder items, hidden behind `COSMETICS.enabled`) is built on main
+and not pushed: `docs/PROGRESS.md`, DECISIONS 574 to 588, `docs/COSMETICS_GUIDE.md`. No real item, the God Crate's
+opening and the rank skins are not built.
+
 Owner, verbatim:
 
 "New feature: cosmetic supply crates. Add it to the queue right after the current Play-launch run.

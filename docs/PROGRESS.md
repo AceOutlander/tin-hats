@@ -2,29 +2,47 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
-## In progress, not live: cosmetic supply crates, stage 1 (2026-11-24, on main after v0.17.9, not pushed, version not bumped)
+## Not yet live: cosmetic supply crates, stage 1 (2026-11-24, on main after v0.17.9, DECISIONS 574 to 588)
 
-Hidden behind one switch, `COSMETICS.enabled` in `src/data/cosmetics.ts` (off). With it off the game looks and plays
-as v0.17.9. Spec: `docs/QUEUE.md`, "cosmetic supply crates" (the tables under "Crate balance fix"); item designs:
-`docs/COSMETICS.md` (none built: placeholders only).
+Not pushed, version not bumped (still 0.17.9). **Hidden behind one switch**, `COSMETICS.enabled` in
+`src/data/cosmetics.ts`, which is off: with it off the game looks and plays as v0.17.9 (no crate section, no
+Appearance tab, no free crates, no word of any of it; `tests/e2e/crates.spec.ts` holds the built game to that).
+Spec: `docs/QUEUE.md`, "cosmetic supply crates" (the tables under "Crate balance fix"). Item designs:
+`docs/COSMETICS.md`; none is built, the 13 items in the data are placeholders marked as such.
 
-Where the job stands (update this list at every commit):
+To look at it: the admin panel's **Crates** tab, "Show crates and Appearance" (this session only), then the Shop; or
+with `?debug=1`, `window.__TH.cosmetics.enable(true)`.
 
-- [x] 1a, committed: items, rarities and looks in data (`src/data/cosmetics.ts`), the crate tables
-  (`src/data/crates.ts`), the draw, guarantees, duplicates, free crates and once-only grants (`src/meta/crates.ts`),
-  ownership and wearing and the save's optional `cosmetics` block (`src/meta/cosmetics.ts`; save version still 11).
-- [x] 1b, committed: the app (`App.buyCrate`, `openCrate`, `wearCosmetic`, `grantCrate`, `grantItem`, the session
-  switch `setCosmeticsEnabled`), the view models (`src/app/cosmeticsView.ts`), the platform hooks
-  (`Platform.crateBuying`, `GameHost.grantCrate`, `GameHost.grantItem`), the debug hooks (`window.__TH.cosmetics`) and
-  the battle view's skins (`src/art/skins.ts`, `src/render/skins.ts`: repaints, part swaps, the owner's pictures
-  pinned to head, body, weapon, hull, turret or HQ, glows and swings; textures made on first use).
-- [ ] 1c: the Shop's crate section, the confirmation, the opening animation (`src/ui`).
-- [ ] 1d: the Appearance tab.
-- [ ] 1e: the admin panel (grant crates, test the odds, the session switch).
-- [ ] 1f: `docs/COSMETICS_GUIDE.md`, `docs/PLATFORM.md`, `docs/DECISIONS.md` (574 onward), browser specs, label fit.
+Built (all committed, stages 1a to 1f):
 
-Tests so far: `tests/unit/crates-data.test.ts`, `crates-draw.test.ts`, `cosmetics-meta.test.ts`,
-`cosmetics-sim.test.ts`, `app-cosmetics.test.ts`.
+- **Framework** (575 to 578): items, eight rarities and looks in data; ownership and what is worn in the save's
+  optional `cosmetics` block (save version still 11); the battle view draws what is worn (`src/art/skins.ts`,
+  `src/render/skins.ts`: repaints, part swaps, hidden parts, the owner's pictures pinned to head, body, weapon, hull,
+  turret or HQ, swings and glows; textures on first use, dropped with the battle). The simulation is told nothing.
+- **Adding an item** is a file in `src/cosmetics/art` (SVG) and one entry in `src/data/cosmetics.ts`:
+  `docs/COSMETICS_GUIDE.md`, which also says what needs a programmer.
+- **Crates** (580 to 584, 587): the owner's four tables and the God Crate's card ("Coming soon"), a draw that follows
+  from the save alone, guarantees with counters, no duplicates until a set is complete (then medals), free Standard
+  Crates from first wins and campaign completions, the Shop's crate section with exact chances and counters, a
+  confirmation before medals are spent, the Standard Crate drawn in code and its skippable opening.
+- **Appearance** (579): the Shop's second page.
+- **Admin panel** (586): a Crates tab (session switch, grant crates, give or clear items, the odds test).
+- **Platform hooks** (585, `docs/PLATFORM.md`): `Platform.crateBuying`, `GameHost.grantCrate`, `GameHost.grantItem`.
+
+Owner to confirm (each is data or one small place): the duplicate values (15, 30, 60, 120, 240, 300 medals), the
+guarantee wording "Rare or better at least every 5" and that a better roll carries a guarantee over, free crates
+(one per three first wins on any difficulty, one per campaign, handed out for past progress when switched on), one
+item per unit at a time, the Appearance tab living in the Shop, the God Crate's stand-in description, and the
+opening's look, timing and sounds (three of the game's own sounds reused; nobody has listened to them).
+
+Not built in this stage: any real item, the four rank skins of the Special rarity (stage 2), the God Crate's opening,
+joke outcome and "Hacked", the "???" opening, the other crates' own looks (they are the Standard Crate tinted), and
+anything in the app repo. Before the switch goes on: take the placeholders out and update the tests that name them
+(`docs/COSMETICS_GUIDE.md`, last section).
+
+Tests: `tests/unit/crates-data.test.ts`, `crates-draw.test.ts`, `cosmetics-meta.test.ts`, `cosmetics-sim.test.ts`,
+`app-cosmetics.test.ts`, `app-admin-crates.test.ts`; `tests/e2e/crates.spec.ts`; one more test per phone size in
+`tests/e2e/screen-labels.spec.ts`.
 
 ## Live as Beta v0.17.9: three more hooks for platform builds (2026-11-24, DECISIONS 571 to 573)
 

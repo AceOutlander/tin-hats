@@ -44,21 +44,34 @@ describe('the cosmetics data', () => {
     expect(RARITY_ORDER.filter((r) => !RARITIES[r].inCrates)).toEqual(['special']);
   });
 
-  it('holds placeholder items only, each marked as one, enough of every crate tier to complete a set', () => {
+  it('every item has an id of its own, and a stand-in is marked as one wherever a player could meet it', () => {
     const ids = COSMETICS.items.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const item of COSMETICS.items) {
       expect(item.id).toMatch(COSMETICS.idPattern);
-      expect(item.placeholder, item.id).toBe(true);
-      expect(item.id.startsWith('placeholder-'), item.id).toBe(true);
-      expect(item.name, item.id).toMatch(/^Placeholder /);
-      expect(item.blurb, item.id).toMatch(/placeholder/i);
       expect(cosmeticItem(item.id)).toBe(item);
+      expect(item.name.trim().length, item.id).toBeGreaterThan(0);
+      // Marked in the data, in the id, in the name and in the line under it: or in none of them.
+      const standIn = item.placeholder === true;
+      expect(item.id.startsWith('placeholder-'), item.id).toBe(standIn);
+      expect(/^Placeholder /.test(item.name), item.id).toBe(standIn);
+      expect(/placeholder/i.test(item.blurb), item.id).toBe(standIn);
     }
-    for (const r of CRATE_TIERS) expect(itemsOfRarity(r).length, r).toBeGreaterThanOrEqual(2);
-    expect(itemsOfRarity('special').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('the switch stays off while a stand-in is in the list: players never see a placeholder', () => {
+    const standIns = COSMETICS.items.filter((i) => i.placeholder === true);
+    expect(COSMETICS.enabled && standIns.length > 0).toBe(false);
+  });
+
+  it('the stand-ins are enough to try a set of every crate tier, a Special, and nothing for "???"', () => {
+    const standIns = COSMETICS.items.filter((i) => i.placeholder === true);
+    // Until the owner's designs replace them (docs/COSMETICS_GUIDE.md): two of each tier a crate holds, one Special.
+    expect(standIns.length).toBeGreaterThan(0);
+    for (const r of CRATE_TIERS) expect(itemsOfRarity(r, standIns).length, r).toBeGreaterThanOrEqual(2);
+    expect(itemsOfRarity('special', standIns).length).toBeGreaterThanOrEqual(1);
     // The "???" item is the owner's to design; none stands in for it.
-    expect(itemsOfRarity('secret')).toEqual([]);
+    expect(itemsOfRarity('secret', standIns)).toEqual([]);
   });
 
   it('every item names real nations and units, and a look the renderer can draw', () => {
@@ -91,15 +104,23 @@ describe('the cosmetics data', () => {
     }
   });
 
-  it('every picture in the art folder is a placeholder that says so, and is used', () => {
-    const used = new Set(COSMETICS.items.flatMap((i) => (i.look.images ?? []).map((img) => img.file)));
-    for (const file of readdirSync(ART)) {
-      expect(used.has(file), file).toBe(true);
-      expect(file.startsWith('placeholder-'), file).toBe(true);
+  it('every picture in the art folder is used, states its size, and a stand-in picture says it is one', () => {
+    const users = new Map<string, boolean[]>();
+    for (const item of COSMETICS.items) for (const img of item.look.images ?? []) users.set(img.file, [...(users.get(img.file) ?? []), item.placeholder === true]);
+    const files = readdirSync(ART);
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      expect(file, file).toMatch(/^[a-z0-9-]+\.(svg|png)$/);
+      expect(users.has(file), `${file} is used by no item`).toBe(true);
+      // A stand-in picture is named and marked as one, and only stand-in items use it.
+      const standIn = file.startsWith('placeholder-');
+      expect(users.get(file)?.every((p) => p === standIn), file).toBe(true);
+      if (!file.endsWith('.svg')) continue;
       const text = readFileSync(join(ART, file), 'utf8');
-      expect(text, file).toMatch(/PLACEHOLDER/);
-      // A picture states its own size, so every browser can draw it.
-      expect(text, file).toMatch(/<svg[^>]*\swidth="\d+"[^>]*\sheight="\d+"/);
+      expect(/PLACEHOLDER/.test(text), file).toBe(standIn);
+      // A picture states its own size, so every browser can draw it; and it brings no script and no linked file.
+      expect(text, file).toMatch(/<svg[^>]*\swidth="\d+"[^>]*\sheight="\d+"[^>]*\sviewBox="/);
+      expect(text, file).not.toMatch(/<script|<image|href=|<text|<foreignObject/i);
     }
   });
 

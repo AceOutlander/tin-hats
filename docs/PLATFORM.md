@@ -41,6 +41,7 @@ before the game's own data is read (see "The extra unit").
 | `releaseStage` | absent | The word before the version number on the title and in Settings. Absent: the game's own, "Beta". An empty text: none (below). |
 | `badge()` | absent | A short label the platform gives the player, shown on the title screen (below). |
 | `onScreen(screen, from)` | absent | Told each time the game shows another screen (below). |
+| `crateBuying()` | absent | Whether supply crates may be bought with medals where the game is running (below). |
 | `attach(game)` | absent | Called once at start with what the game lends the platform (`GameHost`, below). |
 
 Rules for anything built on these:
@@ -138,6 +139,16 @@ most) names the grant; the medals and the id are written to the save together be
 | `already` | The save already holds this id: nothing changed. Safe to ask again after anything went wrong. |
 | `failed` | Not given: the save could not be written, the id or amount is unusable, or the medals would not all fit under the medal cap. |
 
+`grantCrate(crate, grantId)` and `grantItem(item, grantId)` give one supply crate or one cosmetic item once, under a
+grant id, exactly as `grantMedals` gives medals: the thing and the id are one write of the save, before the call
+returns, and a grant the save already holds answers `already` and changes nothing. A crate is one of the game's own
+types that can be opened (`standard`, `premium`, `elite`, `titan`); it is held until the player opens it in the
+Shop, free of charge. An item is named by its id in `src/data/cosmetics.ts`, of any rarity, the `special` one
+included, which no crate ever holds. An item the save already owns is not a failure: the grant is taken and nothing
+else changes. `failed`: the game has no such crate or item, the id is unusable, the save could not be written, or no
+more of that crate can be held. What is granted is kept in the save whether or not cosmetics are on show in this
+build (see "Supply crates").
+
 The game also lends a platform the save itself, so that a platform can keep it somewhere besides the device. The
 game does not know where, when or how: it only hands the save over as text and takes one back.
 
@@ -147,6 +158,19 @@ game does not know where, when or how: it only hands the save over as text and t
 | `readSave(text)` | A copy from elsewhere, possibly made by an older version: brought up to date and checked exactly as the game checks its own stored save. The clean save as text, or `null` when this version cannot read it (damaged, not a save, or from a newer version). Changes nothing. |
 | `replaceSave(text)` | Put that save in place of the game's. `replaced`: checked, written, in use, its settings applied and the screens redrawn. `busy`: a battle is on; nothing changed, ask again later. `failed`: unreadable or it could not be written; nothing changed. |
 | `onSaveChanged(listener)` | Called after every change of the save on this device: any write, a grant, a replaced save, a reset. |
+
+### Supply crates (`src/ui/screens/cosmetics.ts`, in the Shop)
+
+The game has cosmetic supply crates of its own: bought with medals, or given for playing, each holding one cosmetic
+item (`src/data/crates.ts`, `src/data/cosmetics.ts`). They are the game's, not a platform's, and they are hidden in
+every build while `COSMETICS.enabled` is false. A platform has one say in them.
+
+When `platform.crateBuying` is there and returns false, no crate can be bought: the Shop's crate section shows only
+the crate that free crates come as, and any other type the player holds, each with its chances and an Open button
+when one is held; it names no price and has no Buy button, and `App.buyCrate` refuses whatever asks. Crates the
+player is given (by playing, or through `grantCrate`) are opened as everywhere else. The hook is asked each time the
+Shop is drawn and each time a crate is asked for, so its answer may change while the game runs. Absent, or true:
+crates are sold as the game has them. The website has no such hook.
 
 ### The Settings section (`src/ui/screens/settings.ts`)
 
@@ -228,6 +252,12 @@ section, `window.__TH.setMembershipSection(section)` for the membership section,
 stands a label in for the platform's badge (from the next time the title is drawn). `tests/e2e/fake-store.ts` holds a
 made-up store, a made-up reward and a made-up membership section, used by `tests/e2e/shop-store.spec.ts` and
 `tests/e2e/screen-labels.spec.ts`. The change of screen is covered by `tests/unit/platform.test.ts`.
+
+`window.__TH.cosmetics` holds the hooks for cosmetics and crates: `enable(on)` shows them for the session,
+`setCrateBuying(false | true | null)` stands an answer in for the platform's `crateBuying` (null: the platform's
+own), `grantCrate` and `grantItem` are the host's methods, and `giveCrates`, `giveItems`, `wear`, `clear`,
+`lastCrate` and `stats` serve the specs (`tests/e2e/crates.spec.ts`; `tests/unit/app-cosmetics.test.ts` covers the
+switch and the grants without a browser).
 
 An extra unit has to be there before the game loads, so a test page carries it: with `?debug=1`, a
 `window.__TH_EXTRA_UNIT = { data, slot }` set before the game's scripts run stands in for a platform's unit, owned

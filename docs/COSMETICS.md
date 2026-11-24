@@ -2,6 +2,7 @@
 
 Design notes for the cosmetic items that the supply crates will hold. Nothing here is built yet. The crate system
 itself is queued in `docs/QUEUE.md` ("cosmetic supply crates"); the owner designs every item.
+How an item is added, and what one can and cannot be without a programmer: `docs/COSMETICS_GUIDE.md`.
 
 ## Rules for every cosmetic
 
