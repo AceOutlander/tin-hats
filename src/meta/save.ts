@@ -12,6 +12,7 @@ import type { Difficulty, SupportKind, UnitKind, UpgradeDef, UpgradeLevels } fro
 import { clampVolume } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import { maxLevel } from './campaign';
+import { sanitizeCosmetics, type CosmeticsRecord } from './cosmetics';
 import { isGrantId, missionPoints, starterCharges, starterLoadout } from './medals';
 
 /** The part of Storage the game uses. */
@@ -117,6 +118,8 @@ export interface SaveData {
   legacy?: LegacyRecord;
   /** Ids of the once-only grants this save has had (grantMedalsOnce), oldest first; absent when there were none. */
   grants?: string[];
+  /** Cosmetics owned and worn, crates held and their counters (src/meta/cosmetics.ts); absent when there are none. */
+  cosmetics?: CosmeticsRecord;
 }
 
 /**
@@ -571,6 +574,8 @@ export function sanitizeSave(raw: unknown, rules: SaveRules = {}): SaveData | nu
     for (const id of doc.grants) if (isGrantId(id) && !grants.includes(id)) grants.push(id);
     if (grants.length > 0) out.grants = grants.slice(-META.maxGrantIds);
   }
+  const cosmetics = sanitizeCosmetics(doc.cosmetics);
+  if (cosmetics) out.cosmetics = cosmetics;
 
   const last = doc.lastMission;
   if (typeof last === 'number' && Number.isInteger(last) && last >= 1 && last <= MAX_MISSION_ID) {

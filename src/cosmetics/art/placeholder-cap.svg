@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="110" viewBox="0 0 160 110">
+  <!-- PLACEHOLDER for testing the cosmetics system. Not a design. A cap seen from the side, facing right. -->
+  <path d="M22 86 C18 40 48 12 84 12 C116 12 138 36 138 86 Z" fill="#c8482f" stroke="#2a1a12" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M132 76 L158 84 L156 96 L20 96 L20 82 Z" fill="#8f2f1f" stroke="#2a1a12" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M46 30 L70 60 M70 30 L46 60" stroke="#f4ecd6" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="82" cy="12" r="8" fill="#f4ecd6" stroke="#2a1a12" stroke-width="5"/>
+</svg>
