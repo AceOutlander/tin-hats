@@ -2,9 +2,10 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
-## Not yet live: cosmetic supply crates, stage 1 (2026-11-24, on main after v0.17.9, DECISIONS 574 to 588)
+## Live as Beta v0.17.10, switched off: cosmetic supply crates, stage 1 (2026-11-24, DECISIONS 574 to 588)
 
-Not pushed, version not bumped (still 0.17.9). **Hidden behind one switch**, `COSMETICS.enabled` in
+Next: stage 2, the four gold-trim skins of the "Special" rarity (needs a code-drawn look kind in `src/art/skins.ts`).
+**Hidden behind one switch**, `COSMETICS.enabled` in
 `src/data/cosmetics.ts`, which is off: with it off the game looks and plays as v0.17.9 (no crate section, no
 Appearance tab, no free crates, no word of any of it; `tests/e2e/crates.spec.ts` holds the built game to that).
 Spec: `docs/QUEUE.md`, "cosmetic supply crates" (the tables under "Crate balance fix"). Item designs:
