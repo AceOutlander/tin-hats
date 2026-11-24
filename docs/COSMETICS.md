@@ -419,6 +419,21 @@ a paler tone (charcoal grey, a tan lining) to read at phone size and on night ma
 clearly different from the German helmet and the British dish helmet, so the side is still told at a glance.
 The coat tail hangs inside the figure's normal outline when he lies prone or stands in a trench.
 
+## "Loyalist" (Uncommon), Soviet Sappers
+
+Owner, verbatim (2026-11-23):
+
+- Everything stays the same, except a red cap replaces their usual headgear, with a small Soviet flag emblem (red star with hammer and sickle) on the front.
+- Purely cosmetic, no gameplay change.
+
+Status: design note only. Don't build it yet.
+
+Notes (not the owner's words): a red star on a red cap will not show; give the emblem a gold or yellow star and
+hammer and sickle, as on the flag, or a thin gold edge. At phone size the emblem is a few pixels: a gold dot that
+reads as a badge is enough, with the full emblem only in the Armoury picture. The hammer and sickle is one of the
+symbols some countries restrict (the private app repo's `store/COUNTRIES.md`); the game already shows it on the
+Soviet flag, and this adds it to a soldier.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
