@@ -369,6 +369,18 @@ Owner, verbatim (2026-11-23):
 - It replaces the HQ's look at every Quartermaster upgrade level; upgrades add details like a bigger pedestal, banners and torches.
 - Purely cosmetic: same size, hitbox, health and everything else as the normal HQ.
 
+Owner, added 2026-11-23, for when it is actually built (verbatim):
+
+- Standing tall and upright in a heroic stance, legs straight, one arm pointing firmly at the enemy, the other hand on a grounded rifle.
+- Much bigger and grander: three to four times a soldier's height on the pedestal.
+- Real stone shading with light from the upper left, chipped edges, carved texture, subtle cracks and a soft rim light.
+- A wide stepped pedestal with a carved plaque (simple original emblem, no text) and an arched doorway.
+- Moss and small vines in the cracks, a few birds, a faint golden glow in the eyes.
+- Polished, but still in the game's clean flat art style and readable at phone size.
+
+These notes go beyond the reference sketch, which the owner chose not to have redrawn: where they differ (the
+sketch has a leaning stance, bent legs, a plain pedestal, no plaque, vines or birds), the notes win.
+
 Status: design note only. Don't build it yet.
 
 Reference sketch (ours, drawn for this note): `docs/cosmetics/legacy-hq-concept.svg`. It shows the statue as the
@@ -386,6 +398,10 @@ Notes for whoever builds it (not the owner's words):
 - The pointing arm reaches past the HQ's normal outline; keep the hitbox the normal HQ's and make sure shots do
   not seem to pass through stone.
 - The eye glow dims with damage, as the light does on "Heaven's Gate".
+- "Three to four times a soldier's height on the pedestal" is taken as the statue's own height, with the pedestal
+  under it. That is taller than the normal HQ; the size and hitbox the game uses stay the normal HQ's, so check
+  that the top of the statue is not cut off by the top bar and the objective banner at the three phone sizes.
+- The birds are a picture only: they fly off when the HQ is first hit and do not come back during the battle.
 
 ## The Common set (owner, 2026-11-18)
 
