@@ -13,7 +13,7 @@ import { FIGURE } from '../data/figure';
 import { GEAR_NONE } from '../data/looksGear';
 import type { FactionId, UnitKind } from '../data/schema';
 import type { GearLevels } from '../data/upgradeLooks';
-import { paintUnitIcon as paintFigureIcon, type IconArms } from './figure';
+import { paintUnitIcon as paintFigureIcon, type FigureDressing, type IconArms } from './figure';
 import type { SpriteSpec } from './types';
 import { TANK_KEYS, createTankPose, isGearLook, layoutTank, tankGearKeys, tankGearSpecs, tankSpecs, vehicleLookOf, type PartXf } from './vehicles';
 import type { VehicleLook } from '../data/artLayout';
@@ -79,7 +79,16 @@ function boundsOf(parts: readonly Placed[]): [number, number, number, number] {
   return [x0, y0, x1, y1];
 }
 
-function paintTank(canvas: HTMLCanvasElement, look: VehicleLook, gear: GearLevels): boolean {
+/**
+ * A vehicle portrait drawn another way (a cosmetic item's look): `spec` may give another picture for a part (null
+ * leaves it out), and `after` draws over the finished vehicle, in tank space, given where its hull and turret sit.
+ */
+export interface TankDressing {
+  spec?(part: 'tracks' | 'hull' | 'gun' | 'turret', spec: SpriteSpec): SpriteSpec | null;
+  after?(ctx: CanvasRenderingContext2D, hull: PartXf, turret: PartXf): void;
+}
+
+function paintTank(canvas: HTMLCanvasElement, look: VehicleLook, gear: GearLevels, dressing?: TankDressing): boolean {
   const ctx = canvas.getContext('2d');
   if (!ctx) return false;
   const parts = placeTank(look, gear);
@@ -94,13 +103,26 @@ function paintTank(canvas: HTMLCanvasElement, look: VehicleLook, gear: GearLevel
   ctx.translate(W / 2, H / 2);
   ctx.scale(scale, scale);
   ctx.translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+  const keys = TANK_KEYS[look];
   for (const p of parts) {
+    let spec: SpriteSpec | null = p.spec;
+    if (dressing?.spec) {
+      // Which piece of the vehicle this sprite is, by its key: the hull, the gun, the turret, else the running gear.
+      const key = p.spec.key;
+      const piece = key === keys.passengers ? null : key.includes('/hull') ? 'hull' : key.includes('/barrel') ? 'gun' : key.includes('/turret') ? 'turret' : 'tracks';
+      if (piece !== null) spec = dressing.spec(piece, p.spec);
+    }
+    if (!spec) continue;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rot);
-    ctx.translate(-p.spec.ax * p.spec.w, -p.spec.ay * p.spec.h);
-    p.spec.draw(ctx);
+    ctx.translate(-spec.ax * spec.w, -spec.ay * spec.h);
+    spec.draw(ctx);
     ctx.restore();
+  }
+  if (dressing?.after) {
+    const pose = layoutTank({ look, distance: 0, turretAim: 0, recoil: 0, hullRock: 0 }, createTankPose());
+    dressing.after(ctx, pose.hull, pose.turret);
   }
   ctx.restore();
   return true;
@@ -111,7 +133,15 @@ function paintTank(canvas: HTMLCanvasElement, look: VehicleLook, gear: GearLevel
  * Stick figures come from the figure module, tanks from the vehicle sprites. `gear` draws the unit with its
  * upgrade gear (default none, the normal look). Returns false only if the canvas has no 2D context.
  */
-export function paintUnitPortrait(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear: GearLevels = GEAR_NONE, look?: VehicleLook, arms?: IconArms): boolean {
-  if (kind === 'tank' || kind === 'heavyTank' || kind === 'apc' || kind === 'lightTank') return paintTank(canvas, look ?? vehicleLookOf(kind, faction), gear);
-  return paintFigureIcon(canvas, kind, faction, gear, arms);
+export function paintUnitPortrait(
+  canvas: HTMLCanvasElement,
+  kind: UnitKind,
+  faction: FactionId,
+  gear: GearLevels = GEAR_NONE,
+  look?: VehicleLook,
+  arms?: IconArms,
+  dressing?: { figure?: FigureDressing; tank?: TankDressing },
+): boolean {
+  if (kind === 'tank' || kind === 'heavyTank' || kind === 'apc' || kind === 'lightTank') return paintTank(canvas, look ?? vehicleLookOf(kind, faction), gear, dressing?.tank);
+  return paintFigureIcon(canvas, kind, faction, gear, arms, dressing?.figure);
 }

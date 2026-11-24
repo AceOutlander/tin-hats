@@ -136,6 +136,25 @@ describe('opening a crate', () => {
     expect(cosmeticsOf(save).opened.standard).toBe(9);
   });
 
+  it('across many saves, each one\'s first crates follow the table (no seed is luckier than another)', () => {
+    const N = 120_000;
+    for (const nth of [1, 2]) {
+      const counts: Partial<Record<Rarity, number>> = {};
+      for (let i = 0; i < N; i++) {
+        const save = defaultSave();
+        // Seeds spread over the whole range, the same every run.
+        const seed = (Math.imul(i + 1, 2654435761) >>> 0) % 0x7fffffff;
+        let r = openCrate(save, STANDARD, seed, []);
+        for (let k = 1; k < nth; k++) r = openCrate(save, STANDARD, seed, []);
+        counts[r.rarity] = (counts[r.rarity] ?? 0) + 1;
+      }
+      for (const o of STANDARD.odds) {
+        const expected = (o.parts / 10_000) * N;
+        expect(Math.abs((counts[o.rarity] ?? 0) - expected), `crate ${nth}, ${o.rarity}`).toBeLessThan(6 * Math.sqrt(expected) + 1);
+      }
+    }
+  });
+
   it('gives no duplicate until the set of that rarity is complete, then medals', () => {
     const items = [...made('common', 3), ...made('uncommon', 2)];
     const save = defaultSave();

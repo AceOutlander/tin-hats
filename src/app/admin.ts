@@ -10,13 +10,15 @@
 import { ADMIN, type AdminSquadDef } from '../data/admin';
 import { APP } from '../data/app';
 import { CAMPAIGNS } from '../data/campaigns';
+import { COSMETICS, RARITIES } from '../data/cosmetics';
+import { CRATES, crateDef, oddsPercent } from '../data/crates';
 import { MEDALS } from '../data/medals';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { missionEra, unitDisplayName } from '../data/eras';
 import type { MissionEventDef, Side, UnitKind } from '../data/schema';
 import { UNIT_KINDS } from '../data/units';
 import { VIEW, VIEW_TOP_WU } from '../data/view';
-import { maxLevel, sanitizeSave } from '../meta';
+import { cosmeticsOf, cratesHeld, maxLevel, sanitizeSave } from '../meta';
 import type { BattleView } from '../render/contracts';
 import type { AdminAction, UnitState } from '../sim';
 import {
@@ -30,6 +32,7 @@ import {
   type AdminCommand,
   type AdminDebugFrame,
   type AdminInfo,
+  type AdminOddsRun,
   type AdminSelected,
   type AdminSide,
   type AdminTarget,
@@ -110,6 +113,8 @@ export class AdminController implements AdminApi {
   private picking = false;
   private selectedId = -1;
   private readonly overlays: Record<OverlayLayer, boolean> = { readout: false, ranges: false, hitboxes: false, points: false };
+  /** The last odds test (the Crates tab shows it until the next). */
+  private odds: AdminOddsRun | null = null;
 
   constructor(deps: AdminDeps) {
     this.app = deps.app;
@@ -158,6 +163,14 @@ export class AdminController implements AdminApi {
   info(): AdminInfo {
     const app = this.app;
     return {
+      cosmetics: {
+        enabled: app.cosmeticsEnabled,
+        crates: CRATES.defs.map((c) => ({ id: c.id, name: c.name, held: cratesHeld(app.save, c.id), available: c.available })),
+        owned: cosmeticsOf(app.save).owned.length,
+        items: COSMETICS.items.length,
+        oddsRuns: CRATES.oddsTestRuns,
+      },
+      odds: this.odds,
       medals: app.save.medals,
       points: app.save.points,
       charges: MEDALS.charges.map((c) => ({ kind: c.kind, count: app.save.charges[c.kind] ?? 0 })),
@@ -273,6 +286,33 @@ export class AdminController implements AdminApi {
         if (!def) break;
         const level = Math.max(0, Math.min(maxLevel(def), Math.floor(command.level)));
         app.setUpgrades({ ...app.save.upgrades, [def.id]: level });
+        break;
+      }
+      case 'cosmetics':
+        app.setCosmeticsEnabled(command.on);
+        break;
+      case 'crates': {
+        const def = crateDef(command.id);
+        if (def) app.giveCrates(def.id, command.amount);
+        break;
+      }
+      case 'cosmeticItems':
+        if (command.op === 'giveAll') app.giveItems();
+        else app.clearCosmetics();
+        break;
+      case 'oddsTest': {
+        // A long run of real draws with this crate's table and guarantees: the counts say whether the odds hold.
+        const run = app.oddsTest(command.id);
+        const def = crateDef(command.id);
+        const percent = (n: number, of: number): string => (of > 0 ? `${((n / of) * 100).toFixed(2)}%` : '0%');
+        this.odds =
+          run && def
+            ? {
+                crate: def.name,
+                runs: run.runs,
+                rows: run.rows.map((r) => ({ rarity: RARITIES[r.rarity].name, count: r.count, share: percent(r.count, run.runs), table: oddsPercent(r.parts), guaranteed: r.guaranteed })),
+              }
+            : null;
         break;
       }
       case 'resetSave':

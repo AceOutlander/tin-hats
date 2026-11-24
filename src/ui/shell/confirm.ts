@@ -49,7 +49,7 @@ export function createConfirmLayer(parent: HTMLElement, onChange: (open: boolean
       const yes = button({
         testid: 'confirm-yes',
         label: request.yes,
-        className: 'th-btn-danger',
+        className: request.plain ? 'th-btn-primary' : 'th-btn-danger',
         onTap: () => {
           sound('confirm');
           close();
@@ -58,7 +58,15 @@ export function createConfirmLayer(parent: HTMLElement, onChange: (open: boolean
       });
       const actions = el('div', 'th-confirm-actions');
       add(actions, no, yes);
-      add(slip, stencil('h2', request.title, 'th-confirm-title'), el('p', 'th-type th-confirm-body', request.body), actions);
+      if (request.plain) slip.classList.add('is-plain');
+      const details = request.details && request.details.length > 0 ? el('ul', 'th-confirm-details') : null;
+      if (details) {
+        details.dataset.testid = 'confirm-details';
+        for (const line of request.details ?? []) details.append(el('li', undefined, line));
+      }
+      const body = el('p', 'th-type th-confirm-body', request.body);
+      body.dataset.testid = 'confirm-body';
+      add(slip, stencil('h2', request.title, 'th-confirm-title'), body, details, actions);
       // Keep Tab inside the two buttons while the slip is up.
       slip.addEventListener('keydown', (ev) => {
         if (ev.key !== 'Tab') return;

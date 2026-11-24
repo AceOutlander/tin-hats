@@ -5,6 +5,7 @@
 import { FIGURE, type FigureKind, type WeaponModel } from '../../data/figure';
 import type { FactionId, UnitAction, UnitKind } from '../../data/schema';
 import type { GearLevels } from '../../data/upgradeLooks';
+import type { SpriteSpec } from '../types';
 import { updateFigure } from './animate';
 import { MOLOTOV_KEY } from './eraWeapons';
 import { setFigureGear, setFigureRocketItem, setFigureWeapon } from './gear';
@@ -14,13 +15,26 @@ import { createFigureAnim, createFigureInput, isFigureKind, type FigureAnim } fr
 
 const LAYOUT: FigurePart[] = createFigureLayout();
 
+/**
+ * A portrait drawn another way (a cosmetic item's look, src/art/skinPreview.ts): `dress` changes the figure before it
+ * is posed, `spec` may give another picture for the part in a slot (null leaves the part out), and `after` draws
+ * over the finished figure, in figure space, with the parts as they were laid out.
+ */
+export interface FigureDressing {
+  dress?(anim: FigureAnim): void;
+  spec?(slot: number, spec: SpriteSpec): SpriteSpec | null;
+  after?(ctx: CanvasRenderingContext2D, parts: readonly FigurePart[]): void;
+}
+
 /** Draw laid-out parts into ctx (figure space; set up the transform first). */
-export function drawFigureParts(ctx: CanvasRenderingContext2D, parts: readonly FigurePart[]): void {
+export function drawFigureParts(ctx: CanvasRenderingContext2D, parts: readonly FigurePart[], dressing?: FigureDressing): void {
   const map = figureSpriteMap();
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i];
     if (!p.visible) continue;
-    const s = map.get(p.key);
+    const own = map.get(p.key);
+    if (!own) continue;
+    const s = dressing?.spec ? dressing.spec(i, own) : own;
     if (!s) continue;
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -103,7 +117,7 @@ const ICON_THROW = { settle: 1.0, into: 0.2 };
  * canvas's pixel size), wearing the gear of the given upgrade levels (default none) and carrying its era's arms
  * (default the nation's own). Returns false for kinds that are not stick figures.
  */
-export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear?: GearLevels, arms?: IconArms): boolean {
+export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction: FactionId, gear?: GearLevels, arms?: IconArms, dressing?: FigureDressing): boolean {
   const ctx = canvas.getContext('2d');
   if (!ctx || !isFigureKind(kind)) return false;
   const pose = ICON_POSE[kind];
@@ -112,6 +126,7 @@ export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction
   if (gear) setFigureGear(anim, gear);
   if (arms?.weapon) setFigureWeapon(anim, arms.weapon);
   if (arms?.rocketItem) setFigureRocketItem(anim, MOLOTOV_KEY);
+  dressing?.dress?.(anim);
   const input = createFigureInput(kind);
   if (arms?.rocketItem) {
     // A thrower is shown throwing, not aiming a weapon he does not carry.
@@ -140,7 +155,8 @@ export function paintUnitIcon(canvas: HTMLCanvasElement, kind: UnitKind, faction
   ctx.translate(W / 2, H / 2);
   ctx.scale(scale, scale);
   ctx.translate(-(BOUNDS[0] + BOUNDS[2]) / 2, -(BOUNDS[1] + BOUNDS[3]) / 2);
-  drawFigureParts(ctx, parts);
+  drawFigureParts(ctx, parts, dressing);
+  dressing?.after?.(ctx, parts);
   ctx.restore();
   return true;
 }

@@ -23,6 +23,11 @@ export interface UiOptions {
   paintUnitIcon?: PaintUnitIcon;
   /** Paints the battle look of an upgrade level for the Quartermaster; without it the cards show no picture. */
   paintUpgradePreview?: PaintUpgradePreview;
+  /**
+   * Paints a cosmetic item's portrait into a canvas (the Appearance tab, an opened crate); without it they show none.
+   * It may paint once more when a picture of the item has loaded, unless `alive` then says the canvas is gone.
+   */
+  paintCosmetic?: (canvas: HTMLCanvasElement, itemId: string, alive?: () => boolean) => void;
   /** Paints a nation's flag to fill a canvas (the campaign select cards); without it the cards show a plain swatch. */
   paintFlag?: (canvas: HTMLCanvasElement, flag: FactionLook['flag']) => void;
   /**
@@ -80,6 +85,10 @@ export interface ConfirmRequest {
   yes: string;
   no: string;
   onYes: () => void;
+  /** More lines under the body, each its own (a crate's chances and guarantees before it is bought). */
+  details?: string[];
+  /** True for a choice that destroys nothing (a purchase): the slip is not dressed as a warning. */
+  plain?: boolean;
 }
 
 export interface ScreenCtx {

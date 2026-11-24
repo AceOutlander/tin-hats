@@ -103,6 +103,12 @@ export const resultScreen: ScreenFactory = (ctx) => {
     );
     main.append(award);
   }
+  if (result && result.cratesEarned) {
+    // A free supply crate this win earned (only while cosmetics are switched on; it waits in the Shop).
+    const crates = el('p', 'th-type th-result-crates', result.cratesEarned);
+    crates.dataset.testid = 'result-crates';
+    main.append(crates);
+  }
   if (result && result.won && result.medals) main.append(breakdown(result.medals));
   if (result && result.sideObjectives && result.sideObjectives.length > 0) main.append(sideObjectiveList(result.sideObjectives));
 

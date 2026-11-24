@@ -7,7 +7,7 @@ import { createAudio } from './audio';
 import { App } from './app/app';
 import { debugEnabled, installDebug } from './app/debug';
 import { MENU_MUSIC } from './app/menuStorm';
-import { browserStorage, createFlagPainter, createIconPainter, createUpgradePainter, installPageGuards, showUnreleased } from './app/page';
+import { browserStorage, createCosmeticPainter, createFlagPainter, createIconPainter, createUpgradePainter, installPageGuards, showUnreleased } from './app/page';
 import { STARTUP_PROGRESS, markStartup, viewProgress } from './app/startup';
 import { withStorageFallback } from './meta';
 import { platform } from './platform';
@@ -82,6 +82,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
     paintUnitIcon: createIconPainter(app),
     paintUpgradePreview: createUpgradePainter(app),
     paintFlag: createFlagPainter(),
+    paintCosmetic: createCosmeticPainter(app),
     createHud,
     titleEmblem: admin?.markEntry,
     onScreen: (screen) => {

@@ -131,6 +131,59 @@ export function createAdminPanel(api: AdminApi, hooks: PanelHooks): AdminPanel {
         note(mode.note),
       );
     },
+    // --- Crates ---------------------------------------------------------------
+    cosmeticsSwitch(info, out) {
+      const on = info.cosmetics.enabled;
+      out.append(
+        row(btn(on ? 'Shown' : 'Show crates and Appearance', () => run({ type: 'cosmetics', on: !on }), { pressed: on, testid: 'admin-cosmetics-switch' })),
+        note('For this session only: nothing is saved, and players see neither until the switch in the data is on. They are in the Shop.'),
+      );
+    },
+    crateGrants(info, out) {
+      for (const c of info.cosmetics.crates) {
+        if (!c.available) continue;
+        const value = el('span', 'th-admin-value', `${c.held}`);
+        value.dataset.testid = `admin-crate-${c.id}-value`;
+        out.append(
+          row(
+            el('span', 'th-admin-name', c.name),
+            value,
+            ...ADMIN.chargeSteps.map((n) => btn(signed(n), () => run({ type: 'crates', id: c.id, amount: n }), { testid: `admin-crate-${c.id}-${n}`, disabled: n < 0 && c.held <= 0 })),
+          ),
+        );
+      }
+      out.append(note('Held crates are opened in the Shop, free of charge.'));
+    },
+    cosmeticItems(info, out) {
+      const value = el('span', 'th-admin-value', `${info.cosmetics.owned}/${info.cosmetics.items}`);
+      value.dataset.testid = 'admin-items-value';
+      out.append(
+        row(
+          value,
+          btn('Give every item', () => run({ type: 'cosmeticItems', op: 'giveAll' }), { testid: 'admin-items-all', disabled: info.cosmetics.owned >= info.cosmetics.items }),
+          btn('Clear items and crates', () => run({ type: 'cosmeticItems', op: 'clear' }), { testid: 'admin-items-clear', danger: true }),
+        ),
+      );
+    },
+    oddsTest(info, out) {
+      out.append(
+        row(...info.cosmetics.crates.filter((c) => c.available).map((c) => btn(c.name, () => run({ type: 'oddsTest', id: c.id }), { testid: `admin-odds-${c.id}` }))),
+        note(`Opens ${info.cosmetics.oddsRuns.toLocaleString('en')} crates one after another, guarantees and all, and counts what they held. Nothing is given or changed.`),
+      );
+      const run0 = info.odds;
+      if (!run0) return;
+      const table = el('table', 'th-admin-odds');
+      table.dataset.testid = 'admin-odds-table';
+      const head = el('tr');
+      for (const h of [run0.crate, 'Count', 'Share', 'Table', 'By guarantee']) head.append(el('th', undefined, h));
+      table.append(head);
+      for (const r of run0.rows) {
+        const tr = el('tr');
+        for (const cell of [r.rarity, r.count.toLocaleString('en'), r.share, r.table, r.guaranteed.toLocaleString('en')]) tr.append(el('td', undefined, cell));
+        table.append(tr);
+      }
+      out.append(table, note('A share above the table\'s chance is the guarantee at work: the "By guarantee" column counts the crates it raised.'));
+    },
     // --- Campaign -------------------------------------------------------------
     unlockMissions(info, out) {
       out.append(

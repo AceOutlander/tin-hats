@@ -29,6 +29,14 @@ export type AdminCommand =
   | { type: 'charges'; amount: number; kind?: SupportKind }
   | { type: 'upgrade'; id: string; level: number }
   | { type: 'resetSave' }
+  /** Show crates and the Appearance tab for this session (nothing of the switch is saved), or hide them again. */
+  | { type: 'cosmetics'; on: boolean }
+  /** Put crates of a type in the player's hands (negative takes them). */
+  | { type: 'crates'; id: string; amount: number }
+  /** Give every cosmetic item, or forget every item, crate and counter. */
+  | { type: 'cosmeticItems'; op: 'giveAll' | 'clear' }
+  /** Open a long run of one crate type's draws, guarantees and all, and count them (it owns and changes nothing). */
+  | { type: 'oddsTest'; id: string }
   | { type: 'addSupplies'; amount: number }
   | { type: 'setSupplies'; amount: number }
   | { type: 'freezeSupplies'; on: boolean }
@@ -91,7 +99,19 @@ export interface AdminSelected {
   invincible: boolean;
 }
 
+/** One long run of a crate type's draws, counted (the admin panel's odds test). */
+export interface AdminOddsRun {
+  crate: string;
+  runs: number;
+  /** Per rarity of the crate's table: how many crates held it, the share of the run, the table's own chance, and how many a guarantee raised. */
+  rows: { rarity: string; count: number; share: string; table: string; guaranteed: number }[];
+}
+
 export interface AdminInfo {
+  /** Cosmetics and crates: whether they show this session, the crates there are and those held, the items owned of all. */
+  cosmetics: { enabled: boolean; crates: { id: string; name: string; held: number; available: boolean }[]; owned: number; items: number; oddsRuns: number };
+  /** The last odds test of this session, or null. */
+  odds: AdminOddsRun | null;
   medals: number;
   /** Upgrade points to spend. */
   points: number;

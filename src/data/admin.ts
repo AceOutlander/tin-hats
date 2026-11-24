@@ -16,7 +16,7 @@ export interface AdminSquadDef {
   members: readonly { kind: UnitKind; count: number; veteran?: boolean; behind?: number }[];
 }
 
-export type AdminTabId = 'campaign' | 'battle' | 'units' | 'speed' | 'debug';
+export type AdminTabId = 'campaign' | 'crates' | 'battle' | 'units' | 'speed' | 'debug';
 
 export interface AdminEntryDef {
   /** The control the panel builds for it (src/ui/admin/panel.ts). */
@@ -107,6 +107,17 @@ export const ADMIN: AdminTunables = {
         { id: 'upgrades', label: 'Quartermaster levels' },
         { id: 'save', label: 'Save' },
         { id: 'platformTest', label: 'Platform test mode', platform: 'testMode' },
+      ],
+    },
+    {
+      // Cosmetic supply crates (src/data/cosmetics.ts, src/data/crates.ts): hidden from players until switched on.
+      id: 'crates',
+      label: 'Crates',
+      entries: [
+        { id: 'cosmeticsSwitch', label: 'Crates and Appearance' },
+        { id: 'crateGrants', label: 'Grant crates' },
+        { id: 'cosmeticItems', label: 'Items' },
+        { id: 'oddsTest', label: 'Test the odds' },
       ],
     },
     {

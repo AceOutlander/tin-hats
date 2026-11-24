@@ -2547,3 +2547,321 @@ svg.th-group-icon {
 .th-score-mark {
   text-align: right;
 }
+
+/* ------------------------------------- cosmetics: supply crates and Appearance */
+/* Nothing below is on screen while cosmetics are switched off (src/data/cosmetics.ts). */
+
+.th-tabs {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.th-tab {
+  min-height: 40px;
+  padding: 0 10px;
+  opacity: 0.72;
+}
+
+.th-tab.is-on {
+  opacity: 1;
+  color: var(--th-ink);
+  background: linear-gradient(180deg, #e3c06c 0%, var(--th-brass) 50%, #a5802c 100%);
+  border-color: #4f3d10;
+}
+
+/* A rarity, always in words with its marks; the colour is an edge, never the only sign. */
+.th-rarity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 5px 0 4px;
+  font-family: var(--th-font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 15px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: #f1ead2;
+  background: #2a2b20;
+  border-left: 4px solid var(--th-rarity, #f2f0e6);
+  border-radius: 2px;
+}
+
+.th-rarity-marks {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.th-rarity-marks i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  background: var(--th-rarity, #f2f0e6);
+  transform: rotate(45deg);
+}
+
+.th-crate-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.th-crate,
+.th-cos {
+  align-items: flex-start;
+}
+
+.th-crate-pic,
+.th-cos-pic {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: rgba(61, 55, 35, 0.14);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(61, 55, 35, 0.3);
+}
+
+.th-crate-icon,
+.th-cos-icon {
+  display: block;
+}
+
+.th-odds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  margin: 2px 0 3px;
+  padding: 0;
+  list-style: none;
+}
+
+.th-odds-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--th-font-type);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.th-odds-percent {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-crate-line {
+  margin: 1px 0 0;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: #4c452f;
+}
+
+.th-crate-note {
+  font-weight: 700;
+}
+
+.th-crate-btn {
+  width: 78px;
+  padding: 0 4px;
+}
+
+.th-crate-soon .th-btn-label {
+  font-size: 10.5px;
+  white-space: normal;
+  line-height: 1.05;
+}
+
+.th-cos.is-worn {
+  box-shadow:
+    inset 0 0 0 2px rgba(92, 101, 41, 0.9),
+    0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.th-cos-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 2px 0;
+}
+
+.th-cos-worn {
+  font-family: var(--th-font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3b4218;
+}
+
+.th-result-crates {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e3c06c;
+}
+
+/* The confirmation of a purchase: not a warning, and with the chances under it. */
+.th-confirm.is-plain .th-confirm-title {
+  color: var(--th-ink);
+}
+
+.th-confirm-details {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--th-font-type);
+  font-size: 11px;
+  line-height: 1.3;
+  color: #4c452f;
+}
+
+/* A crate being opened: over the Shop, the crate on a canvas, then what it held. */
+.th-crate-open {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--th-pad-top) var(--th-pad-right) var(--th-pad-bottom) var(--th-pad-left);
+  background: rgba(8, 9, 5, 0.9);
+  touch-action: none;
+}
+
+.th-crate-open-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.th-crate-open-skip {
+  position: absolute;
+  right: 0;
+  bottom: max(10px, var(--th-pad-bottom));
+  left: 0;
+  margin: 0;
+  font-family: var(--th-font-display);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  color: rgba(233, 223, 195, 0.75);
+  pointer-events: none;
+}
+
+.th-crate-open-skip[hidden],
+.th-crate-reveal[hidden] {
+  display: none;
+}
+
+.th-crate-reveal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 400px);
+  max-height: 100%;
+  padding: 10px 14px 12px;
+}
+
+.th-crate-reveal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.th-crate-reveal-from {
+  font-family: var(--th-font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4c452f;
+}
+
+.th-crate-reveal-head .th-rarity {
+  font-size: 14px;
+  line-height: 22px;
+  padding: 0 8px 0 6px;
+}
+
+.th-crate-reveal-head .th-rarity-marks i {
+  width: 6px;
+  height: 6px;
+}
+
+.th-crate-reveal-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+}
+
+.th-crate-reveal-pic {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  background: rgba(61, 55, 35, 0.14);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(61, 55, 35, 0.3);
+}
+
+.th-crate-reveal-text {
+  min-width: 0;
+}
+
+.th-crate-reveal-new {
+  font-family: var(--th-font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b5a22;
+}
+
+.th-crate-reveal-name {
+  margin: 0;
+  font-family: var(--th-font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+}
+
+.th-crate-reveal-for,
+.th-crate-reveal-blurb {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.25;
+  color: #4c452f;
+}
+
+.th-crate-reveal-dup {
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.th-crate-reveal .th-btn {
+  align-self: flex-end;
+  min-width: 96px;
+}
+
+/* The result stands to the right of the opened crate, which slides to the left to make room. */
+.th-crate-open[data-phase='revealed'] {
+  justify-content: flex-end;
+}
+
+.th-crate-open[data-phase='revealed'] .th-crate-reveal {
+  width: min(54%, 400px);
+  margin-right: 2%;
+}

@@ -344,3 +344,24 @@
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* The odds test's counts (the Crates tab). */
+.th-admin-odds {
+  width: 100%;
+  margin: 4px 0;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-admin-odds th,
+.th-admin-odds td {
+  padding: 2px 6px 2px 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.th-admin-odds th:first-child,
+.th-admin-odds td:first-child {
+  text-align: left;
+}

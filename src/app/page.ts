@@ -4,12 +4,13 @@
  */
 import { paintUnitPortrait } from '../art/icons';
 import { FLAG_KEYS, flagSpecs, type FlagId } from '../art/structures/flags';
+import { paintCosmeticPreview } from '../art/skinPreview';
 import { paintUpgradePreview } from '../art/upgradePreview';
 import type { GameAudio } from '../audio';
 import { CAMPAIGNS } from '../data/campaigns';
 import { isVehicleKind, missionEra } from '../data/eras';
 import type { FactionId, Side, UnitKind } from '../data/schema';
-import { createMemoryStorage, type StorageLike } from '../meta';
+import { cosmeticItem, createMemoryStorage, type StorageLike } from '../meta';
 import { extraUnitSlot } from '../platform/extraUnit';
 import type { App } from './app';
 
@@ -60,6 +61,19 @@ export function createIconPainter(app: App): (canvas: HTMLCanvasElement, kind: U
     const weapon = era?.weapon[kind];
     const rocketItem = era?.rocketItem[kind];
     paintUnitPortrait(canvas, kind, faction, undefined, look, weapon || rocketItem ? { ...(weapon ? { weapon } : {}), ...(rocketItem ? { rocketItem } : {}) } : undefined);
+  };
+}
+
+/**
+ * The painter the UI calls for a cosmetic item's portrait (the Appearance tab, an opened crate): what the item
+ * dresses, drawn with its look, as the nation of the campaign on the map (or the enemy, for an enemy item).
+ */
+export function createCosmeticPainter(app: App): (canvas: HTMLCanvasElement, itemId: string, alive?: () => boolean) => void {
+  return (canvas, itemId, alive) => {
+    const item = cosmeticItem(itemId);
+    if (!item) return;
+    const [own, enemy] = menuFactions(app);
+    paintCosmeticPreview(canvas, item, own, enemy, alive);
   };
 }
 

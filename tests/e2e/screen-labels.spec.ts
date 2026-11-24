@@ -253,6 +253,93 @@ for (const size of SIZES) {
       expect(problems).toEqual([]);
     });
 
+    test('the Shop with supply crates and the Appearance tab (switched on for the test): every word fits', async ({ page, problems }) => {
+      await fullSave(page);
+      await open(page);
+      // Cosmetics are hidden in the live game (src/data/cosmetics.ts): switched on here, every item owned, crates held.
+      await page.evaluate(() => {
+        const c = (window as unknown as Hooked).__TH?.cosmetics;
+        c?.enable(true);
+        c?.giveItems();
+        c?.giveCrates('standard', 12);
+        c?.giveCrates('titan', 3);
+        (window as unknown as Hooked).__TH?.giveMedals(190_000);
+      });
+      await tap(page, 'play');
+      await settled(page);
+      await tapIn(page, 'campaigns', 'campaign-stalingrad');
+      await expect(arrived(page, 'campaign')).toBeVisible();
+      await settled(page);
+      await tapIn(page, 'campaign', 'armoury');
+      await settled(page);
+      const shop = '.th-screen.is-in[data-screen="armoury"]';
+      await expect(page.getByTestId('crate-section')).toBeVisible();
+      const words = ['.th-up-name', '.th-up-desc', 'button', '.th-btn-label', '.th-btn-sub', '.th-group', '.th-store-msg', '.th-rarity', '.th-odds-row', '.th-crate-line', '.th-cos-worn', '.th-bar-title', '.th-points'];
+      const cards: Array<[string, string]> = [
+        [`${shop} .th-up-text`, `${shop} .th-up-side`],
+        [`${shop} .th-crate-pic`, `${shop} .th-up-text`],
+        [`${shop} .th-cos-pic`, `${shop} .th-up-text`],
+        [`${shop} .th-crate`, `${shop} .th-crate`],
+        [`${shop} .th-cos`, `${shop} .th-cos`],
+        [`${shop} .th-odds-row`, `${shop} .th-odds-row`],
+        // The bar: the back button, the title, the two tabs and the medals, side by side.
+        [`${shop} .th-bar > *`, `${shop} .th-bar > *`],
+        [`${shop} .th-tab`, `${shop} .th-tab`],
+      ];
+      const fits = async (when: string): Promise<void> => {
+        expect(await page.evaluate(spills, words.map((w) => `${shop} ${w}`)), `words, ${when}`).toEqual([]);
+        expect(await page.evaluate(overlaps, cards), `cards, ${when}`).toEqual([]);
+        const width = await page.evaluate(() => {
+          const screen = document.querySelector('.th-screen.is-in[data-screen="armoury"]') as HTMLElement;
+          const list = screen.querySelector('.th-qm-list') as HTMLElement;
+          const box = list.getBoundingClientRect();
+          const wide = [...list.querySelectorAll('.th-crates *, .th-cos-group *')].filter((n) => {
+            const r = n.getBoundingClientRect();
+            return r.width > 0 && (r.left < box.left - 1 || r.right > box.right + 1);
+          }).length;
+          const bar = screen.querySelector('.th-bar') as HTMLElement;
+          return { wide, sideways: list.scrollWidth - list.clientWidth, bar: bar.scrollWidth - bar.clientWidth };
+        });
+        expect(width, `widths, ${when}`).toEqual({ wide: 0, sideways: 0, bar: 0 });
+      };
+      await fits('the crate section');
+
+      // The confirmation: its words inside the slip, the slip inside the screen, the two buttons side by side.
+      await tapIn(page, 'armoury', 'crate-buy-premium');
+      await expect(page.getByTestId('confirm-yes')).toBeVisible();
+      await page.waitForTimeout(300);
+      expect(await page.evaluate(spills, ['.th-confirm-title', '.th-confirm-body', '.th-confirm-details li', '.th-confirm button', '.th-confirm .th-btn-label']), 'the confirmation').toEqual([]);
+      expect(await page.evaluate(overlaps, [['.th-confirm button', '.th-confirm button'], ['.th-confirm-details', '.th-confirm-actions'], ['.th-confirm-body', '.th-confirm-details']] as Array<[string, string]>), 'the confirmation').toEqual([]);
+      const inside = (selector: string) =>
+        page.evaluate((sel) => {
+          const r = (document.querySelector(sel) as HTMLElement).getBoundingClientRect();
+          return r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
+        }, selector);
+      expect(await inside('.th-confirm'), 'the confirmation is wholly on screen').toBe(true);
+
+      // The opening's result: the slip on screen beside the crate, every word inside it.
+      await tap(page, 'confirm-yes');
+      await expect(page.getByTestId('crate-opening')).toBeVisible();
+      await page.touchscreen.tap(60, 200);
+      await expect(page.getByTestId('crate-reveal')).toBeVisible();
+      await page.waitForTimeout(500);
+      const reveal = ['.th-crate-reveal-from', '.th-crate-reveal .th-rarity', '.th-crate-reveal-name', '.th-crate-reveal-for', '.th-crate-reveal-blurb', '.th-crate-reveal-dup', '.th-crate-reveal button', '.th-crate-reveal .th-btn-label'];
+      expect(await page.evaluate(spills, reveal), 'the opened crate').toEqual([]);
+      expect(await page.evaluate(overlaps, [['.th-crate-reveal-body', '.th-crate-reveal button'], ['.th-crate-reveal-head', '.th-crate-reveal-body'], ['.th-crate-reveal-pic', '.th-crate-reveal-text']] as Array<[string, string]>), 'the opened crate').toEqual([]);
+      expect(await inside('.th-crate-reveal'), 'the opened crate\'s slip is wholly on screen').toBe(true);
+      await tap(page, 'crate-done');
+      await expect(page.getByTestId('crate-opening')).toHaveCount(0);
+
+      // The Appearance tab, with every item owned and some worn.
+      await tapIn(page, 'armoury', 'shop-tab-appearance');
+      await expect(page.getByTestId('appearance-group-own')).toBeVisible();
+      await tapIn(page, 'armoury', 'cosmetic-wear-placeholder-legendary-1');
+      await tapIn(page, 'armoury', 'cosmetic-wear-placeholder-epic-1');
+      await page.waitForTimeout(300);
+      await fits('the Appearance tab');
+      expect(problems).toEqual([]);
+    });
+
     test('battle: order, call-in and unit buttons fit, and the tray stays clear of the orders', async ({ page, problems }) => {
       await fullSave(page);
       await open(page);
