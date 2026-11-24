@@ -183,8 +183,19 @@ Owner, verbatim (2026-11-18):
 - He walks with a slightly slower, heavier-looking stride (animation only).
 - Purely cosmetic: the same speed, health, damage, fire rate and everything else as the normal DP Gunner.
 
-Status: design note only. Don't build it yet. The reference photo did not arrive with the note; ask the owner for it
-before drawing.
+Status: design note only. Don't build it yet.
+
+What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
+owner has it):
+
+- A heavy helmet seen from the side: a deep, rounded dome in matt olive green that comes low over the ears and
+  the back of the neck.
+- A thick, flat-faced visor plate across the whole face, hinged on a round pivot at each temple so it can flip
+  up. It is as deep as the face and stands a little proud of the dome.
+- One narrow horizontal eye slit near the top of the visor; no other opening.
+- A white stencilled code on the side of the visor: a letter over a short line over three digits. Ours is an
+  original code of the same kind (a letter and digits of our own choosing), never the one in the photo.
+- The paint is slightly rough and worn.
 
 Note for whoever builds it (not the owner's words): the heavier stride is a change of pose and timing of the
 legs only. He must cover the same ground in the same time as the normal DP Gunner, so the feet must not appear
@@ -228,8 +239,21 @@ Owner, verbatim (2026-11-18):
 - No symbols or emblems.
 - Purely cosmetic: same size, hitbox, speed, range, damage and everything else as the normal flamethrower.
 
-Status: design note only. Don't build it yet. The reference image did not arrive with the note; ask the owner for
-it before drawing. It is for the general idea only: nothing of its design, colours or emblem may be copied.
+Status: design note only. Don't build it yet.
+
+What the reference image shows (general idea only; it is someone else's character artwork, is not in the repo,
+and nothing of its design, colours or emblem may be copied; the owner has it):
+
+- A tall humanoid robot holding a large flamethrower in both hands, with a thick hose looping from the weapon to
+  its back, and a burst of flame at the muzzle.
+- Built of riveted flat plates with visible joints at the shoulders, elbows, hips and knees.
+- A small rounded head with two glowing eyes and breathing tubes; wide pointed shoulder plates; an emblem on the
+  chest; cream and dark red paint; two-toed feet.
+
+What ours takes from it is only the idea: a riveted robot with a flame weapon and a hose. Everything the owner
+wrote above replaces the rest: soot-black steel and bronze, a round furnace-hatch head with one orange grille, a
+tank built into the back with two hoses, a two-barrelled cannon, shoulder exhausts, a normal soldier's size and
+shape, and no emblem anywhere. Ours has no twin eyes, no tubes, no pointed shoulder plates and none of its colours.
 
 Notes for whoever builds it (not the owner's words): every death of this skin leaves parts and no blood, whatever
 the blood setting. The footsteps and the steam hiss are sounds a normal flamethrower does not make; keep them no
@@ -247,8 +271,21 @@ Owner, verbatim (2026-11-18):
 - Pistons hiss softly when he stops or kneels.
 - Purely cosmetic: same size, hitbox, speed, health, damage, fire rate and everything else as the normal Rifleman.
 
-Status: design note only. Don't build it yet. The reference image did not arrive with the note; ask the owner for
-it before drawing. It is for the general idea only: nothing of its design may be copied.
+Status: design note only. Don't build it yet.
+
+What the reference image shows (general idea only; it is a fan drawing of the powered suit from a 2014 film, so
+the design belongs to that film; it is not in the repo and nothing of it may be copied; the owner has it):
+
+- A soldier in a heavy powered frame: metal struts along the arms and legs with joints at the shoulders, elbows,
+  hips and knees, worn over body armour with pouches.
+- Guns mounted on the forearms and on arms that rise over the shoulders; a full-face helmet with a skull-like
+  mask.
+
+What ours takes from it is only the idea of a man inside a powered frame. The owner's design above is a much
+lighter thing and must look it: an open, thin steel frame over ordinary battledress, small pistons at knees and
+elbows, a compact back pack with a cool-white glow, the British dish helmet with a clear visor, and one compact
+gun in the right forearm. Ours has no shoulder-mounted guns, no mask, no heavy armour, and its frame layout and
+proportions are our own. Compare the finished art with stills of that film's suit before it ships.
 
 Notes for whoever builds it (not the owner's words): this is the first skin that removes the held weapon, so every
 rifleman pose (aim standing, kneeling, prone, in a trench, at a window, reloading, carrying) needs an arm-gun
