@@ -16,6 +16,7 @@
  */
 import type { Side, SupportKind } from '../data/schema';
 import type { MenuStormState } from '../fx';
+import type { WornLooks } from '../meta';
 import type { Battle } from '../sim';
 import type { HpReveal } from './hpReveal';
 
@@ -46,6 +47,11 @@ export interface AttachOptions {
   weather?: WeatherMode;
   /** Seed for everything purely visual (backdrop details, animation variety, effects). */
   visualSeed: number;
+  /**
+   * What the player wears (src/meta/cosmetics.ts resolveWorn): per side, the cosmetic item drawn on each unit kind and
+   * on the HQ. Absent or null: everything is drawn as the game draws it. The view is the only thing that hears of it.
+   */
+  skins?: WornLooks | null;
 }
 
 /** What a tap on the battlefield is for while a support is being aimed. */
@@ -118,6 +124,11 @@ export interface RenderStats {
   speechBubbles: number;
   /** True once the pictures of a platform's extra unit have been made into textures (never at startup). */
   extraUnitPictures: boolean;
+  /**
+   * Cosmetics in this battle: unit views and HQs drawn with an item worn, the repainted pictures and the owner's
+   * pictures made into textures so far (none before a battle that wears something), and pictures still loading.
+   */
+  skins: { units: number; hqs: number; sprites: number; images: number; loading: number };
   /** Particle images drawn last frame. */
   particles: number;
   /** Particles alive in the system (drawn or waiting out a delay). */

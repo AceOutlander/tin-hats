@@ -49,6 +49,7 @@ import { BuildingViews } from './buildings';
 import { ObstacleViews } from './obstacles';
 import { obstaclesNeeded } from '../data/obstacles';
 import { obstacleSpecs } from '../art/structures/obstacles';
+import { SkinStore } from './skins';
 import { StructureViews } from './structures';
 import { UnitViews } from './units';
 import { WeatherView } from './weather';
@@ -103,6 +104,8 @@ export class BattleViewImpl implements BattleView {
   private registry: SpriteRegistry | null = null;
   private backdrop: BackdropView | null = null;
   private units: UnitViews | null = null;
+  /** What is worn in the battle on show (cosmetics): only ever a matter of which picture a view draws. */
+  private skins: SkinStore | null = null;
   private structures: StructureViews | null = null;
   private points: PointViews | null = null;
   private buildings: BuildingViews | null = null;
@@ -282,12 +285,15 @@ export class BattleViewImpl implements BattleView {
     }
     this.backdrop = new BackdropView(scene, layers);
     await nextTask();
+    this.skins = new SkinStore(reg);
     this.units = new UnitViews(scene, layers, reg);
+    this.units.skins = this.skins;
     this.units.blood.setEnabled(this.showBlood);
     this.units.hpReveal = this.hpReveal;
     await nextTask();
     progress(S.atlasShare + (1 - S.atlasShare) * 0.4);
     this.structures = new StructureViews(scene, layers, reg);
+    this.structures.skins = this.skins;
     this.points = new PointViews(scene, layers, reg);
     this.buildings = new BuildingViews(scene, layers, reg);
     this.obstacles = new ObstacleViews(scene, layers, reg);
@@ -453,6 +459,10 @@ export class BattleViewImpl implements BattleView {
     this.obstaclesOn = obstaclesNeeded(mission);
     if (this.obstaclesOn) specs.push(...obstacleSpecs());
     if (specs.length > 0) this.registry.addAtlas(BATTLE_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
+    // What the player wears, if anything: handed to the views before they dress an HQ or a unit. A battle that wears
+    // nothing makes nothing here.
+    this.skins?.setWorn(opts.skins ?? null);
+    this.skins?.know(specs);
     this.structures.build(state, earth, looks);
     if (this.obstaclesOn) this.obstacles?.build(state);
     this.points?.build(state);
@@ -503,6 +513,7 @@ export class BattleViewImpl implements BattleView {
       this.effects.ctx.sound.stopLoops();
       this.effects.ctx.sound.reset();
     }
+    this.skins?.setWorn(null);
     this.registry?.removeGroup(BATTLE_GROUP);
     this.registry?.removeGroup(BUILDING_GROUP);
     if (this.nightTint) this.nightTint.visible = false;
@@ -609,6 +620,8 @@ export class BattleViewImpl implements BattleView {
       }
       this.buildSites?.update(state, this.placing);
       this.units.update(state, a, dt, left, left + viewW);
+      // Pictures a worn cosmetic asked for this frame become textures now (nothing in a battle that wears nothing).
+      this.skins?.flush();
       if (this.skyView) {
         this.skyView.update(state, dt, left, viewW, this.effects.enabled, ctx.night);
         if (this.skyView.nightAlpha >= 0) this.nightAlpha = this.skyView.nightAlpha;
@@ -874,6 +887,7 @@ export class BattleViewImpl implements BattleView {
       tracers: this.effects?.ctx.tracers.count ?? 0,
       speechBubbles: this.effects?.ctx.speech.shown() ?? 0,
       extraUnitPictures: this.units?.hasExtraUnit() ?? false,
+      skins: { units: this.units?.skinned() ?? 0, hqs: this.structures?.skinned() ?? 0, ...(this.skins?.stats() ?? { sprites: 0, images: 0, loading: 0 }) },
       particles: this.effects?.particleCount() ?? 0,
       particlesLive: this.effects?.ctx.particles.count ?? 0,
       quality: this.quality.level,

@@ -71,6 +71,7 @@ export function createFakeView(): FakeView {
     quality: 0,
     speechBubbles: 0,
     extraUnitPictures: false,
+    skins: { units: 0, hqs: 0, sprites: 0, images: 0, loading: 0 },
     atlasPages: 0,
     atlasPixels: 0,
     backdropPixels: 0,

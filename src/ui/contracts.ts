@@ -286,6 +286,100 @@ export interface ArmouryItemView {
   lockedNote?: string;
 }
 
+/** A rarity as the screens show it: always its name and its marks, never the colour alone. */
+export interface RarityView {
+  id: string;
+  name: string;
+  /** '#rrggbb'. */
+  colour: string;
+  /** How many marks stand beside the name. */
+  marks: number;
+}
+
+/** One line of a crate's table: a rarity and its exact chance ("45.9%"). */
+export interface CrateOddsView extends RarityView {
+  percent: string;
+}
+
+/** One crate in the Shop's crate section. */
+export interface CrateCardView {
+  id: string;
+  name: string;
+  blurb: string;
+  /** In medals. */
+  price: number;
+  /** '#rrggbb' its wood is painted in; null = the Standard Crate's own olive. */
+  tint: string | null;
+  /** Its whole table, lowest rarity first. */
+  odds: CrateOddsView[];
+  /** One line per guarantee, with how far away it is now; a single line saying so when it has none. */
+  guarantees: string[];
+  /** Unopened crates of this type held (free ones, granted ones). */
+  held: number;
+  /**
+   * buy: can be bought now. short: not enough medals. soon: "Coming soon", never bought. none: crates are not sold
+   * here (the ones held can still be opened).
+   */
+  state: 'buy' | 'short' | 'soon' | 'none';
+  /** A note that the player owns everything it can hold, or null. */
+  completeNote: string | null;
+}
+
+/** The Shop's crate section. Absent from the campaign view while the feature is switched off. */
+export interface CratesView {
+  heading: string;
+  intro: string;
+  cards: CrateCardView[];
+  /** The words of the buttons, the confirmation and the opening (src/data/crates.ts). */
+  text: {
+    buy: string;
+    open: string;
+    held: string;
+    comingSoon: string;
+    oddsHeading: string;
+    confirmTitle: string;
+    confirmBody: string;
+    confirmYes: string;
+    confirmNo: string;
+    skip: string;
+    done: string;
+    newItem: string;
+  };
+}
+
+/** One owned item in the Appearance tab. */
+export interface CosmeticCardView {
+  id: string;
+  name: string;
+  blurb: string;
+  rarity: RarityView;
+  /** What it dresses, in words: "Riflemen, Conscripts · every nation". */
+  appliesTo: string;
+  /** Which heading it stands under. */
+  group: 'own' | 'enemy' | 'hq';
+  worn: boolean;
+  placeholder: boolean;
+}
+
+/** The Appearance tab. Absent from the campaign view while the feature is switched off. */
+export interface AppearanceView {
+  items: CosmeticCardView[];
+  text: { tab: string; shopTab: string; heading: string; empty: string; wear: string; takeOff: string; worn: string; own: string; enemy: string; hq: string; placeholder: string };
+}
+
+/** What an opened crate held: decided and saved before the opening is shown, which only shows it. */
+export interface CrateOpenedView {
+  crate: { id: string; name: string; tint: string | null };
+  rarity: RarityView;
+  /** The item given, or null when the roll was a duplicate (then `medals` were given). */
+  item: { id: string; name: string; blurb: string; appliesTo: string } | null;
+  medals: number;
+  /** The line under a duplicate, filled in. */
+  duplicateLine: string;
+  /** "Reduce flashing" is on: the flash is a slow soft glow. */
+  reduced: boolean;
+}
+
 /** One part of a win's score on the victory screen. */
 export interface ScorePartView {
   value: number;
@@ -430,6 +524,10 @@ export interface CampaignView {
   armoury?: ArmouryItemView[];
   /** Basic Training, the standalone tutorial on the title screen. */
   training?: TrainingView;
+  /** The Shop's crate section; absent while cosmetics are switched off (src/data/cosmetics.ts). */
+  crates?: CratesView;
+  /** The Appearance tab; absent while cosmetics are switched off. */
+  appearance?: AppearanceView;
 }
 
 /** Basic Training as the title screen shows it. */
@@ -463,6 +561,8 @@ export interface ResultView {
   training?: boolean;
   /** The mission's side objectives and whether each was earned (absent when it has none). */
   sideObjectives?: { text: string; done: boolean; bonus: number }[];
+  /** A line for the free crates this win earned ("Supply crate earned"); absent when it earned none. */
+  cratesEarned?: string;
 }
 
 /** Implemented by src/app, called by the UI. */
@@ -495,6 +595,16 @@ export interface AppApi {
   dispatch(action: HudAction): void;
   /** Play a short UI sound (button click etc.). */
   uiSound(name: 'click' | 'deny' | 'confirm'): void;
+  /**
+   * Buy a crate with medals and open it, or open one that is held. What it held is decided and saved before this
+   * returns; null when it could not be done (nothing changed). Optional so older stand-ins of the app still fit.
+   */
+  buyCrate?(id: string): CrateOpenedView | null;
+  openCrate?(id: string): CrateOpenedView | null;
+  /** Wear an owned item on everything it dresses, or take it off. */
+  wearCosmetic?(id: string, on: boolean): void;
+  /** A sound of a crate being opened: the padlock shaking, torn off, the lid bursting (louder for a higher rarity). */
+  crateSound?(step: 'shake' | 'rip' | 'burst', rarity: string): void;
 }
 
 /** Implemented by src/ui (createUi), called by the app glue. */

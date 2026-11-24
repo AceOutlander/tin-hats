@@ -40,6 +40,8 @@ import { addImage, type Layers } from './layers';
 import { RENDER_KEYS, WHITE_SIZE } from './sprites';
 import { WireWreck, pieceLag } from './wireRules';
 import { hqFlag, trenchPennant } from './flagMounts';
+import type { SkinStore, WornSkin } from './skins';
+import { SkinOverlays } from './units';
 
 type Img = Phaser.GameObjects.Image;
 
@@ -167,6 +169,10 @@ class HqView {
   state: DamageState | '' = '';
   /** Show the ruin although the HQ still has health (the battle ended another way). */
   forcedRuin = false;
+  /** The cosmetic item this HQ wears (null: none), the key its building shows now, and the item's pictures and glows. */
+  skin: WornSkin | null = null;
+  wornKey = '';
+  overlays: SkinOverlays | null = null;
 
   constructor(scene: Phaser.Scene, layers: Layers, reg: SpriteRegistry, faction: FactionId, style: AnyHqStyle, gunStyle: HqGunStyle) {
     this.faction = faction;
@@ -190,6 +196,7 @@ class HqView {
     this.gun.destroy();
     this.flag.destroy();
     this.flash.destroy();
+    if (this.overlays) for (const img of this.overlays.images) img.destroy();
   }
 }
 
@@ -201,7 +208,53 @@ export interface GunPoint {
 }
 
 export class StructureViews {
+  /** What is worn in this battle (src/render/skins.ts); the battle view hands in its own. Null: nothing ever is. */
+  skins: SkinStore | null = null;
   private hqs: (HqView | null)[] = [null, null];
+
+  /** HQs drawn with a cosmetic item (for the debug hooks). */
+  skinned(): number {
+    let n = 0;
+    for (const hv of this.hqs) if (hv && hv.skin) n++;
+    return n;
+  }
+
+  /**
+   * An HQ that wears a cosmetic item: its building in the item's paint once that is a texture (the ruin stays the
+   * game's own), left undrawn while it stands if a picture replaces it, and the item's pictures and glows on it.
+   */
+  private dressHq(hv: HqView, skin: WornSkin, st: DamageState, dt: number): void {
+    const base = hqKeyOf(hv.style, hv.faction, st);
+    const standing = st !== 'ruin';
+    const frame = standing ? skin.frameFor('hq', base) : null;
+    const key = frame !== null && frame.ready ? frame.key : base;
+    if (key !== hv.wornKey) {
+      setKey(hv.img, this.reg, key, hv.dir);
+      hv.wornKey = key;
+    }
+    hv.img.visible = !(standing && skin.hidden.has('hq'));
+    const list = skin.overlays;
+    if (list.length === 0) return;
+    if (!hv.overlays) {
+      hv.overlays = new SkinOverlays(this.reg, this.scene);
+      hv.overlays.reset(hv.dir);
+    }
+    const ov = hv.overlays;
+    if (!standing) {
+      ov.hide();
+      return;
+    }
+    ov.clock += dt;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      if (o.def.pin !== 'hq') continue;
+      ov.ensure(n, this.layers.byName.structures);
+      ov.place(n, o, hv.artX, VIEW.groundY, 1, hv.dir, 0, 0, 0, 1, false);
+      n++;
+    }
+    ov.hide(n);
+  }
   private readonly dumps: Img[] = [];
   private readonly trenchBack: Img[] = [];
   private readonly trenchFront: Img[] = [];
@@ -450,6 +503,8 @@ export class StructureViews {
       if (!s.hq) continue;
       const hv = new HqView(this.scene, this.layers, reg, s.faction, hqStyleFor(state, side, looks), lookStyle(looks[side], 'hqGun'));
       hv.dir = dirOf(side);
+      const skins = this.skins;
+      hv.skin = skins !== null && skins.active ? skins.skinFor(side, 'hq') : null;
       hv.artX = s.hq.doorX - hv.dir * hqLayoutOf(hv.style).doorX;
       hv.img.x = hv.artX;
       hv.img.y = gy;
@@ -585,9 +640,11 @@ export class StructureViews {
       if (st !== hv.state) {
         hv.state = st;
         setKey(hv.img, reg, hqKeyOf(hv.style, hv.faction, st), hv.dir);
+        hv.wornKey = '';
         setKey(hv.gun, reg, hqGunKey(hv.gunStyle, hv.faction, st === 'ruin' ? 'ruin' : 'intact'), hv.dir);
         hv.flag.setVisible(st !== 'ruin');
       }
+      if (hv.skin !== null) this.dressHq(hv, hv.skin, st, dt);
       const L = hqLayoutOf(hv.style);
       if (st !== 'ruin') {
         // Hung by its hoist from the top of the pole the HQ sprite draws (src/render/flagMounts.ts).

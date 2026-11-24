@@ -10,6 +10,8 @@
 import type { GameAudio } from '../audio';
 import { APP } from '../data/app';
 import { CAMPAIGNS } from '../data/campaigns';
+import { COSMETICS } from '../data/cosmetics';
+import { CRATES, crateDef, type CrateId } from '../data/crates';
 import { DIFFICULTY_LIST } from '../data/difficulty';
 import { STALINGRAD_MISSIONS } from '../data/missions/stalingrad';
 import { BASIC_TRAINING_DIFFICULTY, BASIC_TRAINING_ID, trainingMission } from '../data/missions/training';
@@ -21,15 +23,20 @@ import { UI_SOUND } from '../data/sounds';
 import { UPGRADES } from '../data/upgrades';
 import {
   addCharges,
+  addCrates,
   addMedals,
   addPoints,
   applyRoster,
   buyCharge,
+  buyCrate,
   buyUpgrade,
   cleanSetting,
   clearSave,
   completeTraining,
   defaultSave,
+  giveItem,
+  grantCrateOnce,
+  grantItemOnce,
   grantMedalsOnce,
   isUnlocked,
   loadSave,
@@ -39,22 +46,31 @@ import {
   newsFor,
   withNews,
   nextMissionId,
+  openHeld,
   recordClear,
   recordWin,
   sanitizeSave,
   refundAll,
   refundUpgrade,
+  resolveWorn,
+  simulateOdds,
+  syncFreeCrates,
+  takeOffItem,
   toggleLoadout,
+  wearItem,
   writeSave,
+  type CrateResult,
   type GrantOutcome,
+  type OddsRun,
   type MedalBreakdown,
   type SaveData,
   type StorageLike,
 } from '../meta';
 import type { BattleView, WeatherMode } from '../render/contracts';
 import { createBattle, directorScore, structureHealth } from '../sim';
-import type { AppApi, CampaignView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
+import type { AppApi, CampaignView, CrateOpenedView, HudAction, ResultView, ScreenId, SettingsView, UiApi } from '../ui/contracts';
 import { buildCampaignCards, buildCampaignView, buildResult, buildUpcomingCards, progressOf } from './campaignView';
+import { buildAppearanceView, buildCratesView, crateOpenedView, cratesEarnedLine } from './cosmeticsView';
 import { FpsMeter } from './fpsMeter';
 import { GameLoop } from './loop';
 import { MENU_MUSIC, MenuStormDirector } from './menuStorm';
@@ -100,6 +116,16 @@ export interface AppDeps {
    * Default: never (the website has no such unit).
    */
   extraUnit?: () => boolean;
+  /**
+   * Whether crates, the Appearance tab and what is worn are on at all. Default: the data's switch (COSMETICS.enabled),
+   * which is off; tests and the admin panel switch it on for their own session (setCosmeticsEnabled).
+   */
+  cosmetics?: boolean;
+  /**
+   * Whether crates may be bought with medals here, asked each time the Shop is drawn and each time one is asked for
+   * (a platform may say no; the free ones stay). Default: yes.
+   */
+  crateBuying?: () => boolean;
   /** Clock for the frame-time averages. */
   now?: () => number;
   /** Random numbers in 0..1 for battle seeds. */
@@ -162,6 +188,12 @@ export class App implements AppApi {
   private readonly extraUnit: () => boolean;
   /** Offer unreleased campaigns (AppDeps.showUnreleased). */
   private readonly showUnreleased: boolean;
+  /** Cosmetics and crates are on (AppDeps.cosmetics; setCosmeticsEnabled). */
+  private cosmeticsOn: boolean;
+  /** Whether crates may be bought here (AppDeps.crateBuying). */
+  private readonly crateBuying: () => boolean;
+  /** The crate opened last, for the debug hooks. */
+  lastCrate: CrateResult | null = null;
   /** A battle let go of the menu theme's buffer: the title renders it again. */
   private menuReleased = false;
   /** Counts battle-music loads; a load whose number is no longer current was let go of or taken over. */
@@ -182,7 +214,11 @@ export class App implements AppApi {
     this.upgradeDefs = deps.upgradeDefs ?? UPGRADES;
     this.extraUnit = deps.extraUnit ?? (() => false);
     this.random = deps.random ?? Math.random;
+    this.cosmeticsOn = deps.cosmetics ?? COSMETICS.enabled;
+    this.crateBuying = deps.crateBuying ?? (() => true);
     this.save = loadSave(deps.storage, this.saveRules).data;
+    // Free crates the save's progress earned before they were switched on (nothing while they are off).
+    this.syncFreeCrates();
     // The map opens on the campaign of the mission last played, else on the first one offered.
     this.campaignId = (this.campaignFor(this.save.lastMission) ?? this.offered[0] ?? this.campaigns[0]).id;
     this.storm = new MenuStormDirector(this.view, this.audio, () => this.ui);
@@ -370,7 +406,9 @@ export class App implements AppApi {
       // not in Basic Training (its lessons point at the buttons of a fixed bar).
       extraUnit: !isTraining(mission) && this.extraUnit(),
     });
-    this.view.attach(battle, { playerSide: 0, weather: this.weatherMode, visualSeed: seed + APP.visualSeedOffset });
+    // What the player wears, for the view alone: the battle above was made without it and never hears of it.
+    const skins = this.cosmeticsOn ? resolveWorn(this.save, [battle.state.sides[0].faction, battle.state.sides[1].faction]) : null;
+    this.view.attach(battle, { playerSide: 0, weather: this.weatherMode, visualSeed: seed + APP.visualSeedOffset, ...(skins ? { skins } : {}) });
     this.view.setAudio(this.audio);
     this.view.setDarkness(0);
     this.darkness = 0;
@@ -481,6 +519,9 @@ export class App implements AppApi {
     this.audio.endBattleMusic(session.battle.state.winner === 0, false);
     const result = buildResult(session.battle, session.difficulty, points, training ? null : nextMissionId(ids, mission.id), medals);
     if (training) result.training = true;
+    // Free crates this win's progress earned (a first win of a mission, a campaign completed): given and saved here.
+    const crates = medals ? this.syncFreeCrates() : 0;
+    if (crates > 0) result.cratesEarned = cratesEarnedLine(crates);
     this.pendingResult = result;
     this.lastResult = result;
   }
@@ -605,6 +646,12 @@ export class App implements AppApi {
     view.map = def.map;
     // The playable campaigns, then the greyed "Coming soon" ones (owner, 2026-11-09).
     view.campaigns = [...buildCampaignCards(this.save, this.offered, c.id), ...buildUpcomingCards()];
+    // Crates and the Appearance tab are in the view only while they are switched on: a screen that finds neither shows
+    // nothing of them.
+    if (this.cosmeticsOn) {
+      view.crates = buildCratesView(this.save, this.crateBuying());
+      view.appearance = buildAppearanceView(this.save, def.nation);
+    }
     return view;
   }
 
@@ -711,6 +758,7 @@ export class App implements AppApi {
   /** Take in a save that sanitizeSave has already checked (the admin panel's import): stored, applied and shown. */
   replaceSave(data: SaveData): void {
     this.save = data;
+    if (this.cosmeticsOn) syncFreeCrates(this.save, this.campaignIds);
     this.persist();
     this.applySettings();
     this.ui?.refresh();
@@ -796,6 +844,132 @@ export class App implements AppApi {
     return 'granted';
   }
 
+  // --- cosmetics and crates ----------------------------------------------------
+
+  /** True while crates, the Appearance tab and what is worn are on. */
+  get cosmeticsEnabled(): boolean {
+    return this.cosmeticsOn;
+  }
+
+  /**
+   * Switch cosmetics and crates on or off for this session (the debug hooks and the admin panel; nothing of the
+   * switch is saved). Switching on hands out the free crates the save's progress has already earned.
+   */
+  setCosmeticsEnabled(on: boolean): void {
+    if (this.cosmeticsOn === on) return;
+    this.cosmeticsOn = on;
+    this.syncFreeCrates();
+    this.ui?.refresh();
+  }
+
+  /** Every campaign's mission ids (free crates count them all). */
+  private get campaignIds(): number[][] {
+    return this.campaigns.map((c) => c.missions.map((m) => m.id));
+  }
+
+  /** Hand out the free crates earned and not yet given, and save. Returns how many (0 while cosmetics are off). */
+  private syncFreeCrates(): number {
+    if (!this.cosmeticsOn) return 0;
+    const given = syncFreeCrates(this.save, this.campaignIds);
+    if (given > 0) this.persist();
+    return given;
+  }
+
+  private opened(result: CrateResult | null): CrateOpenedView | null {
+    if (!result) return null;
+    // Decided and written before anything is shown: a skip, a crash or closing the game cannot change or lose it.
+    this.persist();
+    this.lastCrate = result;
+    return crateOpenedView(result, CAMPAIGNS[this.current.id].nation, this.save.settings.reduceFlash);
+  }
+
+  /** Buy a crate with medals and open it. Null (nothing changed) while crates are off, not sold here, or it cannot be bought. */
+  buyCrate(id: string): CrateOpenedView | null {
+    if (!this.cosmeticsOn || !this.crateBuying()) return null;
+    return this.opened(buyCrate(this.save, id, this.newSeed()));
+  }
+
+  /** Open a crate that is held (a free one, a granted one). Null while crates are off or none is held. */
+  openCrate(id: string): CrateOpenedView | null {
+    const def = crateDef(id);
+    if (!this.cosmeticsOn || !def) return null;
+    return this.opened(openHeld(this.save, def.id, this.newSeed()));
+  }
+
+  /** Wear an owned item on everything it dresses, or take it off. Seen from the next battle on. */
+  wearCosmetic(id: string, on: boolean): void {
+    if (!this.cosmeticsOn) return;
+    if (on ? wearItem(this.save, id) : takeOffItem(this.save, id)) this.persist();
+  }
+
+  /** The sounds of a crate being opened (CRATES.opening.sounds): the burst is louder and higher for a higher rarity. */
+  crateSound(step: 'shake' | 'rip' | 'burst', rarity: string): void {
+    const O = CRATES.opening;
+    if (step === 'shake') this.audio.play(O.sounds.shake, { volume: O.sounds.shakeVolume });
+    else if (step === 'rip') this.audio.play(O.sounds.rip, { volume: O.sounds.ripVolume });
+    else {
+      const k = (O.strength as Record<string, { volume: number; pitch: number } | undefined>)[rarity] ?? O.strength.common;
+      this.audio.play(O.sounds.burst, { volume: k.volume, pitch: k.pitch });
+    }
+  }
+
+  /** One write of the save for a once-only grant: undone when it cannot be written (as grantMedals does). */
+  private grantOnce(give: () => GrantOutcome): GrantOutcome {
+    const before = { cosmetics: this.save.cosmetics ? structuredClone(this.save.cosmetics) : undefined, grants: this.save.grants };
+    const outcome = give();
+    if (outcome !== 'granted') return outcome;
+    if (!writeSave(this.storage, this.save)) {
+      if (before.cosmetics) this.save.cosmetics = before.cosmetics;
+      else delete this.save.cosmetics;
+      if (before.grants) this.save.grants = before.grants;
+      else delete this.save.grants;
+      return 'failed';
+    }
+    this.saveChanged();
+    this.ui?.refresh();
+    return 'granted';
+  }
+
+  /** Give one crate once, for a platform (GameHost.grantCrate). It is held until the player opens it. */
+  grantCrate(crate: string, grantId: string): GrantOutcome {
+    return this.grantOnce(() => grantCrateOnce(this.save, crate, grantId));
+  }
+
+  /** Give one item once, for a platform (GameHost.grantItem). */
+  grantItem(item: string, grantId: string): GrantOutcome {
+    return this.grantOnce(() => grantItemOnce(this.save, item, grantId));
+  }
+
+  /** Admin and debug: put crates of a type in the player's hands (negative takes them). Returns how many are held. */
+  giveCrates(id: CrateId, n: number): number {
+    const held = addCrates(this.save, id, n);
+    this.persist();
+    this.ui?.refresh();
+    return held;
+  }
+
+  /** Admin and debug: give one item, or every item this build knows when no id is given. Returns how many were new. */
+  giveItems(id?: string): number {
+    let given = 0;
+    for (const item of COSMETICS.items) if ((id === undefined || item.id === id) && giveItem(this.save, item.id)) given++;
+    if (given > 0) this.persist();
+    this.ui?.refresh();
+    return given;
+  }
+
+  /** Admin and debug: forget every item, crate and counter (medals stay as they are). */
+  clearCosmetics(): void {
+    delete this.save.cosmetics;
+    this.persist();
+    this.ui?.refresh();
+  }
+
+  /** Admin: a long run of one crate type's draws, guarantees and all, counted (it owns and changes nothing). */
+  oddsTest(id: string, runs: number = CRATES.oddsTestRuns): OddsRun | null {
+    const def = crateDef(id);
+    return def ? simulateOdds(def, runs, this.newSeed()) : null;
+  }
+
   /** The save as text, for a platform (GameHost.saveText). */
   saveText(): string {
     return JSON.stringify(this.save);
@@ -823,7 +997,9 @@ export class App implements AppApi {
     } catch {
       return 'failed';
     }
-    if (!data || !writeSave(this.storage, data)) return 'failed';
+    if (!data) return 'failed';
+    if (this.cosmeticsOn) syncFreeCrates(data, this.campaignIds);
+    if (!writeSave(this.storage, data)) return 'failed';
     this.save = data;
     const campaign = this.campaignFor(this.save.lastMission);
     if (campaign) this.campaignId = campaign.id;

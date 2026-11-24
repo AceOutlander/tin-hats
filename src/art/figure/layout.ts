@@ -102,6 +102,30 @@ export const FIGURE_PART_COUNT = 38;
 /** Parts 0 .. FIGURE_RIM_PARTS - 1 are the light rim behind the body (a renderer fades them faster than the body). */
 export const FIGURE_RIM_PARTS = S_RIM_NEAR_FA + 1;
 
+/**
+ * For cosmetics (src/data/cosmetics.ts): which piece of the soldier each slot draws. The rim of the helmet counts as
+ * the helmet (it goes when the helmet does); the rest of the rim, and things held in the hand, belong to no piece.
+ */
+export const FIGURE_SLOT_PART: readonly ('body' | 'helmet' | 'kit' | 'weapon' | null)[] = ((): ('body' | 'helmet' | 'kit' | 'weapon' | null)[] => {
+  const out: ('body' | 'helmet' | 'kit' | 'weapon' | null)[] = [];
+  for (let i = 0; i < FIGURE_PART_COUNT; i++) out.push(null);
+  for (const s of [S_FAR_UA, S_FAR_FA, S_FAR_TH, S_FAR_SH, S_FAR_BOOT, S_TORSO_LO, S_TORSO_UP, S_NEAR_TH, S_NEAR_SH, S_NEAR_BOOT, S_HEAD, S_NEAR_UA, S_NEAR_FA]) out[s] = 'body';
+  for (const s of [S_RIM_HELMET, S_HELMET]) out[s] = 'helmet';
+  for (const s of [S_PACK, S_POUCHES, S_BANDOLIER, S_SATCHEL, S_ARMBAND]) out[s] = 'kit';
+  for (const s of [S_PLATE, S_BIPOD, S_WEAPON]) out[s] = 'weapon';
+  return out;
+})();
+
+/**
+ * Where a cosmetic's picture or glow is pinned on a soldier: the slot whose place and turn it follows, and the turn
+ * added so the picture stands upright there (a weapon's is drawn along the barrel, as the weapon sprites are).
+ */
+export const FIGURE_PIN: Readonly<Record<'head' | 'body' | 'weapon', { slot: number; turn: number }>> = {
+  head: { slot: S_HELMET, turn: 0 },
+  body: { slot: S_TORSO_UP, turn: HALF_PI },
+  weapon: { slot: S_WEAPON, turn: 0 },
+};
+
 /** Allocate a part list once per unit (or per pooled view). */
 export function createFigureLayout(): FigurePart[] {
   const out: FigurePart[] = [];

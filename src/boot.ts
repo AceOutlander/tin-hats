@@ -43,12 +43,16 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   markStartup('th:view');
   progress(STARTUP_PROGRESS.view);
   await nextTask();
+  // Whether supply crates may be bought here is the platform's to say (the website's says nothing: they may); a test
+  // may stand an answer in.
+  let standInCrateBuying: boolean | null = null;
+  const crateBuying = (): boolean => standInCrateBuying ?? platform.crateBuying?.() ?? true;
   // Whatever is stored in this browser (an old save, damaged data, settings from a newer version), the game starts:
   // loading falls back to defaults by itself, and if building the app on the stored data still throws, it is built
   // again on an empty store.
   const app = withStorageFallback(
     browserStorage(),
-    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV), extraUnit: ownsExtraUnit }),
+    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV), extraUnit: ownsExtraUnit, crateBuying }),
     (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
   );
   markStartup('th:app');
@@ -95,10 +99,12 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   app.attachUi(ui);
   admin?.install(uiEl);
   installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin ? admin.debugHooks() : null, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section), (section) => (standInMembership = section), (label) => (standInBadge = label)) : null;
+  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin ? admin.debugHooks() : null, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section), (section) => (standInMembership = section), (label) => (standInBadge = label), (on) => (standInCrateBuying = on)) : null;
   // What the game lends its platform (an installed app's; the website's takes nothing).
   platform.attach?.({
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),
+    grantCrate: (crate, grantId) => app.grantCrate(crate, grantId),
+    grantItem: (item, grantId) => app.grantItem(item, grantId),
     saveText: () => app.saveText(),
     readSave: (text) => app.readSave(text),
     replaceSave: (text) => app.takeSave(text),

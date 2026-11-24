@@ -6,6 +6,7 @@
  * 10,000 and the Shop shows the exact figures (tests/unit/crates-data.test.ts).
  */
 import type { Rarity } from './cosmetics';
+import type { OneShotName } from './sounds';
 
 export type CrateId = 'standard' | 'premium' | 'elite' | 'titan' | 'god';
 
@@ -63,6 +64,11 @@ export interface CrateOpeningTunables {
   reducedSlow: number;
   /** Per rarity: how far the flash reaches (0..1 of the screen's shorter side), how bright (0..1), how many rays, how loud. */
   strength: Readonly<Record<Rarity, { reach: number; alpha: number; rays: number; volume: number; pitch: number }>>;
+  /**
+   * The sounds of the three steps, from the game's own synthesised ones: the burst is played at the rarity's volume and
+   * pitch (a higher rarity sounds stronger), the other two as they are.
+   */
+  sounds: { shake: OneShotName; rip: OneShotName; burst: OneShotName; shakeVolume: number; ripVolume: number };
 }
 
 export interface CratesData {
@@ -198,6 +204,7 @@ export const CRATES: CratesData = {
       secret: { reach: 1.4, alpha: 0.95, rays: 24, volume: 1, pitch: 1.3 },
       special: { reach: 0.68, alpha: 0.7, rays: 10, volume: 0.7, pitch: 1 },
     },
+    sounds: { shake: 'ricochet', rip: 'wireSnap', burst: 'airdrop', shakeVolume: 0.35, ripVolume: 0.7 },
   },
   text: {
     heading: 'Supply crates',

@@ -2,6 +2,30 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## In progress, not live: cosmetic supply crates, stage 1 (2026-11-24, on main after v0.17.9, not pushed, version not bumped)
+
+Hidden behind one switch, `COSMETICS.enabled` in `src/data/cosmetics.ts` (off). With it off the game looks and plays
+as v0.17.9. Spec: `docs/QUEUE.md`, "cosmetic supply crates" (the tables under "Crate balance fix"); item designs:
+`docs/COSMETICS.md` (none built: placeholders only).
+
+Where the job stands (update this list at every commit):
+
+- [x] 1a, committed: items, rarities and looks in data (`src/data/cosmetics.ts`), the crate tables
+  (`src/data/crates.ts`), the draw, guarantees, duplicates, free crates and once-only grants (`src/meta/crates.ts`),
+  ownership and wearing and the save's optional `cosmetics` block (`src/meta/cosmetics.ts`; save version still 11).
+- [x] 1b, committed: the app (`App.buyCrate`, `openCrate`, `wearCosmetic`, `grantCrate`, `grantItem`, the session
+  switch `setCosmeticsEnabled`), the view models (`src/app/cosmeticsView.ts`), the platform hooks
+  (`Platform.crateBuying`, `GameHost.grantCrate`, `GameHost.grantItem`), the debug hooks (`window.__TH.cosmetics`) and
+  the battle view's skins (`src/art/skins.ts`, `src/render/skins.ts`: repaints, part swaps, the owner's pictures
+  pinned to head, body, weapon, hull, turret or HQ, glows and swings; textures made on first use).
+- [ ] 1c: the Shop's crate section, the confirmation, the opening animation (`src/ui`).
+- [ ] 1d: the Appearance tab.
+- [ ] 1e: the admin panel (grant crates, test the odds, the session switch).
+- [ ] 1f: `docs/COSMETICS_GUIDE.md`, `docs/PLATFORM.md`, `docs/DECISIONS.md` (574 onward), browser specs, label fit.
+
+Tests so far: `tests/unit/crates-data.test.ts`, `crates-draw.test.ts`, `cosmetics-meta.test.ts`,
+`cosmetics-sim.test.ts`, `app-cosmetics.test.ts`.
+
 ## Live as Beta v0.17.9: three more hooks for platform builds (2026-11-24, DECISIONS 571 to 573)
 
 Nothing changes on the website: its platform has none of the three.

@@ -178,6 +178,17 @@ export interface GameHost {
    * returns.
    */
   grantMedals(medals: number, grantId: string): GrantResult;
+  /**
+   * Give the player one supply crate of a type the game has ("standard", "premium", "elite", "titan"), once, under a
+   * grant id as with medals. The crate is held until the player opens it; it and the id are written to the save
+   * together, before this returns. failed: no such crate, an unusable id, or no more of it can be held.
+   */
+  grantCrate(crate: string, grantId: string): GrantResult;
+  /**
+   * Give the player one cosmetic item by its id, once, the same way. An item already owned is not a failure: the
+   * grant is taken and nothing else changes. failed: the game has no such item, or the id is unusable.
+   */
+  grantItem(item: string, grantId: string): GrantResult;
   /** The save as it stands now, as text. */
   saveText(): string;
   /**
@@ -251,6 +262,12 @@ export interface Platform {
    * it does can hold a screen back; what a platform does with the moment between two screens is its own business.
    */
   onScreen?(screen: string, from: string | null): void;
+  /**
+   * Whether supply crates may be bought with medals where the game is running. Absent or true: as the game has it.
+   * False: no crate can be bought and the Shop names no price for one; crates the player is given can still be opened.
+   * Asked each time the Shop is drawn and each time a crate is asked for.
+   */
+  crateBuying?(): boolean;
   /** Called once, when the game is running, with what the game lends the platform. */
   attach?(game: GameHost): void;
 }

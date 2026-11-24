@@ -72,6 +72,7 @@ describe('the website platform', () => {
     expect(platform.membership).toBeUndefined();
     expect(platform.badge).toBeUndefined();
     expect(platform.onScreen).toBeUndefined();
+    expect(platform.crateBuying).toBeUndefined();
     expect(platform.entitlements().size).toBe(0);
   });
 

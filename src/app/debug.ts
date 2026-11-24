@@ -21,9 +21,10 @@ import type { CampaignId, Difficulty, MissionMode, Order, SupportKind, UnitKind,
 import { SUPPORT_KINDS } from '../data/supports';
 import { UNIT_KINDS } from '../data/units';
 import { extraUnitSlot, ownsExtraUnit } from '../platform/extraUnit';
-import type { SaveData } from '../meta';
+import type { CrateId } from '../data/crates';
+import type { CrateResult, SaveData } from '../meta';
 import type { SettingsSection, StoreSection } from '../platform/types';
-import type { BattleView, WeatherMode, WeatherStats } from '../render/contracts';
+import type { BattleView, RenderStats, WeatherMode, WeatherStats } from '../render/contracts';
 import type { EndReason } from '../sim';
 import type { UiHandle } from '../ui';
 import type { ResultView } from '../ui/contracts';
@@ -179,6 +180,29 @@ export interface DebugApi {
   extraUnit(): { installed: boolean; owned: boolean; pictures: boolean; bubbles: number };
   /** Give medals once, as a platform does (GameHost.grantMedals). */
   grantMedals(medals: number, grantId: string): 'granted' | 'already' | 'failed';
+  /** Cosmetics and supply crates (src/data/cosmetics.ts): hidden and off unless switched on here or in the admin panel. */
+  cosmetics: {
+    enabled(): boolean;
+    /** Switch crates, the Appearance tab and what is worn on or off for this session (nothing of the switch is saved). */
+    enable(on: boolean): void;
+    /** Stand an answer in for the platform's "may crates be bought here" (null = the platform's own). */
+    setCrateBuying(on: boolean | null): void;
+    /** Put crates of a type in the player's hands (saved). Returns how many are held. */
+    giveCrates(id: CrateId, n: number): number;
+    /** Give one item, or every item when no id is given (saved). Returns how many were new. */
+    giveItems(id?: string): number;
+    /** Forget every item, crate and counter. */
+    clear(): void;
+    /** Give a crate or an item once, as a platform does (GameHost.grantCrate, grantItem). */
+    grantCrate(crate: string, grantId: string): 'granted' | 'already' | 'failed';
+    grantItem(item: string, grantId: string): 'granted' | 'already' | 'failed';
+    /** Wear an owned item, or take it off. */
+    wear(id: string, on: boolean): void;
+    /** The crate opened last. */
+    lastCrate(): CrateResult | null;
+    /** What the battle's view is drawing with an item worn. */
+    stats(): RenderStats['skins'];
+  };
   /** The campaign on the map, in order. */
   missions(): DebugMission[];
   /** The campaigns the select screen offers, in its order, and the one on the map. */
@@ -407,6 +431,7 @@ export function installDebug(
   setRewardSection: (section: StoreSection | null) => void = () => {},
   setMembershipSection: (section: StoreSection | null) => void = () => {},
   setBadge: (label: string | null) => void = () => {},
+  setCrateBuying: (on: boolean | null) => void = () => {},
 ): DebugApi {
   const api: DebugApi = {
     ready: false,
@@ -416,6 +441,25 @@ export function installDebug(
     setMembershipSection,
     setBadge,
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),
+    cosmetics: {
+      enabled: () => app.cosmeticsEnabled,
+      enable: (on) => app.setCosmeticsEnabled(on === true),
+      setCrateBuying: (on) => {
+        setCrateBuying(on);
+        ui.refresh();
+      },
+      giveCrates: (id, n) => app.giveCrates(id, Math.floor(Number(n) || 0)),
+      giveItems: (id) => app.giveItems(id),
+      clear: () => app.clearCosmetics(),
+      grantCrate: (crate, grantId) => app.grantCrate(crate, grantId),
+      grantItem: (item, grantId) => app.grantItem(item, grantId),
+      wear: (id, on) => {
+        app.wearCosmetic(id, on);
+        ui.refresh();
+      },
+      lastCrate: () => (app.lastCrate ? { ...app.lastCrate } : null),
+      stats: () => ({ ...view.getStats().skins }),
+    },
     extraUnit() {
       const stats = view.getStats();
       return { installed: extraUnitSlot() !== null, owned: ownsExtraUnit(), pictures: stats.extraUnitPictures, bubbles: stats.speechBubbles };

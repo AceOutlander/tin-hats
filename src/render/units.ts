@@ -10,7 +10,9 @@
 import type Phaser from 'phaser';
 import {
   FIGURE_PART_COUNT,
+  FIGURE_PIN,
   FIGURE_RIM_PARTS,
+  FIGURE_SLOT_PART,
   chooseDeathVariant,
   createFigureAnim,
   createFigureInput,
@@ -73,7 +75,8 @@ import { BloodPools, type PoolImage } from './blood';
 import { apcHopLift } from './apcHop';
 import { HpReveal } from './hpReveal';
 import { addImage, type Layers } from './layers';
-import { RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE, shoutKey, speechSpec } from './sprites';
+import { GLOW_SIZE, RENDER_KEYS, SHADOW_H, SHADOW_W, WHITE_SIZE, shoutKey, speechSpec } from './sprites';
+import type { SkinOverlay, SkinStore, WornSkin } from './skins';
 import { inStandingWire, wireStruggle } from './wireRules';
 
 type Img = Phaser.GameObjects.Image;
@@ -111,6 +114,103 @@ function placePart(img: Img, x0: number, y0: number, s: number, k: number, px: n
     img.scaleX = g * sx * Math.hypot(c, sn);
   }
   img.scaleY = sy;
+}
+
+/** '#rrggbb' as the number a tint takes. */
+function tintOf(hex: string): number {
+  return parseInt(hex.slice(1), 16);
+}
+
+/**
+ * The pictures and glows a worn cosmetic adds to one unit (src/render/skins.ts): images made the first time a unit
+ * wears something that has any, placed each frame on the pin they follow, and hidden again when the view dresses a
+ * unit that wears nothing. A unit without a cosmetic never makes one of these.
+ */
+export class SkinOverlays {
+  readonly images: Img[] = [];
+  private readonly keys: string[] = [];
+  private readonly inv: number[] = [];
+  /** Seconds this unit has been drawn, and its own offset so a line of men does not sway as one. */
+  clock = 0;
+  phase = 0;
+
+  constructor(
+    private readonly reg: SpriteRegistry,
+    private readonly scene: Phaser.Scene,
+  ) {}
+
+  /** The image for overlay i, in `layer`, made if there is none yet. Returns true when it was just made. */
+  ensure(i: number, layer: Phaser.GameObjects.Layer): boolean {
+    if (i < this.images.length) return false;
+    const img = addImage(this.scene, layer, this.reg.get(RENDER_KEYS.white).frame);
+    img.visible = false;
+    this.images.push(img);
+    this.keys.push('');
+    this.inv.push(1);
+    return true;
+  }
+
+  /** A new unit takes the view: nothing shows until it is placed, and no frame of the last battle is trusted. */
+  reset(phase: number): void {
+    this.clock = 0;
+    this.phase = phase;
+    for (let i = 0; i < this.images.length; i++) {
+      this.images[i].visible = false;
+      this.keys[i] = '';
+    }
+  }
+
+  hide(from = 0): void {
+    for (let i = from; i < this.images.length; i++) this.images[i].visible = false;
+  }
+
+  /**
+   * Put overlay i on its pin: the pin's place (px, py) and turn (rot) in the unit's own space, drawn at (x0, y0) with
+   * scale s and facing k as the unit's parts are. `moving` widens a swing. Returns false while its picture is not a
+   * texture yet (it stays hidden).
+   */
+  place(i: number, o: SkinOverlay, x0: number, y0: number, s: number, k: number, px: number, py: number, rot: number, alpha: number, moving: boolean): boolean {
+    const img = this.images[i];
+    const def = o.def;
+    const c = Math.cos(rot);
+    const sn = Math.sin(rot);
+    const ox = def.x ?? 0;
+    const oy = def.y ?? 0;
+    const x = px + ox * c - oy * sn;
+    const y = py + ox * sn + oy * c;
+    const t = this.clock + this.phase;
+    if (o.kind === 'glow') {
+      if (this.keys[i] !== RENDER_KEYS.glow) {
+        const fr = this.reg.get(RENDER_KEYS.glow);
+        img.setFrame(fr.frame);
+        this.keys[i] = RENDER_KEYS.glow;
+        this.inv[i] = 1 / fr.scale;
+      }
+      const q = (s * o.def.size * this.inv[i]) / GLOW_SIZE;
+      img.visible = true;
+      img.setTint(tintOf(o.def.colour));
+      placePart(img, x0, y0, s, k, x, y, 0, q, q);
+      // A slow swell, never a flash: between three quarters and all of its brightness.
+      img.alpha = alpha * o.def.alpha * (o.def.pulse > 0 ? 0.875 + 0.125 * Math.sin(t * o.def.pulse * Math.PI * 2) : 1);
+      return true;
+    }
+    if (!o.ready) {
+      img.visible = false;
+      return false;
+    }
+    if (this.keys[i] !== o.key) {
+      const fr = this.reg.get(o.key);
+      img.setFrame(fr.frame);
+      img.clearTint();
+      this.keys[i] = o.key;
+      this.inv[i] = 1 / fr.scale;
+    }
+    const swing = o.def.swing ? ((o.def.swing.degrees * Math.PI) / 180) * (moving ? 1.6 : 1) * Math.sin(t * o.def.swing.perSecond * Math.PI * 2) : 0;
+    const q = s * this.inv[i];
+    img.visible = true;
+    placePart(img, x0, y0, s, k, x, y, rot + swing, q, q);
+    return true;
+  }
 }
 
 /** Fields shared by figure and tank views. */
@@ -301,6 +401,9 @@ class FigureView extends UnitViewBase {
   private vehicleInv = 1;
   private readonly scene: Phaser.Scene;
   private readonly layers: Layers;
+  /** The cosmetic item this figure wears (null: none, and nothing below is touched), and its pictures and glows. */
+  private skin: WornSkin | null = null;
+  private overlays: SkinOverlays | null = null;
   /** A two-man team's second man (src/data/eras.ts TEAM_MATES), drawn just behind this one; made when first needed. */
   private mate: FigureView | null = null;
   private mateOn = false;
@@ -346,6 +449,65 @@ class FigureView extends UnitViewBase {
     this.applyShade(1);
     this.mateOn = false;
     if (this.mate) this.mate.setShown(false);
+    if (this.skin) {
+      // The last unit in this view wore something: its repainted frames belong to a battle that may be over.
+      this.skin = null;
+      this.keys.fill('');
+    }
+  }
+
+  /**
+   * Wear a cosmetic item (call after reset and after the era's cap, clothing and arms; null = none). Headgear,
+   * clothing or a weapon the item swaps in take the place of the era's.
+   */
+  setSkin(skin: WornSkin | null, phase: number): void {
+    this.skin = skin;
+    if (this.overlays) this.overlays.reset(phase);
+    if (!skin) return;
+    const look = skin.item.look;
+    if (look.headgear) setFigureHeadgear(this.anim, look.headgear);
+    if (look.clothing) setFigureClothing(this.anim, look.clothing);
+    if (look.weapon) setFigureWeapon(this.anim, look.weapon);
+    if (skin.overlays.length > 0 && !this.overlays) {
+      this.overlays = new SkinOverlays(this.reg, this.scene);
+      this.overlays.reset(phase);
+    }
+    if (this.mateOn && this.mate) this.mate.setSkin(skin, phase + 0.37);
+  }
+
+  /** True while this figure is drawn with a cosmetic item (for the debug hooks). */
+  hasSkin(): boolean {
+    return this.skin !== null;
+  }
+
+  /** The item's pictures and glows, each on the part of the figure it is pinned to. */
+  private drawOverlays(dt: number, x: number, y: number, s: number, k: number): void {
+    const ov = this.overlays;
+    if (!ov) return;
+    const skin = this.skin;
+    if (!skin) {
+      ov.hide();
+      return;
+    }
+    ov.clock += dt;
+    const list = skin.overlays;
+    const moving = this.input.action === 'move';
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      const pin = o.def.pin;
+      if (pin !== 'head' && pin !== 'body' && pin !== 'weapon') continue;
+      if (ov.ensure(n, this.layer)) {
+        // Over the body, and one of its images from now on: it fades, darkens and keeps its place in the row with it.
+        ov.images[n].alpha = this.alpha;
+        this.images.push(ov.images[n]);
+      }
+      const at = FIGURE_PIN[pin];
+      const p = this.parts[at.slot];
+      ov.place(n, o, x, y, s, k, p.x, p.y, p.rotation + at.turn, this.alpha, moving);
+      n++;
+    }
+    ov.hide(n);
   }
 
   /** Make this a two-man team (call after reset): the second man is a `kind` figure, returned for the caller to dress. */
@@ -497,6 +659,7 @@ class FigureView extends UnitViewBase {
     if (this.haul === 'truck') {
       // The sapper drives a supply truck: no figure, a truck rocking gently as it rolls.
       for (let i = 0; i < FIGURE_PART_COUNT; i++) this.images[i].visible = false;
+      if (this.overlays) this.overlays.hide();
       const key = truckKey(this.faction, this.input.death ? 'wreck' : this.input.carrying ? 'loaded' : 'empty');
       const bob = this.input.death ? 0 : Math.sin(x * U.truckBobFreq) * U.truckBob * s;
       this.showVehicle(key, x, y + bob, dir);
@@ -520,16 +683,34 @@ class FigureView extends UnitViewBase {
         img.visible = false;
         continue;
       }
-      if (p.key !== this.keys[i]) {
-        const fr = this.reg.get(p.key);
+      let key = p.key;
+      const skin = this.skin;
+      if (skin !== null) {
+        // A worn cosmetic: a part it leaves out is not drawn, and a part it repaints shows the repainted picture once
+        // that is a texture (the game's own until then).
+        const part = FIGURE_SLOT_PART[i];
+        if (part !== null) {
+          if (skin.hidden.has(part)) {
+            img.visible = false;
+            continue;
+          }
+          if (i >= FIGURE_RIM_PARTS) {
+            const frame = skin.frameFor(part, key);
+            if (frame !== null && frame.ready) key = frame.key;
+          }
+        }
+      }
+      if (key !== this.keys[i]) {
+        const fr = this.reg.get(key);
         img.setFrame(fr.frame);
-        this.keys[i] = p.key;
+        this.keys[i] = key;
         this.inv[i] = 1 / fr.scale;
       }
       const q = s * this.inv[i];
       img.visible = true;
       placePart(img, x, y, s, k, p.x, p.y, p.rotation, p.scaleX * q, p.scaleY * q);
     }
+    if (this.overlays) this.drawOverlays(dt, x, y, s, k);
     this.placeShadow(U.figureShadowW, U.figureShadowH);
   }
 
@@ -597,12 +778,67 @@ class TankView extends UnitViewBase {
   liftPitch = 0;
   /** True while the images sit in the layer above the trench parapets (see setOver). */
   over = false;
+  /** The cosmetic item this vehicle wears (null: none), and its pictures and glows. */
+  private skin: WornSkin | null = null;
+  private overlays: SkinOverlays | null = null;
+  /** The layer the images sit in now (the row's, or the one above the parapets). */
+  private nowLayer: Phaser.GameObjects.Layer | null = null;
+
+  /** Wear a cosmetic item (call after reset; null = none). */
+  setSkin(skin: WornSkin | null, phase: number, scene: Phaser.Scene): void {
+    this.skin = skin;
+    if (this.overlays) this.overlays.reset(phase);
+    if (skin && skin.overlays.length > 0 && !this.overlays) {
+      this.overlays = new SkinOverlays(this.reg, scene);
+      this.overlays.reset(phase);
+    }
+  }
+
+  hasSkin(): boolean {
+    return this.skin !== null;
+  }
+
+  /** The key to draw for one of the vehicle's parts: the item's repainted picture once it is a texture, else the part's own. */
+  private worn(part: 'hull' | 'turret' | 'gun' | 'tracks', key: string): string {
+    const frame = this.skin !== null ? this.skin.frameFor(part, key) : null;
+    return frame !== null && frame.ready ? frame.key : key;
+  }
+
+  private drawOverlays(dt: number): void {
+    const ov = this.overlays;
+    if (!ov) return;
+    const skin = this.skin;
+    if (!skin) {
+      ov.hide();
+      return;
+    }
+    ov.clock += dt;
+    const list = skin.overlays;
+    const s = this.s;
+    const k = this.turnK < 0 ? Math.min(this.turnK, -U.tankTurnMinK) : Math.max(this.turnK, U.tankTurnMinK);
+    const y0 = this.y + (this.bob - this.lift) * s;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      const pin = o.def.pin;
+      if (pin !== 'hull' && pin !== 'turret') continue;
+      if (ov.ensure(n, this.nowLayer ?? this.layer)) {
+        ov.images[n].alpha = this.alpha;
+        this.images.push(ov.images[n]);
+      }
+      const at = pin === 'hull' ? this.pose.hull : this.pose.turret;
+      ov.place(n, o, this.x, y0, s, k, at.x, at.y, at.rot, this.alpha, Math.abs(this.speed) > 1);
+      n++;
+    }
+    ov.hide(n);
+  }
 
   /** Move the images above the trench parapets and wire strands (crossing a trench) or back into the row layer. */
   setOver(on: boolean, overLayer: Phaser.GameObjects.Layer): void {
     if (on === this.over) return;
     this.over = on;
     const to = on ? overLayer : this.layer;
+    this.nowLayer = to;
     for (let i = 0; i < this.images.length; i++) to.add(this.images[i]);
   }
 
@@ -787,13 +1023,14 @@ class TankView extends UnitViewBase {
     tk.hullRock = this.rock + roll * T.rollRock * Math.sin(d * T.bobFreq * 1.7 + 0.4) + this.liftPitch;
   }
 
-  draw(dead: boolean): void {
+  draw(dead: boolean, dt = 0): void {
     const keys = TANK_KEYS[this.look];
     const L = TANK_LAYOUT[this.look];
     const img = this.images;
     if (dead) {
       for (let i = 0; i < TANK_IMAGES - 1; i++) img[i].visible = false;
       img[PASSENGER_IMAGE].visible = false;
+      if (this.overlays) this.overlays.hide();
       this.put(TANK_IMAGES - 1, keys.husk, 0, 0, 0, false);
       this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
       return;
@@ -801,22 +1038,47 @@ class TankView extends UnitViewBase {
     img[TANK_IMAGES - 1].visible = false;
     const pose = layoutTank(this.tank, this.pose);
     let i = 0;
-    this.put(i++, keys.track[pose.trackFrame], pose.track.x, pose.track.y, pose.track.rot, false);
-    for (let w = 0; w < TANK_MAX_WHEELS; w++, i++) {
-      if (w < pose.wheelCount) {
-        const xf = pose.wheels[w];
-        this.put(i, keys.wheels[w], xf.x, xf.y, xf.rot, false);
-      } else {
-        img[i].visible = false;
+    const skin = this.skin;
+    if (skin === null) {
+      this.put(i++, keys.track[pose.trackFrame], pose.track.x, pose.track.y, pose.track.rot, false);
+      for (let w = 0; w < TANK_MAX_WHEELS; w++, i++) {
+        if (w < pose.wheelCount) {
+          const xf = pose.wheels[w];
+          this.put(i, keys.wheels[w], xf.x, xf.y, xf.rot, false);
+        } else {
+          img[i].visible = false;
+        }
       }
+      const g = this.gear;
+      this.put(i++, g.hull, pose.hull.x, pose.hull.y, pose.hull.rot, true);
+      this.put(i++, g.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
+      this.put(i, g.turret, pose.turret.x, pose.turret.y, pose.turret.rot, true);
+    } else {
+      // A worn cosmetic: the same parts in the same places, each in the item's paint where it has any, and left
+      // undrawn where the item leaves it out.
+      const hide = skin.hidden;
+      if (hide.has('tracks')) img[i++].visible = false;
+      else this.put(i++, this.worn('tracks', keys.track[pose.trackFrame]), pose.track.x, pose.track.y, pose.track.rot, false);
+      for (let w = 0; w < TANK_MAX_WHEELS; w++, i++) {
+        if (w < pose.wheelCount && !hide.has('tracks')) {
+          const xf = pose.wheels[w];
+          this.put(i, this.worn('tracks', keys.wheels[w]), xf.x, xf.y, xf.rot, false);
+        } else {
+          img[i].visible = false;
+        }
+      }
+      const g = this.gear;
+      if (hide.has('hull')) img[i++].visible = false;
+      else this.put(i++, this.worn('hull', g.hull), pose.hull.x, pose.hull.y, pose.hull.rot, true);
+      if (hide.has('gun')) img[i++].visible = false;
+      else this.put(i++, this.worn('gun', g.barrel), pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
+      if (hide.has('turret')) img[i].visible = false;
+      else this.put(i, this.worn('turret', g.turret), pose.turret.x, pose.turret.y, pose.turret.rot, true);
     }
-    const g = this.gear;
-    this.put(i++, g.hull, pose.hull.x, pose.hull.y, pose.hull.rot, true);
-    this.put(i++, g.barrel, pose.barrel.x, pose.barrel.y, pose.barrel.rot, true);
-    this.put(i, g.turret, pose.turret.x, pose.turret.y, pose.turret.rot, true);
     const pk = TANK_KEYS[this.look].passengers;
     if (pk !== null && this.loaded) this.put(PASSENGER_IMAGE, pk, pose.passengers.x, pose.passengers.y, pose.passengers.rot, true);
     else img[PASSENGER_IMAGE].visible = false;
+    if (this.overlays) this.drawOverlays(dt);
     this.placeShadow(L.length * U.tankShadowPad, U.tankShadowH);
   }
 
@@ -1011,6 +1273,15 @@ export class UnitViews {
   private readonly looks: (SideLooks | null)[] = [null, null];
   /** The battle's mission, for the era looks by date (src/data/eras.ts); null = every nation's defaults. */
   private mission: MissionDef | null = null;
+  /** What is worn in this battle (src/render/skins.ts); the battle view hands in its own. Null: nothing ever is. */
+  skins: SkinStore | null = null;
+
+  /** Live unit views drawn with a cosmetic item (for the debug hooks). */
+  skinned(): number {
+    let n = 0;
+    for (const v of this.bySlot) if (v && !(v instanceof SheetView) && v.hasSkin()) n++;
+    return n;
+  }
 
   /** The mission whose date and climate pick the units' era looks (call once per battle, after reset). */
   setMission(mission: MissionDef | null): void {
@@ -1094,6 +1365,8 @@ export class UnitViews {
     // The call-in planes' gear (PlanePool picks these keys up when the side's plane flies).
     for (const kind of PLANE_KINDS) specs.push(...planeGearSpecs(kind, f, planeGearOf(looks, kind)));
     if (specs.length > 0) this.reg.addAtlas(GEAR_GROUP, specs, VIEW.textureScale, RENDER.atlasMaxSize);
+    // A cosmetic may repaint these (nothing is kept in a battle that wears nothing).
+    this.skins?.know(specs);
   }
 
   /**
@@ -1162,6 +1435,8 @@ export class UnitViews {
       const tv = pool.pop() ?? new TankView(row, this.reg, this.scene, this.layers);
       tv.reset(u.kind, u.faction, unitVehicleLook(this.eraOf(u.faction), u.kind, u.look));
       tv.setGear(this.gearOf(u.side, u.kind));
+      const skins = this.skins;
+      tv.setSkin(skins !== null && skins.active ? skins.skinFor(u.side, u.kind) : null, (mixSeed(this.seed ^ U.seedSalt, u.id) / 4294967296) * 7, this.scene);
       v = tv;
     } else {
       const pool = this.figurePool[row];
@@ -1189,6 +1464,10 @@ export class UnitViews {
       }
       const looks = this.looks[u.side];
       if (u.kind === 'sapper' && looks) fv.setHaul(lookStyle(looks, 'sapper'), u.faction);
+      // What the player wears on this kind (its own side's item, or how the enemy looks to them); nothing when no
+      // battle wears anything.
+      const skins = this.skins;
+      if (skins !== null && skins.active) fv.setSkin(skins.skinFor(u.side, u.kind), (mixSeed(this.seed ^ U.seedSalt, u.id) / 4294967296) * 7);
       // Firing line in two tiers: the near ranks mostly kneel to fire, the far ranks mostly stand behind them.
       fv.anim.altAim = mixSeed(this.seed ^ U.kneelSalt, u.id) / 4294967296 < U.kneelByRow[row];
       // Climbing out of an APC that just unloaded here: a hop down from its deck, one man after another.
@@ -1573,7 +1852,7 @@ export class UnitViews {
       if (v.fired) tk.recoil = 1;
       else tk.recoil = Math.max(0, tk.recoil - dt / U.tankRecoilTime);
       v.stepSuspension(state.over ? 0 : u.velX, dt);
-      v.draw(false);
+      v.draw(false, dt);
     }
     v.fired = false;
     v.hit = false;
