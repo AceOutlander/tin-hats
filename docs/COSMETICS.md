@@ -444,8 +444,21 @@ Owner, verbatim (2026-11-23):
 - Before each shot, the core and rails glow brighter with a rising electric hum; the shot is a bright orange-red streak with a sharp crack, then the usual explosion on impact.
 - Purely cosmetic: same size, hitbox, armour, speed, damage, reload and range as the normal tank, with the glow timed to the normal reload.
 
-Status: design note only. Don't build it yet. The reference image did not arrive with the note; ask the owner for
-it before drawing. It is for the general idea only: nothing of its design or text may be copied.
+Status: design note only. Don't build it yet.
+
+What the reference image shows (general idea only; the image is someone else's artwork, is not in the repo, and
+nothing of its design, shapes, colours or lettering may be copied; the owner has it):
+
+- A hand-held science-fiction gun, not a tank gun: only the front half, the two rails and the core, is the idea.
+- Two long flat rails, one above the other, with an open gap between them that runs most of their length.
+- Along the inner face of each rail, a close row of thin upright metal fins, like the teeth of a comb.
+- At the back of the gap, where the rails join the body, a round core glowing orange-red, with a few glowing
+  rings behind it.
+- Each rail ends in a blunt, angular block at the muzzle.
+- Dark grey metal with pale gold trim. It carries a brand name on the side: no lettering at all on ours.
+
+For the tank: draw our own rails as a tank barrel would be, slimmer and longer than the image's, in the tank's
+own gunmetal, with our own fin spacing and muzzle shape.
 
 Notes for whoever builds it (not the owner's words):
 
