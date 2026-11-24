@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1280 600" width="1280" height="600" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fb4cf"/><stop offset="1" stop-color="#dfe7d6"/></linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f9a5f"/><stop offset="1" stop-color="#6f7a48"/></linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9bcb6"/><stop offset="1" stop-color="#7f837f"/></linearGradient>
+    <linearGradient id="stoneDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f938e"/><stop offset="1" stop-color="#5f6360"/></linearGradient>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+
+    <!-- the statue and its pedestal, drawn once; ground line at y=470 -->
+    <g id="pedestal">
+      <path d="M150 470 h260 v-22 h-14 v-70 h14 v-20 h-260 v20 h14 v70 h-14z" fill="url(#stone)" stroke="#3f4340" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M164 378 h232 M164 448 h232" stroke="#3f4340" stroke-width="2"/>
+      <path d="M252 470 v-48 a28 28 0 0 1 56 0 v48z" fill="#1c1e1d" stroke="#3f4340" stroke-width="3"/>
+      <path d="M244 470 v-50 a36 36 0 0 1 72 0 v50" fill="none" stroke="#5f6360" stroke-width="5"/>
+      <g stroke="#4a4e4b" stroke-width="2" fill="none"><path d="M196 378 v70 M228 378 v34 M340 378 v70 M372 412 v36 M164 412 h64 M340 412 h56"/></g>
+    </g>
+    <g id="figure" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <!-- outline pass -->
+      <g stroke="#3f4340" stroke-width="30">
+        <path d="M280 268 L246 356"/><path d="M280 268 L318 356"/>
+        <path d="M280 176 L280 268"/>
+        <path d="M280 192 L238 246"/>
+        <path d="M280 190 L352 170 L420 160"/>
+      </g>
+      <path d="M226 150 L236 358" stroke="#3f4340" stroke-width="13"/>
+      <!-- stone pass -->
+      <g stroke="url(#stone)" stroke-width="24">
+        <path d="M280 268 L246 356"/><path d="M280 268 L318 356"/>
+        <path d="M280 176 L280 268"/>
+        <path d="M280 192 L238 246"/>
+        <path d="M280 190 L352 170 L420 160"/>
+      </g>
+      <path d="M226 150 L236 358" stroke="url(#stoneDark)" stroke-width="8"/>
+      <path d="M222 128 L227 152" stroke="#8f938e" stroke-width="4"/>
+      <!-- head and tin hat -->
+      <circle cx="282" cy="140" r="34" fill="url(#stone)" stroke="#3f4340" stroke-width="3"/>
+      <path d="M232 128 q50 -52 100 0 q10 4 16 10 h-132 q6 -6 16 -10z" fill="url(#stoneDark)" stroke="#3f4340" stroke-width="3"/>
+      <!-- pointing hand -->
+      <path d="M420 160 L446 156" stroke="#3f4340" stroke-width="14"/><path d="M420 160 L446 156" stroke="url(#stone)" stroke-width="9"/>
+    </g>
+    <g id="wear" fill="none">
+      <g stroke="#4a4e4b" stroke-width="2.5" stroke-linecap="round">
+        <path d="M276 196 l8 22 l-7 18 l6 20"/><path d="M300 150 l8 10 l-4 10"/><path d="M252 312 l8 14"/><path d="M366 168 l6 8"/><path d="M180 392 l14 10 l-6 16"/>
+      </g>
+      <g fill="#5d7a3a" stroke="none" opacity="0.9">
+        <ellipse cx="282" cy="236" rx="9" ry="4"/><ellipse cx="258" cy="330" rx="8" ry="4"/><ellipse cx="204" cy="360" rx="22" ry="5"/><ellipse cx="356" cy="359" rx="16" ry="4"/><ellipse cx="170" cy="449" rx="14" ry="4"/><ellipse cx="392" cy="449" rx="12" ry="4"/><ellipse cx="318" cy="352" rx="9" ry="4"/>
+      </g>
+    </g>
+    <g id="eye"><circle cx="300" cy="140" r="5" fill="#ffd66b" filter="url(#glow)"/></g>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1280" height="600" fill="url(#sky)"/>
+  <path d="M0 330 Q200 300 420 322 T860 312 T1280 326 V420 H0Z" fill="#a9bd9a" opacity="0.7"/>
+  <path d="M0 352 Q260 332 520 348 T1280 344 V430 H0Z" fill="#8ea77c"/>
+  <rect y="400" width="1280" height="200" fill="url(#ground)"/>
+  <rect y="462" width="1280" height="26" fill="#7d8651" opacity="0.6"/>
+
+  <text x="640" y="34" font-size="22" font-weight="bold" fill="#1c2414" text-anchor="middle">"Legacy" concept sketch: HQ skin (not in the game)</text>
+
+  <g transform="translate(64 0)">
+  <!-- main statue -->
+  <ellipse cx="282" cy="474" rx="150" ry="10" fill="#2b2f24" opacity="0.35"/>
+  <use xlink:href="#pedestal"/><use xlink:href="#figure"/><use xlink:href="#wear"/><use xlink:href="#eye"/>
+
+  <!-- a soldier walking out, for scale -->
+  <g fill="#14161a" opacity="0.92" transform="translate(40 0)">
+    <circle cx="410" cy="405" r="8"/><path d="M398 398 h24 l3 5 h-30z"/>
+    <path d="M406 413 h8 v30 l8 27 h-7 l-5 -22 l-5 22 h-7 l8 -27z"/>
+    <path d="M412 420 l22 6 l-1 5 l-22 -5z"/>
+  </g>
+  <text x="452" y="505" font-size="15" fill="#2d3320" text-anchor="middle">soldier, for scale</text>
+  <path d="M316 452 h70" stroke="#1c2414" stroke-width="1.5" stroke-dasharray="5 5" fill="none"/>
+
+  <!-- labels for the main statue -->
+  <g font-size="15" fill="#1c2414">
+    <g stroke="#1c2414" stroke-width="1.5" fill="none"><path d="M470 118 L336 122"/><path d="M500 216 L446 166"/><path d="M96 240 L226 230"/><path d="M96 330 L246 330"/><path d="M96 430 L250 440"/><path d="M470 78 L308 136"/></g>
+    <text x="476" y="122">our own tin hat</text>
+    <text x="470" y="232">points at the enemy</text>
+    <text x="90" y="236" text-anchor="end">rifle</text><text x="90" y="254" text-anchor="end">grounded</text>
+    <text x="90" y="326" text-anchor="end">moss in</text><text x="90" y="344" text-anchor="end">the cracks</text>
+    <text x="90" y="426" text-anchor="end">doorway:</text><text x="90" y="444" text-anchor="end">units walk out</text>
+    <text x="476" y="82">golden glow in the eye</text>
+  </g>
+
+  </g>
+
+  <!-- inset: damaged -->
+  <g transform="translate(700 70)">
+    <rect width="250" height="250" rx="8" fill="#eef2e6" stroke="#1c2414" stroke-width="1.5" opacity="0.95"/>
+    <text x="125" y="24" font-size="15" font-weight="bold" fill="#1c2414" text-anchor="middle">Damaged</text>
+    <g transform="translate(22 30) scale(0.4)">
+      <use xlink:href="#pedestal"/><use xlink:href="#figure"/><use xlink:href="#wear"/>
+      <!-- missing chunks: the same colour as the panel -->
+      <g fill="#eef2e6" stroke="#3f4340" stroke-width="3" stroke-linejoin="round">
+        <path d="M396 150 l20 -4 l8 10 l22 -2 l6 14 l-58 8z"/>
+        <path d="M300 104 l18 10 l-4 16 l20 6 l-2 12 l-34 -8z"/>
+        <path d="M150 358 h44 l-10 16 l8 12 h-42z"/>
+        <path d="M300 300 l22 8 l-6 20 l-22 -6z"/>
+      </g>
+      <g stroke="#3f4340" stroke-width="3" fill="none" stroke-linecap="round"><path d="M278 180 l10 30 l-10 26 l8 30"/><path d="M360 378 l12 30 l-8 40"/></g>
+      <g fill="url(#stoneDark)" stroke="#3f4340" stroke-width="3"><path d="M420 470 l14 -16 l20 6 l6 10z"/><path d="M470 470 l8 -10 l14 10z"/><path d="M112 470 l10 -12 l18 12z"/></g>
+      <circle cx="300" cy="140" r="4" fill="#c9a44a" opacity="0.6"/>
+    </g>
+    <text x="125" y="238" font-size="13" fill="#1c2414" text-anchor="middle">chunks crack off, the glow dims</text>
+  </g>
+
+  <!-- inset: upgraded -->
+  <g transform="translate(990 70)">
+    <rect width="250" height="250" rx="8" fill="#eef2e6" stroke="#1c2414" stroke-width="1.5" opacity="0.95"/>
+    <text x="125" y="24" font-size="15" font-weight="bold" fill="#1c2414" text-anchor="middle">Upgraded</text>
+    <g transform="translate(22 30) scale(0.4)">
+      <!-- a bigger pedestal step under the normal one -->
+      <path d="M118 470 h324 v-14 h-324z" fill="url(#stoneDark)" stroke="#3f4340" stroke-width="3"/>
+      <g transform="translate(0 -14)"><use xlink:href="#pedestal"/><use xlink:href="#figure"/><use xlink:href="#wear"/><use xlink:href="#eye"/>
+        <!-- banners -->
+        <g stroke="#3f4340" stroke-width="3"><path d="M176 372 v-6 h44 v62 l-22 -14 l-22 14z" fill="#8c2f2a"/><path d="M340 372 v-6 h44 v62 l-22 -14 l-22 14z" fill="#8c2f2a"/></g>
+        <!-- torches -->
+        <g stroke="#3f4340" stroke-width="3"><rect x="126" y="400" width="10" height="70" fill="#5f6360"/><rect x="424" y="400" width="10" height="70" fill="#5f6360"/></g>
+        <g filter="url(#glow)"><path d="M131 398 q-12 -18 0 -34 q12 16 0 34z" fill="#ffb84a"/><path d="M429 398 q-12 -18 0 -34 q12 16 0 34z" fill="#ffb84a"/></g>
+      </g>
+    </g>
+    <text x="125" y="238" font-size="13" fill="#1c2414" text-anchor="middle">bigger pedestal, banners, torches</text>
+  </g>
+
+  <text x="970" y="372" font-size="14" fill="#1c2414" text-anchor="middle">Banners are a plain colour here; in the game they would carry the nation's flag.</text>
+</svg>

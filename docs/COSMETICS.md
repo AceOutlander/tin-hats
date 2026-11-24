@@ -358,6 +358,35 @@ outline, or shots will seem to pass through them. Each tank model needs its own 
 item with as many drawings as there are tanks. "All tanks of every nation" is taken to mean the player's own
 tanks, whichever nation they command; say if enemy tanks are meant too.
 
+## "Legacy" (Mythic), HQ (every nation)
+
+Owner, verbatim (2026-11-23):
+
+- The HQ becomes a giant stone statue of a stick figure standing tall and pointing toward the enemy, on a carved stone pedestal. An original design of our own (our own pose, proportions and details), not a copy of any other game's statue.
+- Weathered grey stone with moss in the cracks, and a faint golden glow in the carved eyes.
+- Units train and walk out from a doorway in the pedestal.
+- As the HQ takes damage, chunks crack and fall off the statue; when destroyed, it crumbles.
+- It replaces the HQ's look at every Quartermaster upgrade level; upgrades add details like a bigger pedestal, banners and torches.
+- Purely cosmetic: same size, hitbox, health and everything else as the normal HQ.
+
+Status: design note only. Don't build it yet.
+
+Reference sketch (ours, drawn for this note): `docs/cosmetics/legacy-hq-concept.svg`. It shows the statue as the
+player's HQ, with a soldier for scale and insets for "damaged" and "upgraded". It is a concept drawing, not game
+art. To keep it our own, the figure wears the game's tin hat, stands with a grounded rifle in one hand and points
+with the other; it carries no spear, sword or shield.
+
+Notes for whoever builds it (not the owner's words):
+
+- Other stick-figure war games have a statue as the base. Ours must not look like any of them: keep the tin hat,
+  the grounded rifle and the pointing arm, and check the finished art side by side with those games before it
+  ships.
+- The banners carry the nation's flag (never a Nazi symbol; the German flag in the game is the Iron Cross), so a
+  player can still tell whose HQ it is. The helmet on the statue follows the nation too.
+- The pointing arm reaches past the HQ's normal outline; keep the hitbox the normal HQ's and make sure shots do
+  not seem to pass through stone.
+- The eye glow dims with damage, as the light does on "Heaven's Gate".
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
