@@ -13,7 +13,7 @@
  */
 import { join } from 'node:path';
 import { arrived, expect, type Hooked, memorySave, open, savedGame, SHOT_DIR, tapIn, test, toMap } from './helpers';
-import { FAKE_REWARD, FAKE_STORE, installFakeReward, installFakeStore } from './fake-store';
+import { FAKE_MEMBERSHIP, FAKE_REWARD, FAKE_STORE, installFakeMembership, installFakeReward, installFakeStore } from './fake-store';
 
 test.describe('the store section of the Shop', () => {
   test('is not there on the website: no section, no heading, no notice', async ({ page }) => {
@@ -24,6 +24,7 @@ test.describe('the store section of the Shop', () => {
     await expect(shop.getByTestId('armoury-item-smoke')).toBeVisible();
     await expect(page.locator('[data-testid="store-section"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="reward-section"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="membership-section"]')).toHaveCount(0);
     await expect(page.locator('.th-store, .th-store-offer, .th-store-note')).toHaveCount(0);
     const headings = await page.evaluate(() => [...document.querySelectorAll('.th-screen[data-screen="armoury"] .th-qm-group h2')].map((h) => h.textContent ?? ''));
     // No "Extras": its one entry, the Battle for Poland, is not on show until that campaign exists (APP.polandExists).
@@ -152,5 +153,62 @@ test.describe('the store section of the Shop', () => {
     await expect(section.getByTestId('reward-status-task')).toHaveText(FAKE_REWARD.used);
     await expect(section.getByTestId('reward-buy-task')).toBeDisabled();
     expect((await memorySave(page)).grants).toEqual(['fake-task-1', 'fake-task-2']);
+  });
+
+  test('shows the membership section last, in the platform\'s words, and the title carries the platform\'s badge', async ({ page }) => {
+    await open(page);
+    // The website's title has no badge.
+    await expect(page.locator('[data-testid="platform-badge"]')).toHaveCount(0);
+    await installFakeStore(page);
+    await installFakeReward(page);
+    await installFakeMembership(page);
+    await page.evaluate(() => (window as unknown as Hooked).__TH?.setBadge('Made-up standing'));
+    // The title is drawn again on the way back from Settings: the badge is there, above the version, inside the screen.
+    await tapIn(page, 'title', 'settings');
+    await tapIn(page, 'settings', 'back');
+    const title = arrived(page, 'title');
+    const badge = title.getByTestId('platform-badge');
+    await expect(badge).toHaveText('Made-up standing');
+    const boxes = await page.evaluate(() => {
+      const box = (id: string) => (document.querySelector(`.th-screen[data-screen="title"] [data-testid="${id}"]`) as Element).getBoundingClientRect();
+      const b = box('platform-badge');
+      const v = box('version');
+      const play = box('play');
+      return { badgeBottom: b.bottom, badgeRight: b.right, badgeLeft: b.left, badgeTop: b.top, versionTop: v.top, playRight: play.right, playBottom: play.bottom, w: window.innerWidth, h: window.innerHeight };
+    });
+    expect(boxes.badgeBottom).toBeLessThanOrEqual(boxes.versionTop + 1);
+    expect(boxes.badgeRight).toBeLessThanOrEqual(boxes.w);
+    expect(boxes.badgeTop).toBeGreaterThanOrEqual(0);
+    // It never sits on the Play button.
+    expect(boxes.badgeLeft >= boxes.playRight || boxes.badgeTop >= boxes.playBottom).toBe(true);
+
+    await toMap(page);
+    await tapIn(page, 'campaign', 'armoury');
+    const shop = arrived(page, 'armoury');
+    const section = shop.getByTestId('membership-section');
+    await expect(section).toBeVisible();
+    await expect(section.locator('h2')).toContainText(FAKE_MEMBERSHIP.title);
+    await expect(section.getByTestId('membership-message')).toHaveText(FAKE_MEMBERSHIP.message);
+    for (const note of FAKE_MEMBERSHIP.notes) await expect(section).toContainText(note);
+    // Call-in charges, the store, the reward, then the membership section; each keeps its own test ids.
+    const order = await page.evaluate(() => [...document.querySelectorAll('.th-screen[data-screen="armoury"] .th-qm-group')].map((g) => g.querySelector('h2')?.textContent ?? ''));
+    expect(order[1]).toContain(FAKE_STORE.title);
+    expect(order[2]).toContain(FAKE_REWARD.title);
+    expect(order[3]).toContain(FAKE_MEMBERSHIP.title);
+    await expect(section.getByTestId('store-buy-one')).toHaveCount(0);
+    await expect(section.getByTestId('membership-buy-first')).toHaveText('LABEL 1');
+    await expect(section.getByTestId('membership-buy-second')).toHaveText('LABEL 2');
+    // Nothing was given or asked by opening the Shop.
+    expect((await memorySave(page)).grants).toBeUndefined();
+
+    // Taken up: the platform's line, and the card then reads as held; the other can still be asked for.
+    await tapIn(page, 'armoury', 'membership-buy-second');
+    await expect(section.getByTestId('membership-status-second')).toHaveText(FAKE_MEMBERSHIP.taken);
+    await expect(section.getByTestId('membership-offer-second')).toHaveAttribute('data-state', 'owned');
+    await expect(section.getByTestId('membership-buy-second')).toBeDisabled();
+    await expect(section.getByTestId('membership-buy-first')).toBeEnabled();
+    await section.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(SHOT_DIR, 'shop-membership.png') });
   });
 });

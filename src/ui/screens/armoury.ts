@@ -70,7 +70,9 @@ export const armouryScreen: ScreenFactory = (ctx) => {
   const store = platformStore ? createStoreSection(platformStore, sectionHooks) : null;
   const platformReward = ctx.opts.reward?.() ?? null;
   const reward = platformReward ? createStoreSection(platformReward, sectionHooks, 'reward') : null;
-  const platformSections = [store, reward].filter((s) => s !== null);
+  const platformMembership = ctx.opts.membership?.() ?? null;
+  const membership = platformMembership ? createStoreSection(platformMembership, sectionHooks, 'membership') : null;
+  const platformSections = [store, reward, membership].filter((s) => s !== null);
 
   function icon(item: ArmouryItemView): Element {
     if (item.type === 'support') return supportIcon(item.kind as SupportKind, 'th-support-icon th-arm-plane');

@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { platform } from '../../src/platform';
-import { installShell, isBackPress, pressBack } from '../../src/platform/shell';
+import { installShell, isBackPress, pressBack, screenReporter } from '../../src/platform/shell';
 import type { AppShell, Platform } from '../../src/platform/types';
 
 const ROOT = join(import.meta.dirname, '..', '..');
@@ -69,7 +69,18 @@ describe('the website platform', () => {
     expect(platform.testMode).toBeNull();
     expect(platform.attach).toBeUndefined();
     expect(platform.releaseStage).toBeUndefined();
+    expect(platform.membership).toBeUndefined();
+    expect(platform.badge).toBeUndefined();
+    expect(platform.onScreen).toBeUndefined();
     expect(platform.entitlements().size).toBe(0);
+  });
+
+  it('is told nothing about the screens', () => {
+    // No hook: the reporter is a no-op, whatever screens go by.
+    const report = screenReporter(platform);
+    expect(() => {
+      for (const screen of ['title', 'campaigns', 'campaign', 'battle', 'result', 'campaign']) report(screen);
+    }).not.toThrow();
   });
 
   it('installs no listener and never touches the app', () => {
@@ -91,6 +102,39 @@ describe('the website platform', () => {
 
 describe('an installed app', () => {
   const withShell = (shell: AppShell): Platform => ({ ...platform, installed: true, shell });
+
+  it('is told each change of screen with the screen before it, once, and cannot break the change', () => {
+    const seen: [string, string | null][] = [];
+    const report = screenReporter({ onScreen: (screen, from) => void seen.push([screen, from]) });
+    for (const screen of ['title', 'title', 'campaigns', 'campaign', 'battle', 'result', 'campaign']) report(screen);
+    expect(seen).toEqual([
+      ['title', null],
+      ['campaigns', 'title'],
+      ['campaign', 'campaigns'],
+      ['battle', 'campaign'],
+      ['result', 'battle'],
+      ['campaign', 'result'],
+    ]);
+    // A platform that throws is the platform's trouble: the next change is still told, from the right screen.
+    const after: [string, string | null][] = [];
+    let fail = true;
+    const shaky = screenReporter({
+      onScreen: (screen, from) => {
+        if (fail) throw new Error('made up');
+        after.push([screen, from]);
+      },
+    });
+    const warn = console.warn;
+    console.warn = () => undefined;
+    try {
+      expect(() => shaky('title')).not.toThrow();
+    } finally {
+      console.warn = warn;
+    }
+    fail = false;
+    shaky('campaigns');
+    expect(after).toEqual([['campaigns', 'title']]);
+  });
 
   it('pauses like a hidden page when it goes to the background, and comes back like a shown one', () => {
     const shell = fakeShell();

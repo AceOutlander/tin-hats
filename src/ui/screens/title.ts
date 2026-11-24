@@ -193,6 +193,13 @@ export const titleScreen: ScreenFactory = (ctx) => {
   const version = el('div', 'th-type th-version', ctx.opts.version ?? '');
   version.dataset.testid = 'version';
   add(root, plate, version);
+  // The platform's label for the player (src/platform; the website has none): a small plate above the version.
+  const badgeText = (ctx.opts.badge?.() ?? '').trim();
+  if (badgeText !== '') {
+    const badge = el('div', 'th-type th-title-badge', badgeText);
+    badge.dataset.testid = 'platform-badge';
+    root.append(badge);
+  }
 
   function refresh(): void {
     showOffer();

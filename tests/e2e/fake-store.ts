@@ -98,6 +98,44 @@ export async function installFakeStore(page: Page): Promise<void> {
 }
 
 /**
+ * A stand-in membership section (Platform.membership: the Shop's third platform section). Made up, like the store
+ * above: two standings side by side; taking one up is done at once and it then reads as held ("owned").
+ */
+export const FAKE_MEMBERSHIP = {
+  title: 'Standings',
+  message: 'A line from the platform above its standings.',
+  notes: ['How a standing is kept up and how it is ended, as the platform words it.'],
+  taken: 'Taken up.',
+} as const;
+
+export async function installFakeMembership(page: Page): Promise<void> {
+  await page.evaluate((words) => {
+    const th = (window as unknown as { __TH: DebugApi }).__TH;
+    let held: string | null = null;
+    const standing = (id: string, title: string, description: string, label: string) => ({
+      id,
+      title,
+      description,
+      priceLabel: label,
+      owned: held === id,
+      async buy(): Promise<OfferOutcome> {
+        held = id;
+        return { kind: 'done', message: words.taken };
+      },
+    });
+    const membership: StoreSection = {
+      title: words.title,
+      notes: words.notes,
+      list: async () => ({
+        message: words.message,
+        offers: [standing('first', 'First standing', 'What the first one gives, in the platform\'s words.', 'LABEL 1'), standing('second', 'Second standing', 'What the second one gives.', 'LABEL 2')],
+      }),
+    };
+    th.setMembershipSection(membership);
+  }, FAKE_MEMBERSHIP);
+}
+
+/**
  * A stand-in reward section (Platform.reward: the Shop's second platform section). Made up, like the store above:
  *   task   done after a moment, gives 4 medals through the game; it can be had twice, then it is unavailable
  *   none   there is none to be had just now (the `unavailable` outcome): said calmly, nothing changes

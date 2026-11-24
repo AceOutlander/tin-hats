@@ -34,6 +34,26 @@ export function pressBack(doc: Document): boolean {
   return !doc.dispatchEvent(ev);
 }
 
+/**
+ * Tells a platform about each change of screen (`Platform.onScreen`): the screen now showing and the one before it.
+ * A platform without the hook is never called, the same screen twice in a row is told once, and whatever the
+ * platform's listener throws stays there: the game's own screen change is never held up or broken by it.
+ */
+export function screenReporter(platform: Pick<Platform, 'onScreen'>): (screen: string) => void {
+  let last: string | null = null;
+  return (screen) => {
+    if (screen === last) return;
+    const from = last;
+    last = screen;
+    if (!platform.onScreen) return;
+    try {
+      platform.onScreen(screen, from);
+    } catch (err) {
+      console.warn('Tin Hats: the platform failed on a change of screen', err);
+    }
+  };
+}
+
 export interface ShellHandle {
   /** The UI changed screen. */
   screenChanged(screen: ScreenId): void;

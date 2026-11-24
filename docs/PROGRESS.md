@@ -2,6 +2,19 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: three more hooks for platform builds (2026-11-23, on main after v0.17.8, DECISIONS 571 to 573)
+
+Not pushed, version not bumped (still 0.17.8). Nothing changes on the website: its platform has none of the three.
+
+- **A platform may be told of each change of screen** (`Platform.onScreen(screen, from)`, through `screenReporter`
+  in `src/platform/shell.ts`). The game never waits for it and a hook that throws cannot break a change of screen.
+- **A third section in the Shop, membership** (`Platform.membership`, a `StoreSection` drawn by the same code, last
+  of the platform's sections, test ids `membership-`).
+- **A badge on the title** (`Platform.badge()`: a short label on a small plate above the version).
+- Tests: `tests/unit/platform.test.ts` (+2), `tests/e2e/shop-store.spec.ts` (+1, picture
+  `docs/screenshots/shop-membership.png`), `tests/e2e/smoke.spec.ts` (the two new debug hooks in its list).
+  `docs/PLATFORM.md` describes all three.
+
 ## Not yet live: three owner decisions for platform builds (2026-11-17, on main after v0.17.7, DECISIONS 566 to 570)
 
 Not pushed, version not bumped (still 0.17.7). One change shows on the website; the other two change nothing there.

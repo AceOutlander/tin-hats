@@ -221,6 +221,12 @@ export interface Platform {
    * exactly as the store section is, and nothing of it ever happens unless the player presses one of its buttons.
    */
   readonly reward: StoreSection | null;
+  /**
+   * A third section for the Shop, under the reward's: standing arrangements the player may take up, change or end,
+   * set side by side. The same shape as `store`, drawn by the same code, every word the platform's. Absent or null:
+   * the Shop has none.
+   */
+  readonly membership?: StoreSection | null;
   /** A section for Settings. */
   readonly settings: SettingsSection | null;
   /** What the platform says the player owns, by id. */
@@ -234,6 +240,17 @@ export interface Platform {
    * own (src/data/version.ts). An empty text: none, and the version reads "v0.9.0".
    */
   readonly releaseStage?: string;
+  /**
+   * A short label the platform gives the player (a standing the platform keeps for them), shown on the title screen
+   * as the platform words it. Null or an empty text: nothing is shown. Read each time the title is drawn.
+   */
+  badge?(): string | null;
+  /**
+   * Told each time the game shows another screen: the screen now showing and the one before it (null the first
+   * time). The names are the game's own screen names (docs/PLATFORM.md). The game does not wait for it and nothing
+   * it does can hold a screen back; what a platform does with the moment between two screens is its own business.
+   */
+  onScreen?(screen: string, from: string | null): void;
   /** Called once, when the game is running, with what the game lends the platform. */
   attach?(game: GameHost): void;
 }

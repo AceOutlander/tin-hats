@@ -13,7 +13,7 @@ import { withStorageFallback } from './meta';
 import { platform } from './platform';
 import { ownsExtraUnit } from './platform/extraUnit';
 import type { SettingsSection, StoreSection } from './platform/types';
-import { installShell } from './platform/shell';
+import { installShell, screenReporter } from './platform/shell';
 import { reportScreen } from './pwa';
 import { createBattleView, nextTask } from './render';
 import { createUi } from './ui';
@@ -62,10 +62,16 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   // The Shop's store section is the platform's (the website has none); the debug hooks may stand one in for a test.
   let standInStore: StoreSection | null | undefined;
   let standInReward: StoreSection | null | undefined;
+  let standInMembership: StoreSection | null | undefined;
+  let standInBadge: string | null | undefined;
+  // A platform may be told of each change of screen (the website's is not: it has no such hook).
+  const reportScreenToPlatform = screenReporter(platform);
   let standInSettings: SettingsSection | null | undefined;
   const ui = createUi(uiEl, app, {
     store: () => (standInStore !== undefined ? standInStore : platform.store),
     reward: () => (standInReward !== undefined ? standInReward : platform.reward),
+    membership: () => (standInMembership !== undefined ? standInMembership : (platform.membership ?? null)),
+    badge: () => (standInBadge !== undefined ? standInBadge : (platform.badge?.() ?? null)),
     settings: () => (standInSettings !== undefined ? standInSettings : platform.settings),
     // The word before the version number is the game's own unless the platform names another, or none.
     releaseStage: platform.releaseStage,
@@ -80,6 +86,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
       reportScreen(screen);
       admin?.screenChanged();
       shell.screenChanged(screen);
+      reportScreenToPlatform(screen);
     },
     onPortrait: (portrait) => {
       if (portrait) app.autoPause();
@@ -88,7 +95,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   app.attachUi(ui);
   admin?.install(uiEl);
   installPageGuards(app, audio);
-  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin ? admin.debugHooks() : null, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section)) : null;
+  const debug = debugEnabled(window.location.search) ? installDebug(app, view, ui, audio, admin ? admin.debugHooks() : null, (store) => (standInStore = store), (section) => (standInSettings = section), (section) => (standInReward = section), (section) => (standInMembership = section), (label) => (standInBadge = label)) : null;
   // What the game lends its platform (an installed app's; the website's takes nothing).
   platform.attach?.({
     grantMedals: (medals, grantId) => app.grantMedals(medals, grantId),

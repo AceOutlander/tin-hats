@@ -1,7 +1,8 @@
 /**
  * A platform's section in the Shop: whatever the platform offers (src/platform), drawn as the platform words it. The
- * game holds no offer, label or price of its own. The Shop has up to two: the store section and, under it, the
- * reward section (`name` tells their test ids apart). A build whose platform has neither never creates one.
+ * game holds no offer, label or price of its own. The Shop has up to three: the store section and, under it, the
+ * reward section and the membership section (`name` tells their test ids apart). A build whose platform has none
+ * never creates one.
  *
  * States of an offer: idle (its button carries the price label), busy (asked for, waiting on the platform), then the
  * platform's own line under it: done, pending, failed or unavailable. A cancelled request leaves nothing behind. An
@@ -24,7 +25,7 @@ export interface StoreSectionView {
 
 type Shown = Exclude<OfferOutcome['kind'], 'cancelled'>;
 
-export function createStoreSection(store: StoreSection, hooks: StoreSectionHooks, name: 'store' | 'reward' = 'store'): StoreSectionView {
+export function createStoreSection(store: StoreSection, hooks: StoreSectionHooks, name: 'store' | 'reward' | 'membership' = 'store'): StoreSectionView {
   const root = el('section', 'th-qm-group th-store');
   root.dataset.testid = `${name}-section`;
   const heading = el('h2', 'th-group');

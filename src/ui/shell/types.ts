@@ -34,6 +34,10 @@ export interface UiOptions {
   store?: () => StoreSection | null;
   /** The platform's reward section for the Shop, read the same way; absent or null = the Shop has none. */
   reward?: () => StoreSection | null;
+  /** The platform's membership section for the Shop, read the same way; absent or null = the Shop has none. */
+  membership?: () => StoreSection | null;
+  /** The platform's label for the player on the title screen, read each time the title is drawn; absent, null or empty = none. */
+  badge?: () => string | null;
   /** The platform's section for Settings, read each time Settings opens; absent or null = Settings has none. */
   settings?: () => SettingsSection | null;
   /** Called after every screen change, including the first. */

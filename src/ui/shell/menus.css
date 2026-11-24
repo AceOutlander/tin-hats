@@ -670,6 +670,26 @@
   color: rgba(233, 223, 195, 0.62);
 }
 
+/* A platform's label for the player (Platform.badge; the website has none): a small plate above the version. */
+.th-title-badge {
+  position: absolute;
+  right: var(--th-pad-right);
+  bottom: calc(max(6px, var(--th-safe-bottom)) + 18px);
+  max-width: 40vw;
+  padding: 2px 8px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #e9dfc3;
+  border: 1px solid rgba(233, 223, 195, 0.55);
+  border-radius: 2px;
+  background: rgba(10, 10, 6, 0.55);
+}
+
 /* ------------------------------------------------------- campaign select */
 
 /* Over the title storm, like the title: a plate holding one dossier card per campaign. */

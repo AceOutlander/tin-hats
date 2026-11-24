@@ -33,11 +33,14 @@ before the game's own data is read (see "The extra unit").
 | `shell` | `null` | Lifecycle of an installed app: `onPause`, `onResume`, `onBack`, `keepAwake`. |
 | `store` | `null` | A store section for the Shop: a title, small print, and a listing of offers (below). Every word shown comes from the platform. |
 | `reward` | `null` | A second section for the Shop, under the store's: things the player may choose to do for a reward (below). The same shape as `store`; every word shown comes from the platform. |
+| `membership` | absent | A third section for the Shop, under the reward's: standing arrangements the player may take up, change or end, set side by side (below). The same shape as `store`; every word shown comes from the platform. |
 | `settings` | `null` | A section for Settings: a title, plain lines and buttons (below). Every word shown comes from the platform. |
 | `entitlements()` | empty set | Ids of things the platform says the player owns. |
 | `extraUnit` | `null` | An extra unit for the roster: the entitlement that owns it and how it is drawn (below). |
 | `testMode` | `null` | One switch for the admin panel, in the platform's words: its services run against stand-ins while it is on. Nothing reads it in a build made without the panel (below). |
 | `releaseStage` | absent | The word before the version number on the title and in Settings. Absent: the game's own, "Beta". An empty text: none (below). |
+| `badge()` | absent | A short label the platform gives the player, shown on the title screen (below). |
+| `onScreen(screen, from)` | absent | Told each time the game shows another screen (below). |
 | `attach(game)` | absent | Called once at start with what the game lends the platform (`GameHost`, below). |
 
 Rules for anything built on these:
@@ -94,6 +97,34 @@ the platform's business; whatever it gives, the platform gives itself through `G
 two promises of its own: nothing of the section ever happens unless the player presses one of its buttons, and it is
 drawn in the Shop only, never during a battle and never as a panel over another screen. Its test ids start with
 `reward-` where the store's start with `store-`.
+
+### The membership section (the same file, in the Shop)
+
+When `platform.membership` is there and not null the Shop shows a third section, last of the platform's (under the
+reward section, or under whichever of the others exist). It is a `StoreSection` like the other two and is drawn by
+the same code: a title, a message, one card per offer with a button, small print, the same outcomes and states. It
+is meant for standing arrangements a platform keeps for the player, set side by side so they can be compared: an
+offer the player holds reads as `owned`, the others carry the platform's label, and what taking one up, changing it
+or ending it means is the platform's business and said in the platform's words. The game adds the same promises as
+for the reward section: nothing of it happens unless the player presses one of its buttons, and it is drawn in the
+Shop only. Its test ids start with `membership-`.
+
+### The badge (`src/ui/screens/title.ts`)
+
+When `platform.badge` is there and returns a text that is not empty, the title screen shows it on a small plate in
+the bottom right corner, above the version (`data-testid="platform-badge"`): one line, cut with an ellipsis past 40%
+of the screen's width. It is read each time the title is drawn. The game keeps nothing of it, writes nothing of it
+to the save and gives nothing for it. Null, an empty text or no hook: no plate.
+
+### The change of screen (`screenReporter` in `src/platform/shell.ts`)
+
+When `platform.onScreen` is there the game calls it after every change of screen with the screen now showing and the
+one before it (`null` the first time): `onScreen('campaign', 'result')`. The names are the game's own: `title`,
+`campaigns` (the campaign select), `campaign` (a campaign's map), `briefing`, `quartermaster`, `armoury` (the
+Shop), `battle`, `result`, `settings`. The same screen is never told twice in a row. The game does not wait for the
+hook, takes no answer from it and catches whatever it throws, so a platform can never hold a screen back; what a
+platform does with the moment between two screens is its own business. The website has no such hook and nothing is
+called.
 
 ### What the game lends a platform (`GameHost`, handed to `attach`)
 
@@ -193,8 +224,10 @@ The sim capabilities it may lean on are generic, and no unit of the game uses th
 
 With `?debug=1`, `window.__TH.setStore(section)` stands a store section in for the platform's (from the next time the
 Shop opens) and `window.__TH.grantMedals` is the host's method. `window.__TH.setRewardSection(section)` does the same for the reward
-section. `tests/e2e/fake-store.ts` holds a made-up store and a made-up reward, used by
-`tests/e2e/shop-store.spec.ts` and `tests/e2e/screen-labels.spec.ts`.
+section, `window.__TH.setMembershipSection(section)` for the membership section, and `window.__TH.setBadge(label)`
+stands a label in for the platform's badge (from the next time the title is drawn). `tests/e2e/fake-store.ts` holds a
+made-up store, a made-up reward and a made-up membership section, used by `tests/e2e/shop-store.spec.ts` and
+`tests/e2e/screen-labels.spec.ts`. The change of screen is covered by `tests/unit/platform.test.ts`.
 
 An extra unit has to be there before the game loads, so a test page carries it: with `?debug=1`, a
 `window.__TH_EXTRA_UNIT = { data, slot }` set before the game's scripts run stands in for a platform's unit, owned
