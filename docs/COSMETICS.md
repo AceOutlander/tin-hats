@@ -511,6 +511,27 @@ Notes for whoever builds it (not the owner's words):
 - The glow before the shot follows the same rule as the "Cyber Chassis" charge-up: inside the normal reload,
   never delaying the shot.
 
+## "Hoodlum" (Rare), enemy skin for German SMG troops (MP40 troopers)
+
+Owner, verbatim (2026-11-23):
+
+- The player chooses this as how enemy SMG troopers look.
+- A gangster look: a black ski mask, a dark hoodie or jacket and a chunky gold chain necklace that swings a little when they move.
+- Their gun becomes a modern pistol in a carbine conversion kit (in the style of a pistol-carbine kit), but with a wooden stock for an old-school gangster feel. Generic design, no real brand names or logos.
+- Purely cosmetic: same size, hitbox, speed, damage, fire rate and everything else as the normal SMG trooper.
+
+Status: design note only. Don't build it yet.
+
+Notes (not the owner's words):
+
+- Keep it a crime-film caricature and nothing more: mask, hoodie, chain, gun. No markers of any real group,
+  place, culture or gang (colours, signs, tattoos, slang), so it cannot be read as a stereotype of real people.
+- The figures are black already: the mask and hoodie need a lighter edge or a dark grey tone, and the gold chain
+  does most of the work of making the skin readable.
+- The gun keeps the SMG's length and muzzle position and its sound stays a submachine gun's rate of fire; only
+  its look changes.
+- The enemy must still be told from the player's own men at a glance without his helmet.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
