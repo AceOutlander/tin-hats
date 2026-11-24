@@ -462,8 +462,11 @@ own gunmetal, with our own fin spacing and muzzle shape.
 
 Notes for whoever builds it (not the owner's words):
 
-- The game has no IS-2 today: the Soviet heavy tanks drawn are the KV-1 and the KV-2. Ask the owner whether the
-  Soviet version is for the KV until an IS-2 exists.
+- The Soviet version goes on the KV-1 for now (owner, 2026-11-23: "put it on the KV-1 for now. When the IS-2 is
+  added in the Road to Berlin campaign, add a separate "Railgun" for it too, and keep the KV-1 version."). So the
+  items are: King Tiger (enemy), Churchill, KV-1, and later the IS-2 as a fourth, each unlocked on its own. The
+  KV-2 gets none unless the owner says so.
+- The owner agreed the three notes below on 2026-11-23 (timing, barrel length, one King Tiger skin at a time).
 - A tank shell is drawn flying to its target; a streak looks instant. The hit must still land when the shell
   would have, so draw the streak over the shell's normal flight time or hold the flash at the muzzle until then.
 - The rails are no longer than the normal barrel, so the muzzle, where the shot leaves, does not move.
