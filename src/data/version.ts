@@ -32,6 +32,10 @@ export interface ReleaseNotes {
 /** Newest first. Settings shows the first entry. */
 export const WHATS_NEW: readonly ReleaseNotes[] = [
   {
+    version: '0.17.9',
+    items: ['More behind-the-scenes groundwork for the phone app. Nothing changes in how the game plays.'],
+  },
+  {
     version: '0.17.8',
     items: ['The Shop no longer lists Battle for Poland; it will return when that campaign is ready.'],
   },

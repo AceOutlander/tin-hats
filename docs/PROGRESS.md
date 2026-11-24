@@ -2,9 +2,9 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
-## Not yet live: three more hooks for platform builds (2026-11-23, on main after v0.17.8, DECISIONS 571 to 573)
+## Live as Beta v0.17.9: three more hooks for platform builds (2026-11-24, DECISIONS 571 to 573)
 
-Not pushed, version not bumped (still 0.17.8). Nothing changes on the website: its platform has none of the three.
+Nothing changes on the website: its platform has none of the three.
 
 - **A platform may be told of each change of screen** (`Platform.onScreen(screen, from)`, through `screenReporter`
   in `src/platform/shell.ts`). The game never waits for it and a hook that throws cannot break a change of screen.
