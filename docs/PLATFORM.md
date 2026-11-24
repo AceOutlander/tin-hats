@@ -307,7 +307,9 @@ The title's helmet is then a plain picture: it carries no mark and nothing liste
 caller of. With the panel gone nothing calls them and nothing on screen leads to them: the battle's `admin(action)`
 and the per-side cheat flags it sets (part of the sim, `src/sim/admin.ts`, read by the tick and covered by the sim's
 tests), `BattleSession.admin`, and on `App` the fields and methods named `admin…` (`adminTaps`, `adminDarkness`,
-`adminUnlockMissions`, `adminJump`). Two pieces of text stay with them: the result line for a battle the panel
+`adminUnlockMissions`, `adminJump`), with the ones the panel's Crates tab calls (`setCosmeticsEnabled`,
+`giveCrates`, `giveItems`, `clearCosmetics`, `oddsTest`; only the debug hooks call them then). Two pieces of text stay
+with them: the result line for a battle the panel
 ended (`APP.reasons.admin`, never reached) and the old release note that announced the panel (in `WHATS_NEW`;
 Settings shows the newest note only).
 
