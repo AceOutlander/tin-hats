@@ -403,6 +403,22 @@ Notes for whoever builds it (not the owner's words):
   that the top of the statue is not cut off by the top bar and the objective banner at the three phone sizes.
 - The birds are a picture only: they fly off when the HQ is first hit and do not come back during the battle.
 
+## "Secret Agent" (Rare), British SMG troops (Assault Troopers with the Sten)
+
+Owner, verbatim (2026-11-23):
+
+- A dark fedora-style hat instead of the helmet, and a long dark trench-coat-style cloak jacket with the collar turned up.
+- The coat's tail sways and flutters slightly in the wind, a bit more when running.
+- Optional small touch: a thin scarf or tie in a muted colour.
+- Purely cosmetic: same size, hitbox, speed, health, damage and everything else as normal.
+
+Status: design note only. Don't build it yet.
+
+Notes (not the owner's words): the game's figures are black, so a dark hat and a dark coat need a lighter edge or
+a paler tone (charcoal grey, a tan lining) to read at phone size and on night maps. The hat's brim must stay
+clearly different from the German helmet and the British dish helmet, so the side is still told at a glance.
+The coat tail hangs inside the figure's normal outline when he lies prone or stands in a trench.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
