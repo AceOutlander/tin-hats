@@ -434,6 +434,30 @@ reads as a badge is enough, with the full emblem only in the Armoury picture. Th
 symbols some countries restrict (the private app repo's `store/COUNTRIES.md`); the game already shows it on the
 Soviet flag, and this adds it to a soldier.
 
+## "Railgun" (Mythic), each side's strongest tank (enemy King Tiger, and the top heavy tank of every Allied nation, such as the Soviet IS-2 and the British Churchill)
+
+Owner, verbatim (2026-11-23):
+
+- One skin per tank type. For the King Tiger, it's chosen as how the enemy looks; for Allied tanks, it's your own.
+- The tank gets a slightly more cyber, futuristic look: smoother angular armour panels, dark gunmetal with thin orange-red glowing seams and small sensor lights. Still clearly the same tank shape underneath.
+- The gun barrel becomes a railgun, using the attached image for the general idea only (don't copy its design or text): two long parallel rails with a row of metal fins along them, a glowing orange-red energy core between them at the base, and an angular muzzle.
+- Before each shot, the core and rails glow brighter with a rising electric hum; the shot is a bright orange-red streak with a sharp crack, then the usual explosion on impact.
+- Purely cosmetic: same size, hitbox, armour, speed, damage, reload and range as the normal tank, with the glow timed to the normal reload.
+
+Status: design note only. Don't build it yet. The reference image did not arrive with the note; ask the owner for
+it before drawing. It is for the general idea only: nothing of its design or text may be copied.
+
+Notes for whoever builds it (not the owner's words):
+
+- The game has no IS-2 today: the Soviet heavy tanks drawn are the KV-1 and the KV-2. Ask the owner whether the
+  Soviet version is for the KV until an IS-2 exists.
+- A tank shell is drawn flying to its target; a streak looks instant. The hit must still land when the shell
+  would have, so draw the streak over the shell's normal flight time or hold the flash at the muzzle until then.
+- The rails are no longer than the normal barrel, so the muzzle, where the shot leaves, does not move.
+- "Cyber Chassis" is also an enemy King Tiger skin: a player wears one or the other, never both.
+- The glow before the shot follows the same rule as the "Cyber Chassis" charge-up: inside the normal reload,
+  never delaying the shot.
+
 ## The Common set (owner, 2026-11-18)
 
 Owner, verbatim: "All are Common rarity, purely cosmetic, with no gameplay change, readable at phone size and cheap
