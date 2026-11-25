@@ -380,6 +380,7 @@ const ITEMS: readonly CosmeticItem[] = [
   },
   {
     id: 'bioblaster',
+    finished: true,
     name: 'Bioblaster',
     rarity: 'epic',
     blurb: 'A black canister on his back with a window of glowing green liquid and a green-lit hose. The flame stays the game\'s own.',
@@ -391,17 +392,19 @@ const ITEMS: readonly CosmeticItem[] = [
   },
   {
     id: 'spetsnaz',
+    finished: true,
     name: 'Spetsnaz',
     rarity: 'epic',
     blurb: 'A heavy olive armoured helmet with a flat visor, one narrow eye slit and a white stencilled mark, and olive webbing.',
     target: { side: 'own', nations: ['soviet'], units: ['lmg'] },
     look: {
       recolours: [{ parts: ['kit'], colour: '#55603a', strength: 0.8 }, { parts: ['body'], colour: '#3e4530', strength: 0.5 }],
-      images: [{ file: 'spetsnaz-helmet.svg', pin: 'head', w: 17, h: 16, ax: 0.5, ay: 0.7, replaces: true }],
+      images: [{ file: 'spetsnaz-helmet.svg', pin: 'head', w: 19, h: 18, ax: 0.5, ay: 0.7, replaces: true }],
     },
   },
   {
     id: 'evolved',
+    finished: true,
     name: 'Evolved',
     rarity: 'epic',
     blurb: 'Red berets and a modern green-and-tan camouflage uniform.',

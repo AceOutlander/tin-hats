@@ -12,10 +12,9 @@ app switches them on through `Platform.cosmetics`.
   from the Shop; the God Crate stays "Coming soon".
 - **Finished items** (each looked at in a battle at 844x390 and 667x375):
   Common `frostbite-british`, `frostbite-soviet`, `royal`; Uncommon `constellation`, `loyalist`, `old-times`; Rare
-  `secret-agent`, `hoodlum`; Epic `night-ops`, `frost-ghoul`; Legendary `heavens-gate`, `furnace-walker`; Mythic
-  `zeus`, `legacy`. Every crate tier, Standard to Titan, is shown.
-- **Started, not finished:** `bioblaster`, `spetsnaz`, `evolved` (Epic) are in the data with their pictures but are
-  not marked finished, so no crate holds them.
+  `secret-agent`, `hoodlum`; Epic `night-ops`, `frost-ghoul`, `bioblaster`, `spetsnaz`, `evolved`; Legendary
+  `heavens-gate`, `furnace-walker`; Mythic `zeus`, `legacy`. Every crate tier, Standard to Titan, is shown.
+- **Started, not finished:** none.
 - What each leaves out of the owner's design: the note under it in `docs/COSMETICS.md`.
 
 Next: more of the owner's designs ("Reinforced", "Iron Tommy", "Railgun" and "Cyber Chassis" need more of the framework);

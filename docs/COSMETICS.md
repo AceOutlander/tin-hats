@@ -142,7 +142,9 @@ Owner, verbatim (2026-11-18):
 - No real unit patches, badges or insignia copied; use simple generic shapes.
 - Purely cosmetic: same fire rate, damage, range and everything else as the normal Rifleman. Single shots, not rapid fire, with only the rifle's look and sound changed.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `evolved` (Epic, Soviet riflemen): a dark red beret with a light edge in place of the helmet, the uniform painted tan with green camouflage blotches, and the kit painted dark olive. Left out: the plate carrier, gloves, black boots and the AK-12-style rifle (the game's own rifle is kept). No patches or badges.
 
 What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
 owner has it):
@@ -192,7 +194,9 @@ Owner, verbatim (2026-11-18):
 - He walks with a slightly slower, heavier-looking stride (animation only).
 - Purely cosmetic: the same speed, health, damage, fire rate and everything else as the normal DP Gunner.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `spetsnaz` (Epic, Soviet DP Gunners): a heavy rounded olive helmet picture coming low over the ears and neck, with a thick flat visor hinged at the temple, one narrow black eye slit and a white stencilled mark of bars (no letters or digits: lettering cannot be drawn in a picture yet), and olive webbing. Left out: the armoured vest and plates, padded shoulders, heavy gloves and boots, pan-magazine pouches and the heavier stride.
 
 What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
 owner has it):
@@ -386,7 +390,9 @@ Owner, verbatim (2026-11-21):
 Owner, 2026-11-21, confirming: "yeah no gore just like a green fire skin". Treat it as the normal flame recoloured
 green, with the canister and splashes above: nothing more graphic than the fire it replaces.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `bioblaster` (Epic, Soviet flamethrowers): a black canister picture on his back with a glass window of glowing green liquid and bubbles, a green-lit hose, and a soft pulsing green glow round it. Left out: the green stream, splashes and mist, the sloshing, and the green burst and puddle (the flame and every effect stay the game's own; the item's description says so).
 
 Notes (not the owner's words):
 
