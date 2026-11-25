@@ -268,6 +268,11 @@ export interface Platform {
    * Asked each time the Shop is drawn and each time a crate is asked for.
    */
   crateBuying?(): boolean;
+  /**
+   * Whether supply crates, the Appearance tab and what is worn are on in this build. Absent: the game's own switch
+   * (COSMETICS.enabled in src/data/cosmetics.ts), which is off, so the website has none of them. Read once, at start.
+   */
+  readonly cosmetics?: boolean;
   /** Called once, when the game is running, with what the game lends the platform. */
   attach?(game: GameHost): void;
 }

@@ -41,6 +41,7 @@ before the game's own data is read (see "The extra unit").
 | `releaseStage` | absent | The word before the version number on the title and in Settings. Absent: the game's own, "Beta". An empty text: none (below). |
 | `badge()` | absent | A short label the platform gives the player, shown on the title screen (below). |
 | `onScreen(screen, from)` | absent | Told each time the game shows another screen (below). |
+| `cosmetics` | absent | Whether supply crates, the Appearance tab and what is worn are on in this build (absent: the game's own switch, off). Read once, at start. |
 | `crateBuying()` | absent | Whether supply crates may be bought with medals where the game is running (below). |
 | `attach(game)` | absent | Called once at start with what the game lends the platform (`GameHost`, below). |
 

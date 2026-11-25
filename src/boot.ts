@@ -52,7 +52,7 @@ export async function boot(progress: (fraction: number) => void): Promise<void> 
   // again on an empty store.
   const app = withStorageFallback(
     browserStorage(),
-    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV), extraUnit: ownsExtraUnit, crateBuying }),
+    (storage) => new App({ view, audio, storage, showUnreleased: showUnreleased(window.location.search, import.meta.env.DEV), extraUnit: ownsExtraUnit, crateBuying, cosmetics: platform.cosmetics }),
     (err) => console.error('Tin Hats: the saved data could not be used; starting with defaults.', err),
   );
   markStartup('th:app');
