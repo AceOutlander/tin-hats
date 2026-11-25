@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="110" viewBox="0 0 160 110">
+  <!-- "Loyalist": a red peaked field cap with a gold star badge, seen from the side, facing right. -->
+  <path d="M20 84 C16 46 44 22 86 20 C122 20 142 44 140 84 Z" fill="#c8241c" stroke="#f0c9b8" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M22 72 L140 72 L140 86 L22 86 Z" fill="#8e1610" stroke="#f0c9b8" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M120 82 C134 82 150 86 158 94 L120 96 Z" fill="#1c1410" stroke="#f0c9b8" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M118 30 L124 46 L141 46 L127 56 L132 72 L118 62 L104 72 L109 56 L95 46 L112 46 Z" fill="#ffd23a" stroke="#6a4a00" stroke-width="4" stroke-linejoin="round"/>
+</svg>

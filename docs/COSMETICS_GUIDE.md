@@ -119,8 +119,11 @@ What the fields mean:
 
 The 13 placeholder entries already in the file show every one of these in use. Copy the nearest.
 
-An item of rarity `special` never comes out of a crate (it is given some other way). Every other rarity is in the
-crates as soon as an item of it exists.
+An item of rarity `special` never comes out of a crate (it is given some other way). Any other item goes into the
+crates only once it has `finished: true` in its entry: set that after you have looked at it in a battle at phone size
+(both 844x390 and 667x375). Until then it can be given and worn for a look (the admin panel's "Give every item") but
+no crate, free crate or platform grant hands it to a player. A crate none of whose rarities has a finished item is not
+shown in the Shop.
 
 ## Checking it
 
@@ -140,8 +143,9 @@ crates as soon as an item of it exists.
 
 ## Before players see any of it
 
-- Take the placeholder entries and the three `placeholder-` pictures out. A test fails if the switch is on while a
-  placeholder is still in the list, and several tests name the placeholders: that last step is a small programmer's
-  job, done once.
+- Placeholders are never finished, so no player can get one from a crate or a grant (DECISIONS 589); they stay in
+  the data for the tests and the admin panel. To take them out for good, remove the entries and the three
+  `placeholder-` pictures. A test fails if the website's switch is on while a placeholder is still in the list, and
+  several tests name the placeholders: a small programmer's job, done once.
 - Then set `enabled: true` in `src/data/cosmetics.ts`. That one line shows the crate section, the Appearance tab and
   free crates to everyone.

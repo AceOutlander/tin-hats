@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../../src/app/app';
 import { buildAppearanceView, buildCratesView } from '../../src/app/cosmeticsView';
 import { CONFIG } from '../../src/data/config';
-import { COSMETICS } from '../../src/data/cosmetics';
+import { COSMETICS, type CosmeticItem } from '../../src/data/cosmetics';
 import { CRATES } from '../../src/data/crates';
 import { SANDBOX } from '../../src/data/missions/sandbox';
 import { cosmeticsOf, createMemoryStorage, cratesHeld, defaultSave, giveItem, loadSave, wearItem, writeSave, type SaveData, type StorageLike } from '../../src/meta';
@@ -122,7 +122,8 @@ describe('cosmetics switched on', () => {
     expect(stored.cosmetics?.opened.standard).toBe(1);
     if (shown?.item) {
       expect(stored.cosmetics?.owned).toEqual([shown.item.id]);
-      expect(shown.item.name).toMatch(/^Placeholder /);
+      expect(shown.item.name).not.toMatch(/placeholder/i);
+      expect(COSMETICS.items.find((i) => i.id === shown.item?.id)?.finished).toBe(true);
       expect(shown.medals).toBe(0);
     }
     expect(shown?.rarity.name).toBe(['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic'].find((n) => n === shown?.rarity.name));
@@ -262,14 +263,15 @@ describe('a platform\'s once-only grant of a crate or an item', () => {
     const t = makeApp({ storage });
     // Whether or not cosmetics show here: what a platform gives is kept.
     expect(t.app.grantCrate('premium', 'g-1')).toBe('granted');
-    expect(t.app.grantItem('placeholder-special-1', 'g-2')).toBe('granted');
+    expect(t.app.grantItem('zeus', 'g-2')).toBe('granted');
     const stored = loadSave(storage).data;
     expect(stored.cosmetics?.crates).toEqual({ premium: 1 });
-    expect(stored.cosmetics?.owned).toEqual(['placeholder-special-1']);
+    expect(stored.cosmetics?.owned).toEqual(['zeus']);
     expect(stored.grants).toEqual(['g-1', 'g-2']);
     const again = makeApp({ storage });
     expect(again.app.grantCrate('premium', 'g-1')).toBe('already');
-    expect(again.app.grantItem('placeholder-special-1', 'g-2')).toBe('already');
+    expect(again.app.grantItem('zeus', 'g-2')).toBe('already');
+    expect(again.app.grantItem('placeholder-special-1', 'g-4')).toBe('failed');
     expect(again.app.grantCrate('god', 'g-3')).toBe('failed');
     expect(again.app.grantItem('nothing', 'g-3')).toBe('failed');
     expect(loadSave(storage).data).toEqual(stored);
@@ -287,11 +289,11 @@ describe('a platform\'s once-only grant of a crate or an item', () => {
       removeItem: (k) => inner.removeItem(k),
     };
     const t = makeApp({ storage });
-    expect(t.app.grantItem('placeholder-common-1', 'first')).toBe('granted');
+    expect(t.app.grantItem('frostbite-british', 'first')).toBe('granted');
     refuse = true;
     expect(t.app.grantCrate('standard', 'second')).toBe('failed');
-    expect(t.app.grantItem('placeholder-common-2', 'third')).toBe('failed');
-    expect(t.app.save.cosmetics).toEqual({ ...cosmeticsOf(defaultSave()), owned: ['placeholder-common-1'] });
+    expect(t.app.grantItem('frostbite-soviet', 'third')).toBe('failed');
+    expect(t.app.save.cosmetics).toEqual({ ...cosmeticsOf(defaultSave()), owned: ['frostbite-british'] });
     expect(t.app.save.grants).toEqual(['first']);
     expect(makeApp({ storage: null }).app.grantCrate('standard', 'x')).toBe('failed');
   });
@@ -306,6 +308,28 @@ describe('the view models alone', () => {
     buildCratesView(save, false);
     expect(buildAppearanceView(save, 'soviet').items[0].appliesTo).toBe('Sniper · Red Army');
     expect(JSON.stringify(save)).toBe(before);
+  });
+
+  it('a crate none of whose rarities has a finished item is not shown; the God Crate stays as "Coming soon"', () => {
+    const save = defaultSave();
+    const item = (id: string, rarity: CosmeticItem['rarity'], finished: boolean): CosmeticItem => ({ id, name: id, rarity, blurb: '', target: { side: 'own', nations: 'all', units: ['rifle'] }, look: {}, finished });
+    const ids = (items: CosmeticItem[], buying = true): string[] => buildCratesView(save, buying, items).cards.map((c) => c.id);
+    // Nothing finished: only the God Crate's card, not for sale.
+    expect(ids([item('a', 'common', false), item('b', 'mythic', false)])).toEqual(['god']);
+    expect(buildCratesView(save, true, []).cards.map((c) => c.state)).toEqual(['soon']);
+    // Commons only: the two crates that hold Commons, each with its exact table.
+    const commons = [item('a', 'common', true)];
+    expect(ids(commons)).toEqual(['standard', 'premium', 'god']);
+    expect(buildCratesView(save, true, commons).cards[0].odds.map((o) => `${o.name} ${o.percent}`)).toEqual(['Common 45.9%', 'Uncommon 30%', 'Rare 18%', 'Epic 5%', 'Legendary 1%', 'Mythic 0.1%']);
+    // A Mythic too: every crate tier is stocked.
+    expect(ids([...commons, item('m', 'mythic', true)])).toEqual(['standard', 'premium', 'elite', 'titan', 'god']);
+    // A held crate of a hidden tier stays to be opened.
+    save.cosmetics = { ...cosmeticsOf(save), crates: { elite: 1 } };
+    expect(ids(commons, false)).toEqual(['standard', 'elite']);
+  });
+
+  it('with the game\'s own data every crate tier has a finished item, so every crate is shown', () => {
+    expect(buildCratesView(defaultSave(), true).cards.map((c) => c.id)).toEqual(['standard', 'premium', 'elite', 'titan', 'god']);
   });
 });
 

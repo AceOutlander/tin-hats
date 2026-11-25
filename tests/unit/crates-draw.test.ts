@@ -4,7 +4,7 @@
  * grants. Every draw follows from the save alone.
  */
 import { describe, expect, it } from 'vitest';
-import { RARITY_ORDER, type CosmeticItem, type Rarity } from '../../src/data/cosmetics';
+import { COSMETICS, RARITY_ORDER, type CosmeticItem, type Rarity } from '../../src/data/cosmetics';
 import { CRATES, crateDef, type CrateDef, type CrateId } from '../../src/data/crates';
 import { META } from '../../src/data/meta';
 import {
@@ -13,7 +13,9 @@ import {
   canBuyCrate,
   cosmeticsOf,
   crateComplete,
+  crateItems,
   crateRng,
+  crateStocked,
   cratesHeld,
   defaultSave,
   freeCratesEarned,
@@ -36,9 +38,9 @@ const def = (id: CrateId): CrateDef => crateDef(id) as CrateDef;
 const STANDARD = def('standard');
 const PREMIUM = def('premium');
 const rank = (r: Rarity): number => RARITY_ORDER.indexOf(r);
-/** Made-up items: `n` of a rarity. */
-const made = (rarity: Rarity, n: number): CosmeticItem[] =>
-  Array.from({ length: n }, (_, i) => ({ id: `t-${rarity}-${i}`, name: `T ${i}`, rarity, blurb: '', target: { side: 'own', nations: 'all', units: ['rifle'] }, look: {} }));
+/** Made-up items: `n` of a rarity, finished unless said otherwise. */
+const made = (rarity: Rarity, n: number, finished = true): CosmeticItem[] =>
+  Array.from({ length: n }, (_, i) => ({ id: `t-${rarity}-${i}${finished ? '' : '-wip'}`, name: `T ${i}`, rarity, blurb: '', target: { side: 'own', nations: 'all', units: ['rifle'] }, look: {}, finished }));
 
 describe('the roll', () => {
   it('reads the table from the lowest rarity up', () => {
@@ -184,7 +186,21 @@ describe('opening a crate', () => {
     expect(save.medals).toBe(CRATES.duplicateMedals.mythic);
   });
 
-  it('with the placeholder items: a long run owns every crate item once, and only then pays duplicates of a rarity', () => {
+  it('only finished items come out: an unfinished one or a placeholder never does, and its rarity pays medals', () => {
+    const items = [...made('common', 2, false), { ...made('common', 1)[0], id: 't-placeholder', placeholder: true }, ...made('uncommon', 1)];
+    const save = defaultSave();
+    const only: CrateDef = { ...def('titan'), odds: [{ rarity: 'common', parts: 5000 }, { rarity: 'uncommon', parts: 5000 }], guarantees: [] };
+    const given = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const r = openCrate(save, only, 5, items);
+      if (r.item !== null) given.add(r.item);
+      else expect(r.medals).toBe(CRATES.duplicateMedals[r.rarity]);
+    }
+    expect([...given]).toEqual(['t-uncommon-0']);
+    expect(crateItems(items).map((i) => i.id)).toEqual(['t-uncommon-0']);
+  });
+
+  it('with the game\'s own items: a long run owns every finished crate item once, and only then pays duplicates of a rarity', () => {
     const save = defaultSave();
     const seen = new Set<string>();
     for (let i = 0; i < 400; i++) {
@@ -194,13 +210,15 @@ describe('opening a crate', () => {
         seen.add(r.item);
         expect(r.medals).toBe(0);
       } else {
-        expect(itemsOfRarity(r.rarity).every((item) => seen.has(item.id)), r.rarity).toBe(true);
+        expect(itemsOfRarity(r.rarity, crateItems()).every((item) => seen.has(item.id)), r.rarity).toBe(true);
         expect(r.medals).toBe(CRATES.duplicateMedals[r.rarity]);
       }
     }
     for (const rarity of ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const) {
-      for (const item of itemsOfRarity(rarity)) expect(seen.has(item.id), item.id).toBe(true);
+      for (const item of itemsOfRarity(rarity, crateItems())) expect(seen.has(item.id), item.id).toBe(true);
     }
+    // Nothing unfinished (the placeholders among them) ever came out of a crate.
+    for (const item of COSMETICS.items) if (item.finished !== true) expect(seen.has(item.id), item.id).toBe(false);
     // Nothing of the Special rarity ever came out of a crate.
     for (const item of itemsOfRarity('special')) expect(seen.has(item.id)).toBe(false);
     expect(crateComplete(save, PREMIUM)).toBe(true);
@@ -214,6 +232,26 @@ describe('opening a crate', () => {
     save.cosmetics = { ...cosmeticsOf(save), since: { standard: { rare: 4, legendary: 12 } } };
     expect(guaranteeWithin(save, STANDARD, 'rare')).toBe(1);
     expect(guaranteeWithin(save, STANDARD, 'legendary')).toBe(18);
+  });
+});
+
+describe('a crate with nothing finished in it', () => {
+  it('is not sold and not granted while none of its rarities has a finished item; its table stays the exact one', () => {
+    const elite = def('elite');
+    const commons = made('common', 2);
+    expect(crateStocked(STANDARD, commons)).toBe(true);
+    expect(crateStocked(elite, commons)).toBe(false);
+    expect(crateStocked(elite, [...commons, ...made('mythic', 1, false)])).toBe(false);
+    expect(crateStocked(elite, [...commons, ...made('mythic', 1)])).toBe(true);
+    const save = defaultSave();
+    save.medals = 9000;
+    expect(canBuyCrate(save, 'elite', commons)).toBe(false);
+    expect(buyCrate(save, 'elite', 1, commons)).toBeNull();
+    expect(canBuyCrate(save, 'standard', commons)).toBe(true);
+    expect(save.medals).toBe(9000);
+    // A stocked crate keeps its whole table: a rarity with nothing finished yet pays medals as a duplicate does.
+    expect(STANDARD.odds.map((o) => o.rarity)).toEqual(['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']);
+    expect(buyCrate(save, 'standard', 1, [])).toBeNull();
   });
 });
 
@@ -298,12 +336,12 @@ describe('once-only grants of a crate or an item', () => {
     expect(grantCrateOnce(save, 'premium', 'c.1')).toBe('granted');
     expect(grantCrateOnce(save, 'premium', 'c.1')).toBe('already');
     expect(cratesHeld(save, 'premium')).toBe(1);
-    expect(grantItemOnce(save, 'placeholder-special-1', 'i.1')).toBe('granted');
-    expect(grantItemOnce(save, 'placeholder-special-1', 'i.1')).toBe('already');
-    expect(cosmeticsOf(save).owned).toEqual(['placeholder-special-1']);
+    expect(grantItemOnce(save, 'zeus', 'i.1')).toBe('granted');
+    expect(grantItemOnce(save, 'zeus', 'i.1')).toBe('already');
+    expect(cosmeticsOf(save).owned).toEqual(['zeus']);
     // Owned already: the grant is taken, nothing else changes.
-    expect(grantItemOnce(save, 'placeholder-special-1', 'i.2')).toBe('granted');
-    expect(cosmeticsOf(save).owned).toEqual(['placeholder-special-1']);
+    expect(grantItemOnce(save, 'zeus', 'i.2')).toBe('granted');
+    expect(cosmeticsOf(save).owned).toEqual(['zeus']);
     expect(save.grants).toEqual(['c.1', 'i.1', 'i.2']);
     expect(save.medals).toBe(0);
   });
@@ -314,7 +352,9 @@ describe('once-only grants of a crate or an item', () => {
     expect(grantCrateOnce(save, 'nope', 'g')).toBe('failed');
     expect(grantCrateOnce(save, 'standard', 'bad id')).toBe('failed');
     expect(grantItemOnce(save, 'no-such-item', 'g')).toBe('failed');
-    expect(grantItemOnce(save, 'placeholder-common-1', 'x'.repeat(META.maxGrantIdLength + 1))).toBe('failed');
+    expect(grantItemOnce(save, 'frostbite-british', 'x'.repeat(META.maxGrantIdLength + 1))).toBe('failed');
+    // A placeholder, or anything not finished, is never handed to a player.
+    for (const item of COSMETICS.items) if (item.finished !== true) expect(grantItemOnce(save, item.id, 'g'), item.id).toBe('failed');
     expect(save).toEqual(defaultSave());
     addCrates(save, 'standard', CRATES.maxHeld);
     expect(grantCrateOnce(save, 'standard', 'full')).toBe('failed');

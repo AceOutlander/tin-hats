@@ -148,8 +148,13 @@ export interface CosmeticItem {
   blurb: string;
   target: CosmeticTarget;
   look: SkinLook;
-  /** A stand-in for testing, not a design of the owner's. */
+  /** A stand-in for testing, not a design of the owner's. Never finished, so never in a crate. */
   placeholder?: boolean;
+  /**
+   * True once the item is built, looked at in a battle at phone size and ready to sell. Crates hold only finished
+   * items (src/meta/cosmetics.ts crateItems), and a crate none of whose rarities has one is not shown in the Shop.
+   */
+  finished?: boolean;
 }
 
 export interface CosmeticsData {
@@ -183,6 +188,170 @@ export interface CosmeticsData {
   };
   items: readonly CosmeticItem[];
 }
+
+/**
+ * The owner's designs (docs/COSMETICS.md), as built. Each blurb says what the player sees and nothing more; the note
+ * under each design in docs/COSMETICS.md says what was built and what of the design was left out.
+ */
+const ITEMS: readonly CosmeticItem[] = [
+  // --- Common ---
+  {
+    id: 'frostbite-british',
+    finished: true,
+    name: 'Frostbite (British)',
+    rarity: 'common',
+    blurb: 'White winter uniforms and helmets with green camouflage blotches.',
+    target: { side: 'own', nations: ['british'], units: ['rifle'] },
+    look: { recolours: [{ parts: ['body', 'helmet'], colour: '#eef0ea', strength: 0.82, pattern: { kind: 'blotches', colour: '#4d7a3c', size: 4.5, cover: 0.22 } }] },
+  },
+  {
+    id: 'frostbite-soviet',
+    finished: true,
+    name: 'Frostbite (Soviet)',
+    rarity: 'common',
+    blurb: 'White winter uniforms and helmets with green camouflage blotches.',
+    target: { side: 'own', nations: ['soviet'], units: ['rifle'] },
+    look: { recolours: [{ parts: ['body', 'helmet'], colour: '#eef0ea', strength: 0.82, pattern: { kind: 'blotches', colour: '#4d7a3c', size: 4.5, cover: 0.22 } }] },
+  },
+  // --- Uncommon ---
+  {
+    id: 'constellation',
+    finished: true,
+    name: 'Constellation',
+    rarity: 'uncommon',
+    blurb: 'Night-sky blue paint with yellow stars scattered over it, like a star map. The red star stays on the turret.',
+    target: { side: 'own', nations: ['soviet'], units: 'tanks' },
+    look: {
+      recolours: [{ parts: ['hull', 'turret', 'gun'], colour: '#1d2d5c', strength: 0.78, pattern: { kind: 'spots', colour: '#ffe04a', size: 2.6, cover: 0.035 } }],
+      images: [{ file: 'constellation-star.svg', pin: 'turret', w: 9, h: 9, ax: 0.5, ay: 0.5 }],
+    },
+  },
+  {
+    id: 'loyalist',
+    finished: true,
+    name: 'Loyalist',
+    rarity: 'uncommon',
+    blurb: 'A red peaked cap with a gold star badge in place of the helmet.',
+    target: { side: 'own', nations: ['soviet'], units: ['sapper'] },
+    look: { images: [{ file: 'loyalist-cap.svg', pin: 'head', w: 17, h: 12, ax: 0.5, ay: 0.8, replaces: true }] },
+  },
+  // --- Rare ---
+  {
+    id: 'secret-agent',
+    finished: true,
+    name: 'Secret Agent',
+    rarity: 'rare',
+    blurb: 'A charcoal fedora in place of the helmet and a long charcoal coat whose tail sways as he runs.',
+    target: { side: 'own', nations: ['british'], units: ['assault'] },
+    look: {
+      recolours: [{ parts: ['body', 'kit'], colour: '#4a4a54', strength: 0.75 }],
+      images: [
+        { file: 'secret-agent-fedora.svg', pin: 'head', w: 20, h: 12, ax: 0.5, ay: 0.78, replaces: true },
+        { file: 'secret-agent-coat.svg', pin: 'body', w: 10, h: 19, ax: 0.6, ay: 0.03, x: -3, y: 4, swing: { degrees: 5, perSecond: 0.8 } },
+      ],
+    },
+  },
+  {
+    id: 'hoodlum',
+    finished: true,
+    name: 'Hoodlum',
+    rarity: 'rare',
+    blurb: 'Enemy machine-pistol troopers in black ski masks and dark hoodies, with a chunky gold chain that swings as they move.',
+    target: { side: 'enemy', nations: ['german'], units: ['assault'] },
+    look: {
+      recolours: [{ parts: ['body', 'kit'], colour: '#2e2e34', strength: 0.7 }],
+      images: [
+        { file: 'hoodlum-mask.svg', pin: 'head', w: 12, h: 13, ax: 0.5, ay: 0.6, replaces: true },
+        { file: 'hoodlum-chain.svg', pin: 'body', w: 10, h: 8.5, ax: 0.5, ay: 0.05, x: 1, y: -6, swing: { degrees: 12, perSecond: 1 } },
+      ],
+    },
+  },
+  // --- Epic ---
+  {
+    id: 'night-ops',
+    finished: true,
+    name: 'Night Ops',
+    rarity: 'epic',
+    blurb: 'A black tactical helmet with quad night-vision goggles flipped up, their green lenses softly glowing.',
+    target: { side: 'own', nations: ['british'], units: 'infantry' },
+    look: {
+      images: [{ file: 'night-ops-helmet.svg', pin: 'head', w: 19, h: 15, ax: 0.47, ay: 0.78, replaces: true }],
+      glows: [{ pin: 'head', colour: '#5dff6a', size: 9, alpha: 0.5, pulse: 0.3, x: 7, y: -10 }],
+    },
+  },
+  {
+    id: 'frost-ghoul',
+    finished: true,
+    name: 'Frost Ghoul',
+    rarity: 'epic',
+    blurb: 'An all-white snow suit and hood, a white face mask and mittens, dark tactical goggles and a white-wrapped rifle.',
+    target: { side: 'own', nations: ['soviet'], units: ['sniper'] },
+    look: {
+      headgear: 'snowHood',
+      clothing: 'snowSmock',
+      recolours: [
+        { parts: ['body'], colour: '#f2f2ec', strength: 0.85 },
+        { parts: ['weapon'], colour: '#e8e6dc', strength: 0.7, pattern: { kind: 'stripes', colour: '#b9b6aa', size: 1.2, cover: 0.3 } },
+      ],
+      images: [{ file: 'frost-ghoul-goggles.svg', pin: 'head', w: 9, h: 4.5, ax: 0.5, ay: 0.5, x: 1.5, y: -0.5 }],
+    },
+  },
+  // --- Legendary ---
+  {
+    id: 'heavens-gate',
+    finished: true,
+    name: "Heaven's Gate",
+    rarity: 'legendary',
+    blurb: 'Your HQ becomes tall golden gates in an arched frame, filled with warm light, on a bank of white clouds.',
+    target: { side: 'own', nations: 'all', units: 'hq' },
+    look: {
+      images: [{ file: 'heavens-gate.svg', pin: 'hq', w: 110, h: 110, ax: 0.5, ay: 0.97, replaces: true }],
+      glows: [{ pin: 'hq', colour: '#fff1b0', size: 90, alpha: 0.4, pulse: 0.25, y: -55 }],
+    },
+  },
+  {
+    id: 'furnace-walker',
+    finished: true,
+    name: 'Furnace Walker',
+    rarity: 'legendary',
+    blurb: 'Enemy flamethrowers as soot-black iron soldiers with bronze rivets and a round furnace-hatch head whose grille glows orange.',
+    target: { side: 'enemy', nations: ['german'], units: ['flame'] },
+    look: {
+      recolours: [{ parts: ['body', 'kit'], colour: '#34343a', strength: 0.8, pattern: { kind: 'spots', colour: '#a7834a', size: 1.1, cover: 0.08 } }],
+      images: [{ file: 'furnace-walker-head.svg', pin: 'head', w: 13, h: 12, ax: 0.5, ay: 0.62, replaces: true }],
+      glows: [{ pin: 'head', colour: '#ff8a1e', size: 10, alpha: 0.5, pulse: 0.5, x: 2 }],
+    },
+  },
+  // --- Mythic ---
+  {
+    id: 'zeus',
+    finished: true,
+    name: 'Zeus',
+    rarity: 'mythic',
+    blurb: 'The mortar crew in white robes, gold laurel wreaths and long white beards, in a faint golden glow.',
+    target: { side: 'own', nations: 'all', units: ['mortar'] },
+    look: {
+      recolours: [{ parts: ['body'], colour: '#e6dfc8', strength: 0.8 }],
+      images: [
+        { file: 'zeus-wreath.svg', pin: 'head', w: 15, h: 7.5, ax: 0.5, ay: 0.75, y: -3, replaces: true },
+        { file: 'zeus-beard.svg', pin: 'head', w: 10, h: 16, ax: 0.35, ay: 0.02, x: 3, y: 1.5 },
+      ],
+      glows: [{ pin: 'body', colour: '#ffd86a', size: 34, alpha: 0.3, pulse: 0.35 }],
+    },
+  },
+  {
+    id: 'legacy',
+    finished: true,
+    name: 'Legacy',
+    rarity: 'mythic',
+    blurb: 'Your HQ becomes a weathered stone statue of a soldier in a tin hat, pointing at the enemy, on a stepped pedestal with a doorway. Its eyes glow gold.',
+    target: { side: 'own', nations: 'all', units: 'hq' },
+    look: {
+      images: [{ file: 'legacy-statue.svg', pin: 'hq', w: 120, h: 180, ax: 0.4, ay: 0.99, replaces: true }],
+      glows: [{ pin: 'hq', colour: '#ffd23a', size: 8, alpha: 0.6, pulse: 0.3, x: 18.6, y: -154 }],
+    },
+  },
+];
 
 const PLACEHOLDER_BLURB = 'A placeholder for testing. Not a real design.';
 
@@ -342,7 +511,7 @@ export const COSMETICS: CosmeticsData = {
     groups: { infantry: 'all infantry', tanks: 'all tanks', all: 'every unit' },
     allNations: 'every nation',
   },
-  items: PLACEHOLDERS,
+  items: [...ITEMS, ...PLACEHOLDERS],
 };
 
 /** The unit kinds each group stands for (the platform's extra unit is in none: it has art of its own). */

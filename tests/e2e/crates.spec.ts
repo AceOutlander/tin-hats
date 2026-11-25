@@ -118,7 +118,7 @@ test.describe('supply crates', () => {
     await expect(page.getByTestId('crate-rarity')).toHaveAttribute('data-rarity', String(rarity));
     // The rarity is written out, not only coloured.
     await expect(page.getByTestId('crate-rarity')).toHaveText(/^(Common|Uncommon|Rare|Epic|Legendary|Mythic)$/);
-    if (got?.item) await expect(page.getByTestId('crate-item')).toHaveText(/^Placeholder /);
+    if (got?.item) await expect(page.getByTestId('crate-item')).not.toHaveText(/placeholder/i);
     else await expect(page.getByTestId('crate-duplicate')).toContainText('medals instead');
     await page.waitForTimeout(600);
     await shot(page, 'crates-reveal');

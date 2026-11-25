@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="130" viewBox="0 0 140 130">
+  <!-- "Furnace Walker": a squat round iron furnace-hatch head with one glowing orange grille, facing right. -->
+  <path d="M12 112 C6 60 26 18 72 16 C112 16 134 50 130 112 Z" fill="#2a2a2c" stroke="#a7834a" stroke-width="8" stroke-linejoin="round"/>
+  <circle cx="24" cy="98" r="6" fill="#a7834a"/>
+  <circle cx="40" cy="34" r="6" fill="#a7834a"/>
+  <circle cx="22" cy="62" r="6" fill="#a7834a"/>
+  <rect x="68" y="42" width="56" height="50" rx="10" fill="#ff8a1e" stroke="#a7834a" stroke-width="6"/>
+  <path d="M78 54 L116 54 M78 67 L116 67 M78 80 L116 80" stroke="#7a2a00" stroke-width="6" stroke-linecap="round"/>
+</svg>

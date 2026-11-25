@@ -2,6 +2,24 @@
 
 If you lose track, read this file and carry on from "In progress" and "Next". The live project is this repo (moved out of a cloud-synced folder on 2026-10-01, DECISIONS 216); the old cloud-synced copy is stale. The game is published at https://hunteracedev.com/tin-hats/ (see `CLAUDE.md`, "Push to live").
 
+## Not yet live: the first real skins, and crates hold only finished items (2026-11-24, on main after v0.17.10, DECISIONS 589 to 590)
+
+Not pushed, version not bumped. The website still has crates switched off (`COSMETICS.enabled` false); the Android
+app switches them on through `Platform.cosmetics`.
+
+- **Crates hold only finished items** (`finished: true` in `src/data/cosmetics.ts`); the 13 placeholders stay in the
+  data, unfinished, and never come out of a crate or a platform grant. A crate tier with no finished item is hidden
+  from the Shop; the God Crate stays "Coming soon".
+- **Finished items** (each looked at in a battle at 844x390 and 667x375):
+  Common `frostbite-british`, `frostbite-soviet`; Uncommon `constellation`, `loyalist`; Rare `secret-agent`,
+  `hoodlum`; Epic `night-ops`, `frost-ghoul`; Legendary `heavens-gate`, `furnace-walker`; Mythic `zeus`, `legacy`.
+  Every crate tier, Standard to Titan, is shown.
+- **Started, not finished:** none.
+- What each leaves out of the owner's design: the note under it in `docs/COSMETICS.md`.
+
+Next: more of the owner's designs ("Old Times", "Royal", "Bioblaster", "Spetsnaz", "Reinforced" are the nearest);
+stage 2, the four gold-trim skins of the "Special" rarity.
+
 ## Live as Beta v0.17.10, switched off: cosmetic supply crates, stage 1 (2026-11-24, DECISIONS 574 to 588)
 
 Next: stage 2, the four gold-trim skins of the "Special" rarity (needs a code-drawn look kind in `src/art/skins.ts`).

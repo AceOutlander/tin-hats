@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="70" viewBox="0 0 140 70">
+  <!-- "Zeus": a gold laurel wreath round the head, seen from the side, facing right. -->
+  <path d="M10 46 C40 58 100 58 130 44" fill="none" stroke="#7a5600" stroke-width="10" stroke-linecap="round"/>
+  <g fill="#ffd23a" stroke="#7a5600" stroke-width="4" stroke-linejoin="round">
+    <path d="M18 48 C10 30 24 18 32 22 C34 34 28 44 18 48 Z"/>
+    <path d="M38 52 C30 34 44 20 52 24 C54 36 48 48 38 52 Z"/>
+    <path d="M60 54 C54 36 68 22 76 26 C76 38 70 50 60 54 Z"/>
+    <path d="M82 54 C78 36 92 24 100 28 C98 40 92 50 82 54 Z"/>
+    <path d="M104 50 C102 32 116 22 124 26 C120 38 114 46 104 50 Z"/>
+  </g>
+</svg>

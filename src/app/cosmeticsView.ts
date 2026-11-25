@@ -12,6 +12,7 @@ import {
   cosmeticItem,
   cosmeticsOf,
   crateComplete,
+  crateStocked,
   cratesHeld,
   guaranteeWithin,
   isWorn,
@@ -56,11 +57,16 @@ function crateCard(save: SaveData, def: CrateDef, buying: boolean): CrateCardVie
 
 /**
  * The crate section. Where crates are sold: every crate in Shop order (the God Crate as "Coming soon"). Where they are
- * not: the crate free ones come as, and any other type the player holds, to open; nothing that names a price.
+ * not: the crate free ones come as, and any other type the player holds, to open; nothing that names a price. Either
+ * way a crate none of whose rarities has a finished item yet is left out (crateStocked) unless the player holds one;
+ * the God Crate stays as "Coming soon".
  */
-export function buildCratesView(save: SaveData, buying: boolean): CratesView {
+export function buildCratesView(save: SaveData, buying: boolean, items: readonly CosmeticItem[] = COSMETICS.items): CratesView {
   const T = CRATES.text;
-  const shown = CRATES.defs.filter((def) => buying || (def.available && (def.id === CRATES.free.crate || cratesHeld(save, def.id) > 0)));
+  const stocked = (def: CrateDef): boolean => !def.available || crateStocked(def, items) || cratesHeld(save, def.id) > 0;
+  const shown = CRATES.defs.filter(
+    (def) => stocked(def) && (buying || (def.available && (def.id === CRATES.free.crate || cratesHeld(save, def.id) > 0))),
+  );
   return {
     heading: T.heading,
     intro: T.intro,

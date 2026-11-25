@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300" viewBox="0 0 200 300">
+  <!-- "Legacy": a weathered stone statue of a soldier in a tin hat, pointing at the enemy (to the right) with one arm,
+       the other hand on a grounded rifle, on a stepped stone pedestal with a plain plaque and an arched doorway. -->
+  <g stroke="#3d4044" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M4 298 L196 298 L196 278 L4 278 Z" fill="#7d8186"/>
+    <path d="M16 278 L184 278 L184 258 L16 258 Z" fill="#8c9095"/>
+    <path d="M28 258 L172 258 L172 190 L28 190 Z" fill="#9a9ea3"/>
+    <path d="M20 190 L180 190 L180 176 L20 176 Z" fill="#a9adb2"/>
+    <path d="M44 258 L44 222 C44 206 70 206 70 222 L70 258 Z" fill="#26282b"/>
+    <rect x="98" y="204" width="58" height="34" rx="4" fill="#b3b7bc"/>
+    <path d="M127 210 L137 221 L127 232 L117 221 Z" fill="#8c9095"/>
+  </g>
+  <path d="M30 196 C40 200 46 196 52 200 M150 270 C158 266 164 272 172 268 M176 194 C172 204 178 210 174 220" fill="none" stroke="#5f8a3a" stroke-width="6" stroke-linecap="round"/>
+  <g stroke="#3d4044" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M70 24 L70 172" stroke-width="7"/>
+    <path d="M60 172 L76 172" stroke-width="8"/>
+    <path d="M100 172 L98 120 M120 172 L114 120" stroke-width="20"/>
+    <path d="M100 172 L98 120 M120 172 L114 120" stroke="#a9adb2" stroke-width="12"/>
+    <path d="M104 122 L102 62" stroke-width="30"/>
+    <path d="M104 122 L102 62" stroke="#a9adb2" stroke-width="22"/>
+    <path d="M100 70 L78 98 L72 94" stroke-width="14"/>
+    <path d="M100 70 L78 98 L72 94" stroke="#a9adb2" stroke-width="8"/>
+    <path d="M106 68 L150 56 L178 48" stroke-width="14"/>
+    <path d="M106 68 L150 56 L178 48" stroke="#a9adb2" stroke-width="8"/>
+  </g>
+  <path d="M63 132 L77 132 L80 172 L60 172 Z" fill="#8c9095" stroke="#3d4044" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="104" cy="40" r="15" fill="#a9adb2" stroke="#3d4044" stroke-width="5"/>
+  <path d="M80 30 C84 14 124 14 128 30 Z" fill="#9a9ea3" stroke="#3d4044" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M74 30 L134 30" stroke="#3d4044" stroke-width="7" stroke-linecap="round"/>
+  <path d="M74 30 L134 30" stroke="#9a9ea3" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="111" cy="40" r="3.5" fill="#ffd23a"/>
+  <path d="M96 100 L108 112 M92 140 L100 146" stroke="#5f8a3a" stroke-width="4" stroke-linecap="round"/>
+</svg>

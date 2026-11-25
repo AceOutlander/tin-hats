@@ -3,7 +3,7 @@
  * crates held and their counters, which src/meta/crates.ts works on). Pure functions; the ones that change a save
  * change it in place. Nothing here reaches a battle's rules: the app hands what is worn to the battle's view only.
  */
-import { COSMETICS, UNIT_GROUPS, type CosmeticItem, type Rarity } from '../data/cosmetics';
+import { COSMETICS, RARITIES, UNIT_GROUPS, type CosmeticItem, type Rarity } from '../data/cosmetics';
 import { CRATES, type CrateId } from '../data/crates';
 import { FACTION_IDS } from '../data/factions';
 import type { FactionId, UnitKind } from '../data/schema';
@@ -52,6 +52,14 @@ export function cosmeticItem(id: string): CosmeticItem | undefined {
 /** Every item of a rarity, in data order (the set "no duplicates until a set is complete" speaks of). */
 export function itemsOfRarity(rarity: Rarity, items: readonly CosmeticItem[] = COSMETICS.items): CosmeticItem[] {
   return items.filter((item) => item.rarity === rarity);
+}
+
+/**
+ * The items a crate may hold: finished ones (never a placeholder) of a rarity crates carry. Unfinished items stay in
+ * the data for building and testing, and never come out of a crate.
+ */
+export function crateItems(items: readonly CosmeticItem[] = COSMETICS.items): CosmeticItem[] {
+  return items.filter((item) => item.finished === true && item.placeholder !== true && RARITIES[item.rarity].inCrates);
 }
 
 export function ownsItem(save: SaveData, id: string): boolean {

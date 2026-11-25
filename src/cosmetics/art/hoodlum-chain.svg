@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="90" height="80" viewBox="0 0 90 80">
+  <!-- "Hoodlum": a chunky gold chain hanging round the neck. -->
+  <path d="M10 6 C10 50 30 70 46 70 C62 70 80 50 80 6" fill="none" stroke="#5a3e00" stroke-width="16" stroke-linecap="round"/>
+  <path d="M10 6 C10 50 30 70 46 70 C62 70 80 50 80 6" fill="none" stroke="#ffcf33" stroke-width="10" stroke-linecap="round" stroke-dasharray="12 5"/>
+</svg>

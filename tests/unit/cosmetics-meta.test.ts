@@ -11,6 +11,7 @@ import { UNIT_KINDS } from '../../src/data/units';
 import {
   cosmeticItem,
   cosmeticsOf,
+  crateItems,
   defaultSave,
   giveItem,
   isWorn,
@@ -62,6 +63,21 @@ describe('the cosmetics data', () => {
   it('the switch stays off while a stand-in is in the list: players never see a placeholder', () => {
     const standIns = COSMETICS.items.filter((i) => i.placeholder === true);
     expect(COSMETICS.enabled && standIns.length > 0).toBe(false);
+  });
+
+  it('crates hold only finished items: never a stand-in, never a Special, never one still being built', () => {
+    const inCrates = crateItems();
+    for (const item of inCrates) {
+      expect(item.finished, item.id).toBe(true);
+      expect(item.placeholder, item.id).toBeUndefined();
+      expect(RARITIES[item.rarity].inCrates, item.id).toBe(true);
+    }
+    for (const item of COSMETICS.items) if (item.placeholder === true) expect(item.finished, item.id).not.toBe(true);
+    expect(inCrates.length).toBe(COSMETICS.items.filter((i) => i.finished === true).length);
+    // Two finished items or more of every rarity from Common to Mythic, so every crate tier has something.
+    for (const r of CRATE_TIERS) expect(itemsOfRarity(r, inCrates).length, r).toBeGreaterThanOrEqual(2);
+    // "Hacked" is not built: nothing finished for "???".
+    expect(itemsOfRarity('secret', inCrates)).toEqual([]);
   });
 
   it('the stand-ins are enough to try a set of every crate tier, a Special, and nothing for "???"', () => {

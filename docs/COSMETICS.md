@@ -1,6 +1,6 @@
 # Cosmetics: design notes (from the owner)
 
-Design notes for the cosmetic items that the supply crates will hold. Nothing here is built yet. The crate system
+Design notes for the cosmetic items that the supply crates will hold. Items built so far say so under their design, with what was left out; the rest are not built. The crate system
 itself is queued in `docs/QUEUE.md` ("cosmetic supply crates"); the owner designs every item.
 How an item is added, and what one can and cannot be without a programmer: `docs/COSMETICS_GUIDE.md`.
 
@@ -24,7 +24,9 @@ Owner, verbatim (2026-11-18):
   helmet otherwise.
 - Purely cosmetic, with no gameplay effect.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `night-ops` (Epic, every British infantry type): a black tactical helmet picture in place of the dish helmet, with side rails and quad night-vision goggles flipped up on it, their green lenses lit by a faint steady glow. Left out: the goggles flipping down on night or rainy missions (they are always up: a picture cannot change with the battle) and any other "attachments" beyond the rails.
 
 ## "Royal" (Common), British Lieutenant
 
@@ -113,7 +115,9 @@ Owner, verbatim (2026-11-18):
 - The rifle wrapped in white cloth strips.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `frost-ghoul` (Epic, Soviet snipers): the game's own white snow hood and smock, the whole figure (face, hands, legs) painted white for the mask and mittens, dark-lensed goggles with a strap pinned over the face, and the rifle painted white with grey wrap stripes. Left out: a separate loose cape-like hood (the game's hood is used) and real cloth strips on the rifle (stripes of paint).
 
 What the reference photo shows (general look only; the photo is not ours to publish and is not in the repo; the
 owner has it):
@@ -215,7 +219,9 @@ Owner, verbatim (2026-11-18):
 - It replaces the HQ's look at every Quartermaster upgrade level, so upgrades are shown with extra gold detail and more light instead.
 - Purely cosmetic: same size, hitbox, health and everything else as the normal HQ.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `heavens-gate` (Legendary, your HQ, every nation): while the HQ stands, its building is replaced by a picture of tall golden gates in an arched frame, warm white-gold light filling the arch, on a bank of white clouds that reaches the ground, with a soft slowly swelling glow. The nation's flag and the HQ's health show as they do for the normal HQ; the ruin is the game's own. Left out: the hover and drift, swirling clouds, rising motes, the flare when a unit walks out, dimming and scorching with damage, the burst on destruction, and extra detail per upgrade level (the same gates at every level).
 
 Notes for whoever builds it (not the owner's words):
 
@@ -240,7 +246,9 @@ Owner, verbatim (2026-11-18):
 - No symbols or emblems.
 - Purely cosmetic: same size, hitbox, speed, range, damage and everything else as the normal flamethrower.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `furnace-walker` (Legendary, how enemy German flamethrowers look): the figure and kit painted soot-black steel with small bronze rivet dots, and a squat round iron furnace-hatch head with bronze rivets and one orange grille in place of the helmet, with a pulsing orange glow at the grille. Left out: the robot body shapes (joints, plates), the built-in tank with two hoses and the two-barrelled cannon (he keeps the game's flamethrower), the shoulder exhausts and smoke, the brighter glow while firing, the clanking and steam sounds and the heap of parts on death. Nothing of the reference picture is used.
 
 What the reference image shows (general idea only; it is someone else's character artwork, is not in the repo,
 and nothing of its design, colours or emblem may be copied; the owner has it):
@@ -330,7 +338,9 @@ Owner, verbatim (2026-11-18):
 - The lightning lands on the mortar's normal target and timing, with the same splash area, so players can still read where it hits.
 - Purely cosmetic: same size, hitbox, speed, range (including minimum range), damage, splash and reload as the normal mortar.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `zeus` (Mythic, the mortar team of every nation): both men of the crew painted in white robes, with a gold laurel wreath in place of the helmet, a long white beard, and a faint slowly swelling golden glow. Left out: the throne, the crew drawn as one man, the pointing arm and the lightning bolt in place of the shell (shots, timing and sounds are the game's own).
 
 Notes for whoever builds it (not the owner's words):
 
@@ -351,7 +361,9 @@ Owner, verbatim (2026-11-21):
 - Colour and paint only, no shape changes.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `constellation` (Uncommon, every Soviet tank type): hull, turret and gun painted night-sky blue with small yellow star-like dots. The red star marking stays: a red star with a white edge is pinned on the turret over the paint, so the side still reads at a glance. Left out: nothing of the design; the "stars" are round dots, not five-pointed, at phone size.
 
 Notes (not the owner's words): a deep blue tank must still stand out on night maps, so give it a lighter edge or
 keep the stars bright enough to carry the outline. Say whether the tank's red star marking stays over the paint;
@@ -419,7 +431,9 @@ Owner, added 2026-11-23, for when it is actually built (verbatim):
 These notes go beyond the reference sketch, which the owner chose not to have redrawn: where they differ (the
 sketch has a leaning stance, bent legs, a plain pedestal, no plaque, vines or birds), the notes win.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `legacy` (Mythic, your HQ, every nation): while the HQ stands, its building is replaced by a picture of a weathered grey stone statue of a soldier in a tin hat, one arm pointing at the enemy and the other hand on a grounded rifle, on a wide stepped pedestal with a plain plaque (a carved diamond, no text) and an arched doorway, a little moss in places, and gold eyes with a faint glow. It is about two soldiers tall on its pedestal, not three to four, so its top stays clear of the top bar. Left out: chunks falling with damage and the crumbling (the ruin is the game's own), upgrade details (banners, torches, a bigger pedestal), birds, the nation's helmet (one tin hat for all), and full stone shading.
 
 Reference sketch (ours, drawn for this note): `docs/cosmetics/legacy-hq-concept.svg`. It shows the statue as the
 player's HQ, with a soldier for scale and insets for "damaged" and "upgraded". It is a concept drawing, not game
@@ -450,7 +464,9 @@ Owner, verbatim (2026-11-23):
 - Optional small touch: a thin scarf or tie in a muted colour.
 - Purely cosmetic: same size, hitbox, speed, health, damage and everything else as normal.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `secret-agent` (Rare, British assault troopers): a charcoal fedora with a pale edge and a tan band in place of the helmet, the figure and kit painted charcoal for the coat, and a long coat tail hanging behind from the waist that sways gently (more while he moves). Left out: the turned-up collar and the scarf or tie.
 
 Notes (not the owner's words): the game's figures are black, so a dark hat and a dark coat need a lighter edge or
 a paler tone (charcoal grey, a tan lining) to read at phone size and on night maps. The hat's brim must stay
@@ -464,7 +480,9 @@ Owner, verbatim (2026-11-23):
 - Everything stays the same, except a red cap replaces their usual headgear, with a small Soviet flag emblem (red star with hammer and sickle) on the front.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `loyalist` (Uncommon, Soviet sappers): a red peaked field cap with a light edge in place of the helmet, with a gold star badge on the front. Left out: the hammer and sickle (at phone size the badge is a few pixels; a gold star reads, as the note above suggests).
 
 Notes (not the owner's words): a red star on a red cap will not show; give the emblem a gold or yellow star and
 hammer and sickle, as on the flag, or a thin gold edge. At phone size the emblem is a few pixels: a gold dot that
@@ -521,7 +539,9 @@ Owner, verbatim (2026-11-23):
 - Their gun becomes a modern pistol in a carbine conversion kit (in the style of a pistol-carbine kit), but with a wooden stock for an old-school gangster feel. Generic design, no real brand names or logos.
 - Purely cosmetic: same size, hitbox, speed, damage, fire rate and everything else as the normal SMG trooper.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `hoodlum` (Rare, how enemy German assault troopers look): a black ski mask with a grey edge and an eye slit in place of the helmet, the figure and kit painted dark grey for the hoodie, and a chunky gold chain on the chest that swings as they move. Left out: the pistol-carbine gun (they keep the MP40; a new weapon outline needs a programmer). No marker of any real group.
 
 Notes (not the owner's words):
 
@@ -576,7 +596,9 @@ Owner, verbatim:
 - Colour change only, no shape or gear changes: uniforms and helmets turn white with a green camouflage pattern.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `frostbite-british` and `frostbite-soviet` (Common, the riflemen of each nation, each its own item): uniforms and helmets painted white with green camouflage blotches. Nothing of the design left out.
 
 Note (not the owner's words): this is the simplest kind of skin, a recolour of the normal art, and a good first
 one to prove the system with. Each nation's version counts as its own item in a set, for the no-duplicates rule.

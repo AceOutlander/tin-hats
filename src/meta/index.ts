@@ -69,6 +69,7 @@ export {
 export {
   cosmeticItem,
   cosmeticsOf,
+  crateItems,
   emptyCosmetics,
   ensureCosmetics,
   giveItem,
@@ -94,6 +95,7 @@ export {
   canBuyCrate,
   crateComplete,
   crateRng,
+  crateStocked,
   cratesHeld,
   duplicateReturn,
   freeCratesEarned,

@@ -16,7 +16,7 @@ import { COSMETICS, RARITY_ORDER, type CosmeticItem, type Rarity } from '../data
 import { CRATES, ODDS_PARTS, crateDef, type CrateDef, type CrateId } from '../data/crates';
 import { META } from '../data/meta';
 import { isCleared } from './campaign';
-import { cosmeticsOf, ensureCosmetics, giveItem, itemsOfRarity, ownsItem } from './cosmetics';
+import { cosmeticsOf, crateItems, ensureCosmetics, giveItem, itemsOfRarity, ownsItem } from './cosmetics';
 import { addMedals, isGrantId, type GrantOutcome } from './medals';
 import type { SaveData } from './save';
 
@@ -93,9 +93,19 @@ export function guaranteeWithin(save: SaveData, def: CrateDef, rarity: Rarity): 
   return Math.max(1, g.every - (cosmeticsOf(save).since[def.id]?.[rarity] ?? 0));
 }
 
-/** Items of a rarity the save does not own yet (the ones a roll of that rarity may give). */
+/** Finished items of a rarity the save does not own yet (the ones a roll of that rarity may give). */
 export function unownedOf(save: SaveData, rarity: Rarity, items: readonly CosmeticItem[] = COSMETICS.items): CosmeticItem[] {
-  return itemsOfRarity(rarity, items).filter((item) => !ownsItem(save, item.id));
+  return itemsOfRarity(rarity, crateItems(items)).filter((item) => !ownsItem(save, item.id));
+}
+
+/**
+ * True when at least one rarity of the crate's table has a finished item. A crate that could only ever pay medals back
+ * is not shown in the Shop, not sold and not granted. Its table stays the exact one: a rarity with no finished item
+ * yet pays medals, as a duplicate does.
+ */
+export function crateStocked(def: CrateDef, items: readonly CosmeticItem[] = COSMETICS.items): boolean {
+  const ready = crateItems(items);
+  return def.odds.some((o) => itemsOfRarity(o.rarity, ready).length > 0);
 }
 
 /** True when the save owns every item of every rarity this crate can hold: it would only give medals back. */
@@ -156,17 +166,17 @@ export function openHeld(save: SaveData, id: CrateId, seed: number): CrateResult
 }
 
 /** True when the save may buy this crate: it is on sale and the medals are there. */
-export function canBuyCrate(save: SaveData, id: string): boolean {
+export function canBuyCrate(save: SaveData, id: string, items: readonly CosmeticItem[] = COSMETICS.items): boolean {
   const def = crateDef(id);
-  return def !== undefined && def.available && save.medals >= def.price;
+  return def !== undefined && def.available && crateStocked(def, items) && save.medals >= def.price;
 }
 
 /** Buy a crate with medals and open it at once. Null (nothing changed) when it cannot be bought. */
-export function buyCrate(save: SaveData, id: string, seed: number): CrateResult | null {
+export function buyCrate(save: SaveData, id: string, seed: number, items: readonly CosmeticItem[] = COSMETICS.items): CrateResult | null {
   const def = crateDef(id);
-  if (!def || !canBuyCrate(save, id)) return null;
+  if (!def || !canBuyCrate(save, id, items)) return null;
   save.medals -= def.price;
-  return openCrate(save, def, seed);
+  return openCrate(save, def, seed, items);
 }
 
 // --- free crates ---------------------------------------------------------------------------------------------------------
@@ -212,7 +222,7 @@ function takeGrant(save: SaveData, grantId: string): void {
  */
 export function grantCrateOnce(save: SaveData, crate: string, grantId: string): GrantOutcome {
   const def = crateDef(crate);
-  if (!isGrantId(grantId) || !def || !def.available) return 'failed';
+  if (!isGrantId(grantId) || !def || !def.available || !crateStocked(def)) return 'failed';
   if ((save.grants ?? []).includes(grantId)) return 'already';
   if (cratesHeld(save, def.id) >= CRATES.maxHeld) return 'failed';
   addCrates(save, def.id, 1);
@@ -222,10 +232,11 @@ export function grantCrateOnce(save: SaveData, crate: string, grantId: string): 
 
 /**
  * Give one item once, the same way. An item the save already owns is not a failure: the grant is taken and nothing
- * else changes. Not given when the id is unusable or this build does not know the item.
+ * else changes. Not given when the id is unusable, or this build does not know the item or has not finished it (a
+ * placeholder or an item still being built is never handed to a player).
  */
 export function grantItemOnce(save: SaveData, item: string, grantId: string): GrantOutcome {
-  if (!isGrantId(grantId) || !COSMETICS.items.some((i) => i.id === item)) return 'failed';
+  if (!isGrantId(grantId) || !COSMETICS.items.some((i) => i.id === item && i.finished === true && i.placeholder !== true)) return 'failed';
   if ((save.grants ?? []).includes(grantId)) return 'already';
   if (!ownsItem(save, item) && !giveItem(save, item)) return 'failed';
   takeGrant(save, grantId);
