@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="170" height="150" viewBox="0 0 170 150">
+  <!-- "Old Times": a plain field spiked helmet in black leather with dull grey-steel fittings, a small plain front
+       plate, a short front peak and neck guard, seen from the side, facing right. -->
+  <path d="M26 118 C22 80 46 58 86 56 C124 58 146 80 144 118 Z" fill="#1e1c1a" stroke="#8d949a" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M140 110 L166 122 L160 130 L136 122 Z" fill="#1e1c1a" stroke="#8d949a" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M28 108 L10 120 L16 128 L34 120 Z" fill="#1e1c1a" stroke="#8d949a" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M66 58 L104 58 L98 48 L72 48 Z" fill="#7d858c" stroke="#4a5056" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M74 48 L85 4 L96 48 Z" fill="#9aa2a8" stroke="#4a5056" stroke-width="4" stroke-linejoin="round"/>
+  <ellipse cx="124" cy="88" rx="11" ry="13" fill="#7d858c" stroke="#4a5056" stroke-width="4"/>
+  <circle cx="60" cy="106" r="7" fill="#7d858c" stroke="#4a5056" stroke-width="3"/>
+  <path d="M60 112 C70 132 100 140 128 128" fill="none" stroke="#5a4a3a" stroke-width="6" stroke-linecap="round"/>
+</svg>

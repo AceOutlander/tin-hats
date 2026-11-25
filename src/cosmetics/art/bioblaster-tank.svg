@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="110" height="170" viewBox="0 0 110 170">
+  <!-- "Bioblaster": a black canister worn on the back, with a glass window of glowing green liquid and a hose. -->
+  <rect x="14" y="10" width="62" height="150" rx="22" fill="#18191b" stroke="#8a929a" stroke-width="7"/>
+  <rect x="28" y="40" width="34" height="90" rx="12" fill="#3a5a2a" stroke="#c9d1d8" stroke-width="5"/>
+  <path d="M31 84 C40 78 50 90 59 82 L59 120 C59 126 31 126 31 120 Z" fill="#7dff3a"/>
+  <circle cx="40" cy="104" r="4" fill="#d8ffb8"/>
+  <circle cx="50" cy="96" r="3" fill="#d8ffb8"/>
+  <path d="M76 140 C100 140 104 120 104 96" fill="none" stroke="#2a2c2e" stroke-width="12" stroke-linecap="round"/>
+  <path d="M76 140 C100 140 104 120 104 96" fill="none" stroke="#5aff3a" stroke-width="4" stroke-linecap="round"/>
+</svg>

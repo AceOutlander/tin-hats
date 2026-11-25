@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="150" viewBox="0 0 180 150">
+  <!-- "Royal": a polished silver cavalry dress helmet with gold trim, a gold star plate, a gold laurel band,
+       a side rosette, a chin chain and a gold top spike, seen from the side, facing right. -->
+  <path d="M30 116 C26 70 50 40 90 38 C128 40 150 70 146 116 Z" fill="#d6dde4" stroke="#5a6470" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M52 66 C62 52 80 46 96 46" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M132 112 L172 128 L166 136 L128 124 Z" fill="#d6dde4" stroke="#c8961e" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M30 116 L14 122 L18 130 L40 124" fill="#d6dde4" stroke="#c8961e" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M30 104 C70 110 110 110 146 102" fill="none" stroke="#e0aa22" stroke-width="10" stroke-linecap="round"/>
+  <path d="M126 64 L134 78 L148 76 L140 88 L148 100 L134 98 L126 110 L120 96 L106 92 L118 84 L114 70 Z" fill="#ffd23a" stroke="#8a6400" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="129" cy="87" r="6" fill="#d6dde4" stroke="#8a6400" stroke-width="3"/>
+  <circle cx="68" cy="104" r="9" fill="#ffd23a" stroke="#8a6400" stroke-width="4"/>
+  <path d="M68 112 C70 134 96 146 118 138" fill="none" stroke="#e0aa22" stroke-width="5" stroke-dasharray="7 4"/>
+  <path d="M84 40 L90 6 L96 40 Z" fill="#ffd23a" stroke="#8a6400" stroke-width="4" stroke-linejoin="round"/>
+</svg>

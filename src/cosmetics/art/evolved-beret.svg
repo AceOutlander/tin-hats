@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90" viewBox="0 0 160 90">
+  <!-- "Evolved": a dark red beret pulled to one side, seen from the side, facing right. -->
+  <path d="M16 70 C6 40 40 12 86 10 C130 10 156 26 150 44 C146 56 128 62 112 64 L112 72 L22 76 Z" fill="#9a1e24" stroke="#f0c0b8" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M22 68 L112 64 L112 78 L22 82 Z" fill="#2a1a12" stroke="#f0c0b8" stroke-width="5" stroke-linejoin="round"/>
+</svg>

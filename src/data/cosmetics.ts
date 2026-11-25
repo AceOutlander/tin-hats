@@ -351,6 +351,69 @@ const ITEMS: readonly CosmeticItem[] = [
       glows: [{ pin: 'hq', colour: '#ffd23a', size: 8, alpha: 0.6, pulse: 0.3, x: 18.6, y: -154 }],
     },
   },
+  // --- more, in the order they were built ---
+  {
+    id: 'royal',
+    finished: true,
+    name: 'Royal',
+    rarity: 'common',
+    blurb: 'A polished silver dress helmet with gold trim, a gold star plate, a top spike and a cream plume that sways as he moves.',
+    target: { side: 'own', nations: ['british'], units: ['commander'] },
+    look: {
+      images: [
+        { file: 'royal-helmet.svg', pin: 'head', w: 18, h: 15, ax: 0.5, ay: 0.8, replaces: true },
+        { file: 'royal-plume.svg', pin: 'head', w: 9, h: 14, ax: 0.78, ay: 0.04, x: 0, y: -14, swing: { degrees: 6, perSecond: 0.7 } },
+      ],
+    },
+  },
+  {
+    id: 'old-times',
+    finished: true,
+    name: 'Old Times',
+    rarity: 'uncommon',
+    blurb: 'Enemy German soldiers in plain black spiked helmets with grey-steel fittings and field-grey uniforms.',
+    target: { side: 'enemy', nations: ['german'], units: 'infantry' },
+    look: {
+      recolours: [{ parts: ['body'], colour: '#6f7468', strength: 0.55 }],
+      images: [{ file: 'old-times-helmet.svg', pin: 'head', w: 17, h: 15, ax: 0.5, ay: 0.8, replaces: true }],
+    },
+  },
+  {
+    id: 'bioblaster',
+    name: 'Bioblaster',
+    rarity: 'epic',
+    blurb: 'A black canister on his back with a window of glowing green liquid and a green-lit hose. The flame stays the game\'s own.',
+    target: { side: 'own', nations: ['soviet'], units: ['flame'] },
+    look: {
+      images: [{ file: 'bioblaster-tank.svg', pin: 'body', w: 7, h: 11, ax: 0.5, ay: 0.5, x: -4.5, y: 0 }],
+      glows: [{ pin: 'body', colour: '#7dff3a', size: 9, alpha: 0.45, pulse: 0.5, x: -4.5, y: 1 }],
+    },
+  },
+  {
+    id: 'spetsnaz',
+    name: 'Spetsnaz',
+    rarity: 'epic',
+    blurb: 'A heavy olive armoured helmet with a flat visor, one narrow eye slit and a white stencilled mark, and olive webbing.',
+    target: { side: 'own', nations: ['soviet'], units: ['lmg'] },
+    look: {
+      recolours: [{ parts: ['kit'], colour: '#55603a', strength: 0.8 }, { parts: ['body'], colour: '#3e4530', strength: 0.5 }],
+      images: [{ file: 'spetsnaz-helmet.svg', pin: 'head', w: 17, h: 16, ax: 0.5, ay: 0.7, replaces: true }],
+    },
+  },
+  {
+    id: 'evolved',
+    name: 'Evolved',
+    rarity: 'epic',
+    blurb: 'Red berets and a modern green-and-tan camouflage uniform.',
+    target: { side: 'own', nations: ['soviet'], units: ['rifle'] },
+    look: {
+      recolours: [
+        { parts: ['body'], colour: '#8c8a5a', strength: 0.75, pattern: { kind: 'blotches', colour: '#4f6a36', size: 2.2, cover: 0.35 } },
+        { parts: ['kit'], colour: '#3a3f2c', strength: 0.7 },
+      ],
+      images: [{ file: 'evolved-beret.svg', pin: 'head', w: 15, h: 8.5, ax: 0.5, ay: 0.85, y: -1, replaces: true }],
+    },
+  },
 ];
 
 const PLACEHOLDER_BLURB = 'A placeholder for testing. Not a real design.';

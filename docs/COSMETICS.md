@@ -40,7 +40,9 @@ Owner, verbatim (2026-11-18):
 - Simplified to read clearly at phone size in the stick-figure style.
 - Purely cosmetic, no gameplay change.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `royal` (Common, the British Lieutenant): a polished silver dress helmet picture in place of the helmet, with a gold brim edge, a short back peak, a gold eight-pointed star plate with a plain silver centre, a gold laurel band, a gold side rosette, a gold chin chain and a gold top spike, and a cream plume from the spike down the back that sways (wider while he moves). Left out: the laurel leaves are a plain gold band, and the ring of leaves at the foot of the spike; nothing of any real badge is used.
 
 What the reference photo shows (described here because the photo is not ours to publish and is not in the repo;
 the owner has it):
@@ -64,7 +66,9 @@ Owner, verbatim (2026-11-18):
 - Full WW1 field gear: a field-grey tunic with buttons down the front, leather belts with ammo pouches, tall boots, a rolled blanket over the shoulder and a bayonet on the rifle.
 - No Nazi symbols, as always.
 
-Status: design note only. Don't build it yet.
+Status: built (see below); the design above is kept as the owner wrote it.
+
+Built 2026-11-24 as `old-times` (Uncommon, how every enemy German infantry type looks): a plain black spiked helmet picture with a grey edge, a short front peak and neck guard, dull grey-steel spike, side boss and small plain front plate, and a brown chin strap, in place of the helmet; uniforms painted field grey. Left out: the buttons, belts and pouches, tall boots, blanket roll and bayonet (the game's own kit and rifle are kept).
 
 What the reference photo shows (the photo is not ours to publish and is not in the repo; the owner has it). It is
 a parade version; the owner wants the plain field version of the same shape:

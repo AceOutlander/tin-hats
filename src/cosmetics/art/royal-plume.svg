@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="90" height="140" viewBox="0 0 90 140">
+  <!-- "Royal": the cream horsehair plume, hanging from the top spike down the back of the helmet (he faces right). -->
+  <path d="M70 6 C40 6 16 30 10 70 C6 100 10 122 16 134 C28 116 34 100 40 82 C46 64 60 40 82 14 Z" fill="#f4ead0" stroke="#9a8a62" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M60 18 C40 36 28 64 22 110 M70 22 C52 46 40 74 32 104" fill="none" stroke="#d8c9a0" stroke-width="4" stroke-linecap="round"/>
+</svg>
